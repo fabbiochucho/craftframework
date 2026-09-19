@@ -1,0 +1,50 @@
+[build]
+  command = "vite build"
+  publish = "dist/client"
+[dev]
+  command = "npm run dev"
+  targetPort = 3000
+  port = 8888
+
+# ---------------------------------------------------------------------------
+# CRAFT v4.0 — Functions, scheduled jobs & edge auth
+# ---------------------------------------------------------------------------
+# Serverless functions live in netlify/functions; edge functions in
+# netlify/edge-functions (both are the Netlify defaults).
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Routing, scheduling and edge path-matching are declared via in-code `config`
+# exports (the Netlify-recommended approach, matching netlify/edge-functions/
+# lang-detect.ts). They are listed here for visibility:
+#
+#   [[scheduled_functions]]        →  compliance-alerts.mts  (config.schedule = "@daily")
+#     path = "/.netlify/functions/compliance-alerts"
+#     schedule = "@daily"          #  daily scan of compliance_items where
+#                                  #  due_date - today <= 90 → Resend PU/PUDR/FCR alerts
+#
+#   [[edge_functions]]             →  auth.ts  (config.path = ["/dashboard/*", ...])
+#     function = "auth"            #  decodes netlify-gotrue-jwt, stamps x-craft-org /
+#     path = "/dashboard/*"        #  x-craft-role isolation headers, 403s /verify/*
+#     path = "/data-room/*"        #  for non-assessor roles
+#     path = "/assessment/*"
+#     path = "/verify/*"
+#
+#   presigned-url.mts              →  config.path = "/api/presigned-url"  (Data Room uploads)
+#
+# ---------------------------------------------------------------------------
+# Netlify Database (managed Postgres) — Drizzle ORM
+# ---------------------------------------------------------------------------
+# Schema lives in db/schema.ts; migrations in netlify/database/migrations are
+# applied automatically at deploy time. The following functions read/write the
+# database through Drizzle (db/index.ts) and back the React app's data layer:
+#
+#   questions.mts          →  GET  /api/questions          (question bank; lazily seeds a fresh DB)
+#   seed-db.mts            →  POST /api/seed               (idempotent question-bank reseed)
+#   organizations.mts      →  GET/POST /api/organizations  (tenants / institutions)
+#   responses.mts          →  GET/POST/PUT /api/responses  (assessment scores)
+#   capacity-actions.mts   →  GET/PUT /api/capacity-actions (Capacity Improvement Plan)
+#   compliance.mts         →  GET/POST/PATCH /api/compliance (Obligations calendar)
+#   audit.mts              →  GET/POST /api/audit          (append-only activity log)
+

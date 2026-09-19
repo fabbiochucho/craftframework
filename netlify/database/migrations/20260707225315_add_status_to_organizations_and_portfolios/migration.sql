@@ -1,0 +1,2 @@
+ALTER TABLE "organizations" ADD COLUMN IF NOT EXISTS "status" text DEFAULT 'active' NOT NULL;--> statement-breakpoint
+ALTER TABLE "portfolios" ADD COLUMN IF NOT EXISTS "status" text DEFAULT 'active' NOT NULL;
