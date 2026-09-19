@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="ogbg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#022c22"/>
+      <stop offset="0.6" stop-color="#03291f"/>
+      <stop offset="1" stop-color="#021712"/>
+    </linearGradient>
+    <radialGradient id="oghalo" cx="330" cy="315" r="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10b981" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shieldBody" x1="330" y1="150" x2="330" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#065f46"/>
+      <stop offset="0.55" stop-color="#064e3b"/>
+      <stop offset="1" stop-color="#03261d"/>
+    </linearGradient>
+    <linearGradient id="deltaGrad" x1="330" y1="205" x2="330" y2="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fcd34d"/>
+      <stop offset="0.16" stop-color="#fbbf24"/>
+      <stop offset="0.46" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+    <radialGradient id="apexSpark" cx="330" cy="232" r="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="deltaGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#ogbg)"/>
+  <rect width="1200" height="630" fill="url(#oghalo)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="#fbbf24"/>
+
+  <!-- Logo, centered around x=330,y=315 -->
+  <g transform="translate(74,165) scale(0.77)">
+    <path d="M134 116 H378 Q402 116 402 140 V296 Q402 398 256 466 Q110 398 110 296 V140 Q110 116 134 116 Z"
+          fill="url(#shieldBody)"/>
+    <path d="M158 156 H354 Q372 156 372 174 V292 Q372 372 256 426 Q140 372 140 292 V174 Q140 156 158 156 Z"
+          fill="none" stroke="#10b981" stroke-opacity="0.35" stroke-width="6"/>
+    <path d="M256 156 V196 M158 292 H210 M354 292 H302" stroke="#34d399" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="256" cy="178" r="44" fill="url(#apexSpark)"/>
+    <path fill-rule="evenodd" fill="url(#deltaGrad)" filter="url(#deltaGlow)"
+          d="M256 152 L364 360 H148 Z M256 240 L308 332 H204 Z"/>
+  </g>
+
+  <!-- Right column copy -->
+  <g font-family="'Inter','DejaVu Sans','Helvetica Neue',Arial,sans-serif">
+    <text x="556" y="208" fill="#34d399" font-size="21" font-weight="700" letter-spacing="3">CRAFT · ICARF v4.0</text>
+    <text x="556" y="292" fill="#ffffff" font-size="50" font-weight="800" letter-spacing="-1">The Global Standard</text>
+    <text x="556" y="356" fill="#ffffff" font-size="50" font-weight="800" letter-spacing="-1">for Institutional</text>
+    <text x="554" y="420" fill="#fbbf24" font-size="50" font-weight="800" letter-spacing="-1">Readiness.</text>
+    <text x="556" y="486" fill="#94d3bf" font-size="19" font-weight="500">Capacity Readiness &amp; Fiduciary Assurance · DiBadili Institute</text>
+  </g>
+</svg>

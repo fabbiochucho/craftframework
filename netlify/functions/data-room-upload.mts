@@ -1,0 +1,75 @@
+import type { Context } from '@netlify/functions'
+import { getStore } from '@netlify/blobs'
+
+// ============================================================================
+// CRAFT v4.0 — Data Room evidence upload sink
+// ----------------------------------------------------------------------------
+// The companion to presigned-url.mts. After the client obtains a reserved key
+// from /api/presigned-url it PUTs the file bytes here. This function streams
+// them into the same tenant-scoped Netlify Blobs store the key was reserved in,
+// then flips the reserved `<key>.meta` record from `pending` to `uploaded` so
+// the Data Room can track verification status against a real object.
+//
+// Multi-tenant isolation: the store name is derived from the org slug embedded
+// in the key (the first path segment), which presigned-url took from the trusted
+// `x-craft-org` edge header — a Kenyan NGO can never write into a Nigerian
+// ministry's store.
+// ============================================================================
+
+function storeNameForKey(key: string): string {
+  // Keys are `${orgSlug}/${category}/${stamp}-${fileName}` — the org slug is the
+  // first segment and selects the tenant-scoped store.
+  const orgSlug = key.split('/')[0] || 'unscoped'
+  return `data-room-${orgSlug}`
+}
+
+export default async (req: Request, _context: Context) => {
+  if (req.method !== 'PUT' && req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 })
+  }
+
+  const key = new URL(req.url).searchParams.get('key')
+  if (!key) {
+    return Response.json({ error: 'key query parameter is required' }, { status: 400 })
+  }
+
+  const store = getStore({ name: storeNameForKey(key) })
+
+  // The key must have been reserved first (presigned-url writes `<key>.meta`),
+  // which also confirms the caller went through the scoped reservation step.
+  const meta = (await store.get(`${key}.meta`, { type: 'json' }).catch(() => null)) as
+    | { fileName?: string; category?: string; organizationId?: string }
+    | null
+  if (!meta) {
+    return Response.json({ error: 'Unknown or expired upload key' }, { status: 404 })
+  }
+
+  try {
+    const buf = await req.arrayBuffer()
+    if (!buf.byteLength) {
+      return Response.json({ error: 'Empty upload body' }, { status: 400 })
+    }
+    const contentType = req.headers.get('content-type') || 'application/octet-stream'
+
+    await store.set(key, buf, {
+      metadata: {
+        fileName: meta.fileName ?? '',
+        category: meta.category ?? 'general',
+        organizationId: meta.organizationId ?? '',
+        contentType,
+      },
+    })
+    await store.setJSON(`${key}.meta`, {
+      ...meta,
+      status: 'uploaded',
+      contentType,
+      size: buf.byteLength,
+      uploadedAt: new Date().toISOString(),
+    })
+
+    return Response.json({ key, status: 'uploaded', size: buf.byteLength }, { status: 201 })
+  } catch (err) {
+    console.error('[data-room-upload] failed', err)
+    return Response.json({ error: 'Upload failed' }, { status: 500 })
+  }
+}
