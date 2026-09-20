@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { desc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { invitations } from '../../db/schema.js'
+import { resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
 
 // /api/invitations — short-lived, tokenised invitations. A firm invites a client
 // (or a co-assessor); a row is created here and the accept link carries the
@@ -12,6 +13,9 @@ export default async (req: Request) => {
       const params = new URL(req.url).searchParams
       const token = params.get('token')
       const inviter = params.get('inviter')
+      // A lookup by token is a capability check (the token itself is the secret,
+      // needed by a not-yet-signed-in invitee following the accept link) — no
+      // session required. Every other GET shape needs an authenticated caller.
       if (token) {
         const [row] = await db.select().from(invitations).where(eq(invitations.token, token))
         if (!row) return Response.json(null)
@@ -28,6 +32,14 @@ export default async (req: Request) => {
           message: row.message ?? undefined,
           status: expired && row.status === 'pending' ? 'expired' : row.status,
         })
+      }
+      const caller = await resolveCaller()
+      if (!caller) return unauthorized()
+      if (inviter) {
+        const target = inviter.trim().toLowerCase()
+        if (target !== caller.email && caller.role !== 'super_admin') return forbidden()
+      } else if (caller.role !== 'super_admin') {
+        return forbidden()
       }
       const rows = inviter
         ? await db.select().from(invitations).where(eq(invitations.inviter, inviter.trim().toLowerCase())).orderBy(desc(invitations.createdAt))
@@ -49,6 +61,8 @@ export default async (req: Request) => {
     // can build the accept link and dispatch the welcome email.
     // body: { email, inviter?, inviterName?, portfolioId?, role?, scopeLabel?, message? }
     if (req.method === 'POST') {
+      const caller = await resolveCaller()
+      if (!caller) return unauthorized()
       const body = await req.json()
       const email = String(body.email ?? '').trim().toLowerCase()
       if (!email) return Response.json({ error: 'email required' }, { status: 400 })
@@ -61,8 +75,8 @@ export default async (req: Request) => {
           id,
           token,
           email,
-          inviter: body.inviter ? String(body.inviter).trim().toLowerCase() : null,
-          inviterName: body.inviterName ?? null,
+          inviter: caller.email,
+          inviterName: caller.name,
           portfolioId: body.portfolioId ?? null,
           role: body.role ?? 'assessor',
           scopeLabel: String(body.scopeLabel ?? ''),

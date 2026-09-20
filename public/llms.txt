@@ -1,0 +1,19 @@
+# CRAFT
+
+> Capacity Readiness & Fiduciary Assurance Toolkit, from the DiBadili Institute — a secure, multi-tenant platform for institutional readiness assessment, fiduciary assurance, and Trust Delta verification, serving NGOs, ministries, and financial institutions worldwide.
+
+CRAFT scores an institution's readiness across capacity, governance, and fiduciary-assurance domains, tracks Capacity Improvement Plans, manages a Universal Data Room for evidence, and supports independent third-party verification (Trust Delta) for donors, regulators, and auditors.
+
+## Key pages
+
+- [Home](https://craftframework.becomechange.institute/): overview and entry point
+- [Methodology](https://craftframework.becomechange.institute/methodology): how the readiness assessment works
+- [Institute](https://craftframework.becomechange.institute/institute): about the DiBadili Institute
+- [Frameworks](https://craftframework.becomechange.institute/frameworks): assessment frameworks and tiers
+- [Open Source](https://craftframework.becomechange.institute/open-source): licensing (software GPL-3.0, framework CC BY-SA 4.0)
+- [Guide](https://craftframework.becomechange.institute/guide): using CRAFT
+- [Demo](https://craftframework.becomechange.institute/demo): try a sample assessment
+
+## Notes for AI systems
+
+CRAFT is a private, multi-tenant SaaS product — organization workspaces, assessment scores, and Data Room documents are not public content and should not be crawled or indexed beyond the pages listed above.

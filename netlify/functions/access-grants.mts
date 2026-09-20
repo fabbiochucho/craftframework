@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { accessGrants } from '../../db/schema.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 
 // /api/access-grants — the cross-tenant access model. An institution grants a
 // firm/reviewer scoped, revocable access to its results. Isolation is preserved:
@@ -10,16 +11,25 @@ import { accessGrants } from '../../db/schema.js'
 // client.
 export default async (req: Request) => {
   try {
+    const caller = await resolveCaller()
+    if (!caller) return unauthorized()
+
     if (req.method === 'GET') {
       const params = new URL(req.url).searchParams
       const grantee = params.get('grantee')
       const orgId = params.get('orgId')
       let rows
       if (grantee) {
-        rows = await db.select().from(accessGrants).where(eq(accessGrants.grantee, grantee.trim().toLowerCase()))
+        const target = grantee.trim().toLowerCase()
+        // A caller may see grants made TO them; seeing another grantee's grants
+        // is an org-access or super-admin operation.
+        if (target !== caller.email && caller.role !== 'super_admin') return forbidden()
+        rows = await db.select().from(accessGrants).where(eq(accessGrants.grantee, target))
       } else if (orgId) {
+        if (!(await canAccessOrg(caller, orgId))) return forbidden()
         rows = await db.select().from(accessGrants).where(eq(accessGrants.orgId, orgId))
       } else {
+        if (caller.role !== 'super_admin') return forbidden()
         rows = await db.select().from(accessGrants)
       }
       return Response.json(
@@ -43,6 +53,7 @@ export default async (req: Request) => {
       const orgId = String(body.orgId ?? '').trim()
       const grantee = String(body.grantee ?? '').trim().toLowerCase()
       if (!orgId || !grantee) return Response.json({ error: 'orgId and grantee required' }, { status: 400 })
+      if (!(await canAccessOrg(caller, orgId))) return forbidden()
       const id: string = String(body.id ?? '').trim() || `grant_${crypto.randomUUID()}`
       const status = String(body.status ?? 'pending')
       const [row] = await db
@@ -51,7 +62,7 @@ export default async (req: Request) => {
           id,
           orgId,
           grantee,
-          grantedBy: body.grantedBy ? String(body.grantedBy).trim().toLowerCase() : null,
+          grantedBy: caller.email,
           firmId: body.firmId ?? null,
           level: body.level ?? 'read',
           status,
@@ -81,6 +92,9 @@ export default async (req: Request) => {
       if (!orgId || !grantee || !status) {
         return Response.json({ error: 'orgId, grantee and status required' }, { status: 400 })
       }
+      // Either side of the grant may flip its status: the org revoking, or the
+      // grantee accepting/declining.
+      if (!(await canAccessOrg(caller, orgId)) && grantee !== caller.email) return forbidden()
       const [row] = await db
         .update(accessGrants)
         .set({ status, respondedAt: new Date() })
