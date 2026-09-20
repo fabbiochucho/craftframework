@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions'
 import { db } from '../../db/index.js'
 import { accessGrants } from '../../db/schema.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 
 // /api/issue-access-grant — issues a TIME-BOUND, READ-ONLY specialized ecosystem
 // grant (Feature 5) to a regulator / auditor / institutional investor, and closes
@@ -60,6 +61,9 @@ async function stampIdentityMetadata(grantee: string, role: string, expiresAtSec
 export default async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
   try {
+    const caller = await resolveCaller()
+    if (!caller) return unauthorized()
+
     const body = await req.json()
     const orgId = String(body.orgId ?? '').trim()
     const grantee = String(body.grantee ?? '').trim().toLowerCase()
@@ -70,6 +74,8 @@ export default async (req: Request) => {
     if (!orgId || !grantee || !role) {
       return Response.json({ error: 'orgId, grantee and role required' }, { status: 400 })
     }
+    // Only someone with access to the org can grant an outsider a window into it.
+    if (!(await canAccessOrg(caller, orgId))) return forbidden()
     if (!SPECIALIZED_ROLES.has(role)) {
       return Response.json({ error: `role must be one of: ${[...SPECIALIZED_ROLES].join(', ')}` }, { status: 400 })
     }
@@ -84,7 +90,7 @@ export default async (req: Request) => {
         id: `grant_${crypto.randomUUID()}`,
         orgId,
         grantee,
-        grantedBy: body.grantedBy ? String(body.grantedBy).trim().toLowerCase() : null,
+        grantedBy: caller.email,
         level: 'read', // specialized ecosystem grants are always read-only
         role,
         status: 'active',

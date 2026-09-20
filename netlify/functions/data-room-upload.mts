@@ -1,5 +1,8 @@
 import type { Context } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024 // 25 MB
 
 // ============================================================================
 // CRAFT v4.0 — Data Room evidence upload sink
@@ -28,6 +31,9 @@ export default async (req: Request, _context: Context) => {
     return new Response('Method Not Allowed', { status: 405 })
   }
 
+  const caller = await resolveCaller()
+  if (!caller) return unauthorized()
+
   const key = new URL(req.url).searchParams.get('key')
   if (!key) {
     return Response.json({ error: 'key query parameter is required' }, { status: 400 })
@@ -43,11 +49,20 @@ export default async (req: Request, _context: Context) => {
   if (!meta) {
     return Response.json({ error: 'Unknown or expired upload key' }, { status: 404 })
   }
+  if (!meta.organizationId || !(await canAccessOrg(caller, meta.organizationId))) return forbidden()
+
+  const declaredLength = Number(req.headers.get('content-length') ?? 0)
+  if (declaredLength > MAX_UPLOAD_BYTES) {
+    return Response.json({ error: `File exceeds the ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB limit` }, { status: 413 })
+  }
 
   try {
     const buf = await req.arrayBuffer()
     if (!buf.byteLength) {
       return Response.json({ error: 'Empty upload body' }, { status: 400 })
+    }
+    if (buf.byteLength > MAX_UPLOAD_BYTES) {
+      return Response.json({ error: `File exceeds the ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB limit` }, { status: 413 })
     }
     const contentType = req.headers.get('content-type') || 'application/octet-stream'
 
