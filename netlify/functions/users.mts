@@ -4,7 +4,11 @@ import { admin } from '@netlify/identity'
 import { db } from '../../db/index.js'
 import { users } from '../../db/schema.js'
 import type { UserRow } from '../../db/schema.js'
-import { isSuperAdmin } from '../lib/auth.js'
+import { isSuperAdmin, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+
+function isAdmin(role: string): boolean {
+  return role === 'admin' || role === 'super_admin'
+}
 
 // The platform `super_admin` (Super Admin) tier is reserved for the single
 // allowlisted operator. Nobody else can be persisted with it: a request
@@ -74,17 +78,24 @@ function unassignedRowFor(u: { id: string; email: string; name: string }): UserR
 // portal writes to it to onboard staff and consultants onto a shared tenant.
 export default async (req: Request) => {
   try {
+    const caller = await resolveCaller()
+    if (!caller) return unauthorized()
+
     if (req.method === 'GET') {
       const email = new URL(req.url).searchParams.get('email')
       if (email) {
-        // Directory lookup used by sign-in: resolve one person to their row.
+        // Directory lookup used by sign-in: a caller may resolve their own row;
+        // looking up someone else's is an admin-only directory operation.
+        const target = email.trim().toLowerCase()
+        if (target !== caller.email && !isAdmin(caller.role)) return forbidden()
         const [row] = await db
           .select()
           .from(users)
-          .where(eq(users.email, email.trim().toLowerCase()))
+          .where(eq(users.email, target))
           .limit(1)
         return Response.json(row ?? null)
       }
+      if (!isAdmin(caller.role)) return forbidden()
       // No email → the full directory for the admin management screen. Union the
       // database rows (which carry each admin's role/org assignments) with every
       // registered Identity account, so a person who signed up but hasn't signed
@@ -115,6 +126,8 @@ export default async (req: Request) => {
       // only last_seen_at (and backfills a blank name); a brand-new signer is
       // inserted as an unassigned, active person the admin can then place.
       if (body.touch) {
+        // A touch may only record the caller's OWN sign-in.
+        if (email !== caller.email) return forbidden()
         const now = new Date()
         const id: string = body.id?.trim() || `usr_${crypto.randomUUID()}`
         const [row] = await db
@@ -138,6 +151,9 @@ export default async (req: Request) => {
           .returning()
         return Response.json(row, { status: 201 })
       }
+
+      // Assigning a role/org/scope to a directory entry is an admin-only action.
+      if (!isAdmin(caller.role)) return forbidden()
 
       const id: string = body.id?.trim() || `usr_${crypto.randomUUID()}`
       const role = clampRole(email, String(body.role ?? 'assessor'))
@@ -176,6 +192,7 @@ export default async (req: Request) => {
 
     // DELETE — revoke a person's directory entry (by email or id).
     if (req.method === 'DELETE') {
+      if (!isAdmin(caller.role)) return forbidden()
       const url = new URL(req.url)
       const email = url.searchParams.get('email')
       const id = url.searchParams.get('id')

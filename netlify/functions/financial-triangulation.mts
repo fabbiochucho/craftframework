@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { eq, and } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { financialTriangulations } from '../../db/schema.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 
 function cleanNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 0
@@ -9,12 +10,16 @@ function cleanNumber(value: unknown) {
 
 export default async (req: Request) => {
   try {
+    const caller = await resolveCaller()
+    if (!caller) return unauthorized()
+
     const url = new URL(req.url)
 
     if (req.method === 'GET') {
       const orgId = url.searchParams.get('orgId')
       const contextKey = url.searchParams.get('contextKey')
       if (!orgId || !contextKey) return Response.json({ error: 'orgId and contextKey required' }, { status: 400 })
+      if (!(await canAccessOrg(caller, orgId))) return forbidden()
 
       const [row] = await db
         .select()
@@ -30,6 +35,7 @@ export default async (req: Request) => {
       if (!body?.orgId || !body?.contextKey) {
         return Response.json({ error: 'orgId and contextKey required' }, { status: 400 })
       }
+      if (!(await canAccessOrg(caller, String(body.orgId)))) return forbidden()
 
       const value = {
         id: body.id || `tri_${crypto.randomUUID()}`,
