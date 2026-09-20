@@ -7,6 +7,30 @@
   port = 8888
 
 # ---------------------------------------------------------------------------
+# Security headers
+# ---------------------------------------------------------------------------
+# CSP allows 'unsafe-inline' for script-src/style-src rather than a nonce
+# because the TanStack Start SSR shell's inline hydration payload couldn't be
+# verified locally (the SSR function needs live DATABASE_URL/Identity config
+# to boot) — tightening to a nonce-based policy needs testing against a real
+# deploy first. Every directive still blocks loading resources from any
+# third-party host, which is the main protection against a compromised
+# dependency exfiltrating data or injecting a remote script.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"
+
+# ---------------------------------------------------------------------------
 # CRAFT v4.0 — Functions, scheduled jobs & edge auth
 # ---------------------------------------------------------------------------
 # Serverless functions live in netlify/functions; edge functions in
