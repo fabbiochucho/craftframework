@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /$
+Allow: /demo
+Allow: /methodology
+Allow: /institute
+Allow: /open-source
+Allow: /contact
+Allow: /pre-assessment
+Allow: /terms
+Allow: /code-of-conduct
+Allow: /informal-economy
+Allow: /frameworks
+Allow: /guide
+Allow: /help
+Disallow: /
+
+Sitemap: https://craftframework.becomechange.institute/sitemap.xml

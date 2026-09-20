@@ -5,6 +5,22 @@ import { I18nProvider } from '../lib/i18n'
 import { IdentityBridge } from '../components/IdentityBridge'
 import { OfflineBanner } from '../components/OfflineBanner'
 import '../styles.css'
+// Self-hosted fonts: loading them from fonts.googleapis.com sends every
+// visitor's IP to Google before consent, which German (Munich, 2022) and other
+// EU courts have held violates GDPR — a real exposure given CRAFT's EU-facing
+// disclosures (CSRD, DORA) users.
+import '@fontsource/inter/300.css'
+import '@fontsource/inter/400.css'
+import '@fontsource/inter/500.css'
+import '@fontsource/inter/600.css'
+import '@fontsource/inter/700.css'
+import '@fontsource/inter/800.css'
+import '@fontsource/playfair-display/500.css'
+import '@fontsource/playfair-display/600.css'
+import '@fontsource/playfair-display/700.css'
+import '@fontsource/playfair-display/800.css'
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/600.css'
 
 const queryClient = new QueryClient()
 
@@ -57,12 +73,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
-          rel="stylesheet"
-        />
       </head>
       <body className="font-sans antialiased">
         <QueryClientProvider client={queryClient}>

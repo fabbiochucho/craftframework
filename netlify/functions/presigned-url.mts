@@ -1,5 +1,12 @@
 import type { Context, Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'png', 'jpg', 'jpeg'])
+
+function extensionOf(fileName: string): string {
+  return fileName.toLowerCase().split('.').pop() ?? ''
+}
 
 // ============================================================================
 // CRAFT v4.0 — Presigned upload URL generator (Data Room evidence)
@@ -31,6 +38,9 @@ export default async (req: Request, context: Context) => {
     return new Response('Method Not Allowed', { status: 405 })
   }
 
+  const caller = await resolveCaller()
+  if (!caller) return unauthorized()
+
   let body: PresignRequest
   try {
     body = (await req.json()) as PresignRequest
@@ -41,8 +51,12 @@ export default async (req: Request, context: Context) => {
   if (!body.fileName) {
     return Response.json({ error: 'fileName is required' }, { status: 400 })
   }
+  if (!ALLOWED_EXTENSIONS.has(extensionOf(body.fileName))) {
+    return Response.json({ error: `File type not allowed. Accepted: ${[...ALLOWED_EXTENSIONS].join(', ')}` }, { status: 400 })
+  }
 
-  const orgId = req.headers.get('x-craft-org') || body.organizationId || 'unscoped'
+  const orgId = req.headers.get('x-craft-org') || body.organizationId || caller.orgId
+  if (!(await canAccessOrg(caller, orgId))) return forbidden()
   const category = slug(body.category || 'general')
   const stamp = Date.now()
   const key = `${slug(orgId)}/${category}/${stamp}-${slug(body.fileName)}`

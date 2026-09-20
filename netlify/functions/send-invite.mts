@@ -1,4 +1,5 @@
 import type { Config } from '@netlify/functions'
+import { resolveCaller, unauthorized } from '../lib/auth.js'
 
 // /api/send-invite — dispatch the branded welcome email for an invitation.
 //
@@ -15,6 +16,11 @@ import type { Config } from '@netlify/functions'
 export default async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
   try {
+    // Requires a signed-in caller so this can't be used as an open relay to spam
+    // arbitrary addresses through this workspace's Resend account.
+    const caller = await resolveCaller()
+    if (!caller) return unauthorized()
+
     const body = await req.json()
     const to = String(body.to ?? '').trim()
     const subject = String(body.subject ?? 'Your invitation')
