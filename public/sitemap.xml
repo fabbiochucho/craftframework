@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://craftframework.becomechange.institute/</loc><priority>1.0</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/methodology</loc><priority>0.8</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/institute</loc><priority>0.8</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/frameworks</loc><priority>0.8</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/demo</loc><priority>0.7</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/guide</loc><priority>0.6</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/help</loc><priority>0.6</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/open-source</loc><priority>0.5</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/informal-economy</loc><priority>0.5</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/pre-assessment</loc><priority>0.6</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/contact</loc><priority>0.5</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/terms</loc><priority>0.3</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/code-of-conduct</loc><priority>0.3</priority></url>
+</urlset>

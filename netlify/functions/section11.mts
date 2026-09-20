@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { section11Disclosures } from '../../db/schema.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 
 // /api/section11 — persisted verification state for the Section 11 Vault
 // (Integrated Reporting & Statutory Disclosures). Replaces the previous demo-only
@@ -11,9 +12,13 @@ import { section11Disclosures } from '../../db/schema.js'
 //   PUT  /api/section11  { orgId, folderKey, status, updatedBy? }  → upsert one
 export default async (req: Request) => {
   try {
+    const caller = await resolveCaller()
+    if (!caller) return unauthorized()
+
     if (req.method === 'GET') {
       const orgId = new URL(req.url).searchParams.get('orgId')
       if (!orgId) return Response.json({ error: 'orgId required' }, { status: 400 })
+      if (!(await canAccessOrg(caller, orgId))) return forbidden()
       const rows = await db
         .select()
         .from(section11Disclosures)
@@ -36,6 +41,7 @@ export default async (req: Request) => {
       if (!orgId || !folderKey || !status) {
         return Response.json({ error: 'orgId, folderKey and status required' }, { status: 400 })
       }
+      if (!(await canAccessOrg(caller, orgId))) return forbidden()
       const [row] = await db
         .insert(section11Disclosures)
         .values({
@@ -43,12 +49,12 @@ export default async (req: Request) => {
           orgId,
           folderKey,
           status,
-          updatedBy: body.updatedBy ? String(body.updatedBy) : null,
+          updatedBy: caller.email,
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
           target: [section11Disclosures.orgId, section11Disclosures.folderKey],
-          set: { status, updatedBy: body.updatedBy ? String(body.updatedBy) : null, updatedAt: new Date() },
+          set: { status, updatedBy: caller.email, updatedAt: new Date() },
         })
         .returning()
       return Response.json(row, { status: 200 })
