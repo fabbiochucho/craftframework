@@ -7,6 +7,20 @@
   port = 8888
 
 # ---------------------------------------------------------------------------
+# Canonical domain redirect
+# ---------------------------------------------------------------------------
+# Netlify does not automatically redirect its default *.netlify.app subdomain
+# to a site's custom domain, even once one is set — both continue serving
+# identical content unless told otherwise, which splits SEO ranking signals
+# between two URLs. This makes craftframework.netlify.app permanently redirect
+# to the real domain instead.
+[[redirects]]
+  from = "https://craftframework.netlify.app/*"
+  to = "https://craftframework.becomechange.institute/:splat"
+  status = 301
+  force = true
+
+# ---------------------------------------------------------------------------
 # Security headers
 # ---------------------------------------------------------------------------
 # CSP allows 'unsafe-inline' for script-src/style-src rather than a nonce
