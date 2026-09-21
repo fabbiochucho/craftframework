@@ -44,5 +44,5 @@ export default async (_req: Request, context: Context) => {
 export const config: Config = {
   // Run on top-level navigations to public entry pages where a first-time
   // visitor is likely to land; excludes static asset requests.
-  path: ['/', '/demo', '/methodology', '/institute', '/open-source', '/contact', '/pre-assessment', '/terms', '/auth'],
+  path: ['/', '/demo', '/methodology', '/institute', '/open-source', '/contact', '/pre-assessment', '/terms', '/privacy', '/auth'],
 }
