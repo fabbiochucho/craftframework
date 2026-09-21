@@ -43,8 +43,8 @@ export const Route = createRootRoute({
         property: 'og:description',
         content: 'Capacity Readiness & Fiduciary Assurance Toolkit. Secure, multi-tenant institutional readiness and Trust Delta verification.',
       },
-      { property: 'og:url', content: 'https://craftframework.netlify.app/' },
-      { property: 'og:image', content: 'https://craftframework.netlify.app/og-image.png' },
+      { property: 'og:url', content: 'https://craftframework.becomechange.institute/' },
+      { property: 'og:image', content: 'https://craftframework.becomechange.institute/og-image.png' },
       { property: 'og:image:width', content: '1200' },
       { property: 'og:image:height', content: '630' },
       // Twitter / X
@@ -54,9 +54,10 @@ export const Route = createRootRoute({
         name: 'twitter:description',
         content: 'Capacity Readiness & Fiduciary Assurance Toolkit from the DiBadili Institute.',
       },
-      { name: 'twitter:image', content: 'https://craftframework.netlify.app/og-image.png' },
+      { name: 'twitter:image', content: 'https://craftframework.becomechange.institute/og-image.png' },
     ],
     links: [
+      { rel: 'canonical', href: 'https://craftframework.becomechange.institute/' },
       { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
       { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
       { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32.png' },
