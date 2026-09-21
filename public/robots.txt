@@ -7,6 +7,7 @@ Allow: /open-source
 Allow: /contact
 Allow: /pre-assessment
 Allow: /terms
+Allow: /privacy
 Allow: /code-of-conduct
 Allow: /informal-economy
 Allow: /frameworks
