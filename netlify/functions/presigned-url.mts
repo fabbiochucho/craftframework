@@ -1,12 +1,7 @@
 import type { Context, Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
-
-const ALLOWED_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'png', 'jpg', 'jpeg'])
-
-function extensionOf(fileName: string): string {
-  return fileName.toLowerCase().split('.').pop() ?? ''
-}
+import { ALLOWED_EXTENSIONS, UPLOAD_WINDOW_SECONDS, extensionOf } from '../lib/uploads.js'
 
 // ============================================================================
 // CRAFT v4.0 — Presigned upload URL generator (Data Room evidence)
@@ -59,7 +54,12 @@ export default async (req: Request, context: Context) => {
   if (!(await canAccessOrg(caller, orgId))) return forbidden()
   const category = slug(body.category || 'general')
   const stamp = Date.now()
-  const key = `${slug(orgId)}/${category}/${stamp}-${slug(body.fileName)}`
+  // A random component makes the key unguessable — without it, a key is just
+  // org+category+timestamp+filename, enumerable by anyone who knows roughly
+  // when a file was uploaded.
+  const nonce = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+  const key = `${slug(orgId)}/${category}/${stamp}-${nonce}-${slug(body.fileName)}`
+  const expiresAt = new Date(stamp + UPLOAD_WINDOW_SECONDS * 1000)
 
   // Reserve the object in a tenant-scoped Blobs store with pending metadata, so
   // the upload target exists and verification status can be tracked against it.
@@ -71,6 +71,7 @@ export default async (req: Request, context: Context) => {
       organizationId: orgId,
       status: 'pending',
       reservedAt: new Date(stamp).toISOString(),
+      expiresAt: expiresAt.toISOString(),
     })
     .catch(err => console.error('[presigned-url] blob reserve failed', err))
 
@@ -81,7 +82,7 @@ export default async (req: Request, context: Context) => {
     // the reserved Blobs key. (A direct signed PUT URL can be swapped in here.)
     uploadUrl: `/.netlify/functions/data-room-upload?key=${encodeURIComponent(key)}`,
     contentType: body.contentType ?? 'application/octet-stream',
-    expiresInSeconds: 600,
+    expiresInSeconds: UPLOAD_WINDOW_SECONDS,
     requestId: context.requestId,
   })
 }
