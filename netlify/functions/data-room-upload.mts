@@ -1,8 +1,8 @@
 import type { Context } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
-
-const MAX_UPLOAD_BYTES = 25 * 1024 * 1024 // 25 MB
+import { MAX_UPLOAD_BYTES } from '../lib/uploads.js'
+import { stripImageMetadata } from '../lib/stripImageMetadata.js'
 
 // ============================================================================
 // CRAFT v4.0 — Data Room evidence upload sink
@@ -44,10 +44,13 @@ export default async (req: Request, _context: Context) => {
   // The key must have been reserved first (presigned-url writes `<key>.meta`),
   // which also confirms the caller went through the scoped reservation step.
   const meta = (await store.get(`${key}.meta`, { type: 'json' }).catch(() => null)) as
-    | { fileName?: string; category?: string; organizationId?: string }
+    | { fileName?: string; category?: string; organizationId?: string; expiresAt?: string }
     | null
   if (!meta) {
     return Response.json({ error: 'Unknown or expired upload key' }, { status: 404 })
+  }
+  if (meta.expiresAt && Date.now() > Date.parse(meta.expiresAt)) {
+    return Response.json({ error: 'Upload key has expired — request a new one' }, { status: 410 })
   }
   if (!meta.organizationId || !(await canAccessOrg(caller, meta.organizationId))) return forbidden()
 
@@ -57,7 +60,7 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const buf = await req.arrayBuffer()
+    let buf = await req.arrayBuffer()
     if (!buf.byteLength) {
       return Response.json({ error: 'Empty upload body' }, { status: 400 })
     }
@@ -65,6 +68,9 @@ export default async (req: Request, _context: Context) => {
       return Response.json({ error: `File exceeds the ${MAX_UPLOAD_BYTES / (1024 * 1024)} MB limit` }, { status: 413 })
     }
     const contentType = req.headers.get('content-type') || 'application/octet-stream'
+    // Evidence is often photographed on-site — strip EXIF/GPS and embedded
+    // editor metadata from images before they're stored.
+    buf = stripImageMetadata(buf, contentType)
 
     await store.set(key, buf, {
       metadata: {
