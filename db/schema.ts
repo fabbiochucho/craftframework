@@ -25,25 +25,31 @@ import {
 // --- organizations ----------------------------------------------------------
 // A tenant: the institution being assessed. Multi-tenant isolation is enforced
 // by scoping every read/write below by `org_id`.
-export const organizations = pgTable('organizations', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  country: text('country').notNull().default(''),
-  targetDonor: text('target_donor').notNull().default(''),
-  email: text('email').notNull().default(''),
-  // Email of the Portfolio Reviewer accountable for this institution (if any).
-  reviewer: text('reviewer'),
-  // Email of the reviewer/admin who created the org — used to scope admin lists.
-  createdBy: text('created_by'),
-  archetype: text('archetype'),
-  sector: text('sector'),
-  subsector: text('subsector'),
-  // Soft-archive flag: 'active' | 'archived'. Archived institutions are retained
-  // (with all their data) but hidden from working surfaces and can be restored.
-  status: text('status').notNull().default('active'),
-  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  lastUpdated: timestamp('last_updated', { withTimezone: true }).defaultNow(),
-})
+export const organizations = pgTable(
+  'organizations',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    country: text('country').notNull().default(''),
+    targetDonor: text('target_donor').notNull().default(''),
+    email: text('email').notNull().default(''),
+    // Email of the Portfolio Reviewer accountable for this institution (if any).
+    reviewer: text('reviewer'),
+    // Email of the reviewer/admin who created the org — used to scope admin lists.
+    createdBy: text('created_by'),
+    archetype: text('archetype'),
+    sector: text('sector'),
+    subsector: text('subsector'),
+    // Soft-archive flag: 'active' | 'archived'. Archived institutions are retained
+    // (with all their data) but hidden from working surfaces and can be restored.
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    lastUpdated: timestamp('last_updated', { withTimezone: true }).defaultNow(),
+  },
+  // Both columns are filtered on directly in the access-control path
+  // (filterAuthorizedOrgIds / the admin org list) — previously unindexed.
+  (t) => [index('organizations_created_by_idx').on(t.createdBy), index('organizations_reviewer_idx').on(t.reviewer)],
+)
 
 // --- users ------------------------------------------------------------------
 // People with access to a workspace. Carries the view level (role) and the

@@ -12,5 +12,6 @@
   <url><loc>https://craftframework.becomechange.institute/pre-assessment</loc><priority>0.6</priority></url>
   <url><loc>https://craftframework.becomechange.institute/contact</loc><priority>0.5</priority></url>
   <url><loc>https://craftframework.becomechange.institute/terms</loc><priority>0.3</priority></url>
+  <url><loc>https://craftframework.becomechange.institute/privacy</loc><priority>0.3</priority></url>
   <url><loc>https://craftframework.becomechange.institute/code-of-conduct</loc><priority>0.3</priority></url>
 </urlset>
