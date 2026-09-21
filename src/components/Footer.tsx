@@ -7,6 +7,7 @@ const footerLinks = [
   { to: '/open-source', labelKey: 'footer.openSource', fallback: 'Open Source' },
   { to: '/methodology', labelKey: 'footer.methodology', fallback: 'Methodology' },
   { to: '/terms', labelKey: 'footer.terms', fallback: 'Terms of Service' },
+  { to: '/privacy', labelKey: 'footer.privacy', fallback: 'Privacy Policy' },
   { to: '/contact', labelKey: 'footer.contact', fallback: 'Contact' },
 ] as const
 
