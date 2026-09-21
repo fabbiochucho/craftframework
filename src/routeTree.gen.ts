@@ -16,6 +16,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RegulatoryComplianceRouteImport } from './routes/regulatory-compliance'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PreAssessmentRouteImport } from './routes/pre-assessment'
 import { Route as OpenSourceRouteImport } from './routes/open-source'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -80,6 +81,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const RegulatoryComplianceRoute = RegulatoryComplianceRouteImport.update({
   id: '/regulatory-compliance',
   path: '/regulatory-compliance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PreAssessmentRoute = PreAssessmentRouteImport.update({
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
   '/pre-assessment': typeof PreAssessmentRoute
+  '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -299,6 +306,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
   '/pre-assessment': typeof PreAssessmentRoute
+  '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -339,6 +347,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
   '/pre-assessment': typeof PreAssessmentRoute
+  '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -380,6 +389,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/open-source'
     | '/pre-assessment'
+    | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
     | '/settings'
@@ -419,6 +429,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/open-source'
     | '/pre-assessment'
+    | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
     | '/settings'
@@ -458,6 +469,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/open-source'
     | '/pre-assessment'
+    | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
     | '/settings'
@@ -498,6 +510,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   OpenSourceRoute: typeof OpenSourceRoute
   PreAssessmentRoute: typeof PreAssessmentRoute
+  PrivacyRoute: typeof PrivacyRoute
   RegulatoryComplianceRoute: typeof RegulatoryComplianceRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
@@ -559,6 +572,13 @@ declare module '@tanstack/react-router' {
       path: '/regulatory-compliance'
       fullPath: '/regulatory-compliance'
       preLoaderRoute: typeof RegulatoryComplianceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pre-assessment': {
@@ -813,6 +833,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   OpenSourceRoute: OpenSourceRoute,
   PreAssessmentRoute: PreAssessmentRoute,
+  PrivacyRoute: PrivacyRoute,
   RegulatoryComplianceRoute: RegulatoryComplianceRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
