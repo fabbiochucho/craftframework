@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { db } from '../../db/index.js'
 import { accessGrants } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/issue-access-grant — issues a TIME-BOUND, READ-ONLY specialized ecosystem
 // grant (Feature 5) to a regulator / auditor / institutional investor, and closes
@@ -53,7 +54,7 @@ async function stampIdentityMetadata(grantee: string, role: string, expiresAtSec
     })
     return true
   } catch (err) {
-    console.error('[issue-access-grant] Identity stamp failed', err)
+    logger.error("issue-access-grant", "Identity stamp failed", err)
     return false
   }
 }
@@ -114,7 +115,7 @@ export default async (req: Request) => {
       { status: 201 },
     )
   } catch (err) {
-    console.error('/api/issue-access-grant failed', err)
+    logger.error("/api/issue-access-grant", "failed", err)
     return Response.json({ error: 'Failed to issue access grant' }, { status: 500 })
   }
 }

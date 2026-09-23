@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, eq, lte, ne } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { complianceItems, organizations } from '../../db/schema.js'
+import { logger } from '../lib/logger.js'
 
 // ============================================================================
 // CRAFT v4.0 — Scheduled compliance alerts (Global Fund PR reporting cycles)
@@ -75,7 +76,7 @@ async function queryUpcomingComplianceItems(today: Date): Promise<ComplianceItem
       recipient_email: r.orgEmail || r.owner || 'compliance@becomechange.institute',
     }))
   } catch (err) {
-    console.error('[compliance-alerts] query failed', err)
+    logger.error("compliance-alerts", "query failed", err)
     return []
   }
 }
@@ -103,7 +104,7 @@ async function sendResendEmail(item: ComplianceItem, tier: Tier): Promise<void> 
         `Obligation: ${item.type} — ${item.title}\nDue: ${item.due_date}\nStatus: ${tier}\n\n` +
         `Please prepare and submit the report through your CRAFT secure workspace.`,
     }),
-  }).catch(err => console.error('[compliance-alerts] Resend error', err))
+  }).catch(err => logger.error("compliance-alerts", "Resend error", err))
 }
 
 export default async (req: Request) => {

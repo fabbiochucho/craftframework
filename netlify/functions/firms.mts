@@ -3,6 +3,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { firmMembers, firms } from '../../db/schema.js'
 import { resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 async function isFirmMember(email: string, firmId: string): Promise<boolean> {
   const [row] = await db
@@ -117,7 +118,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/firms failed', err)
+    logger.error("/api/firms", "failed", err)
     return Response.json({ error: 'Firm request failed' }, { status: 500 })
   }
 }

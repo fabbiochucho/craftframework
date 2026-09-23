@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { accessGrants } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/access-grants — the cross-tenant access model. An institution grants a
 // firm/reviewer scoped, revocable access to its results. Isolation is preserved:
@@ -105,7 +106,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/access-grants failed', err)
+    logger.error("/api/access-grants", "failed", err)
     return Response.json({ error: 'Access grant request failed' }, { status: 500 })
   }
 }
