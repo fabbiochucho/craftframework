@@ -4,7 +4,7 @@ import {
 } from 'recharts'
 import { useNavigate } from '@tanstack/react-router'
 import { Shield, Building2, Globe2, ShieldAlert, Sliders, Lock, Network, FolderPlus, Plus, UserCheck, Users, Trash2, Save, X, Archive, RotateCcw, Pencil } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useAuditCtx } from '../lib/context'
 import {
   computeOrgScore, computeDomainScore, getAccreditation, getImplementationEvidence,
   DOMAIN_WEIGHTS, MOCK_QUESTIONS, UNIVERSAL_RISKS, ASSIGNABLE_VIEW_LEVELS,
@@ -57,9 +57,12 @@ function isCurrentlyActive(iso: string | null | undefined): boolean {
 }
 
 export function AdminPage() {
-  const { currentUser, organizations, portfolios, scores, createOrganization, editOrganization, deleteOrganization,
+  const { currentUser } = useAuthCtx()
+  const { organizations, portfolios, createOrganization, editOrganization, deleteOrganization,
     archiveOrganization, restoreOrganization, createPortfolio, deletePortfolio, renamePortfolio,
-    archivePortfolio, restorePortfolio, auditLog } = useApp()
+    archivePortfolio, restorePortfolio } = useWorkspace()
+  const { scores } = useScoresCtx()
+  const { auditLog } = useAuditCtx()
   const navigate = useNavigate()
   const [tab, setTab] = useState('overview')
   const [toast, setToast] = useState<string | null>(null)
