@@ -1,5 +1,6 @@
 import type { Config } from '@netlify/functions'
 import { resolveCaller, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/send-invite — dispatch the branded welcome email for an invitation.
 //
@@ -46,12 +47,12 @@ export default async (req: Request) => {
     if (!res.ok) {
       // Surface a non-sensitive status only; never echo the provider response
       // body or the key.
-      console.error('/api/send-invite provider error', res.status)
+      logger.error("/api/send-invite", "provider error", undefined, { status: res.status })
       return Response.json({ dispatched: false, reason: 'provider_error' }, { status: 502 })
     }
     return Response.json({ dispatched: true })
   } catch (err) {
-    console.error('/api/send-invite failed', err)
+    logger.error("/api/send-invite", "failed", err)
     return Response.json({ error: 'Send failed' }, { status: 500 })
   }
 }

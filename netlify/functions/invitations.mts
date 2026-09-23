@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { invitations } from '../../db/schema.js'
 import { resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/invitations — short-lived, tokenised invitations. A firm invites a client
 // (or a co-assessor); a row is created here and the accept link carries the
@@ -103,7 +104,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/invitations failed', err)
+    logger.error("/api/invitations", "failed", err)
     return Response.json({ error: 'Invitation request failed' }, { status: 500 })
   }
 }

@@ -3,6 +3,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { accessGrants, firmMembers, portfolioOrgs, portfolios } from '../../db/schema.js'
 import { type Caller, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // Whether the caller owns/administers this portfolio: its reviewer or creator of
 // record, any member of its owning firm, or the platform Super Admin.
@@ -174,7 +175,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/portfolios failed', err)
+    logger.error("/api/portfolios", "failed", err)
     return Response.json({ error: 'Portfolio request failed' }, { status: 500 })
   }
 }
