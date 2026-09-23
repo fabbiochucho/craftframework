@@ -3,6 +3,7 @@ import { asc } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { questions } from '../../db/schema.js'
 import { ensureQuestionsSeeded, rowToQuestion } from '../../src/lib/dbSeed.js'
+import { logger } from '../lib/logger.js'
 
 // GET /api/questions — the assessment question bank, served from the database.
 // Lazily seeds the bank from the canonical code definition on first call so a
@@ -17,7 +18,7 @@ export default async (req: Request) => {
       .orderBy(asc(questions.tier), asc(questions.domain), asc(questions.id))
     return Response.json(rows.map(rowToQuestion))
   } catch (err) {
-    console.error('GET /api/questions failed', err)
+    logger.error("/api/questions", "GET failed", err)
     return Response.json({ error: 'Failed to load questions' }, { status: 500 })
   }
 }

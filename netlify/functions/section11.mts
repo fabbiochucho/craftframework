@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { section11Disclosures } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/section11 — persisted verification state for the Section 11 Vault
 // (Integrated Reporting & Statutory Disclosures). Replaces the previous demo-only
@@ -62,7 +63,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/section11 failed', err)
+    logger.error("/api/section11", "failed", err)
     return Response.json({ error: 'Section 11 request failed' }, { status: 500 })
   }
 }

@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions'
 import { seedQuestions } from '../../src/lib/dbSeed.js'
 import { resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // POST /api/seed — (re)seed the question bank into the database. Idempotent;
 // questions are upserted by id. The bank also seeds lazily on the first GET
@@ -15,7 +16,7 @@ export default async (req: Request) => {
     const seeded = await seedQuestions()
     return Response.json({ ok: true, questions: seeded })
   } catch (err) {
-    console.error('POST /api/seed failed', err)
+    logger.error("/api/seed", "POST failed", err)
     return Response.json({ error: 'Seeding failed' }, { status: 500 })
   }
 }
