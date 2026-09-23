@@ -8,6 +8,7 @@ import { Footer } from './Footer'
 import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
 import { SessionTimer } from './SessionTimer'
+import { ComplianceDeadlineBadge } from './ComplianceDeadlineBadge'
 import { useOfflineSecurity } from '../hooks/use-offline-security'
 import { BRAND, getAccreditation, computeOrgScore } from '../lib/data'
 import {
@@ -260,6 +261,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden text-slate-500 sm:inline">{currentUser.orgName}</span>
           </div>
           <div className="flex-1" />
+          <ComplianceDeadlineBadge orgId={currentOrg?.id} />
           <LanguageToggle tone="light" />
           <Badge
             className={cn(
