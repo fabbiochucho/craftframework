@@ -690,9 +690,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateAssessorScore = useCallback(
     (orgId: string, qId: string, score: number) => {
       if (readOnlyRef.current) return
+      // Same local-first pattern as updateScore: instant UI update, then a
+      // deduped queued write so rapid edits (e.g. a dragged slider) collapse
+      // into one pending mutation instead of firing on every tick.
       setAssessorScores(prev => ({ ...prev, [orgId]: { ...(prev[orgId] || {}), [qId]: score } }))
       if (currentUser && !currentUser.isDemo) {
-        api.saveResponseDetail(orgId, qId, { assessorScore: score }, currentUser.email)
+        const draftKey = `assessor-score:${orgId}:${qId}`
+        void offlineDB.putDraft(draftKey, { orgId, qId, score, updatedBy: currentUser.email })
+        void queueAndSync({
+          kind: 'assessment:assessor-score',
+          endpoint: '/api/responses',
+          method: 'POST',
+          body: { orgId, questionId: qId, assessorScore: score, updatedBy: currentUser.email },
+          dedupeKey: draftKey,
+        })
         setScoreAttribution(prev => ({
           ...prev,
           [orgId]: { ...(prev[orgId] || {}), [qId]: currentUser.email },
