@@ -3,6 +3,7 @@ import { asc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { complianceItems } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/compliance — the unified Obligations & Reporting Calendar. Queried by the
 // daily compliance-alerts scheduled function for 90/30/overdue warnings. Every
@@ -83,7 +84,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/compliance failed', err)
+    logger.error("/api/compliance", "failed", err)
     return Response.json({ error: 'Compliance request failed' }, { status: 500 })
   }
 }

@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { capacityActions } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/capacity-actions — the Capacity Improvement Plan (CIP). Tracks the status
 // of remediation actions per organization. Replaces the in-memory
@@ -59,7 +60,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/capacity-actions failed', err)
+    logger.error("/api/capacity-actions", "failed", err)
     return Response.json({ error: 'Capacity action request failed' }, { status: 500 })
   }
 }

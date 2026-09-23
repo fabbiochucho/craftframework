@@ -2,6 +2,7 @@ import type { Context, Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 import { ALLOWED_EXTENSIONS, UPLOAD_WINDOW_SECONDS, extensionOf } from '../lib/uploads.js'
+import { logger } from '../lib/logger.js'
 
 // ============================================================================
 // CRAFT v4.0 — Presigned upload URL generator (Data Room evidence)
@@ -73,7 +74,7 @@ export default async (req: Request, context: Context) => {
       reservedAt: new Date(stamp).toISOString(),
       expiresAt: expiresAt.toISOString(),
     })
-    .catch(err => console.error('[presigned-url] blob reserve failed', err))
+    .catch(err => logger.error("presigned-url", "blob reserve failed", err))
 
   return Response.json({
     key,

@@ -3,6 +3,7 @@ import { getStore } from '@netlify/blobs'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 import { MAX_UPLOAD_BYTES } from '../lib/uploads.js'
 import { stripImageMetadata } from '../lib/stripImageMetadata.js'
+import { logger } from '../lib/logger.js'
 
 // ============================================================================
 // CRAFT v4.0 — Data Room evidence upload sink
@@ -90,7 +91,7 @@ export default async (req: Request, _context: Context) => {
 
     return Response.json({ key, status: 'uploaded', size: buf.byteLength }, { status: 201 })
   } catch (err) {
-    console.error('[data-room-upload] failed', err)
+    logger.error("data-room-upload", "failed", err)
     return Response.json({ error: 'Upload failed' }, { status: 500 })
   }
 }

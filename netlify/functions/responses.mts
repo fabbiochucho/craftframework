@@ -3,6 +3,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responses } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 // /api/responses — per-organization assessment scores. The canonical store for
 // what used to be the in-memory `scores: Record<orgId, Record<qId, number>>`.
@@ -123,7 +124,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/responses failed', err)
+    logger.error("/api/responses", "failed", err)
     return Response.json({ error: 'Response request failed' }, { status: 500 })
   }
 }
