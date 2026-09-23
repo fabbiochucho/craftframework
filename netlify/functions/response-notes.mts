@@ -3,6 +3,7 @@ import { getUser } from '@netlify/identity'
 import { and, asc, eq, or } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responseNotes, users } from '../../db/schema.js'
+import { logger } from '../lib/logger.js'
 
 // ============================================================================
 // /api/response-notes — threaded, multi-author rationale on assessment answers.
@@ -128,7 +129,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/response-notes failed', err)
+    logger.error("/api/response-notes", "failed", err)
     return Response.json({ error: 'Response notes request failed' }, { status: 500 })
   }
 }

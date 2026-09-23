@@ -1,4 +1,5 @@
 import type { Config } from '@netlify/functions'
+import { logger } from '../lib/logger.js'
 
 // ============================================================================
 // CRAFT v4.0 — Global Regulatory Obligations cron (Feature 7)
@@ -122,7 +123,7 @@ async function sendResendEmail(ob: RegulatoryObligation, dueISO: string, tier: T
         (ob.note ? `Note: ${ob.note}\n` : '') +
         `\nAction the filing through your CRAFT secure workspace.`,
     }),
-  }).catch(err => console.error('[universal-obligations-alerts] Resend error', err))
+  }).catch(err => logger.error("universal-obligations-alerts", "Resend error", err))
 }
 
 export default async (req: Request) => {
