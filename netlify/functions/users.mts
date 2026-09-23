@@ -1,14 +1,34 @@
 import type { Config } from '@netlify/functions'
 import { asc, eq, sql } from 'drizzle-orm'
 import { admin } from '@netlify/identity'
+import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { users } from '../../db/schema.js'
 import type { UserRow } from '../../db/schema.js'
 import { isSuperAdmin, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 function isAdmin(role: string): boolean {
   return role === 'admin' || role === 'super_admin'
 }
+
+// `role` is deliberately not enum-locked here — it's shared with the
+// specialized-ecosystem grant roles (cbn_examiner, frcn_auditor, etc.), so a
+// fixed list would either miss one or need to be kept in sync from two places.
+// `clampRole()` already prevents self-escalation to super_admin regardless of
+// what's sent. `status` has exactly two valid values per the schema comment.
+const userAssignmentSchema = z.object({
+  email: z.string().trim().email().max(320),
+  id: z.string().trim().max(200).optional(),
+  role: z.string().trim().max(100).optional(),
+  name: z.string().max(300).optional(),
+  title: z.string().max(300).optional(),
+  orgId: z.string().max(200).nullable().optional(),
+  scopeId: z.string().max(200).nullable().optional(),
+  scopeLabel: z.string().max(300).optional(),
+  portfolioId: z.string().max(200).nullable().optional(),
+  status: z.enum(['active', 'invited']).optional(),
+})
 
 // The platform `super_admin` (Super Admin) tier is reserved for the single
 // allowlisted operator. Nobody else can be persisted with it: a request
@@ -155,34 +175,38 @@ export default async (req: Request) => {
       // Assigning a role/org/scope to a directory entry is an admin-only action.
       if (!isAdmin(caller.role)) return forbidden()
 
-      const id: string = body.id?.trim() || `usr_${crypto.randomUUID()}`
-      const role = clampRole(email, String(body.role ?? 'assessor'))
-      const status = String(body.status ?? 'active').trim() || 'active'
+      const parsed = userAssignmentSchema.safeParse(body)
+      if (!parsed.success) return Response.json({ error: 'Invalid request body', details: parsed.error.flatten() }, { status: 400 })
+      const assign = parsed.data
+
+      const id: string = assign.id || `usr_${crypto.randomUUID()}`
+      const role = clampRole(email, assign.role ?? 'assessor')
+      const status = assign.status ?? 'active'
 
       const [row] = await db
         .insert(users)
         .values({
           id,
           email,
-          name: String(body.name ?? '').trim(),
-          title: String(body.title ?? '').trim(),
-          orgId: body.orgId ?? null,
+          name: (assign.name ?? '').trim(),
+          title: (assign.title ?? '').trim(),
+          orgId: assign.orgId ?? null,
           role,
-          scopeId: body.scopeId ?? null,
-          scopeLabel: String(body.scopeLabel ?? '').trim(),
-          portfolioId: body.portfolioId ?? null,
+          scopeId: assign.scopeId ?? null,
+          scopeLabel: (assign.scopeLabel ?? '').trim(),
+          portfolioId: assign.portfolioId ?? null,
           status,
         })
         .onConflictDoUpdate({
           target: users.email,
           set: {
-            name: String(body.name ?? '').trim(),
-            title: String(body.title ?? '').trim(),
-            orgId: body.orgId ?? null,
+            name: (assign.name ?? '').trim(),
+            title: (assign.title ?? '').trim(),
+            orgId: assign.orgId ?? null,
             role,
-            scopeId: body.scopeId ?? null,
-            scopeLabel: String(body.scopeLabel ?? '').trim(),
-            portfolioId: body.portfolioId ?? null,
+            scopeId: assign.scopeId ?? null,
+            scopeLabel: (assign.scopeLabel ?? '').trim(),
+            portfolioId: assign.portfolioId ?? null,
             status,
           },
         })
@@ -205,7 +229,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/users failed', err)
+    logger.error("/api/users", "failed", err)
     return Response.json({ error: 'User request failed' }, { status: 500 })
   }
 }

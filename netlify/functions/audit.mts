@@ -3,6 +3,7 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { auditLogs } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 function stamp(d: Date | null): string {
   const t = d ?? new Date()
@@ -70,7 +71,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/audit failed', err)
+    logger.error("/api/audit", "failed", err)
     return Response.json({ error: 'Audit request failed' }, { status: 500 })
   }
 }

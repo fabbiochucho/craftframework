@@ -1,11 +1,25 @@
 import type { Config } from '@netlify/functions'
 import { desc, eq } from 'drizzle-orm'
+import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
   organizations, responses, capacityActions, complianceItems, auditLogs,
   accessGrants, users,
 } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
+
+const orgFieldsSchema = z.object({
+  id: z.string().trim().max(200).optional(),
+  name: z.string().trim().max(300).optional(),
+  country: z.string().trim().max(100).optional(),
+  targetDonor: z.string().trim().max(300).optional(),
+  email: z.string().trim().email().max(320).or(z.literal('')).optional(),
+  reviewer: z.string().trim().email().max(320).or(z.literal('')).nullable().optional(),
+  archetype: z.string().max(200).nullable().optional(),
+  sector: z.string().max(200).nullable().optional(),
+  subsector: z.string().max(200).nullable().optional(),
+})
 
 // /api/organizations — institutions (tenants) a reviewer/admin administers. The
 // caller is resolved from the verified Identity session; the `createdBy` used to
@@ -32,8 +46,10 @@ export default async (req: Request) => {
     }
 
     if (req.method === 'POST') {
-      const body = await req.json()
-      const id: string = body.id?.trim() || `org_${crypto.randomUUID()}`
+      const parsed = orgFieldsSchema.safeParse(await req.json())
+      if (!parsed.success) return Response.json({ error: 'Invalid request body', details: parsed.error.flatten() }, { status: 400 })
+      const body = parsed.data
+      const id: string = body.id || `org_${crypto.randomUUID()}`
       // Updating an existing institution requires access to it; creating a new one
       // is open to any signed-in caller but is always stamped to them.
       const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, id)).limit(1)
@@ -63,11 +79,13 @@ export default async (req: Request) => {
     // PUT — edit an existing institution's profile fields. Only the keys present
     // in the body are written, so a partial edit never blanks other columns.
     if (req.method === 'PUT') {
-      const body = await req.json()
-      const id: string = String(body.id ?? '').trim()
+      const parsed = orgFieldsSchema.safeParse(await req.json())
+      if (!parsed.success) return Response.json({ error: 'Invalid request body', details: parsed.error.flatten() }, { status: 400 })
+      const body = parsed.data
+      const id: string = body.id ?? ''
       if (!id) return Response.json({ error: 'id required' }, { status: 400 })
       if (!(await canAccessOrg(caller, id))) return forbidden()
-      const has = (k: string) => body[k] !== undefined && body[k] !== null
+      const has = (k: keyof typeof body) => body[k] !== undefined && body[k] !== null
       const set: Record<string, unknown> = { lastUpdated: new Date() }
       if (has('name')) set.name = String(body.name).trim()
       if (has('country')) set.country = String(body.country).trim()
@@ -125,7 +143,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/organizations failed', err)
+    logger.error("/api/organizations", "failed", err)
     return Response.json({ error: 'Organization request failed' }, { status: 500 })
   }
 }

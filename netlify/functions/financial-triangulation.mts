@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { financialTriangulations } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { logger } from '../lib/logger.js'
 
 function cleanNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 0
@@ -104,7 +105,7 @@ export default async (req: Request) => {
 
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {
-    console.error('/api/financial-triangulation failed', err)
+    logger.error("/api/financial-triangulation", "failed", err)
     return Response.json({ error: 'Financial triangulation request failed' }, { status: 500 })
   }
 }
