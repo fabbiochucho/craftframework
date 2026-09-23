@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { Link } from '@tanstack/react-router'
 import { Lock, AlertOctagon, ShieldCheck, ArrowRight, Gauge, ClipboardList, Globe, Radio } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useLensCtx } from '../lib/context'
 import {
   computeOrgScore, computeTierScore, computeCompositeIndices,
   getAccreditation, deriveFindings, severityStyle, PAPER_COMPLIANCE_THRESHOLD,
@@ -17,7 +17,11 @@ import {
 } from '../components/ui'
 
 export function DashboardPage() {
-  const { currentUser, currentOrg, scores, cipStatuses, implementationEvidence, activeLenses } = useApp()
+  const { currentUser } = useAuthCtx()
+  const { currentOrg } = useWorkspace()
+  const { scores, implementationEvidence } = useScoresCtx()
+  const { cipStatuses } = useCIPCtx()
+  const { activeLenses } = useLensCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
 
   const composite = useMemo(() => computeOrgScore(orgScores), [orgScores])

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Settings, Building2, Users, Shield, Lock, UserPlus, X, Check, Layers, Clock, Mail, Eye, Globe, Briefcase, ShieldOff } from 'lucide-react'
-import { useApp, UserRole } from '../lib/context'
+import { useAuthCtx, useTeamCtx, useWorkspace, useLensCtx, useEntityProfileCtx, useAccessCtx, UserRole } from '../lib/context'
 import { Card, CardContent, CardHeader, CardTitle, Input, Select, Button, Badge, Tabs, Toast, Switch } from '../components/ui'
 import { VIEW_LEVELS, ASSIGNABLE_VIEW_LEVELS, getViewLevel, isSuperAdminEmail, Portfolio, BRAND, SESSION_TIMEOUT_OPTIONS, buildWelcomeEmail, buildWelcomeEmailHtml, LENSES, lensQuestionCount, ARCHETYPES, Archetype } from '../lib/data'
 import { COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector } from '../lib/dataroom'
@@ -33,8 +33,12 @@ function RoleBadge({ role }: { role: UserRole }) {
 }
 
 export function SettingsPage() {
-  const { currentUser, teamMembers, portfolios, inviteTeamMember, updateTeamMemberRole, removeTeamMember, setRole, sessionTimeout, setSessionTimeout, activeLenses, setLensActive, mandatoryLenses, entityProfile, setEntityProfile,
-    accessGrants, revokeAccess, firm, createFirmEntity, addFirmSeat, removeFirmSeat } = useApp()
+  const { currentUser, setRole, sessionTimeout, setSessionTimeout } = useAuthCtx()
+  const { teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember } = useTeamCtx()
+  const { portfolios } = useWorkspace()
+  const { activeLenses, setLensActive, mandatoryLenses } = useLensCtx()
+  const { entityProfile, setEntityProfile } = useEntityProfileCtx()
+  const { accessGrants, revokeAccess, firm, createFirmEntity, addFirmSeat, removeFirmSeat } = useAccessCtx()
   const [tab, setTab] = useState('profile')
   const [toast, setToast] = useState<string | null>(null)
   // Firm seat + new-firm form state (Phase 5).

@@ -3,7 +3,7 @@ import { FolderLock, FileText, FileSpreadsheet, FileImage, Eye, X, ShieldCheck, 
 import { EVIDENCE_DOCS, EvidenceDoc } from '../lib/data'
 import { Card, CardContent, Badge } from '../components/ui'
 import { ExcelImport } from '../components/ExcelImport'
-import { useApp } from '../lib/context'
+import { useAuthCtx } from '../lib/context'
 
 const typeIcon: Record<EvidenceDoc['type'], typeof FileText> = {
   PDF: FileText, XLSX: FileSpreadsheet, DOCX: FileText, IMG: FileImage,
@@ -15,7 +15,7 @@ const statusMeta: Record<EvidenceDoc['status'], { icon: typeof ShieldCheck; cls:
 }
 
 export function EvidencePage() {
-  const { currentUser, isDemo } = useApp()
+  const { currentUser, isDemo } = useAuthCtx()
   const [preview, setPreview] = useState<EvidenceDoc | null>(null)
   // Demo sessions show an illustrative document set; a live vault starts empty
   // and fills as documents are imported or uploaded.

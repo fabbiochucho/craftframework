@@ -41,7 +41,7 @@ import {
   Input,
   Stat,
 } from '../components/ui'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useAuditCtx } from '../lib/context'
 import * as api from '../lib/api'
 
 // ---------------------------------------------------------------------------
@@ -93,7 +93,8 @@ function omtLabel(score: number): string | undefined {
 }
 
 export function TrustDeltaPage() {
-  const { currentUser, isDemo, logActivity } = useApp()
+  const { currentUser, isDemo } = useAuthCtx()
+  const { logActivity } = useAuditCtx()
   // Demo sessions are seeded with an illustrative reconciliation register; a live
   // workspace starts empty until self vs independent scores are recorded.
   const [rows, setRows] = useState<TrustDeltaRow[]>(() =>

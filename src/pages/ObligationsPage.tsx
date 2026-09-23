@@ -3,7 +3,7 @@ import {
   Calendar, Bell, AlertTriangle, ShieldCheck, Plus, X, CheckCircle2,
   ArrowUpDown, FolderClock, Building2, Filter,
 } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useAuditCtx } from '../lib/context'
 import * as api from '../lib/api'
 import {
   Card, CardContent, Button, Badge, Input, Select, Stat, Toast,
@@ -48,7 +48,8 @@ export function ObligationsPage() {
 }
 
 function ObligationsRegisterSection() {
-  const { currentUser, isDemo, logActivity } = useApp()
+  const { currentUser, isDemo } = useAuthCtx()
+  const { logActivity } = useAuditCtx()
 
   // Demo sessions are seeded with illustrative Pan-African obligations; a live
   // workspace starts empty (the prompt's strict demo/production separation).
