@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { logout as identityLogout } from '@netlify/identity'
 import { cn } from '../lib/utils'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
 import { Badge } from './ui'
 import { Footer } from './Footer'
 import { Logo } from './Logo'
@@ -49,8 +49,9 @@ const adminNav = [
 
 // Secure multi-tenant vault chrome (Zones 3 & 4).
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { currentUser, currentOrg, scores, implementationEvidence, setRole, logout, onboardingComplete, enterDemo,
-    organizations, activeClientOrgId, setActiveClient, isViewingClient, authReady } = useApp()
+  const { currentUser, setRole, logout, onboardingComplete, enterDemo, authReady } = useAuthCtx()
+  const { currentOrg, organizations, activeClientOrgId, setActiveClient, isViewingClient } = useWorkspace()
+  const { scores, implementationEvidence } = useScoresCtx()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouterState()
   const navigate = useNavigate()

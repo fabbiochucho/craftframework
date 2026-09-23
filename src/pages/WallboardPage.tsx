@@ -7,7 +7,7 @@ import {
 import {
   Maximize2, Minimize2, X, Radio, ShieldCheck, AlertOctagon, Building2, Activity,
 } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
 import {
   computeOrgScore, computeImplementationEvidence, computeCompositeIndices,
   getAccreditation, deriveFindings, BRAND,
@@ -41,7 +41,9 @@ function scoreTone(v: number): { text: string; bar: string } {
 }
 
 export function WallboardPage() {
-  const { currentUser, currentOrg, organizations, scores, enterDemo } = useApp()
+  const { currentUser, enterDemo } = useAuthCtx()
+  const { currentOrg, organizations } = useWorkspace()
+  const { scores } = useScoresCtx()
   const navigate = useNavigate()
   const rootRef = useRef<HTMLDivElement>(null)
   const [isFull, setIsFull] = useState(false)

@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Lock } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { useApp } from '../lib/context'
+import { useAuthCtx } from '../lib/context'
 
 // Subtle vault session countdown shown bottom-right of the secure workspace.
 // The window is driven by the user's security-bounded session-timeout
 // preference (5–60 minutes). Any activity resets the countdown, and the badge
 // shifts colour as the remaining time runs low.
 export function SessionTimer() {
-  const { sessionTimeout } = useApp()
+  const { sessionTimeout } = useAuthCtx()
   const total = sessionTimeout * 60
   const [seconds, setSeconds] = useState(total)
 
