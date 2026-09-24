@@ -261,7 +261,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="hidden text-slate-500 sm:inline">{currentUser.orgName}</span>
           </div>
           <div className="flex-1" />
-          <ComplianceDeadlineBadge orgId={currentOrg?.id} />
+          <ComplianceDeadlineBadge orgId={currentOrg?.id} isDemo={currentUser?.isDemo ?? false} />
           <LanguageToggle tone="light" />
           <Badge
             className={cn(
