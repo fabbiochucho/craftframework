@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Smartphone, WifiOff, Wifi, CheckCircle2, CloudUpload, RotateCcw, Save,
 } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx } from '../lib/context'
 import { INFORMAL_ROCA_DIMENSIONS } from '../lib/regulatory-context'
 import { Card, CardContent, Button, Badge } from '../components/ui'
 import { cn } from '../lib/utils'
@@ -39,7 +39,7 @@ interface StoredRecord {
 }
 
 export function InformalEconomyPage() {
-  const { currentUser, isDemo } = useApp()
+  const { currentUser, isDemo } = useAuthCtx()
   const orgId = currentUser?.orgId ?? 'anon'
   const storageKey = `craft-informal-${orgId}`
 

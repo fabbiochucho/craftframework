@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { FileBarChart, FileText, FileSpreadsheet, Download, Printer } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx } from '../lib/context'
 import {
   deriveFindings, computeOrgScore, getAccreditation, DerivedFinding, answeredCount, RiskStatus,
 } from '../lib/data'
@@ -29,7 +29,11 @@ function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, org
 }
 
 export function ReportsPage() {
-  const { currentUser, currentOrg, scores, cipStatuses, implementationEvidence, logActivity } = useApp()
+  const { currentUser } = useAuthCtx()
+  const { currentOrg } = useWorkspace()
+  const { scores, implementationEvidence } = useScoresCtx()
+  const { cipStatuses } = useCIPCtx()
+  const { logActivity } = useAuditCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
   const composite = computeOrgScore(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)

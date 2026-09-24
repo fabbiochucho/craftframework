@@ -8,14 +8,16 @@ import { Button, Input, Select, Stepper } from '../components/ui'
 import { Footer } from '../components/Footer'
 import { Logo } from '../components/Logo'
 import { ExcelImport } from '../components/ExcelImport'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useTeamCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, DONOR_FRAMEWORKS, ARCHETYPES, Archetype } from '../lib/data'
 import { COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector } from '../lib/dataroom'
 
 const STEPS = ['Workspace', 'Donor Alignment', 'Team & Import']
 
 export function OnboardingPage() {
-  const { currentUser, completeOnboarding, inviteTeamMember, setEntityProfile } = useApp()
+  const { currentUser, completeOnboarding } = useAuthCtx()
+  const { inviteTeamMember } = useTeamCtx()
+  const { setEntityProfile } = useEntityProfileCtx()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
 

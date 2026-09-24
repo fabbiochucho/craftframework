@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { TrendingUp, CalendarRange, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { useApp } from '../lib/context'
+import { useWorkspace, useScoresCtx, useCIPCtx } from '../lib/context'
 import {
   deriveFindings, RISK_STATUSES, RiskStatus, STATUS_STYLES, severityStyle,
 } from '../lib/data'
@@ -13,7 +13,9 @@ import {
 const DEFAULT_STATUS: RiskStatus = 'To-be-Initiated'
 
 export function CIPPage() {
-  const { currentOrg, scores, cipStatuses, updateCIPStatus } = useApp()
+  const { currentOrg } = useWorkspace()
+  const { scores } = useScoresCtx()
+  const { cipStatuses, updateCIPStatus } = useCIPCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
 
   const plan = useMemo(() => deriveFindings(orgScores), [orgScores])

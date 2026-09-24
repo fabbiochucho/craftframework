@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import {
   ChevronLeft, ChevronRight, Lightbulb, Lock, ShieldCheck, UploadCloud, Layers, FolderCheck,
 } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useLensCtx, useEntityProfileCtx } from '../lib/context'
 import { activeQuestions, getRiskColor, TIER_NAMES, computeTierScore, scopeLabel, archetypeMatch, ARCHETYPES } from '../lib/data'
 import { Card, Button, Stepper, Toast } from '../components/ui'
 import { resolveRegulatoryContext, PRIORITY_RANK } from '../lib/regulatory-context'
@@ -16,11 +16,14 @@ const EVIDENCE_LEVELS = [
 ]
 
 export function AssessmentPage() {
+  const { currentUser } = useAuthCtx()
+  const { currentOrg } = useWorkspace()
   const {
-    currentUser, currentOrg, scores, getScore, updateScore,
+    scores, getScore, updateScore,
     getAssessorScore, updateAssessorScore, scoreAttribution,
-    activeLenses, entityProfile,
-  } = useApp()
+  } = useScoresCtx()
+  const { activeLenses } = useLensCtx()
+  const { entityProfile } = useEntityProfileCtx()
   const orgId = currentOrg?.id ?? currentUser?.orgId ?? 'org-001'
   // An Independent Assessor scores the same institution on a parallel track:
   // their input is written to assessor_score (reconciled on Trust Delta), never

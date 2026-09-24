@@ -12,7 +12,7 @@ import { Lock, Shield, ArrowRight, MailCheck, Loader2, Eye, EyeOff, Github } fro
 import { Button, Input } from '../components/ui'
 import { Footer } from '../components/Footer'
 import { Logo } from '../components/Logo'
-import { useApp } from '../lib/context'
+import { useAuthCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
 
 type Status = 'idle' | 'submitting'
@@ -44,7 +44,7 @@ export function AuthPage() {
   // Navigation into the vault is driven off THIS (see the effect below) rather
   // than fired the instant login() resolves — otherwise the redirect can race
   // ahead of session hydration and the route guard bounces straight back here.
-  const { currentUser } = useApp()
+  const { currentUser } = useAuthCtx()
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [email, setEmail] = useState('admin@workspace.org')
   const [password, setPassword] = useState('')

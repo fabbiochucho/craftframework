@@ -3,7 +3,7 @@ import {
   FolderLock, FileCheck, ShieldCheck, Building2, Scale, Link as LinkIcon, UploadCloud,
   X, Eye, ExternalLink, AlertTriangle, Filter, Check, Flag, FileText, Globe2,
 } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useEntityProfileCtx, useAuditCtx } from '../lib/context'
 import { ARCHETYPES, Archetype } from '../lib/data'
 import {
   COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector, countryName, countryFlag,
@@ -58,7 +58,9 @@ function todayISO(): string {
 }
 
 function ComplianceEngineSection() {
-  const { currentUser, isDemo, entityProfile, setEntityProfile, logActivity } = useApp()
+  const { currentUser, isDemo } = useAuthCtx()
+  const { entityProfile, setEntityProfile } = useEntityProfileCtx()
+  const { logActivity } = useAuditCtx()
   const { archetype, country, sector, subsector } = entityProfile
 
   // The reviewer/oversight roles act as the Independent Assessor who can verify

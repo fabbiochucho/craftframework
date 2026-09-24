@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useNavigate } from '@tanstack/react-router'
 import { Network, ShieldAlert, ShieldCheck, Layers, Building2, Plus, FolderPlus, UserCheck, Eye, Archive, Trash2 } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useLensCtx, useAccessCtx } from '../lib/context'
 import {
   COMPOSITE_INDICES, computeCompositeIndices, computeOrgScore,
   getAccreditation, getImplementationEvidence, LENSES, lensQuestionCount,
@@ -23,13 +23,16 @@ function reviewerLabel(reviewer?: string): string {
 }
 
 export function PortfolioAdminPage() {
+  const { currentUser } = useAuthCtx()
   const {
-    currentUser, organizations, portfolios, scores,
-    createOrganization, createPortfolio, mandatoryLenses, setMandatoryLens,
-    accessGrants, setActiveClient,
+    organizations, portfolios,
+    createOrganization, createPortfolio, setActiveClient,
     deleteOrganization, archiveOrganization, restoreOrganization,
     deletePortfolio, archivePortfolio,
-  } = useApp()
+  } = useWorkspace()
+  const { scores } = useScoresCtx()
+  const { mandatoryLenses, setMandatoryLens } = useLensCtx()
+  const { accessGrants } = useAccessCtx()
   const navigate = useNavigate()
 
   // The grant an institution holds with the signed-in reviewer, if any. Tells the

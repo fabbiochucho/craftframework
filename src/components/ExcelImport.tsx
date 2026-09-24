@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Download, UploadCloud, ShieldCheck, Loader2, FileSpreadsheet } from 'lucide-react'
 import { Button, Toast } from './ui'
 import { MOCK_QUESTIONS } from '../lib/data'
-import { useApp } from '../lib/context'
+import { useScoresCtx } from '../lib/context'
 
 // Builds an Excel-compatible CSV template covering the full question bank.
 function buildTemplate(): string {
@@ -41,7 +41,7 @@ function parseCsv(text: string): Record<string, number> {
 type State = 'idle' | 'scanning' | 'done' | 'error'
 
 export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?: (n: number) => void }) {
-  const { bulkImportScores } = useApp()
+  const { bulkImportScores } = useScoresCtx()
   const inputRef = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<State>('idle')
   const [dragging, setDragging] = useState(false)

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import {
   MOCK_ORGANIZATIONS,
   MOCK_PORTFOLIOS,
@@ -25,6 +25,25 @@ import * as api from './api'
 import { offlineDB } from './offline/db'
 import { queueAndSync } from './offline/sync-engine'
 import type { JurisdictionId, SectorArchetype } from './regulatory-context'
+
+// ============================================================================
+// This used to be a single AppContext exposing 40+ values through one object,
+// recreated (and thus re-rendered to every one of its ~25 consumers) on every
+// state change anywhere in the app — typing one assessment score re-rendered
+// the admin team directory, the audit log, everything mounted. It's now split
+// into focused contexts grouped by how often they actually change together:
+// Scores (changes every keystroke) is isolated from Workspace/Auth/Team/etc.
+// (change rarely), so a component that only reads e.g. the team directory no
+// longer re-renders when someone elsewhere is filling out an assessment.
+//
+// All state/effects/callbacks still live in ONE AppProvider component body
+// (below) — they're genuinely interdependent internally (nearly everything
+// reads currentUser and calls appendAudit). Only how the final values are
+// grouped and exposed to consumers has changed. Each exported hook
+// (useAuthCtx, useWorkspace, useScoresCtx, etc.) reads its own memoized
+// context, so a component only re-renders when the slice it actually asked
+// for changes.
+// ============================================================================
 
 // A user's view level (Organization Assessor / Portfolio Reviewer / Super
 // Admin) is the single preference that drives what they can see across the app.
@@ -96,8 +115,9 @@ interface AuthUser {
   isDemo: boolean
 }
 
-interface AppContextType {
-  // Auth
+// --- Per-domain context shapes -----------------------------------------------
+
+interface AuthContextType {
   currentUser: AuthUser | null
   isDemo: boolean
   onboardingComplete: boolean
@@ -118,33 +138,14 @@ interface AppContextType {
   setSessionTimeout: (minutes: number) => void
   // Demo entry (opens a seeded, throwaway session - used by the public demo tabs)
   enterDemo: (role: UserRole) => void
-  // Scores (org-specific, mutable, scoped by organization_id)
-  scores: Record<string, Record<string, number>>
-  updateScore: (orgId: string, qId: string, score: number) => void
-  getScore: (orgId: string, qId: string) => number
-  bulkImportScores: (orgId: string, imported: Record<string, number>) => void
-  // Independent-assessor scores: an external reviewer's parallel number, stored
-  // in responses.assessor_score without disturbing the institution's self-score.
-  // Reconciled against the self-score on the Trust Delta screen.
-  assessorScores: Record<string, Record<string, number>>
-  updateAssessorScore: (orgId: string, qId: string, score: number) => void
-  getAssessorScore: (orgId: string, qId: string) => number
-  // Attribution: who (email) last set each self-score, keyed by org then question.
-  // Surfaced in the wizard so co-assessors can see each other's contributions.
-  scoreAttribution: Record<string, Record<string, string>>
-  // The assessment question bank, served from the Netlify Database (/api/questions)
-  // and seeded from the canonical code definition. Falls back to the in-code bank
-  // until the first fetch resolves, so the UI is never empty.
-  questions: Question[]
-  // Organizations & portfolios - mutable collections a Portfolio Reviewer or
-  // Super Admin builds up. A live workspace starts EMPTY; the demo seeds samples.
+}
+
+interface WorkspaceContextType {
   organizations: Organization[]
   portfolios: Portfolio[]
   createOrganization: (input: CreateOrgInput) => Organization
   editOrganization: (id: string, patch: Partial<CreateOrgInput>) => void
   deleteOrganization: (id: string) => void
-  // Soft-archive / restore an institution: hidden from working surfaces but the
-  // record and all its data are retained until an explicit hard delete.
   archiveOrganization: (id: string) => void
   restoreOrganization: (id: string) => void
   createPortfolio: (input: CreatePortfolioInput) => Portfolio
@@ -161,49 +162,75 @@ interface AppContextType {
   setActiveClient: (orgId: string | null) => void
   isViewingClient: boolean
   readOnly: boolean
-  // Cross-tenant access grants relevant to the signed-in user (as grantee when a
-  // reviewer, and as org when a client). Drives the revocation UI and the
-  // reviewer's per-client grant-status badges.
+}
+
+interface ScoresContextType {
+  scores: Record<string, Record<string, number>>
+  updateScore: (orgId: string, qId: string, score: number) => void
+  getScore: (orgId: string, qId: string) => number
+  bulkImportScores: (orgId: string, imported: Record<string, number>) => void
+  assessorScores: Record<string, Record<string, number>>
+  updateAssessorScore: (orgId: string, qId: string, score: number) => void
+  getAssessorScore: (orgId: string, qId: string) => number
+  scoreAttribution: Record<string, Record<string, string>>
+  implementationEvidence: number
+}
+
+interface QuestionsContextType {
+  questions: Question[]
+}
+
+interface AccessContextType {
   accessGrants: api.AccessGrant[]
   grantAccess: (orgId: string, grantee: string, portfolioId?: string) => void
   revokeAccess: (orgId: string, grantee: string) => void
-  // Persistent invitations this workspace has sent.
   sentInvitations: api.Invitation[]
-  // Consulting firm (first-class entity) the signed-in user belongs to, and its
-  // seat management. A firm lets several consultants share one client book.
   firm: api.Firm | null
   createFirmEntity: (name: string) => void
   addFirmSeat: (email: string, role?: 'owner' | 'consultant') => void
   removeFirmSeat: (email: string) => void
-  implementationEvidence: number
-  // Capacity Improvement Plan statuses (finding/risk id -> status)
+}
+
+interface CIPContextType {
   cipStatuses: Record<string, RiskStatus>
   updateCIPStatus: (riskId: string, status: RiskStatus) => void
-  // Modular Sovereignty - thematic lenses the workspace has activated. The Core
-  // Foundation is always active; lenses scope the wizard, dashboard, and indices.
-  // A lens mandated by the portfolio is forced ON and cannot be deactivated.
+}
+
+interface LensContextType {
   activeLenses: Record<LensId, boolean>
   toggleLens: (id: LensId) => void
   setLensActive: (id: LensId, on: boolean) => void
   mandatoryLenses: Record<LensId, boolean>
   setMandatoryLens: (id: LensId, on: boolean) => void
-  // Entity profile - archetype + country + sector. Drives archetype-aware
-  // question filtering in the wizard and the dynamic Data Room checklist.
+}
+
+interface EntityProfileContextType {
   entityProfile: EntityProfile
   setEntityProfile: (patch: Partial<EntityProfile>) => void
-  // Team & access levels - people with access to the current workspace and the
-  // view level (preference) each one is granted. Excludes the workspace owner,
-  // who is always the signed-in user.
+}
+
+interface TeamContextType {
   teamMembers: TeamMember[]
   inviteTeamMember: (input: InviteInput) => void
   updateTeamMemberRole: (id: string, role: UserRole, scopeId: string | undefined, scopeLabel: string) => void
   removeTeamMember: (id: string) => void
-  // Audit log - records workspace activity from the first sign-in onward
+}
+
+interface AuditContextType {
   auditLog: AuditEntry[]
   logActivity: (action: string, target: string, category: AuditEntry['category']) => void
 }
 
-const AppContext = createContext<AppContextType | null>(null)
+const AuthCtx = createContext<AuthContextType | null>(null)
+const WorkspaceCtx = createContext<WorkspaceContextType | null>(null)
+const ScoresCtx = createContext<ScoresContextType | null>(null)
+const QuestionsCtx = createContext<QuestionsContextType | null>(null)
+const AccessCtx = createContext<AccessContextType | null>(null)
+const CIPCtx = createContext<CIPContextType | null>(null)
+const LensCtx = createContext<LensContextType | null>(null)
+const EntityProfileCtx = createContext<EntityProfileContextType | null>(null)
+const TeamCtx = createContext<TeamContextType | null>(null)
+const AuditCtx = createContext<AuditContextType | null>(null)
 
 // Stable identifier for a live (non-demo) tenant's own workspace.
 export const SELF_ORG_ID = 'self'
@@ -663,9 +690,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateAssessorScore = useCallback(
     (orgId: string, qId: string, score: number) => {
       if (readOnlyRef.current) return
+      // Same local-first pattern as updateScore: instant UI update, then a
+      // deduped queued write so rapid edits (e.g. a dragged slider) collapse
+      // into one pending mutation instead of firing on every tick.
       setAssessorScores(prev => ({ ...prev, [orgId]: { ...(prev[orgId] || {}), [qId]: score } }))
       if (currentUser && !currentUser.isDemo) {
-        api.saveResponseDetail(orgId, qId, { assessorScore: score }, currentUser.email)
+        const draftKey = `assessor-score:${orgId}:${qId}`
+        void offlineDB.putDraft(draftKey, { orgId, qId, score, updatedBy: currentUser.email })
+        void queueAndSync({
+          kind: 'assessment:assessor-score',
+          endpoint: '/api/responses',
+          method: 'POST',
+          body: { orgId, questionId: qId, assessorScore: score, updatedBy: currentUser.email },
+          dedupeKey: draftKey,
+        })
         setScoreAttribution(prev => ({
           ...prev,
           [orgId]: { ...(prev[orgId] || {}), [qId]: currentUser.email },
@@ -1125,12 +1163,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // live sessions synthesize a workspace scoped to the signed-in institution.
   // When a reviewer has drilled into a client, resolve to that client's org so
   // every working surface (Dashboard, Findings, Evidence, CIP) renders it.
-  const currentOrg: Organization | null = (() => {
+  // Deliberately does NOT embed `.scores` (unlike the old single-context
+  // version) — nothing reads it (confirmed: no component accesses
+  // `currentOrg.scores` anywhere), and embedding it here would recouple the
+  // Workspace context to every scores change, defeating the point of the split.
+  // Callers needing the current org's scores read them from useScoresCtx().
+  const currentOrg: Organization | null = useMemo(() => {
     if (!currentUser) return null
     if (currentUser.isDemo) return organizations.find(o => o.id === currentUser.orgId) ?? null
     if (isViewingClient && activeClientOrgId) {
       const client = organizations.find(o => o.id === activeClientOrgId)
-      if (client) return { ...client, scores: scores[activeClientOrgId] || {} }
+      if (client) return client
     }
     return {
       id: currentUser.orgId,
@@ -1140,45 +1183,116 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       email: currentUser.email,
       createdAt: '',
       lastUpdated: '',
-      scores: scores[currentUser.orgId] || {},
+      scores: {},
     }
-  })()
+  }, [currentUser, organizations, isViewingClient, activeClientOrgId])
 
-  const implementationEvidence = currentOrg
-    ? computeImplementationEvidence(scores[currentOrg.id] || {})
-    : 0
+  const implementationEvidence = useMemo(
+    () => (currentOrg ? computeImplementationEvidence(scores[currentOrg.id] || {}) : 0),
+    [currentOrg, scores],
+  )
+
+  // --- Memoized per-domain context values --------------------------------
+  const authValue = useMemo<AuthContextType>(
+    () => ({
+      currentUser, isDemo: currentUser?.isDemo ?? false, onboardingComplete,
+      authReady, setAuthReady,
+      login, register, completeOnboarding, logout, setRole, enterDemo,
+      sessionTimeout, setSessionTimeout,
+    }),
+    [currentUser, onboardingComplete, authReady, login, register, completeOnboarding, logout, setRole, enterDemo, sessionTimeout, setSessionTimeout],
+  )
+
+  const workspaceValue = useMemo<WorkspaceContextType>(
+    () => ({
+      organizations, portfolios, createOrganization, editOrganization, deleteOrganization,
+      archiveOrganization, restoreOrganization,
+      createPortfolio, deletePortfolio, renamePortfolio, archivePortfolio, restorePortfolio,
+      currentOrg, activeClientOrgId, setActiveClient, isViewingClient, readOnly,
+    }),
+    [organizations, portfolios, createOrganization, editOrganization, deleteOrganization, archiveOrganization, restoreOrganization, createPortfolio, deletePortfolio, renamePortfolio, archivePortfolio, restorePortfolio, currentOrg, activeClientOrgId, setActiveClient, isViewingClient, readOnly],
+  )
+
+  const scoresValue = useMemo<ScoresContextType>(
+    () => ({
+      scores, updateScore, getScore, bulkImportScores,
+      assessorScores, updateAssessorScore, getAssessorScore, scoreAttribution,
+      implementationEvidence,
+    }),
+    [scores, updateScore, getScore, bulkImportScores, assessorScores, updateAssessorScore, getAssessorScore, scoreAttribution, implementationEvidence],
+  )
+
+  const questionsValue = useMemo<QuestionsContextType>(() => ({ questions }), [questions])
+
+  const accessValue = useMemo<AccessContextType>(
+    () => ({
+      accessGrants, grantAccess, revokeAccess, sentInvitations,
+      firm, createFirmEntity, addFirmSeat, removeFirmSeat,
+    }),
+    [accessGrants, grantAccess, revokeAccess, sentInvitations, firm, createFirmEntity, addFirmSeat, removeFirmSeat],
+  )
+
+  const cipValue = useMemo<CIPContextType>(
+    () => ({ cipStatuses, updateCIPStatus }),
+    [cipStatuses, updateCIPStatus],
+  )
+
+  const lensValue = useMemo<LensContextType>(
+    () => ({ activeLenses, toggleLens, setLensActive, mandatoryLenses, setMandatoryLens }),
+    [activeLenses, toggleLens, setLensActive, mandatoryLenses, setMandatoryLens],
+  )
+
+  const entityProfileValue = useMemo<EntityProfileContextType>(
+    () => ({ entityProfile, setEntityProfile }),
+    [entityProfile, setEntityProfile],
+  )
+
+  const teamValue = useMemo<TeamContextType>(
+    () => ({ teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember }),
+    [teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember],
+  )
+
+  const auditValue = useMemo<AuditContextType>(
+    () => ({ auditLog, logActivity }),
+    [auditLog, logActivity],
+  )
 
   return (
-    <AppContext.Provider
-      value={{
-        currentUser, isDemo: currentUser?.isDemo ?? false, onboardingComplete,
-        authReady, setAuthReady,
-        login, register, completeOnboarding, logout, setRole, enterDemo,
-        sessionTimeout, setSessionTimeout,
-        scores, updateScore, getScore, bulkImportScores,
-        assessorScores, updateAssessorScore, getAssessorScore, scoreAttribution,
-        questions,
-        organizations, portfolios, createOrganization, editOrganization, deleteOrganization,
-        archiveOrganization, restoreOrganization,
-        createPortfolio, deletePortfolio, renamePortfolio, archivePortfolio, restorePortfolio,
-        currentOrg, implementationEvidence,
-        activeClientOrgId, setActiveClient, isViewingClient, readOnly,
-        accessGrants, grantAccess, revokeAccess, sentInvitations,
-        firm, createFirmEntity, addFirmSeat, removeFirmSeat,
-        cipStatuses, updateCIPStatus,
-        activeLenses, toggleLens, setLensActive, mandatoryLenses, setMandatoryLens,
-        entityProfile, setEntityProfile,
-        teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember,
-        auditLog, logActivity,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    <AuthCtx.Provider value={authValue}>
+      <WorkspaceCtx.Provider value={workspaceValue}>
+        <ScoresCtx.Provider value={scoresValue}>
+          <QuestionsCtx.Provider value={questionsValue}>
+            <AccessCtx.Provider value={accessValue}>
+              <CIPCtx.Provider value={cipValue}>
+                <LensCtx.Provider value={lensValue}>
+                  <EntityProfileCtx.Provider value={entityProfileValue}>
+                    <TeamCtx.Provider value={teamValue}>
+                      <AuditCtx.Provider value={auditValue}>{children}</AuditCtx.Provider>
+                    </TeamCtx.Provider>
+                  </EntityProfileCtx.Provider>
+                </LensCtx.Provider>
+              </CIPCtx.Provider>
+            </AccessCtx.Provider>
+          </QuestionsCtx.Provider>
+        </ScoresCtx.Provider>
+      </WorkspaceCtx.Provider>
+    </AuthCtx.Provider>
   )
 }
 
-export function useApp() {
-  const ctx = useContext(AppContext)
-  if (!ctx) throw new Error('useApp must be used within AppProvider')
-  return ctx
+function useCtx<T>(ctx: React.Context<T | null>, name: string): T {
+  const v = useContext(ctx)
+  if (!v) throw new Error(`${name} must be used within AppProvider`)
+  return v
 }
+
+export const useAuthCtx = () => useCtx(AuthCtx, 'useAuthCtx')
+export const useWorkspace = () => useCtx(WorkspaceCtx, 'useWorkspace')
+export const useScoresCtx = () => useCtx(ScoresCtx, 'useScoresCtx')
+export const useQuestionsCtx = () => useCtx(QuestionsCtx, 'useQuestionsCtx')
+export const useAccessCtx = () => useCtx(AccessCtx, 'useAccessCtx')
+export const useCIPCtx = () => useCtx(CIPCtx, 'useCIPCtx')
+export const useLensCtx = () => useCtx(LensCtx, 'useLensCtx')
+export const useEntityProfileCtx = () => useCtx(EntityProfileCtx, 'useEntityProfileCtx')
+export const useTeamCtx = () => useCtx(TeamCtx, 'useTeamCtx')
+export const useAuditCtx = () => useCtx(AuditCtx, 'useAuditCtx')
