@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Calendar, Clock, Mail, Server, Info } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Card, CardHeader, CardTitle, CardContent, Badge, Stat } from '../components/ui'
-import { useApp } from '../lib/context'
+import { useAuthCtx } from '../lib/context'
 import {
   generateComplianceCycles,
   cycleStatusFromDays,
@@ -40,7 +40,7 @@ const STATUS_ORDER: CycleStatus[] = ['overdue', 'urgent-30', 'warning-90', 'on-t
 export function ComplianceCalendarPage() {
   // Demo sessions show an illustrative year of Global Fund reporting cycles; a
   // live workspace starts empty until its own cycles are scheduled.
-  const { isDemo } = useApp()
+  const { isDemo } = useAuthCtx()
   const today = useMemo(() => new Date(), [])
   const items = useMemo(() => (isDemo ? generateComplianceCycles(today) : []), [today, isDemo])
 

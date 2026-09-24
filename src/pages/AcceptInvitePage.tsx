@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { ShieldCheck, Loader2, MailWarning, Building2 } from 'lucide-react'
-import { useApp } from '../lib/context'
+import { useAuthCtx, useAccessCtx } from '../lib/context'
 import * as api from '../lib/api'
 import { BRAND, getViewLevel } from '../lib/data'
 import { Card, CardContent, Input, Button, Badge } from '../components/ui'
@@ -15,7 +15,8 @@ import { Logo } from '../components/Logo'
 export function AcceptInvitePage() {
   const { token } = useParams({ from: '/accept/$token' })
   const navigate = useNavigate()
-  const { register, grantAccess } = useApp()
+  const { register } = useAuthCtx()
+  const { grantAccess } = useAccessCtx()
 
   const [loading, setLoading] = useState(true)
   const [invite, setInvite] = useState<api.Invitation | null>(null)

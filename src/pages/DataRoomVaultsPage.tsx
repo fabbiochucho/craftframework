@@ -8,7 +8,7 @@ import { checkDataQuality, GFA_PILLARS } from '../lib/frameworks'
 import {
   Card, CardContent, Badge, Button, Input, Tabs, Select,
 } from '../components/ui'
-import { useApp } from '../lib/context'
+import { useAuthCtx } from '../lib/context'
 
 // ---------------------------------------------------------------------------
 // Local sample data - vaults, sub-folders and their seeded verification states
@@ -162,7 +162,7 @@ const SEED_STATUSES: Record<string, VerifyStatus> = Object.values(SUBFOLDERS)
 export function DataRoomVaultsPage() {
   // Demo sessions are seeded with illustrative verification states; a live
   // workspace starts every sub-folder as Pending until an assessor acts.
-  const { isDemo, currentUser } = useApp()
+  const { isDemo, currentUser } = useAuthCtx()
   const [vault, setVault] = useState<VaultId>('financial')
   const [statuses, setStatuses] = useState<Record<string, VerifyStatus>>(
     isDemo ? SEED_STATUSES : {},
@@ -344,7 +344,7 @@ export function DataRoomVaultsPage() {
 // ---------------------------------------------------------------------------
 
 function DataQualityPanel() {
-  const { isDemo } = useApp()
+  const { isDemo } = useAuthCtx()
   const [result, setResult] = useState<ReturnType<typeof checkDataQuality> | null>(null)
 
   return (

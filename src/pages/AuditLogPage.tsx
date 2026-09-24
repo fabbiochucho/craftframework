@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ScrollText, Search } from 'lucide-react'
 import { AuditEntry } from '../lib/data'
-import { useApp } from '../lib/context'
+import { useAuditCtx } from '../lib/context'
 import { Card, CardContent, Input, Select, Table, Thead, Tbody, Th, Td, Badge } from '../components/ui'
 
 const catColor: Record<AuditEntry['category'], string> = {
@@ -13,7 +13,7 @@ const catColor: Record<AuditEntry['category'], string> = {
 }
 
 export function AuditLogPage() {
-  const { auditLog } = useApp()
+  const { auditLog } = useAuditCtx()
   const [query, setQuery] = useState('')
   const [cat, setCat] = useState('')
 

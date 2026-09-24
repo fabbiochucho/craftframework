@@ -2,11 +2,13 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Search, Filter, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { deriveFindings, severityStyle, TIER_NAMES } from '../lib/data'
-import { useApp } from '../lib/context'
+import { useWorkspace, useScoresCtx, useCIPCtx } from '../lib/context'
 import { Card, CardContent, Input, Select, StatusBadge, Button } from '../components/ui'
 
 export function FindingsPage() {
-  const { currentOrg, scores, cipStatuses } = useApp()
+  const { currentOrg } = useWorkspace()
+  const { scores } = useScoresCtx()
+  const { cipStatuses } = useCIPCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
   const [query, setQuery] = useState('')
   const [severity, setSeverity] = useState('')
