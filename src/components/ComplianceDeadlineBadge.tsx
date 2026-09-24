@@ -12,12 +12,16 @@ import { cn } from '../lib/utils'
 // workspace. Reuses computeMetrics (same function ObligationsPage uses) rather
 // than re-deriving due-date tiers, so "submitted" items are correctly excluded
 // and both surfaces always agree on what counts as urgent.
-export function ComplianceDeadlineBadge({ orgId }: { orgId: string | undefined }) {
+export function ComplianceDeadlineBadge({ orgId, isDemo }: { orgId: string | undefined; isDemo: boolean }) {
   const [urgentCount, setUrgentCount] = useState(0)
   const [overdueCount, setOverdueCount] = useState(0)
 
   useEffect(() => {
-    if (!orgId) {
+    // Demo sessions are fully in-memory and never touch the API (there is no
+    // real Identity session for the server to authenticate) — every other
+    // mutation/fetch in the app gates on this; this one didn't, and always
+    // 401'd during a demo walkthrough.
+    if (!orgId || isDemo) {
       setUrgentCount(0)
       setOverdueCount(0)
       return
@@ -32,7 +36,7 @@ export function ComplianceDeadlineBadge({ orgId }: { orgId: string | undefined }
     return () => {
       active = false
     }
-  }, [orgId])
+  }, [orgId, isDemo])
 
   const total = urgentCount + overdueCount
   if (total === 0) return null
