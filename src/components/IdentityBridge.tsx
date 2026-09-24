@@ -6,7 +6,7 @@ import {
   handleAuthCallback,
   type User,
 } from '@netlify/identity'
-import { useApp, SELF_ORG_ID } from '../lib/context'
+import { useAuthCtx, SELF_ORG_ID } from '../lib/context'
 import { isSuperAdminEmail, effectiveViewLevel, type ViewLevel } from '../lib/data'
 import { fetchUserByEmail, recordSignIn } from '../lib/api'
 
@@ -30,7 +30,7 @@ const VALID_SELF_ROLES = new Set<ViewLevel>(['assessor', 'independent', 'portfol
  * role) so no downstream page needs to know Identity exists.
  */
 export function IdentityBridge({ children }: { children: React.ReactNode }) {
-  const { login, logout, setAuthReady } = useApp()
+  const { login, logout, setAuthReady } = useAuthCtx()
   const navigate = useNavigate()
   // Tracks which identity is currently reflected in app context so we only
   // hydrate/clear on genuine transitions (not on every token refresh).

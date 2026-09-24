@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { Accordion, Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { cn } from '../lib/utils'
-import { useApp } from '../lib/context'
+import { useAuthCtx } from '../lib/context'
 import * as api from '../lib/api'
 import { offlineDB } from '../lib/offline/db'
 import { queueAndSync } from '../lib/offline/sync-engine'
@@ -231,7 +231,7 @@ function NumberInput({
 }
 
 export function FinanceTriangulationPage() {
-  const { currentUser } = useApp()
+  const { currentUser } = useAuthCtx()
   const queryClient = useQueryClient()
   const [role, setRole] = useState<WorkflowRole>('org_finance_officer')
   const [donorId, setDonorId] = useState(DONORS[0].id)
