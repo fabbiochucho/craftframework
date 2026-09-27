@@ -384,7 +384,7 @@ function ComplianceEngineSection() {
                                         <Button variant="outline" size="sm"><ExternalLink className="h-3.5 w-3.5" /> Open Link</Button>
                                       </a>
                                     ) : (
-                                      <Button variant="outline" size="sm" onClick={() => setToast(`Encrypted preview · ${item?.fileName}`)}><Eye className="h-3.5 w-3.5" /> Preview</Button>
+                                      <Button variant="outline" size="sm" onClick={() => setToast(`${item?.fileName}`)}><Eye className="h-3.5 w-3.5" /> Preview</Button>
                                     )}
                                     {status !== 'verified' && (
                                       <Button size="sm" onClick={() => verifyDoc(req)}><Check className="h-3.5 w-3.5" /> Verify</Button>

@@ -62,7 +62,8 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
       return
     }
     setState('scanning')
-    // Simulated AV/sanitization pass before any data touches the vault.
+    // No real AV/sanitization pass runs here — this delay is just UI pacing, not a security
+    // control. Don't claim scanning/sanitizing in the copy shown during or after this step.
     setTimeout(() => {
       const reader = new FileReader()
       reader.onload = () => {
@@ -76,7 +77,7 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
         bulkImportScores(orgId, imported)
         setState('done')
         const n = Object.keys(imported).length
-        setToast(`✅ File validated, sanitized, and securely imported (${n} responses).`)
+        setToast(`✅ Imported ${n} response${n === 1 ? '' : 's'}.`)
         onImported?.(n)
       }
       reader.readAsText(file)
@@ -122,13 +123,12 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
         {state === 'scanning' ? (
           <div className="flex flex-col items-center gap-2 text-emerald-700">
             <Loader2 className="h-7 w-7 animate-spin" />
-            <p className="text-sm font-semibold">Scanning for threats…</p>
-            <p className="text-xs text-slate-500">Validating & sanitizing your upload</p>
+            <p className="text-sm font-semibold">Processing…</p>
           </div>
         ) : state === 'done' ? (
           <div className="flex flex-col items-center gap-2 text-emerald-700">
             <ShieldCheck className="h-7 w-7" />
-            <p className="text-sm font-semibold">Import complete & encrypted at rest.</p>
+            <p className="text-sm font-semibold">Import complete.</p>
             <p className="text-xs text-slate-500">Upload another file to re-import</p>
           </div>
         ) : (

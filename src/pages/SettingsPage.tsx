@@ -196,7 +196,7 @@ export function SettingsPage() {
               )}
             </div>
             <Input label="Primary Contact Email" defaultValue={currentUser?.email} />
-            <Button onClick={() => setToast('🔒 Profile saved & encrypted.')}>Save Changes</Button>
+            <Button onClick={() => setToast('Profile saved.')}>Save Changes</Button>
           </CardContent>
         </Card>
       )}
@@ -599,9 +599,7 @@ export function SettingsPage() {
             <CardContent className="space-y-3">
               {[
                 { t: 'Multi-Tenant Data Isolation', d: `All records scoped to ${currentUser?.orgId}.`, on: true },
-                { t: 'End-to-End Encryption', d: 'Evidence encrypted at rest and in transit.', on: true },
                 { t: 'Idle Session Timeout', d: `Sessions expire after ${sessionTimeout} minutes of inactivity.`, on: true },
-                { t: 'Secure File Scanning', d: 'All uploads scanned and sanitized before import.', on: true },
               ].map(s => (
                 <div key={s.t} className="flex items-center justify-between rounded-lg border border-slate-100 p-4">
                   <div className="flex items-center gap-3">

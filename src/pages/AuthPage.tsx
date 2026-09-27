@@ -8,7 +8,7 @@ import {
   AuthError,
   MissingIdentityError,
 } from '@netlify/identity'
-import { Lock, Shield, ArrowRight, MailCheck, Loader2, Eye, EyeOff, Github } from 'lucide-react'
+import { Shield, ArrowRight, MailCheck, Loader2, Eye, EyeOff, Github } from 'lucide-react'
 import { Button, Input } from '../components/ui'
 import { Footer } from '../components/Footer'
 import { Logo } from '../components/Logo'
@@ -237,9 +237,6 @@ export function AuthPage() {
             </div>
             <div className="relative flex flex-wrap gap-3 text-xs">
               <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 font-medium text-emerald-800">
-                <Lock className="h-3.5 w-3.5 text-emerald-600" /> 🔒 End-to-End Encrypted
-              </span>
-              <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 font-medium text-emerald-800">
                 <Shield className="h-3.5 w-3.5 text-emerald-600" /> 🛡️ Multi-Tenant Data Isolation
               </span>
             </div>
@@ -397,7 +394,6 @@ export function AuthPage() {
                 )}
 
                 <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-400">
-                  <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> 🔒 Encrypted</span>
                   <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> 🛡️ Isolated</span>
                 </div>
 

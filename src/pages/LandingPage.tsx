@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import {
   Shield, ArrowRight, FileSpreadsheet, MapPinned, FileWarning, EyeOff,
-  CheckCircle2, Lock, Fingerprint, Globe2, Eye, Network,
+  CheckCircle2, Fingerprint, Globe2, Eye, Network,
   Landmark, HeartHandshake, Building2,
 } from 'lucide-react'
 import { Button, Reveal } from '../components/ui'
@@ -178,9 +178,7 @@ export function LandingPage() {
             <div className="rounded-2xl bg-gradient-to-br from-emerald-900 to-slate-900 p-8 text-white">
               <div className="grid gap-5 sm:grid-cols-2">
                 {[
-                  { icon: Lock, t: 'End-to-End Encrypted', d: 'Vault-grade handling of every record.' },
                   { icon: Fingerprint, t: 'Multi-Tenant Isolation', d: 'Scoped strictly by organization_id.' },
-                  { icon: Shield, t: 'Secure File Handling', d: 'Scanned & sanitized bulk imports.' },
                   { icon: CheckCircle2, t: 'Execution-First Scoring', d: 'Paper compliance never inflates a score.' },
                 ].map(x => (
                   <div key={x.t}>
