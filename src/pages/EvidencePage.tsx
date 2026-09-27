@@ -28,7 +28,7 @@ export function EvidencePage() {
           <FolderLock className="h-4 w-4 text-emerald-600" /> Document Vault
         </p>
         <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">Centralized Evidence Vault</h1>
-        <p className="mt-1 text-sm text-slate-500">Encrypted at rest · scoped to your organization.</p>
+        <p className="mt-1 text-sm text-slate-500">Scoped to your organization.</p>
       </div>
 
       <Card className="p-5">
@@ -41,7 +41,7 @@ export function EvidencePage() {
           <p className="mt-3 font-display text-lg font-bold text-slate-700">No documents in the vault yet</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
             Import an assessment workbook above, or add evidence from the Compliance Engine. Uploaded
-            documents are encrypted at rest and scoped to your organization.
+            documents are scoped to your organization.
           </p>
         </Card>
       ) : (
@@ -88,7 +88,7 @@ export function EvidencePage() {
             </div>
             <div className="flex h-80 flex-col items-center justify-center bg-slate-100 text-slate-400">
               <FileText className="h-16 w-16" />
-              <p className="mt-3 text-sm">Encrypted preview · {preview.type} · {preview.sizeKb} KB</p>
+              <p className="mt-3 text-sm">{preview.type} · {preview.sizeKb} KB</p>
               <p className="text-xs">Linked to finding {preview.linkedRisk}</p>
             </div>
           </div>
