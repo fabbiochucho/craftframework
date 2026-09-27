@@ -280,8 +280,8 @@ export function AssessmentPage() {
         <Button variant="outline" onClick={() => setTier(t => Math.max(0, t - 1))} disabled={tier === 0}>
           <ChevronLeft className="h-4 w-4" /> Previous Tier
         </Button>
-        <Button onClick={() => setToast('🔒 Assessment saved & encrypted to your vault.')}>
-          <ShieldCheck className="h-4 w-4" /> Save &amp; Encrypt
+        <Button onClick={() => setToast('Assessment saved.')}>
+          <ShieldCheck className="h-4 w-4" /> Save
         </Button>
         {tier < 4 ? (
           <Button variant="outline" onClick={() => setTier(t => Math.min(4, t + 1))}>

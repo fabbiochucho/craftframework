@@ -38,7 +38,7 @@ const DPGA_INDICATORS = [
   {
     n: 7,
     title: 'Privacy & applicable laws',
-    body: 'Institutional data is encrypted, tenant-isolated, and governed by national data-protection law - never shared or repurposed.',
+    body: 'Institutional data is tenant-isolated and never shared or repurposed. This is a prototype without a live backend yet — encryption at rest and a formal data-protection review are planned before any real institutional data is handled.',
   },
   {
     n: 8,

@@ -97,7 +97,7 @@ export function OnboardingPage() {
                   <Building2 className="h-5 w-5" />
                   <h2 className="font-display text-2xl font-bold text-emerald-900">Set up your workspace</h2>
                 </div>
-                <p className="mt-1 text-sm text-slate-500">This becomes your isolated, encrypted tenant. Your archetype, country and sector tailor the assessment questions and your Data Room checklist.</p>
+                <p className="mt-1 text-sm text-slate-500">This becomes your isolated tenant. Your archetype, country and sector tailor the assessment questions and your Data Room checklist.</p>
                 <div className="mt-6 space-y-4">
                   <Input label="Organization Name" value={orgName} onChange={e => setOrgName(e.target.value)} placeholder="National Public Health Agency" />
                   <Select
