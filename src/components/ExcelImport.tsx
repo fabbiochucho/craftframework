@@ -50,15 +50,18 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
 
   function handleFile(file: File) {
     setError('')
-    const okExt = /\.(xlsx|csv)$/i.test(file.name)
+    // Only .csv is actually parsed (see parseCsv below) — there's no .xlsx parser bundled,
+    // and the downloadable template is a .csv file anyway, so don't accept a format we can't
+    // really read.
+    const okExt = /\.csv$/i.test(file.name)
     if (!okExt) {
       setState('error')
-      setError('Only .xlsx or .csv files under 5MB are accepted.')
+      setError('Only .csv files under 5MB are accepted.')
       return
     }
     if (file.size > 5 * 1024 * 1024) {
       setState('error')
-      setError('File exceeds the 5MB security limit.')
+      setError('File exceeds the 5MB size limit.')
       return
     }
     setState('scanning')
@@ -67,16 +70,18 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
     setTimeout(() => {
       const reader = new FileReader()
       reader.onload = () => {
-        let imported: Record<string, number> = {}
         const text = typeof reader.result === 'string' ? reader.result : ''
-        if (/\.csv$/i.test(file.name)) imported = parseCsv(text)
-        // Fallback for binary .xlsx (no parser bundled): seed a representative set.
-        if (Object.keys(imported).length === 0) {
-          MOCK_QUESTIONS.forEach((q, i) => { imported[q.id] = (i % 5) + 1 })
+        const imported = parseCsv(text)
+        const n = Object.keys(imported).length
+
+        if (n === 0) {
+          setState('error')
+          setError('No valid rows found. Use the downloaded template and fill in the Score column.')
+          return
         }
+
         bulkImportScores(orgId, imported)
         setState('done')
-        const n = Object.keys(imported).length
         setToast(`✅ Imported ${n} response${n === 1 ? '' : 's'}.`)
         onImported?.(n)
       }
@@ -92,7 +97,7 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
           <p className="text-sm text-slate-500">Download the template, fill it offline, upload to calculate scores instantly.</p>
         </div>
         <Button variant="outline" size="sm" onClick={downloadTemplate}>
-          <Download className="h-4 w-4" /> Download Secure Excel Template
+          <Download className="h-4 w-4" /> Download CSV Template
         </Button>
       </div>
 
@@ -116,7 +121,7 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
         <input
           ref={inputRef}
           type="file"
-          accept=".xlsx,.csv"
+          accept=".csv"
           className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
         />
@@ -136,7 +141,7 @@ export function ExcelImport({ orgId, onImported }: { orgId: string; onImported?:
             <UploadCloud className="h-7 w-7 text-slate-400" />
             <p className="text-sm font-semibold text-slate-700">
               <FileSpreadsheet className="mr-1 inline h-4 w-4" />
-              Secure Upload: Only .xlsx or .csv files under 5MB are accepted.
+              Only .csv files under 5MB are accepted.
             </p>
             <p className="text-xs text-slate-500">Drag &amp; drop or click to browse</p>
             {error && <p className="mt-1 text-xs font-medium text-rose-600">{error}</p>}
