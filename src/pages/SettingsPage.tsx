@@ -599,7 +599,9 @@ export function SettingsPage() {
             <CardContent className="space-y-3">
               {[
                 { t: 'Multi-Tenant Data Isolation', d: `All records scoped to ${currentUser?.orgId}.`, on: true },
+                { t: 'Encryption at Rest & in Transit', d: 'All traffic is served over HTTPS; the database and file storage are encrypted at rest by the underlying provider.', on: true },
                 { t: 'Idle Session Timeout', d: `Sessions expire after ${sessionTimeout} minutes of inactivity.`, on: true },
+                { t: 'Upload Validation', d: 'File type and size are checked before an upload is accepted; images have identifying metadata (EXIF/GPS) stripped.', on: true },
               ].map(s => (
                 <div key={s.t} className="flex items-center justify-between rounded-lg border border-slate-100 p-4">
                   <div className="flex items-center gap-3">
