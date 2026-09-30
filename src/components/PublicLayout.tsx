@@ -33,7 +33,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
             <Logo className="h-9 w-9" />
             <div className="leading-tight">
               <p className="font-display text-lg font-bold text-emerald-900">{BRAND.product}</p>
-              <p className="-mt-0.5 text-[10px] font-medium tracking-wide text-slate-400">
+              <p className="mt-0.5 text-[10px] font-medium tracking-wide text-slate-400">
                 {BRAND.framework} · {BRAND.institute}
               </p>
             </div>
