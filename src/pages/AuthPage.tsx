@@ -225,7 +225,7 @@ export function AuthPage() {
               <Logo className="h-10 w-10" />
               <div>
                 <p className="font-display text-lg font-bold">{BRAND.product}</p>
-                <p className="-mt-0.5 text-[10px] text-slate-400">{BRAND.framework}</p>
+                <p className="mt-0.5 text-[10px] text-slate-400">{BRAND.framework}</p>
               </div>
             </Link>
             <div className="relative">

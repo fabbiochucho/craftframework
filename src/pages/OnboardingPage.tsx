@@ -79,7 +79,7 @@ export function OnboardingPage() {
             <Logo className="h-9 w-9" />
             <div>
               <p className="font-display text-base font-bold text-emerald-900">{BRAND.product} Onboarding</p>
-              <p className="-mt-0.5 text-[10px] text-slate-400">{BRAND.framework}</p>
+              <p className="mt-0.5 text-[10px] text-slate-400">{BRAND.framework}</p>
             </div>
           </Link>
         </div>
