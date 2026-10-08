@@ -2,19 +2,36 @@
 // ESG Self-Assessment
 // ----------------------------------------------------------------------------
 // A standalone ESG (Environmental, Social, Governance) diagnostic modeled on
-// the disclosure categories common to GRI / SASB and the rating methodology
-// used by mainstream ESG raters (MSCI-style letter bands). It reuses the
-// platform's existing fiduciary 0-5 scale (see frameworks.ts) so scoring,
-// colors and badges stay visually consistent with every other framework.
+// GRI / IFRS S1-S2 / TCFD disclosure categories, with a scoring methodology
+// benchmarked against how independent ESG self-assessment platforms actually
+// operate (response + reviewer-verified evidence, blended - not a single
+// self-reported number). It reuses the platform's existing fiduciary 0-5
+// scale (see frameworks.ts) so colors and badges stay visually consistent
+// with every other framework.
 //
-// Unlike a generic rubric, every question here also carries:
+// Every question carries:
 //   - pillar        - which of the three ESG pillars it belongs to
+//   - frameworkRefs - the GRI Standard / IFRS Sustainability Standard / TCFD
+//                      pillar this question maps to, for traceability
 //   - recommendation - the concrete next action to close the gap, shown
 //                       whenever the question scores below "Defined" (3)
 //   - financingNote  - why this specific item matters to a financier,
-//                       investor, partner or procurement officer
-// so the panel can generate gaps, recommendations and a financing-readiness
-// narrative straight from the answered scores - no separate content model.
+//                       investor, partner, procurement officer or to
+//                       sustainability-reporting readiness
+// so gaps, recommendations and the financing narrative all fall out of the
+// same question data - no separate content model.
+//
+// Scoring is two-layer, same idea as a reviewer-controlled ESG platform:
+//   - "Response" score  - the self-reported 0-5 answer (self-assessment).
+//   - "Evidence" score   - a 0-4 verification level per supporting document
+//                           (Missing / Weak / Partial / Strong / Verified),
+//                           scaled to 0-5.
+//   - "Verified" score   - 60% response + 40% evidence, per pillar and
+//                           composite. The rating badge is computed from
+//                           this blended score, and is explicitly marked
+//                           "Provisional" until evidence coverage is high
+//                           enough to trust it - a self-assessment alone is
+//                           never presented as a final/independent rating.
 // ============================================================================
 
 import type { RubricQuestion } from './frameworks'
@@ -29,6 +46,8 @@ export const ESG_PILLARS: { key: EsgPillar; blurb: string }[] = [
 
 export interface EsgQuestion extends RubricQuestion {
   pillar: EsgPillar
+  /** GRI Standard / IFRS Sustainability Standard / TCFD pillar this question maps to. */
+  frameworkRefs: string[]
   recommendation: string
   financingNote: string
 }
@@ -39,6 +58,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-E1',
     pillar: 'Environmental',
     domain: 'Climate & Emissions',
+    frameworkRefs: ['GRI 305', 'TCFD', 'IFRS S2'],
     question: 'Does the organization measure and manage its greenhouse gas emissions?',
     soe: {
       0: 'Emissions are not tracked in any form.',
@@ -56,6 +76,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-E2',
     pillar: 'Environmental',
     domain: 'Resource & Waste Efficiency',
+    frameworkRefs: ['GRI 302', 'GRI 306'],
     question: 'Are resource use (energy, water, materials) and waste streams actively managed?',
     soe: {
       0: 'No tracking of resource consumption or waste.',
@@ -73,6 +94,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-E3',
     pillar: 'Environmental',
     domain: 'Environmental Compliance',
+    frameworkRefs: ['GRI 2-27'],
     question: 'Does the organization hold and maintain all required environmental permits and clearances?',
     soe: {
       0: 'Required permits are unknown or absent.',
@@ -90,6 +112,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-E4',
     pillar: 'Environmental',
     domain: 'Climate Risk Exposure',
+    frameworkRefs: ['TCFD', 'IFRS S2'],
     question: 'Has the organization assessed its physical and transition climate risk exposure?',
     soe: {
       0: 'Climate risk has never been considered.',
@@ -109,6 +132,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-S1',
     pillar: 'Social',
     domain: 'Labor Practices & Human Capital',
+    frameworkRefs: ['GRI 401', 'GRI 407'],
     question: 'Are fair labor practices documented and consistently applied?',
     soe: {
       0: 'No documented labor policies.',
@@ -126,6 +150,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-S2',
     pillar: 'Social',
     domain: 'Health & Safety',
+    frameworkRefs: ['GRI 403'],
     question: 'Is there an active occupational health and safety (OHS) management system?',
     soe: {
       0: 'No OHS system; incidents are not tracked.',
@@ -143,6 +168,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-S3',
     pillar: 'Social',
     domain: 'Diversity, Equity & Inclusion',
+    frameworkRefs: ['GRI 405'],
     question: 'Does the organization track and actively manage workforce diversity?',
     soe: {
       0: 'No diversity data collected.',
@@ -160,6 +186,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-S4',
     pillar: 'Social',
     domain: 'Community & Stakeholder Engagement',
+    frameworkRefs: ['GRI 413'],
     question: 'Is there a structured process for engaging and addressing concerns from affected communities?',
     soe: {
       0: 'No community engagement process.',
@@ -179,6 +206,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-G1',
     pillar: 'Governance',
     domain: 'Board Oversight & Structure',
+    frameworkRefs: ['GRI 2-9', 'GRI 2-12'],
     question: 'Does the governing board provide active, independent oversight of strategy and risk?',
     soe: {
       0: 'No functioning board or governing body.',
@@ -196,6 +224,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-G2',
     pillar: 'Governance',
     domain: 'Business Ethics & Anti-Corruption',
+    frameworkRefs: ['GRI 205'],
     question: 'Is there a documented anti-corruption / code of conduct policy, actively enforced?',
     soe: {
       0: 'No code of conduct or anti-corruption policy.',
@@ -213,6 +242,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-G3',
     pillar: 'Governance',
     domain: 'Risk Management & Internal Controls',
+    frameworkRefs: ['TCFD'],
     question: 'Are financial and operational risks formally identified, scored and monitored?',
     soe: {
       0: 'No risk management process.',
@@ -230,6 +260,7 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     id: 'ESG-G4',
     pillar: 'Governance',
     domain: 'Transparency & Disclosure',
+    frameworkRefs: ['GRI 2-3', 'IFRS S1'],
     question: 'Does the organization publish regular, reliable performance and governance disclosures?',
     soe: {
       0: 'No external reporting of any kind.',
@@ -250,8 +281,24 @@ export function questionsForPillar(pillar: EsgPillar): EsgQuestion[] {
 }
 
 // ----------------------------------------------------------------------------
-// Evidence / documentation checklist (mirrors the GFA data-room pattern)
+// Evidence verification (reviewer-scored, mirrors the 5-point verification
+// scale used by independent ESG review platforms: Missing/Weak/Partial/
+// Strong/Verified, rather than a flat "uploaded or not" checkbox).
 // ----------------------------------------------------------------------------
+
+export interface EvidenceLevel {
+  value: number // 0-4
+  label: string
+  badge: string
+}
+
+export const EVIDENCE_LEVELS: EvidenceLevel[] = [
+  { value: 0, label: 'Missing', badge: 'bg-rose-100 text-rose-700 border-rose-300' },
+  { value: 1, label: 'Weak', badge: 'bg-amber-100 text-amber-700 border-amber-300' },
+  { value: 2, label: 'Partial', badge: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+  { value: 3, label: 'Strong', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  { value: 4, label: 'Verified', badge: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+]
 
 export const ESG_DOCS: Record<EsgPillar, string[]> = {
   Environmental: [
@@ -274,12 +321,45 @@ export const ESG_DOCS: Record<EsgPillar, string[]> = {
   ],
 }
 
+export function docKey(pillar: string, doc: string): string {
+  return `${pillar}::${doc}`
+}
+
+/** Mean evidence level (0-4) across a pillar's documents, scaled to 0-5 to match the response scale. 0 if nothing scored. */
+export function pillarEvidenceScore(pillar: EsgPillar, evidence: Record<string, number>): number {
+  const docs = ESG_DOCS[pillar]
+  const scored = docs.filter(d => evidence[docKey(pillar, d)] != null)
+  if (scored.length === 0) return 0
+  const sum = scored.reduce((acc, d) => acc + (evidence[docKey(pillar, d)] ?? 0), 0)
+  return Math.round(((sum / scored.length) * (5 / 4)) * 100) / 100
+}
+
+/** Share (0-100) of all documents scored "Strong" or "Verified". Drives the Confidence stat. */
+export function evidenceCoveragePct(evidence: Record<string, number>): number {
+  const allDocs = ESG_PILLARS.flatMap(p => ESG_DOCS[p.key].map(d => docKey(p.key, d)))
+  if (allDocs.length === 0) return 0
+  const strong = allDocs.filter(k => (evidence[k] ?? -1) >= 3).length
+  return Math.round((strong / allDocs.length) * 100)
+}
+
+export type ConfidenceLevel = 'Low' | 'Medium' | 'High'
+
+export function confidenceFromCoverage(coveragePct: number): ConfidenceLevel {
+  if (coveragePct >= 70) return 'High'
+  if (coveragePct >= 35) return 'Medium'
+  return 'Low'
+}
+
 // ----------------------------------------------------------------------------
 // Scoring
 // ----------------------------------------------------------------------------
 
 const GAP_THRESHOLD = 3 // below "Defined" counts as a gap
+const STRENGTH_THRESHOLD = 4 // "Managed" or above counts as a strength
+const RESPONSE_WEIGHT = 0.6
+const EVIDENCE_WEIGHT = 0.4
 
+/** Self-reported response score for a pillar (0-5), ignoring evidence. */
 export function pillarScore(pillar: EsgPillar, scores: Record<string, number>): number {
   const qs = questionsForPillar(pillar)
   const answered = qs.filter(q => scores[q.id] != null)
@@ -288,13 +368,35 @@ export function pillarScore(pillar: EsgPillar, scores: Record<string, number>): 
   return Math.round((sum / answered.length) * 100) / 100
 }
 
+/** Blended 60% response + 40% evidence score for a pillar (0-5). */
+export function pillarVerifiedScore(
+  pillar: EsgPillar,
+  scores: Record<string, number>,
+  evidence: Record<string, number>,
+): number {
+  const response = pillarScore(pillar, scores)
+  const ev = pillarEvidenceScore(pillar, evidence)
+  return Math.round((response * RESPONSE_WEIGHT + ev * EVIDENCE_WEIGHT) * 100) / 100
+}
+
+function answeredPillars(scores: Record<string, number>) {
+  return ESG_PILLARS.filter(p => questionsForPillar(p.key).some(q => scores[q.id] != null))
+}
+
+/** Composite self-reported response score (0-5) - what IPMC-style tools label "Response". */
 export function compositeEsgScore(scores: Record<string, number>): number {
-  const pillars = ESG_PILLARS.map(p => pillarScore(p.key, scores))
-  const answeredPillars = pillars.filter((_, i) =>
-    questionsForPillar(ESG_PILLARS[i].key).some(q => scores[q.id] != null),
-  )
-  if (answeredPillars.length === 0) return 0
-  return Math.round((answeredPillars.reduce((a, b) => a + b, 0) / answeredPillars.length) * 100) / 100
+  const answered = answeredPillars(scores)
+  if (answered.length === 0) return 0
+  const sum = answered.reduce((acc, p) => acc + pillarScore(p.key, scores), 0)
+  return Math.round((sum / answered.length) * 100) / 100
+}
+
+/** Composite blended response+evidence score (0-5) - the basis for the rating badge. */
+export function compositeVerifiedScore(scores: Record<string, number>, evidence: Record<string, number>): number {
+  const answered = answeredPillars(scores)
+  if (answered.length === 0) return 0
+  const sum = answered.reduce((acc, p) => acc + pillarVerifiedScore(p.key, scores, evidence), 0)
+  return Math.round((sum / answered.length) * 100) / 100
 }
 
 export interface EsgGap {
@@ -310,6 +412,14 @@ export function identifyGaps(scores: Record<string, number>): EsgGap[] {
     .sort((a, b) => a.score - b.score)
 }
 
+/** Answered questions at "Managed" (4) or above, best first - the mirror of identifyGaps. */
+export function identifyStrengths(scores: Record<string, number>): EsgGap[] {
+  return ESG_QUESTIONS
+    .filter(q => scores[q.id] != null && (scores[q.id] as number) >= STRENGTH_THRESHOLD)
+    .map(q => ({ question: q, score: scores[q.id] as number }))
+    .sort((a, b) => b.score - a.score)
+}
+
 /** Unanswered questions - these count against the badge but aren't "gaps" yet. */
 export function unansweredQuestions(scores: Record<string, number>): EsgQuestion[] {
   return ESG_QUESTIONS.filter(q => scores[q.id] == null)
@@ -318,40 +428,55 @@ export function unansweredQuestions(scores: Record<string, number>): EsgQuestion
 // ----------------------------------------------------------------------------
 // ESG rating badge - mirrors mainstream letter-band ESG ratings (e.g. MSCI
 // AAA-CCC) so the output is immediately legible to financiers and partners.
+// Computed from the blended (response + evidence) score, not the raw
+// self-report, and explicitly flagged "Provisional" until evidence coverage
+// is high enough to trust - a self-assessment alone is never presented as a
+// final or independent rating.
 // ----------------------------------------------------------------------------
 
 export interface EsgBadge {
   letter: 'AAA' | 'AA' | 'A' | 'BBB' | 'BB' | 'B' | 'CCC' | 'Unrated'
   label: string
   cls: string
+  provisional: boolean
 }
 
-export function getEsgBadge(composite: number, totalAnswered: number): EsgBadge {
+const PROVISIONAL_COVERAGE_THRESHOLD = 70 // % of docs at "Strong"+ needed to lift the provisional flag
+
+export function getEsgBadge(
+  verifiedScore: number,
+  totalAnswered: number,
+  evidenceCoverage: number,
+): EsgBadge {
   if (totalAnswered < ESG_QUESTIONS.length) {
-    return { letter: 'Unrated', label: 'Unrated - assessment incomplete', cls: 'bg-slate-100 text-slate-600 border-slate-300' }
+    return { letter: 'Unrated', label: 'Unrated - assessment incomplete', cls: 'bg-slate-100 text-slate-600 border-slate-300', provisional: true }
   }
-  if (composite >= 4.5) return { letter: 'AAA', label: 'Leader', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' }
-  if (composite >= 4.0) return { letter: 'AA', label: 'Leader', cls: 'bg-emerald-100 text-emerald-700 border-emerald-300' }
-  if (composite >= 3.5) return { letter: 'A', label: 'Strong Performer', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
-  if (composite >= 3.0) return { letter: 'BBB', label: 'Average Performer', cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' }
-  if (composite >= 2.0) return { letter: 'BB', label: 'Below Average', cls: 'bg-amber-100 text-amber-700 border-amber-300' }
-  if (composite >= 1.0) return { letter: 'B', label: 'Laggard', cls: 'bg-rose-100 text-rose-700 border-rose-300' }
-  return { letter: 'CCC', label: 'High Risk', cls: 'bg-rose-100 text-rose-800 border-rose-400' }
+  const provisional = evidenceCoverage < PROVISIONAL_COVERAGE_THRESHOLD
+  if (verifiedScore >= 4.5) return { letter: 'AAA', label: 'Leader', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300', provisional }
+  if (verifiedScore >= 4.0) return { letter: 'AA', label: 'Leader', cls: 'bg-emerald-100 text-emerald-700 border-emerald-300', provisional }
+  if (verifiedScore >= 3.5) return { letter: 'A', label: 'Strong Performer', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', provisional }
+  if (verifiedScore >= 3.0) return { letter: 'BBB', label: 'Average Performer', cls: 'bg-yellow-50 text-yellow-700 border-yellow-200', provisional }
+  if (verifiedScore >= 2.0) return { letter: 'BB', label: 'Below Average', cls: 'bg-amber-100 text-amber-700 border-amber-300', provisional }
+  if (verifiedScore >= 1.0) return { letter: 'B', label: 'Laggard', cls: 'bg-rose-100 text-rose-700 border-rose-300', provisional }
+  return { letter: 'CCC', label: 'High Risk', cls: 'bg-rose-100 text-rose-800 border-rose-400', provisional }
 }
 
 // ----------------------------------------------------------------------------
-// Financing / investment / partnership / procurement positioning narrative
+// Financing / investment / partnership / procurement / reporting positioning
 // ----------------------------------------------------------------------------
 
 export function financingPositioning(badge: EsgBadge, gaps: EsgGap[]): string {
   if (badge.letter === 'Unrated') {
     return 'Complete every question to unlock a rating. An incomplete ESG profile is typically treated as a "no" by ESG-linked financing screens, regardless of actual performance.'
   }
+  const provisionalNote = badge.provisional
+    ? ' This rating is provisional pending stronger supporting evidence - add or upgrade documents below to move it to a confirmed result.'
+    : ''
   if (badge.letter === 'AAA' || badge.letter === 'AA') {
-    return 'This profile is strong enough to lead with ESG as a differentiator in financing, partnership and procurement conversations - consider pursuing a sustainability-linked facility or publishing results to attract impact-focused capital.'
+    return `This profile is strong enough to lead with ESG as a differentiator in financing, partnership, procurement and sustainability-reporting conversations - consider pursuing a sustainability-linked facility or publishing results to attract impact-focused capital.${provisionalNote}`
   }
   if (badge.letter === 'A' || badge.letter === 'BBB') {
-    return `Fundable with standard ESG conditions attached. Closing the ${gaps.length} open gap(s) below would move this profile into the top rating band and remove the most common conditions financiers attach at this level.`
+    return `Fundable with standard ESG conditions attached, and a workable starting point for GRI/IFRS S1-S2/TCFD-aligned reporting. Closing the ${gaps.length} open gap(s) below would move this profile into the top rating band and remove the most common conditions financiers attach at this level.${provisionalNote}`
   }
-  return `At this rating, most ESG-linked financing, DFI facilities and large-procurement tenders will treat ESG gaps as a blocking condition, not a minor note. Prioritize the ${Math.min(3, gaps.length)} lowest-scoring item(s) below before approaching financing or tender processes.`
+  return `At this rating, most ESG-linked financing, DFI facilities and large-procurement tenders will treat ESG gaps as a blocking condition, not a minor note. Prioritize the ${Math.min(3, gaps.length)} lowest-scoring item(s) below before approaching financing, tender processes or sustainability disclosure.${provisionalNote}`
 }
