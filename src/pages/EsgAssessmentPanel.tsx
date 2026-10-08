@@ -16,15 +16,16 @@ import {
   LabelList,
 } from 'recharts'
 import {
-  Leaf, CheckCircle2, Circle, FileText, AlertTriangle, Award, TrendingUp,
-  Droplets, Scale, Users,
+  Leaf, CheckCircle2, FileText, AlertTriangle, Award, TrendingUp, Sparkles,
+  Droplets, Scale, Users, ShieldAlert,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { FIDUCIARY_LEVELS } from '../lib/frameworks'
 import {
-  ESG_PILLARS, ESG_QUESTIONS, ESG_DOCS, questionsForPillar,
-  pillarScore, compositeEsgScore, identifyGaps, unansweredQuestions,
-  getEsgBadge, financingPositioning,
+  ESG_PILLARS, ESG_QUESTIONS, ESG_DOCS, EVIDENCE_LEVELS, questionsForPillar, docKey,
+  pillarVerifiedScore, compositeEsgScore, compositeVerifiedScore,
+  evidenceCoveragePct, confidenceFromCoverage, identifyGaps, identifyStrengths,
+  unansweredQuestions, getEsgBadge, financingPositioning,
   type EsgPillar,
 } from '../lib/esg'
 import {
@@ -37,61 +38,66 @@ const PILLAR_ICONS: Record<EsgPillar, typeof Leaf> = {
   Governance: Scale,
 }
 
-function docKey(pillar: string, doc: string): string {
-  return `${pillar}::${doc}`
-}
-
 export function EsgAssessmentPanel() {
   const [scores, setScores] = useState<Record<string, number>>({})
-  const [docs, setDocs] = useState<Record<string, boolean>>({})
+  const [evidence, setEvidence] = useState<Record<string, number>>({})
 
   const select = (qId: string, value: number) =>
     setScores(prev => ({ ...prev, [qId]: value }))
 
-  const toggleDoc = (pillar: string, doc: string) => {
+  const setEvidenceLevel = (pillar: string, doc: string, value: number) => {
     const k = docKey(pillar, doc)
-    setDocs(prev => ({ ...prev, [k]: !prev[k] }))
+    setEvidence(prev => ({ ...prev, [k]: prev[k] === value ? undefined as unknown as number : value }))
   }
 
   const answeredCount = Object.keys(scores).length
   const total = ESG_QUESTIONS.length
   const completionPct = total === 0 ? 0 : Math.round((answeredCount / total) * 100)
 
-  const composite = useMemo(() => compositeEsgScore(scores), [scores])
-  const badge = useMemo(() => getEsgBadge(composite, answeredCount), [composite, answeredCount])
+  const responseComposite = useMemo(() => compositeEsgScore(scores), [scores])
+  const verifiedComposite = useMemo(() => compositeVerifiedScore(scores, evidence), [scores, evidence])
+  const coveragePct = useMemo(() => evidenceCoveragePct(evidence), [evidence])
+  const confidence = useMemo(() => confidenceFromCoverage(coveragePct), [coveragePct])
+  const badge = useMemo(
+    () => getEsgBadge(verifiedComposite, answeredCount, coveragePct),
+    [verifiedComposite, answeredCount, coveragePct],
+  )
   const gaps = useMemo(() => identifyGaps(scores), [scores])
+  const strengths = useMemo(() => identifyStrengths(scores), [scores])
   const unanswered = useMemo(() => unansweredQuestions(scores), [scores])
   const narrative = useMemo(() => financingPositioning(badge, gaps), [badge, gaps])
 
   const radarData = useMemo(
-    () => ESG_PILLARS.map(p => ({ pillar: p.key, value: pillarScore(p.key, scores) })),
-    [scores],
+    () => ESG_PILLARS.map(p => ({ pillar: p.key, value: pillarVerifiedScore(p.key, scores, evidence) })),
+    [scores, evidence],
   )
 
   const barData = useMemo(
     () =>
       [...ESG_PILLARS]
-        .map(p => ({ key: p.key, label: p.key, score: pillarScore(p.key, scores) }))
+        .map(p => ({ key: p.key, label: p.key, score: pillarVerifiedScore(p.key, scores, evidence) }))
         .sort((a, b) => a.score - b.score),
-    [scores],
+    [scores, evidence],
   )
 
   const totalDocs = useMemo(
     () => ESG_PILLARS.reduce((acc, p) => acc + ESG_DOCS[p.key].length, 0),
     [],
   )
-  const collectedDocs = useMemo(
+  const scoredDocs = useMemo(
     () =>
       ESG_PILLARS.reduce(
-        (acc, p) => acc + ESG_DOCS[p.key].filter(d => docs[docKey(p.key, d)]).length,
+        (acc, p) => acc + ESG_DOCS[p.key].filter(d => evidence[docKey(p.key, d)] != null).length,
         0,
       ),
-    [docs],
+    [evidence],
   )
-  const docsPct = totalDocs === 0 ? 0 : Math.round((collectedDocs / totalDocs) * 100)
 
-  const scoreAccent: 'rose' | 'amber' | 'emerald' | 'slate' =
-    answeredCount === 0 ? 'slate' : composite < 2 ? 'rose' : composite < 3.5 ? 'amber' : 'emerald'
+  const confidenceAccent: 'rose' | 'amber' | 'emerald' =
+    confidence === 'Low' ? 'rose' : confidence === 'Medium' ? 'amber' : 'emerald'
+
+  const verifiedAccent: 'rose' | 'amber' | 'emerald' | 'slate' =
+    answeredCount === 0 ? 'slate' : verifiedComposite < 2 ? 'rose' : verifiedComposite < 3.5 ? 'amber' : 'emerald'
 
   return (
     <div className="space-y-6">
@@ -106,13 +112,25 @@ export function EsgAssessmentPanel() {
         </div>
       </div>
 
-      {/* Summary stats */}
+      {/* Response / Evidence / Confidence + Rating */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <Stat
-          label="ESG Score"
-          value={`${composite.toFixed(2)} / 5`}
-          hint={answeredCount === 0 ? 'Awaiting scoring' : 'Composite of E · S · G'}
-          accent={scoreAccent}
+          label="Response"
+          value={`${responseComposite.toFixed(2)} / 5`}
+          hint="Self-reported composite"
+          accent={answeredCount === 0 ? 'slate' : 'emerald'}
+        />
+        <Stat
+          label="Verified Score"
+          value={`${verifiedComposite.toFixed(2)} / 5`}
+          hint="60% response + 40% evidence"
+          accent={verifiedAccent}
+        />
+        <Stat
+          label="Confidence"
+          value={confidence}
+          hint={`${coveragePct}% of docs at "Strong"+`}
+          accent={confidenceAccent}
         />
         <Card className="p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">ESG Rating</p>
@@ -122,27 +140,37 @@ export function EsgAssessmentPanel() {
             </span>
             <Award className="h-5 w-5 text-slate-400" />
           </div>
-          <p className="mt-1 text-xs text-slate-400">{badge.label}</p>
-        </Card>
-        <Stat
-          label="Open Gaps"
-          value={gaps.length}
-          hint="Answered items below 'Defined'"
-          accent={gaps.length === 0 && answeredCount > 0 ? 'emerald' : gaps.length > 0 ? 'rose' : 'slate'}
-        />
-        <Card className="p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completion</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-600">{completionPct}%</p>
-          <ProgressBar value={completionPct} className="mt-3" />
+          <p className="mt-1 text-xs text-slate-400">
+            {badge.label}{badge.provisional && badge.letter !== 'Unrated' ? ' · Provisional' : ''}
+          </p>
         </Card>
       </div>
 
-      {/* Financing positioning narrative */}
+      {/* Disclaimer - a self-assessment is never a final/independent rating */}
+      <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          This is a self-assessment tool based on information entered at a point in time. It does not constitute an
+          independent ESG rating, audit or certification. The rating above is <strong>provisional</strong> until
+          supporting evidence is verified as &quot;Strong&quot; or &quot;Verified&quot; across most documents.
+        </span>
+      </div>
+
+      {/* Completion */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Assessment Completion</p>
+          <span className="text-sm font-semibold text-emerald-600">{completionPct}%</span>
+        </div>
+        <ProgressBar value={completionPct} className="mt-3" />
+      </Card>
+
+      {/* Financing / reporting positioning narrative */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-emerald-600" />
-            Financing &amp; Positioning Readiness
+            Financing, Partnership &amp; Reporting Readiness
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -150,11 +178,11 @@ export function EsgAssessmentPanel() {
         </CardContent>
       </Card>
 
-      {/* Radar + Bar */}
+      {/* Radar + Bar (verified score) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>E · S · G Radar</CardTitle>
+            <CardTitle>E · S · G Radar (verified)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
@@ -164,7 +192,7 @@ export function EsgAssessmentPanel() {
                   <PolarAngleAxis dataKey="pillar" tick={{ fill: '#475569', fontSize: 12, fontWeight: 600 }} />
                   <PolarRadiusAxis domain={[0, 5]} tickCount={6} tick={{ fill: '#94a3b8', fontSize: 10 }} axisLine={false} />
                   <Radar name="Score" dataKey="value" stroke="#059669" fill="#10b981" fillOpacity={0.35} />
-                  <Tooltip formatter={(v) => [`${v} / 5`, 'Score']} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  <Tooltip formatter={(v) => [`${v} / 5`, 'Verified score']} contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12 }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -172,7 +200,7 @@ export function EsgAssessmentPanel() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Pillar Scorecard</CardTitle>
+            <CardTitle>Pillar Scorecard (verified)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
@@ -181,7 +209,7 @@ export function EsgAssessmentPanel() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
                   <XAxis type="number" domain={[0, 5]} tick={{ fontSize: 12, fill: '#64748b' }} stroke="#cbd5e1" />
                   <YAxis type="category" dataKey="label" width={100} tick={{ fontSize: 12, fill: '#334155' }} stroke="#cbd5e1" />
-                  <Tooltip formatter={(v) => [`${v} / 5`, 'Score']} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
+                  <Tooltip formatter={(v) => [`${v} / 5`, 'Verified score']} contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }} />
                   <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={28}>
                     {barData.map(d => (
                       <Cell key={d.key} fill={d.score < 2 ? '#f43f5e' : d.score < 3.5 ? '#f59e0b' : '#10b981'} />
@@ -195,63 +223,81 @@ export function EsgAssessmentPanel() {
         </Card>
       </div>
 
-      {/* Gaps & Recommendations */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-xl font-bold text-slate-900">Gaps &amp; Recommendations</h2>
-          {gaps.length > 0 && (
-            <Badge className="bg-rose-50 text-rose-700 border border-rose-200">{gaps.length} open</Badge>
+      {/* Strengths & Gaps */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-1.5 font-display text-lg font-bold text-slate-900">
+              <Sparkles className="h-4 w-4 text-emerald-600" /> Key Strengths
+            </h2>
+            {strengths.length > 0 && <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200">{strengths.length}</Badge>}
+          </div>
+          {strengths.length === 0 ? (
+            <Card className="p-4 text-sm text-slate-500">
+              {answeredCount === 0 ? 'Answer questions below to surface strengths.' : 'No items at "Managed" or above yet.'}
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {strengths.map(({ question, score }) => (
+                <Card key={question.id} className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-slate-800">{question.domain}</p>
+                    <Badge className="shrink-0 bg-emerald-100 text-emerald-700">{score}/5</Badge>
+                  </div>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
-        {gaps.length === 0 ? (
-          <Card className="p-6 text-sm text-slate-500">
-            {answeredCount === 0
-              ? 'Answer the questions below to surface ESG gaps and recommendations.'
-              : 'No gaps - every answered item meets or exceeds the "Defined" threshold.'}
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {gaps.map(({ question, score }) => (
-              <Card key={question.id} className="p-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      {question.pillar} · {question.domain}
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-slate-900">{question.question}</p>
-                  </div>
-                  <Badge className="shrink-0 bg-amber-100 text-amber-700">Score {score}/5</Badge>
-                </div>
-                <div className="mt-3 flex items-start gap-1.5 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span><span className="font-semibold">Recommendation:</span> {question.recommendation}</span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-        {unanswered.length > 0 && (
-          <p className="mt-3 text-xs text-slate-400">
-            {unanswered.length} question(s) not yet answered - complete the assessment below for a full gap analysis.
-          </p>
-        )}
-      </div>
 
-      {/* Documentation / evidence checklist */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-lg font-bold text-slate-900">Gaps &amp; Recommendations</h2>
+            {gaps.length > 0 && <Badge className="bg-rose-50 text-rose-700 border border-rose-200">{gaps.length} open</Badge>}
+          </div>
+          {gaps.length === 0 ? (
+            <Card className="p-4 text-sm text-slate-500">
+              {answeredCount === 0 ? 'Answer questions below to surface gaps and recommendations.' : 'No gaps - every answered item meets or exceeds "Defined".'}
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {gaps.map(({ question, score }) => (
+                <Card key={question.id} className="p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-slate-900">{question.domain}</p>
+                    <Badge className="shrink-0 bg-amber-100 text-amber-700">{score}/5</Badge>
+                  </div>
+                  <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-900">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                    <span>{question.recommendation}</span>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      {unanswered.length > 0 && (
+        <p className="text-xs text-slate-400">
+          {unanswered.length} question(s) not yet answered - complete the assessment below for a full gap analysis.
+        </p>
+      )}
+
+      {/* Evidence verification */}
       <div>
         <div className="mb-3 flex items-end justify-between">
           <div>
             <h2 className="font-display text-xl font-bold text-slate-900">Supporting Evidence</h2>
-            <p className="text-xs uppercase tracking-wide text-slate-500">Documentation checklist by pillar</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">
+              Verification scale by document - rate each as your assessor would
+            </p>
           </div>
-          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200">{docsPct}% complete</Badge>
+          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200">{scoredDocs} / {totalDocs} scored</Badge>
         </div>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {ESG_PILLARS.map(p => {
             const Icon = PILLAR_ICONS[p.key]
             const list = ESG_DOCS[p.key]
-            const collected = list.filter(d => docs[docKey(p.key, d)]).length
-            const pct = list.length === 0 ? 0 : Math.round((collected / list.length) * 100)
             return (
               <Card key={p.key}>
                 <CardHeader>
@@ -259,40 +305,37 @@ export function EsgAssessmentPanel() {
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                       <Icon className="h-4 w-4" />
                     </div>
-                    <div>
-                      <CardTitle>{p.key}</CardTitle>
-                      <p className="mt-0.5 text-xs text-slate-500">{collected} of {list.length} documents</p>
-                    </div>
+                    <CardTitle>{p.key}</CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <ProgressBar value={pct} className="mb-3" />
-                  <ul className="space-y-1.5">
-                    {list.map(doc => {
-                      const checked = !!docs[docKey(p.key, doc)]
-                      return (
-                        <li key={doc}>
-                          <button
-                            type="button"
-                            onClick={() => toggleDoc(p.key, doc)}
-                            className={cn(
-                              'flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                              checked
-                                ? 'border-emerald-200 bg-emerald-50 text-slate-700'
-                                : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50',
-                            )}
-                          >
-                            {checked ? (
-                              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-                            ) : (
-                              <Circle className="h-4 w-4 shrink-0 text-slate-300" />
-                            )}
-                            <span className={cn(checked && 'font-medium')}>{doc}</span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
+                <CardContent className="space-y-3">
+                  {list.map(doc => {
+                    const current = evidence[docKey(p.key, doc)]
+                    return (
+                      <div key={doc} className="rounded-lg border border-slate-200 p-2.5">
+                        <p className="mb-1.5 text-xs font-medium text-slate-700">{doc}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {EVIDENCE_LEVELS.map(lvl => {
+                            const active = current === lvl.value
+                            return (
+                              <button
+                                key={lvl.value}
+                                type="button"
+                                onClick={() => setEvidenceLevel(p.key, doc, lvl.value)}
+                                aria-pressed={active}
+                                className={cn(
+                                  'rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors',
+                                  active ? lvl.badge : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300',
+                                )}
+                              >
+                                {lvl.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </CardContent>
               </Card>
             )
@@ -321,7 +364,14 @@ export function EsgAssessmentPanel() {
                         <CardContent className="pt-6">
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{q.domain}</p>
-                            <span className="font-mono text-xs text-slate-400">{q.id}</span>
+                            <div className="flex items-center gap-1.5">
+                              {q.frameworkRefs.map(ref => (
+                                <span key={ref} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                                  {ref}
+                                </span>
+                              ))}
+                              <span className="font-mono text-xs text-slate-400">{q.id}</span>
+                            </div>
                           </div>
                           <p className="mt-2 text-base font-medium leading-snug text-slate-900">{q.question}</p>
 
@@ -382,6 +432,10 @@ export function EsgAssessmentPanel() {
                               <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
                                 <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
                                 <span><span className="font-semibold uppercase tracking-wide">Why it matters for financing:</span> {q.financingNote}</span>
+                              </p>
+                              <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
+                                <Award className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                                <span><span className="font-semibold uppercase tracking-wide">Framework references:</span> {q.frameworkRefs.join(', ')}</span>
                               </p>
                             </Accordion>
                           </div>
