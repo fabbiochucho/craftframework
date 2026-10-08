@@ -23,6 +23,7 @@ export type FrameworkId =
   | 'g7-ai-public-sector'
   | 'oecd-ai'
   | 'gfa-diagnostic'
+  | 'esg-self-assessment'
 
 // Visual theme per framework - financial/compliance work stays in the DiBadili
 // emerald palette; AI ethics switches to indigo to separate "tech ethics" from
@@ -109,6 +110,17 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     blurb:
       'The 7-pillar investment-readiness scorecard and the DFI/PE data-room document requests for private-sector archetypes.',
     icon: 'TrendingUp',
+  },
+  {
+    id: 'esg-self-assessment',
+    name: 'ESG Self-Assessment',
+    short: 'ESG',
+    authority: 'CRAFT · ESG Self-Assessment (GRI/SASB-aligned)',
+    scale: 'fiduciary-0-5',
+    theme: 'emerald',
+    blurb:
+      'Score Environmental, Social and Governance performance, surface gaps and recommendations, and earn a letter-band ESG rating badge for financing, investment and procurement positioning.',
+    icon: 'Leaf',
   },
 ]
 
