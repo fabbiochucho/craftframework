@@ -1,14 +1,27 @@
+import { lazy, Suspense } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Card, Button, Badge } from '../components/ui'
 import { getFramework } from '../lib/frameworks'
-import { OmtRubricRenderer } from './OmtRubricRenderer'
-import { GfFcrEngine } from './GfFcrEngine'
-import { G7AiEngine } from './G7AiEngine'
-import { OecdAiWizard } from './OecdAiWizard'
-import { GfaDiagnosticPanel } from './GfaDiagnosticPanel'
-import { EsgAssessmentPanel } from './EsgAssessmentPanel'
-import { CapitalReadinessPanel } from './CapitalReadinessPanel'
-import { ArrowLeft, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react'
+
+// Each framework's engine is its own chunk, loaded only when that framework is
+// actually visited - otherwise every visitor to any single framework would
+// download all nine panels (and every recharts variant they use) up front.
+const OmtRubricRenderer = lazy(() => import('./OmtRubricRenderer').then(m => ({ default: m.OmtRubricRenderer })))
+const GfFcrEngine = lazy(() => import('./GfFcrEngine').then(m => ({ default: m.GfFcrEngine })))
+const G7AiEngine = lazy(() => import('./G7AiEngine').then(m => ({ default: m.G7AiEngine })))
+const OecdAiWizard = lazy(() => import('./OecdAiWizard').then(m => ({ default: m.OecdAiWizard })))
+const GfaDiagnosticPanel = lazy(() => import('./GfaDiagnosticPanel').then(m => ({ default: m.GfaDiagnosticPanel })))
+const EsgAssessmentPanel = lazy(() => import('./EsgAssessmentPanel').then(m => ({ default: m.EsgAssessmentPanel })))
+const CapitalReadinessPanel = lazy(() => import('./CapitalReadinessPanel').then(m => ({ default: m.CapitalReadinessPanel })))
+
+function EngineLoading() {
+  return (
+    <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-20 text-sm text-slate-400">
+      <Loader2 className="h-4 w-4 animate-spin" /> Loading framework engine...
+    </div>
+  )
+}
 
 // The Dynamic Assessment Engine shell. The route supplies the frameworkId from
 // the URL (/assessment/{frameworkId}); this component resolves the framework and
@@ -43,7 +56,9 @@ export function AssessmentFrameworkPage({ frameworkId }: { frameworkId: string }
         <Badge className="bg-emerald-100 text-emerald-700">{meta.authority}</Badge>
       </div>
 
-      {renderEngine(meta.id)}
+      <Suspense fallback={<EngineLoading />}>
+        {renderEngine(meta.id)}
+      </Suspense>
     </div>
   )
 }
