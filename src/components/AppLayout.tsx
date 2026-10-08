@@ -3,7 +3,7 @@ import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { logout as identityLogout } from '@netlify/identity'
 import { cn } from '../lib/utils'
 import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
-import { Badge } from './ui'
+import { Badge, Button } from './ui'
 import { Footer } from './Footer'
 import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
@@ -96,7 +96,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [authReady, currentUser, onboardingComplete, navigate, enterDemo])
 
-  if (!currentUser) return null
+  // Before Identity resolves (always true on first server paint - GoTrue is a
+  // client-only session), render a real, honest placeholder instead of an
+  // empty body. Never the actual workspace content: that still only mounts
+  // client-side once `currentUser` is known, same as before. This is purely
+  // about giving crawlers and shared-link previews something meaningful to
+  // see instead of a blank page - it changes nothing about who can reach the
+  // real content.
+  if (!currentUser) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 px-6 text-center">
+        <Logo className="h-10 w-10" />
+        <h1 className="font-display text-xl font-bold text-slate-900">Sign in to continue</h1>
+        <p className="max-w-sm text-sm text-slate-500">
+          This CRAFT workspace is part of a secure, multi-tenant assessment platform. Sign in or start a demo
+          session to view it.
+        </p>
+        <Link to="/auth">
+          <Button variant="primary" size="sm">Sign in</Button>
+        </Link>
+      </div>
+    )
+  }
 
   const composite = currentOrg ? computeOrgScore(scores[currentOrg.id] || {}) : 0
   const accred = getAccreditation(composite, implementationEvidence)
