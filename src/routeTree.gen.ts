@@ -41,6 +41,7 @@ import { Route as CipRouteImport } from './routes/cip'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuditLogRouteImport } from './routes/audit-log'
 import { Route as AssessmentRouteImport } from './routes/assessment'
+import { Route as ArchitectureRouteImport } from './routes/architecture'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
@@ -208,6 +209,11 @@ const AssessmentRoute = AssessmentRouteImport.update({
   path: '/assessment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArchitectureRoute = ArchitectureRouteImport.update({
+  id: '/architecture',
+  path: '/architecture',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -242,6 +248,7 @@ const AcceptTokenRoute = AcceptTokenRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRouteWithChildren
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
@@ -282,6 +289,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRouteWithChildren
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
@@ -323,6 +331,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRouteWithChildren
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
@@ -365,6 +374,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/architecture'
     | '/assessment'
     | '/audit-log'
     | '/auth'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/architecture'
     | '/assessment'
     | '/audit-log'
     | '/auth'
@@ -445,6 +456,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/architecture'
     | '/assessment'
     | '/audit-log'
     | '/auth'
@@ -486,6 +498,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  ArchitectureRoute: typeof ArchitectureRoute
   AssessmentRoute: typeof AssessmentRouteWithChildren
   AuditLogRoute: typeof AuditLogRoute
   AuthRoute: typeof AuthRoute
@@ -749,6 +762,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssessmentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/architecture': {
+      id: '/architecture'
+      path: '/architecture'
+      fullPath: '/architecture'
+      preLoaderRoute: typeof ArchitectureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -809,6 +829,7 @@ const AssessmentRouteWithChildren = AssessmentRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  ArchitectureRoute: ArchitectureRoute,
   AssessmentRoute: AssessmentRouteWithChildren,
   AuditLogRoute: AuditLogRoute,
   AuthRoute: AuthRoute,
