@@ -79,6 +79,14 @@ export function OpenSourcePage() {
                 The CRAFT platform is released under the GNU General Public License v3.0, which guarantees
                 that improvements remain free and open for the whole community.
               </p>
+              <a
+                href="https://github.com/fabbiochucho/craftframework"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 hover:text-emerald-900"
+              >
+                <GitFork className="h-4 w-4" /> View source on GitHub
+              </a>
             </div>
           </Reveal>
           <Reveal delay={120}>
