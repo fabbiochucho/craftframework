@@ -480,3 +480,79 @@ export function financingPositioning(badge: EsgBadge, gaps: EsgGap[]): string {
   }
   return `At this rating, most ESG-linked financing, DFI facilities and large-procurement tenders will treat ESG gaps as a blocking condition, not a minor note. Prioritize the ${Math.min(3, gaps.length)} lowest-scoring item(s) below before approaching financing, tender processes or sustainability disclosure.${provisionalNote}`
 }
+
+// ----------------------------------------------------------------------------
+// Rating-agency translation
+// ----------------------------------------------------------------------------
+// CRAFT does not replicate, issue or predict a credit rating or an ESG rating
+// from any agency. What follows is a reference layer explaining how the
+// dimensions CRAFT already measures (here, and via the GFA Diagnostic's
+// financial pillars) typically factor into how major rating agencies think -
+// context for institutions preparing for external review, not a forecast.
+//
+// The agency descriptions below are factual summaries of publicly documented
+// methodology positioning (Fitch's ESG Relevance Scores, Moody's Issuer
+// Profile/Credit Impact Scores, S&P's materiality-gated approach to ESG in
+// credit ratings) - not CRAFT's own claims about those agencies' processes.
+// ----------------------------------------------------------------------------
+
+export interface RatingAgencyMapping {
+  dimension: EsgPillar | 'Financial'
+  craftSignal: string
+  agencyLens: string
+  creditRelevance: string
+}
+
+export const RATING_AGENCY_MAP: RatingAgencyMapping[] = [
+  {
+    dimension: 'Financial',
+    craftSignal: 'Cash management, controls, leverage and credibility pillars (CRAFT · GFA Business Diagnostic)',
+    agencyLens: 'Earnings stability, financial flexibility, leverage, liquidity coverage',
+    creditRelevance: 'The core driver of default risk and liquidity risk in any credit rating.',
+  },
+  {
+    dimension: 'Governance',
+    craftSignal: 'Board oversight, anti-corruption controls, risk management, transparency & disclosure (ESG-G1 to ESG-G4)',
+    agencyLens: 'Management quality, governance structure, internal controls, reporting reliability',
+    creditRelevance: 'Weak governance is one of the most common drivers of negative rating actions.',
+  },
+  {
+    dimension: 'Environmental',
+    craftSignal: 'GHG emissions management, resource/waste efficiency, environmental compliance, climate risk exposure (ESG-E1 to ESG-E4)',
+    agencyLens: 'Physical and transition climate risk, regulatory exposure, asset and capex impact',
+    creditRelevance: 'Can affect operating costs, capital expenditure, asset values and regulatory risk over the rating horizon.',
+  },
+  {
+    dimension: 'Social',
+    craftSignal: 'Labor practices, health & safety, DEI, community & stakeholder engagement (ESG-S1 to ESG-S4)',
+    agencyLens: 'Social licence to operate, litigation exposure, workforce and community relations',
+    creditRelevance: 'Can translate into operational disruption, regulatory intervention or reputational and revenue impact.',
+  },
+]
+
+export interface RatingAgencyReference {
+  name: string
+  note: string
+}
+
+export const RATING_AGENCY_REFERENCES: RatingAgencyReference[] = [
+  {
+    name: 'Fitch Ratings',
+    note: 'Publishes ESG Relevance Scores showing whether and how much an ESG factor influenced a specific credit-rating decision - not a standalone ESG score.',
+  },
+  {
+    name: "Moody's Ratings",
+    note: 'Integrates ESG considerations into credit analysis through Issuer Profile Scores (IPS) and Credit Impact Scores (CIS), rather than a separate ESG rating.',
+  },
+  {
+    name: 'S&P Global Ratings',
+    note: 'Factors ESG into credit ratings only when an ESG issue is material to creditworthiness and sufficiently visible.',
+  },
+  {
+    name: 'MSCI, Sustainalytics, CDP, GRESB, ISS ESG',
+    note: 'Pure-play ESG raters - score ESG performance and risk independently of credit analysis, unlike the credit agencies above.',
+  },
+]
+
+export const AGENCY_TRANSLATION_DISCLAIMER =
+  "CRAFT does not replicate, issue or predict any credit rating or ESG rating from Fitch, Moody's, S&P, MSCI, Sustainalytics or any other agency. This section explains how the dimensions CRAFT already measures typically factor into how those agencies approach credit and ESG analysis, as context for institutions preparing for external review - it is not a forecast of any specific agency outcome."

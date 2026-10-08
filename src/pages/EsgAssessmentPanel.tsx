@@ -17,7 +17,7 @@ import {
 } from 'recharts'
 import {
   Leaf, CheckCircle2, FileText, AlertTriangle, Award, TrendingUp, Sparkles,
-  Droplets, Scale, Users, ShieldAlert,
+  Droplets, Scale, Users, ShieldAlert, Landmark, Info,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { FIDUCIARY_LEVELS } from '../lib/frameworks'
@@ -26,6 +26,7 @@ import {
   pillarVerifiedScore, compositeEsgScore, compositeVerifiedScore,
   evidenceCoveragePct, confidenceFromCoverage, identifyGaps, identifyStrengths,
   unansweredQuestions, getEsgBadge, financingPositioning,
+  RATING_AGENCY_MAP, RATING_AGENCY_REFERENCES, AGENCY_TRANSLATION_DISCLAIMER,
   type EsgPillar,
 } from '../lib/esg'
 import {
@@ -175,6 +176,58 @@ export function EsgAssessmentPanel() {
         </CardHeader>
         <CardContent>
           <p className="text-sm leading-relaxed text-slate-700">{narrative}</p>
+        </CardContent>
+      </Card>
+
+      {/* Rating-agency translation reference */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Landmark className="h-4 w-4 text-indigo-600" />
+            How This Maps to Rating Agencies
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs text-indigo-800">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{AGENCY_TRANSLATION_DISCLAIMER}</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="py-2 pr-4 font-semibold">Dimension</th>
+                  <th className="py-2 pr-4 font-semibold">What CRAFT measures</th>
+                  <th className="py-2 pr-4 font-semibold">How agencies frame it</th>
+                  <th className="py-2 font-semibold">Credit/capital relevance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {RATING_AGENCY_MAP.map(row => (
+                  <tr key={row.dimension} className="border-b border-slate-100 align-top last:border-0">
+                    <td className="py-3 pr-4">
+                      <Badge className="bg-slate-100 text-slate-700">{row.dimension}</Badge>
+                    </td>
+                    <td className="py-3 pr-4 text-slate-700">{row.craftSignal}</td>
+                    <td className="py-3 pr-4 text-slate-600">{row.agencyLens}</td>
+                    <td className="py-3 text-slate-600">{row.creditRelevance}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Reference ecosystem</p>
+            <ul className="space-y-1.5">
+              {RATING_AGENCY_REFERENCES.map(ref => (
+                <li key={ref.name} className="text-xs text-slate-600">
+                  <span className="font-semibold text-slate-800">{ref.name}:</span> {ref.note}
+                </li>
+              ))}
+            </ul>
+          </div>
         </CardContent>
       </Card>
 
