@@ -24,6 +24,7 @@ export type FrameworkId =
   | 'oecd-ai'
   | 'gfa-diagnostic'
   | 'esg-self-assessment'
+  | 'capital-readiness-ladder'
 
 // Visual theme per framework - financial/compliance work stays in the DiBadili
 // emerald palette; AI ethics switches to indigo to separate "tech ethics" from
@@ -121,6 +122,17 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     blurb:
       'Score Environmental, Social and Governance performance against response and verified evidence, surface gaps and recommendations, and earn a letter-band ESG rating badge for financing, investment, procurement and sustainability-reporting readiness.',
     icon: 'Leaf',
+  },
+  {
+    id: 'capital-readiness-ladder',
+    name: 'CRAFT Capital Readiness Ladder',
+    short: 'Capital Ladder',
+    authority: 'CRAFT · Institutional & Capital Readiness Architecture',
+    scale: 'fiduciary-0-5',
+    theme: 'slate',
+    blurb:
+      'A 7-rung sequential diagnostic - Survival through Capital Market Readiness - identifying the current rung, what is blocking the next one, and how that connects to DFI, credit and capital-markets expectations.',
+    icon: 'Mountain',
   },
 ]
 

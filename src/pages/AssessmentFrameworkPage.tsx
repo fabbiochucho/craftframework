@@ -7,6 +7,7 @@ import { G7AiEngine } from './G7AiEngine'
 import { OecdAiWizard } from './OecdAiWizard'
 import { GfaDiagnosticPanel } from './GfaDiagnosticPanel'
 import { EsgAssessmentPanel } from './EsgAssessmentPanel'
+import { CapitalReadinessPanel } from './CapitalReadinessPanel'
 import { ArrowLeft, AlertTriangle } from 'lucide-react'
 
 // The Dynamic Assessment Engine shell. The route supplies the frameworkId from
@@ -63,6 +64,8 @@ function renderEngine(id: string) {
       return <GfaDiagnosticPanel />
     case 'esg-self-assessment':
       return <EsgAssessmentPanel />
+    case 'capital-readiness-ladder':
+      return <CapitalReadinessPanel />
     default:
       return null
   }

@@ -2,12 +2,12 @@ import { Link } from '@tanstack/react-router'
 import { Card, Badge, Reveal } from '../components/ui'
 import { FRAMEWORKS } from '../lib/frameworks'
 import {
-  Network, Banknote, Cpu, ShieldCheck, TrendingUp, ArrowRight, Layers, Radar, Leaf,
+  Network, Banknote, Cpu, ShieldCheck, TrendingUp, ArrowRight, Layers, Radar, Leaf, Mountain,
 } from 'lucide-react'
 
 // Icon resolver for the framework registry's `icon` field.
 const ICONS: Record<string, typeof Network> = {
-  Network, Radar, Banknote, Cpu, ShieldCheck, TrendingUp, Leaf,
+  Network, Radar, Banknote, Cpu, ShieldCheck, TrendingUp, Leaf, Mountain,
 }
 
 const THEME: Record<string, { ring: string; chip: string; icon: string }> = {
