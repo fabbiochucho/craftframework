@@ -115,11 +115,11 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     id: 'esg-self-assessment',
     name: 'ESG Self-Assessment',
     short: 'ESG',
-    authority: 'CRAFT · ESG Self-Assessment (GRI/SASB-aligned)',
+    authority: 'CRAFT · ESG Self-Assessment (GRI / IFRS S1-S2 / TCFD-aligned)',
     scale: 'fiduciary-0-5',
     theme: 'emerald',
     blurb:
-      'Score Environmental, Social and Governance performance, surface gaps and recommendations, and earn a letter-band ESG rating badge for financing, investment and procurement positioning.',
+      'Score Environmental, Social and Governance performance against response and verified evidence, surface gaps and recommendations, and earn a letter-band ESG rating badge for financing, investment, procurement and sustainability-reporting readiness.',
     icon: 'Leaf',
   },
 ]
