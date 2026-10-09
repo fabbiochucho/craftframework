@@ -45,8 +45,8 @@ export function langMeta(code: LangCode): LanguageMeta {
 // ---------------------------------------------------------------------------
 // Translation dictionary. Keys are stable identifiers; English is the source of
 // truth and the fallback for any locale that has not yet translated a key.
-// Visible chrome (navigation, footer, calls-to-action, legal) is covered first;
-// untranslated body copy gracefully renders the English string.
+// Visible chrome (navigation, footer, calls-to-action) is hand-translated here;
+// all other page copy is translated at runtime by components/AutoTranslate.tsx.
 // ---------------------------------------------------------------------------
 
 type Dict = Record<string, string>
@@ -68,6 +68,7 @@ const en: Dict = {
   'footer.terms': 'Terms of Service',
   'footer.privacy': 'Privacy Policy',
   'lang.label': 'Language',
+  'tx.translating': 'Translating…',
   'demo.badge': 'Isolated · Read-only · No sign-up',
   'demo.title': 'Explore CRAFT with live sample data',
   'demo.subtitle':
@@ -80,34 +81,35 @@ const en: Dict = {
 
 const fr: Dict = {
   'nav.home': 'Accueil',
-  'nav.readiness': 'Test de préparation',
+  'nav.readiness': 'Diagnostic de préparation',
   'nav.methodology': 'Méthodologie',
   'nav.architecture': 'Architecture',
   'nav.institute': "L'Institut",
-  'nav.openSource': 'Open Source',
+  'nav.openSource': 'Open source',
   'nav.contact': 'Contact',
   'nav.signIn': 'Se connecter',
   'nav.register': 'Inscrire votre institution',
   'footer.codeOfConduct': 'Code de conduite',
-  'footer.openSource': 'Open Source',
+  'footer.openSource': 'Open source',
   'footer.methodology': 'Méthodologie',
   'footer.contact': 'Contact',
   'footer.terms': "Conditions d'utilisation",
   'footer.privacy': 'Politique de confidentialité',
   'lang.label': 'Langue',
+  'tx.translating': 'Traduction en cours…',
   'demo.badge': 'Isolé · Lecture seule · Sans inscription',
-  'demo.title': 'Explorez CRAFT avec des données de démonstration',
+  'demo.title': 'Explorez CRAFT avec des données d’exemple en direct',
   'demo.subtitle':
-    'Ouvrez l’une des démos ci-dessous dans un nouvel onglet. Chacune lance une session jetable entièrement remplie de données d’exemple - totalement isolée, sans jamais toucher un espace de travail réel.',
+    'Ouvrez l’une des démos ci-dessous dans un nouvel onglet. Chacune lance une session temporaire entièrement renseignée, alimentée par des institutions fictives à titre d’illustration, totalement isolée et qui ne touche jamais un espace de travail réel.',
   'demo.launch': 'Lancer la démo',
-  'demo.readyPrompt': 'Prêt à réaliser votre propre évaluation ?',
+  'demo.readyPrompt': 'Prêt à réaliser votre propre évaluation de préparation ?',
   'demo.registerCta': 'Inscrire votre institution',
   'cta.seeDemo': 'Voir la démo',
 }
 
 const es: Dict = {
   'nav.home': 'Inicio',
-  'nav.readiness': 'Test de preparación',
+  'nav.readiness': 'Diagnóstico de preparación',
   'nav.methodology': 'Metodología',
   'nav.architecture': 'Arquitectura',
   'nav.institute': 'El Instituto',
@@ -122,75 +124,79 @@ const es: Dict = {
   'footer.terms': 'Términos del servicio',
   'footer.privacy': 'Política de privacidad',
   'lang.label': 'Idioma',
+  'tx.translating': 'Traduciendo…',
   'demo.badge': 'Aislado · Solo lectura · Sin registro',
-  'demo.title': 'Explore CRAFT con datos de muestra',
+  'demo.title': 'Explore CRAFT con datos de muestra en vivo',
   'demo.subtitle':
-    'Abra cualquiera de las demostraciones a continuación en una pestaña nueva. Cada una inicia una sesión desechable y totalmente poblada con datos de ejemplo, completamente aislada y sin tocar nunca un espacio de trabajo real.',
+    'Abra cualquiera de las demostraciones a continuación en una pestaña nueva. Cada una inicia una sesión temporal totalmente completada con instituciones ilustrativas, que permanece completamente aislada y nunca afecta a un espacio de trabajo real.',
   'demo.launch': 'Iniciar demostración',
-  'demo.readyPrompt': '¿Listo para realizar su propia evaluación?',
+  'demo.readyPrompt': '¿Listo para realizar su propia evaluación de preparación?',
   'demo.registerCta': 'Registre su institución',
   'cta.seeDemo': 'Ver demostración',
 }
 
+// European / African Portuguese (Portugal, Angola, Mozambique) - not Brazilian.
 const pt: Dict = {
   'nav.home': 'Início',
-  'nav.readiness': 'Teste de prontidão',
+  'nav.readiness': 'Diagnóstico de prontidão',
   'nav.methodology': 'Metodologia',
   'nav.architecture': 'Arquitetura',
   'nav.institute': 'O Instituto',
   'nav.openSource': 'Código aberto',
-  'nav.contact': 'Contato',
-  'nav.signIn': 'Entrar',
+  'nav.contact': 'Contacto',
+  'nav.signIn': 'Iniciar sessão',
   'nav.register': 'Registe a sua instituição',
   'footer.codeOfConduct': 'Código de conduta',
   'footer.openSource': 'Código aberto',
   'footer.methodology': 'Metodologia',
-  'footer.contact': 'Contato',
+  'footer.contact': 'Contacto',
   'footer.terms': 'Termos de serviço',
   'footer.privacy': 'Política de privacidade',
   'lang.label': 'Idioma',
-  'demo.badge': 'Isolado · Apenas leitura · Sem registo',
-  'demo.title': 'Explore o CRAFT com dados de exemplo',
+  'tx.translating': 'A traduzir…',
+  'demo.badge': 'Isolado · Só de leitura · Sem registo',
+  'demo.title': 'Explore o CRAFT com dados de exemplo em tempo real',
   'demo.subtitle':
-    'Abra qualquer uma das demonstrações abaixo num novo separador. Cada uma inicia uma sessão descartável totalmente preenchida com dados de exemplo - completamente isolada, sem nunca tocar num espaço de trabalho real.',
+    'Abra qualquer uma das demonstrações abaixo num novo separador. Cada uma inicia uma sessão temporária totalmente preenchida com instituições ilustrativas, que permanece completamente isolada e nunca toca num espaço de trabalho real.',
   'demo.launch': 'Iniciar demonstração',
-  'demo.readyPrompt': 'Pronto para realizar a sua própria avaliação?',
+  'demo.readyPrompt': 'Pronto para realizar a sua própria avaliação de prontidão?',
   'demo.registerCta': 'Registe a sua instituição',
   'cta.seeDemo': 'Ver demonstração',
 }
 
 const sw: Dict = {
   'nav.home': 'Mwanzo',
-  'nav.readiness': 'Kipimo cha utayari',
+  'nav.readiness': 'Kipimo cha Utayari',
   'nav.methodology': 'Mbinu',
   'nav.architecture': 'Muundo',
   'nav.institute': 'Taasisi',
   'nav.openSource': 'Chanzo Huria',
-  'nav.contact': 'Wasiliana',
+  'nav.contact': 'Wasiliana Nasi',
   'nav.signIn': 'Ingia',
-  'nav.register': 'Sajili taasisi yako',
+  'nav.register': 'Sajili Taasisi Yako',
   'footer.codeOfConduct': 'Kanuni za Maadili',
   'footer.openSource': 'Chanzo Huria',
   'footer.methodology': 'Mbinu',
-  'footer.contact': 'Wasiliana',
+  'footer.contact': 'Wasiliana Nasi',
   'footer.terms': 'Masharti ya Huduma',
   'footer.privacy': 'Sera ya Faragha',
   'lang.label': 'Lugha',
+  'tx.translating': 'Inatafsiri…',
   'demo.badge': 'Imetengwa · Kusoma tu · Bila kujisajili',
-  'demo.title': 'Chunguza CRAFT kwa data ya mfano',
+  'demo.title': 'Chunguza CRAFT kwa data hai ya mfano',
   'demo.subtitle':
-    'Fungua mojawapo ya onyesho hapa chini kwenye kichupo kipya. Kila moja huanzisha kikao cha majaribio kilichojaa data ya mfano - kimetengwa kabisa, bila kugusa nafasi halisi ya kazi.',
+    'Fungua onyesho lolote kati ya yaliyo hapa chini kwenye kichupo kipya. Kila moja huanzisha kipindi cha muda kilichojazwa kikamilifu na taasisi za mfano; kimetengwa kabisa na hakigusi kamwe nafasi halisi ya kazi.',
   'demo.launch': 'Anzisha onyesho',
-  'demo.readyPrompt': 'Uko tayari kufanya tathmini yako mwenyewe?',
+  'demo.readyPrompt': 'Uko tayari kufanya tathmini yako mwenyewe ya utayari?',
   'demo.registerCta': 'Sajili taasisi yako',
   'cta.seeDemo': 'Tazama onyesho',
 }
 
 const ar: Dict = {
   'nav.home': 'الرئيسية',
-  'nav.readiness': 'اختبار الجاهزية',
+  'nav.readiness': 'فحص الجاهزية',
   'nav.methodology': 'المنهجية',
-  'nav.architecture': 'الهيكلية',
+  'nav.architecture': 'البنية',
   'nav.institute': 'المعهد',
   'nav.openSource': 'مفتوح المصدر',
   'nav.contact': 'اتصل بنا',
@@ -203,17 +209,25 @@ const ar: Dict = {
   'footer.terms': 'شروط الخدمة',
   'footer.privacy': 'سياسة الخصوصية',
   'lang.label': 'اللغة',
+  'tx.translating': 'جارٍ الترجمة…',
   'demo.badge': 'معزول · للقراءة فقط · بدون تسجيل',
-  'demo.title': 'استكشف CRAFT ببيانات تجريبية مباشرة',
+  'demo.title': 'استكشف CRAFT ببيانات نموذجية حيّة',
   'demo.subtitle':
-    'افتح أيًا من العرضين أدناه في علامة تبويب جديدة. يبدأ كل منهما جلسة مؤقتة مليئة ببيانات توضيحية - معزولة تمامًا ولا تمس أي مساحة عمل حقيقية.',
+    'افتح أيًا من العرضين أدناه في علامة تبويب جديدة. يُطلق كل منهما جلسة مؤقتة مكتملة البيانات بمؤسسات توضيحية، تبقى معزولة تمامًا ولا تمس أبدًا أي مساحة عمل حقيقية.',
   'demo.launch': 'ابدأ العرض التجريبي',
   'demo.readyPrompt': 'هل أنت مستعد لإجراء تقييم الجاهزية الخاص بك؟',
   'demo.registerCta': 'سجّل مؤسستك',
-  'cta.seeDemo': 'شاهد العرض',
+  'cta.seeDemo': 'شاهد العرض التجريبي',
 }
 
 const DICTS: Record<LangCode, Dict> = { en, fr, es, pt, sw, ar }
+
+// Strings already rendered from a hand-written dictionary. The runtime page
+// translator (components/AutoTranslate.tsx) skips these so curated wording is
+// never re-translated.
+export function dictionaryValues(lang: LangCode): Set<string> {
+  return new Set(Object.values(DICTS[lang]).map(v => v.trim()))
+}
 
 // Map of country (ISO 3166 alpha-2) → default language for the IP/geo hint.
 // Used by the edge function; exported so both sides stay in sync.

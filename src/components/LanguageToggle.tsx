@@ -60,6 +60,7 @@ export function LanguageToggle({
       {open && (
         <ul
           role="listbox"
+          translate="no"
           aria-label={t('lang.label', 'Language')}
           className="absolute right-0 z-50 mt-1.5 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5"
         >
