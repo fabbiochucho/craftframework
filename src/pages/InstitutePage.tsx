@@ -15,9 +15,9 @@ export function InstitutePage() {
           </p>
           <h1 className="mt-3 font-display text-5xl font-bold text-emerald-900">{BRAND.mandate}</h1>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-600">
-            The {BRAND.institute} exists to help African public institutions close the distance between
-            ambition and execution by building the systems, leaders, and accountability that turn policy
-            into measurable outcomes.
+            The {BRAND.institute} exists to help African businesses, organizations and institutions close
+            the distance between ambition and execution by building the systems, leaders, and accountability
+            that turn policy into measurable outcomes.
           </p>
         </div>
       </section>
