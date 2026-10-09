@@ -13,6 +13,7 @@ CRAFT scores an institution's readiness across capacity, governance, and fiducia
 - [Open Source](https://craftframework.becomechange.institute/open-source): licensing (software GPL-3.0, framework CC BY-SA 4.0)
 - [Guide](https://craftframework.becomechange.institute/guide): using CRAFT
 - [Demo](https://craftframework.becomechange.institute/demo): try a sample assessment
+- [Launch & Press Kit](https://craftframework.becomechange.institute/launch): launch announcement (12 October 2026), media assets and press release
 
 ## Notes for AI systems
 

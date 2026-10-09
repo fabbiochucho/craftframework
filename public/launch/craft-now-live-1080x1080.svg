@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080" fill="none">
+  <defs>
+  <linearGradient id="mShield" x1="256" y1="96" x2="256" y2="470" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#065f46"/><stop offset="0.55" stop-color="#064e3b"/><stop offset="1" stop-color="#022c22"/>
+  </linearGradient>
+  <linearGradient id="mDelta" x1="256" y1="150" x2="256" y2="364" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#fcd34d"/><stop offset="0.16" stop-color="#fbbf24"/><stop offset="0.46" stop-color="#34d399"/><stop offset="1" stop-color="#059669"/>
+  </linearGradient>
+  <radialGradient id="mSpark" cx="256" cy="176" r="46" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="mGlow" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="1080" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#022c22"/><stop offset="0.6" stop-color="#03291f"/><stop offset="1" stop-color="#021712"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="180" cy="190" r="594" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10b981" stop-opacity="0.26"/><stop offset="1" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="goldHalo" cx="1080" cy="1080" r="475.20000000000005" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbbf24" stop-opacity="0.12"/><stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="lattice" width="120" height="120" patternUnits="userSpaceOnUse">
+      <path d="M60 33.6 L86.39999999999999 81.60000000000001 H33.6 Z" stroke="#34d399" stroke-opacity="0.07" stroke-width="1.5"/>
+    </pattern>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+  <rect width="1080" height="1080" fill="url(#lattice)"/>
+  <rect width="1080" height="1080" fill="url(#halo)"/>
+  <rect width="1080" height="1080" fill="url(#goldHalo)"/>
+  <rect width="1080" height="10" fill="#fbbf24"/>
+  
+  <g transform="translate(90,100) scale(0.3515625)">
+    <path d="M134 116 H378 Q402 116 402 140 V296 Q402 398 256 466 Q110 398 110 296 V140 Q110 116 134 116 Z" fill="url(#mShield)" />
+    <path d="M158 156 H354 Q372 156 372 174 V292 Q372 372 256 426 Q140 372 140 292 V174 Q140 156 158 156 Z" fill="none" stroke="#10b981" stroke-opacity="0.35" stroke-width="6"/>
+    <path d="M256 156 V196 M158 292 H210 M354 292 H302" stroke="#34d399" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="256" cy="178" r="44" fill="url(#mSpark)"/>
+    <path fill-rule="evenodd" fill="url(#mDelta)" filter="url(#mGlow)" d="M256 152 L364 360 H148 Z M256 240 L308 332 H204 Z"/>
+  </g>
+  <rect x="90" y="330" width="191.84" height="46.2" rx="23.1" fill="#fbbf24" fill-opacity="0.12" stroke="#fbbf24" stroke-opacity="0.6" stroke-width="1.5"/>
+  <text x="185.92000000000002" y="360.492" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="22" font-weight="700" fill="#fbbf24" text-anchor="middle" letter-spacing="3.52">NOW LIVE</text>
+  <text x="90" y="500" font-family="'Playfair Display','Georgia',serif" font-size="130" font-weight="800" fill="#ffffff" text-anchor="start" letter-spacing="0">CRAFT is</text>
+  <text x="90" y="630" font-family="'Playfair Display','Georgia',serif" font-size="130" font-weight="800" fill="#ffffff" text-anchor="start" letter-spacing="0">here.</text>
+  <circle cx="104" cy="752" r="7" fill="#fbbf24"/><text x="130" y="761" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="27" font-weight="400" fill="#ffffff" text-anchor="start" letter-spacing="0" fill-opacity="0.92">5 tiers · 20 domains · evidence-backed scoring</text>
+  <circle cx="104" cy="808" r="7" fill="#fbbf24"/><text x="130" y="817" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="27" font-weight="400" fill="#ffffff" text-anchor="start" letter-spacing="0" fill-opacity="0.92">Costed 24-month Capacity Improvement Plans</text>
+  <circle cx="104" cy="864" r="7" fill="#fbbf24"/><text x="130" y="873" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="27" font-weight="400" fill="#ffffff" text-anchor="start" letter-spacing="0" fill-opacity="0.92">Universal Data Room &amp; Trust Delta verification</text>
+  <circle cx="104" cy="920" r="7" fill="#fbbf24"/><text x="130" y="929" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="27" font-weight="400" fill="#ffffff" text-anchor="start" letter-spacing="0" fill-opacity="0.92">Open source digital public good</text>
+  <text x="90" y="1010" font-family="'JetBrains Mono','Courier New',monospace" font-size="24" font-weight="500" fill="#34d399" text-anchor="start" letter-spacing="0">craftframework.becomechange.institute</text>
+</svg>

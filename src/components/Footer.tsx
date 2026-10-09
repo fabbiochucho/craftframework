@@ -8,6 +8,7 @@ const footerLinks = [
   { to: '/methodology', labelKey: 'footer.methodology', fallback: 'Methodology' },
   { to: '/terms', labelKey: 'footer.terms', fallback: 'Terms of Service' },
   { to: '/privacy', labelKey: 'footer.privacy', fallback: 'Privacy Policy' },
+  { to: '/launch', labelKey: 'footer.pressKit', fallback: 'Press Kit' },
   { to: '/contact', labelKey: 'footer.contact', fallback: 'Contact' },
 ] as const
 

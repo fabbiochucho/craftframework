@@ -8,6 +8,7 @@ import { Button, Reveal } from '../components/ui'
 import { BRAND, BLINDSPOTS, LIFECYCLE, PANAFRICAN_BADGES, ARCHETYPES } from '../lib/data'
 import { SECTORS_BY_ARCHETYPE } from '../lib/dataroom'
 import { useI18n } from '../lib/i18n'
+import { LAUNCH } from '../lib/launch'
 
 const blindspotIcons: Record<string, typeof Shield> = {
   spreadsheet: FileSpreadsheet,
@@ -32,8 +33,16 @@ export function LandingPage() {
         <div className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-amber-300/10 blur-3xl" />
         <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-32">
-          <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-            <Globe2 className="h-3.5 w-3.5" /> {BRAND.institute} · A Digital Public Good
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+              <Globe2 className="h-3.5 w-3.5" /> {BRAND.institute} · A Digital Public Good
+            </div>
+            <Link
+              to="/launch"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+            >
+              Launching {LAUNCH.dateShort} · Press kit <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
           <h1 className="mt-6 font-display text-6xl font-bold leading-none tracking-tight text-emerald-900 md:text-8xl">
             CRAFT
