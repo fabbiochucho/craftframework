@@ -22,6 +22,7 @@ import { Route as OpenSourceRouteImport } from './routes/open-source'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ObligationsRouteImport } from './routes/obligations'
 import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as IssbDisclosuresRouteImport } from './routes/issb-disclosures'
 import { Route as InstituteRouteImport } from './routes/institute'
 import { Route as InformalEconomyRouteImport } from './routes/informal-economy'
@@ -112,6 +113,11 @@ const ObligationsRoute = ObligationsRouteImport.update({
 const MethodologyRoute = MethodologyRouteImport.update({
   id: '/methodology',
   path: '/methodology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchRoute = LaunchRouteImport.update({
+  id: '/launch',
+  path: '/launch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IssbDisclosuresRoute = IssbDisclosuresRouteImport.update({
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   '/informal-economy': typeof InformalEconomyRoute
   '/institute': typeof InstituteRoute
   '/issb-disclosures': typeof IssbDisclosuresRoute
+  '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/informal-economy': typeof InformalEconomyRoute
   '/institute': typeof InstituteRoute
   '/issb-disclosures': typeof IssbDisclosuresRoute
+  '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/informal-economy': typeof InformalEconomyRoute
   '/institute': typeof InstituteRoute
   '/issb-disclosures': typeof IssbDisclosuresRoute
+  '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/informal-economy'
     | '/institute'
     | '/issb-disclosures'
+    | '/launch'
     | '/methodology'
     | '/obligations'
     | '/onboarding'
@@ -435,6 +445,7 @@ export interface FileRouteTypes {
     | '/informal-economy'
     | '/institute'
     | '/issb-disclosures'
+    | '/launch'
     | '/methodology'
     | '/obligations'
     | '/onboarding'
@@ -476,6 +487,7 @@ export interface FileRouteTypes {
     | '/informal-economy'
     | '/institute'
     | '/issb-disclosures'
+    | '/launch'
     | '/methodology'
     | '/obligations'
     | '/onboarding'
@@ -518,6 +530,7 @@ export interface RootRouteChildren {
   InformalEconomyRoute: typeof InformalEconomyRoute
   InstituteRoute: typeof InstituteRoute
   IssbDisclosuresRoute: typeof IssbDisclosuresRoute
+  LaunchRoute: typeof LaunchRoute
   MethodologyRoute: typeof MethodologyRoute
   ObligationsRoute: typeof ObligationsRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -627,6 +640,13 @@ declare module '@tanstack/react-router' {
       path: '/methodology'
       fullPath: '/methodology'
       preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch': {
+      id: '/launch'
+      path: '/launch'
+      fullPath: '/launch'
+      preLoaderRoute: typeof LaunchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/issb-disclosures': {
@@ -849,6 +869,7 @@ const rootRouteChildren: RootRouteChildren = {
   InformalEconomyRoute: InformalEconomyRoute,
   InstituteRoute: InstituteRoute,
   IssbDisclosuresRoute: IssbDisclosuresRoute,
+  LaunchRoute: LaunchRoute,
   MethodologyRoute: MethodologyRoute,
   ObligationsRoute: ObligationsRoute,
   OnboardingRoute: OnboardingRoute,

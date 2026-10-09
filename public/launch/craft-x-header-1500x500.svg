@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500" fill="none">
+  <defs>
+  <linearGradient id="mShield" x1="256" y1="96" x2="256" y2="470" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#065f46"/><stop offset="0.55" stop-color="#064e3b"/><stop offset="1" stop-color="#022c22"/>
+  </linearGradient>
+  <linearGradient id="mDelta" x1="256" y1="150" x2="256" y2="364" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#fcd34d"/><stop offset="0.16" stop-color="#fbbf24"/><stop offset="0.46" stop-color="#34d399"/><stop offset="1" stop-color="#059669"/>
+  </linearGradient>
+  <radialGradient id="mSpark" cx="256" cy="176" r="46" gradientUnits="userSpaceOnUse">
+    <stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="mGlow" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+    <linearGradient id="bg" x1="0" y1="0" x2="1500" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#022c22"/><stop offset="0.6" stop-color="#03291f"/><stop offset="1" stop-color="#021712"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="660" cy="250" r="825.0000000000001" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10b981" stop-opacity="0.26"/><stop offset="1" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="goldHalo" cx="1500" cy="500" r="660.0000000000001" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fbbf24" stop-opacity="0.12"/><stop offset="1" stop-color="#fbbf24" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="lattice" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M28 15.680000000000001 L40.32 38.080000000000005 H15.680000000000001 Z" stroke="#34d399" stroke-opacity="0.07" stroke-width="1.5"/>
+    </pattern>
+  </defs>
+  <rect width="1500" height="500" fill="url(#bg)"/>
+  <rect width="1500" height="500" fill="url(#lattice)"/>
+  <rect width="1500" height="500" fill="url(#halo)"/>
+  <rect width="1500" height="500" fill="url(#goldHalo)"/>
+  <rect width="1500" height="6" fill="#fbbf24"/>
+  
+  <g transform="translate(520,110) scale(0.546875)">
+    <path d="M134 116 H378 Q402 116 402 140 V296 Q402 398 256 466 Q110 398 110 296 V140 Q110 116 134 116 Z" fill="url(#mShield)" />
+    <path d="M158 156 H354 Q372 156 372 174 V292 Q372 372 256 426 Q140 372 140 292 V174 Q140 156 158 156 Z" fill="none" stroke="#10b981" stroke-opacity="0.35" stroke-width="6"/>
+    <path d="M256 156 V196 M158 292 H210 M354 292 H302" stroke="#34d399" stroke-opacity="0.45" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="256" cy="178" r="44" fill="url(#mSpark)"/>
+    <path fill-rule="evenodd" fill="url(#mDelta)" filter="url(#mGlow)" d="M256 152 L364 360 H148 Z M256 240 L308 332 H204 Z"/>
+  </g>
+  <text x="820" y="230" font-family="'Playfair Display','Georgia',serif" font-size="96" font-weight="800" fill="#ffffff" text-anchor="start" letter-spacing="3">CRAFT</text>
+  <text x="822" y="285" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="27" font-weight="400" fill="#94d3bf" text-anchor="start" letter-spacing="0">Building fiduciary trust for G2G, DFI</text>
+  <text x="822" y="320" font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="27" font-weight="400" fill="#94d3bf" text-anchor="start" letter-spacing="0">and donor partnerships.</text>
+  <text x="822" y="395" font-family="'JetBrains Mono','Courier New',monospace" font-size="21" font-weight="500" fill="#34d399" text-anchor="start" letter-spacing="0">craftframework.becomechange.institute</text>
+</svg>
