@@ -1568,12 +1568,12 @@ export const BRAND = {
   expansion: 'Capacity Readiness & Fiduciary Assurance Toolkit',
   fullName: 'CRAFT: Capacity Readiness & Fiduciary Assurance Toolkit',
   institute: 'DiBadili Institute',
-  instituteUrl: 'https://becomechange.institute',
+  instituteUrl: 'https://www.becomechange.institute',
   instituteMeaning: 'Become Change',
   tagline: 'The CRAFT Framework: Building Fiduciary Trust for Direct G2G, DFI and Donor Partnerships.',
   heroSubtitle:
     'The CRAFT Framework: Building Fiduciary Trust for Direct G2G, DFI and Donor Partnerships.',
-  contactEmail: 'partnership@becomechange.institute',
+  contactEmail: 'craftframework@becomechange.institute',
   socials: {
     linkedin: 'https://www.linkedin.com/company/dibadili-institute/',
     facebook: 'https://www.facebook.com/DiBadiliAfrica',
@@ -2602,4 +2602,3 @@ export const USER_GUIDE: GuideSection[] = [
     ],
   },
 ]
-

@@ -76,7 +76,10 @@ export function ContactPage() {
                 </div>
               </a>
 
-              <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+              <a
+                href={BRAND.instituteUrl}
+                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:border-emerald-200 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-900 to-slate-900 text-amber-400">
                   <Building2 className="h-5 w-5" />
                 </div>
@@ -85,7 +88,7 @@ export function ContactPage() {
                   <p className="font-medium text-slate-800">{BRAND.institute}</p>
                   <p className="text-sm text-slate-500">Pan-African · becomechange.institute</p>
                 </div>
-              </div>
+              </a>
             </div>
 
             <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-slate-400">Follow along</p>
