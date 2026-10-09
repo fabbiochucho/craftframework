@@ -6,7 +6,7 @@ import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react'
 
 // Each framework's engine is its own chunk, loaded only when that framework is
 // actually visited - otherwise every visitor to any single framework would
-// download all nine panels (and every recharts variant they use) up front.
+// download all ten panels (and every recharts variant they use) up front.
 const OmtRubricRenderer = lazy(() => import('./OmtRubricRenderer').then(m => ({ default: m.OmtRubricRenderer })))
 const GfFcrEngine = lazy(() => import('./GfFcrEngine').then(m => ({ default: m.GfFcrEngine })))
 const G7AiEngine = lazy(() => import('./G7AiEngine').then(m => ({ default: m.G7AiEngine })))
@@ -14,6 +14,7 @@ const OecdAiWizard = lazy(() => import('./OecdAiWizard').then(m => ({ default: m
 const GfaDiagnosticPanel = lazy(() => import('./GfaDiagnosticPanel').then(m => ({ default: m.GfaDiagnosticPanel })))
 const EsgAssessmentPanel = lazy(() => import('./EsgAssessmentPanel').then(m => ({ default: m.EsgAssessmentPanel })))
 const CapitalReadinessPanel = lazy(() => import('./CapitalReadinessPanel').then(m => ({ default: m.CapitalReadinessPanel })))
+const FoundationModulePanel = lazy(() => import('./FoundationModulePanel').then(m => ({ default: m.FoundationModulePanel })))
 
 function EngineLoading() {
   return (
@@ -81,6 +82,10 @@ function renderEngine(id: string) {
       return <EsgAssessmentPanel />
     case 'capital-readiness-ladder':
       return <CapitalReadinessPanel />
+    case 'craft-resilience':
+    case 'craft-transformation':
+    case 'craft-legacy':
+      return <FoundationModulePanel moduleId={id} />
     default:
       return null
   }

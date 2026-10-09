@@ -3,11 +3,12 @@ import { Card, Badge, Reveal } from '../components/ui'
 import { FRAMEWORKS } from '../lib/frameworks'
 import {
   Network, Banknote, Cpu, ShieldCheck, TrendingUp, ArrowRight, Layers, Radar, Leaf, Mountain,
+  ShieldHalf, Sprout, Landmark,
 } from 'lucide-react'
 
 // Icon resolver for the framework registry's `icon` field.
 const ICONS: Record<string, typeof Network> = {
-  Network, Radar, Banknote, Cpu, ShieldCheck, TrendingUp, Leaf, Mountain,
+  Network, Radar, Banknote, Cpu, ShieldCheck, TrendingUp, Leaf, Mountain, ShieldHalf, Sprout, Landmark,
 }
 
 const THEME: Record<string, { ring: string; chip: string; icon: string }> = {
