@@ -27,8 +27,11 @@ const FOUNDATION_LAYER: ArchitectureModule[] = [
     ],
   },
   {
-    no: '02', name: 'Resilience', question: 'Can you survive disruption?', status: 'Partial',
-    links: [{ frameworkId: 'capital-readiness-ladder', label: 'Capital Readiness Ladder - Level 3' }],
+    no: '02', name: 'Resilience', question: 'Can you survive disruption?', status: 'Live',
+    links: [
+      { frameworkId: 'craft-resilience', label: 'CRAFT Institutional Resilience Index' },
+      { frameworkId: 'capital-readiness-ladder', label: 'Capital Readiness Ladder - Level 3' },
+    ],
   },
   {
     no: '03', name: 'Accountability & Governance', question: 'Can people trust you?', status: 'Live',
@@ -46,8 +49,11 @@ const FOUNDATION_LAYER: ArchitectureModule[] = [
     ],
   },
   {
-    no: '05', name: 'Transformation & Adaptability', question: 'Can you evolve?', status: 'Partial',
-    links: [{ frameworkId: 'capital-readiness-ladder', label: 'Capital Readiness Ladder - Level 6' }],
+    no: '05', name: 'Transformation & Adaptability', question: 'Can you evolve?', status: 'Live',
+    links: [
+      { frameworkId: 'craft-transformation', label: 'CRAFT Transformation & Adaptability Index' },
+      { frameworkId: 'capital-readiness-ladder', label: 'Capital Readiness Ladder - Level 6' },
+    ],
   },
 ]
 
@@ -89,9 +95,11 @@ const IMPACT_LAYER: ArchitectureModule[] = [
     ],
   },
   {
-    no: '12', name: 'Intergenerational & Institutional Legacy', question: 'Does the institution outlast the people who built it?', status: 'Planned',
-    links: [],
-    note: 'No CRAFT framework assesses this yet. Flagged here deliberately rather than filled with placeholder content.',
+    no: '12', name: 'Intergenerational & Institutional Legacy', question: 'Does the institution outlast the people who built it?', status: 'Live',
+    links: [
+      { frameworkId: 'craft-legacy', label: 'CRAFT Intergenerational & Institutional Legacy Index' },
+      { frameworkId: 'esg-self-assessment', label: 'ESG Self-Assessment - Governance' },
+    ],
   },
 ]
 
