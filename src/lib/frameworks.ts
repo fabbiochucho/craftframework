@@ -25,6 +25,9 @@ export type FrameworkId =
   | 'gfa-diagnostic'
   | 'esg-self-assessment'
   | 'capital-readiness-ladder'
+  | 'craft-resilience'
+  | 'craft-transformation'
+  | 'craft-legacy'
 
 // Visual theme per framework - financial/compliance work stays in the DiBadili
 // emerald palette; AI ethics switches to indigo to separate "tech ethics" from
@@ -133,6 +136,39 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     blurb:
       'A 7-rung sequential diagnostic - Survival through Capital Market Readiness - identifying the current rung, what is blocking the next one, and how that connects to DFI, credit and capital-markets expectations.',
     icon: 'Mountain',
+  },
+  {
+    id: 'craft-resilience',
+    name: 'CRAFT Institutional Resilience Index',
+    short: 'Resilience',
+    authority: 'CRAFT · Readiness Architecture Module 02',
+    scale: 'fiduciary-0-5',
+    theme: 'emerald',
+    blurb:
+      'Can you survive disruption? Twelve indicators across financial buffers, funding diversification, continuity, people, digital resilience and risk intelligence - with five live stress tests and a weakest-link maturity band.',
+    icon: 'ShieldHalf',
+  },
+  {
+    id: 'craft-transformation',
+    name: 'CRAFT Transformation & Adaptability Index',
+    short: 'Transformation',
+    authority: 'CRAFT · Readiness Architecture Module 05',
+    scale: 'fiduciary-0-5',
+    theme: 'emerald',
+    blurb:
+      'Can you evolve? Twelve indicators across foresight, learning, innovation, change leadership, digital transformation and model agility - scored through the Sense / Seize / Transform adaptive cycle.',
+    icon: 'Sprout',
+  },
+  {
+    id: 'craft-legacy',
+    name: 'CRAFT Intergenerational & Institutional Legacy Index',
+    short: 'Legacy',
+    authority: 'CRAFT · Readiness Architecture Module 12',
+    scale: 'fiduciary-0-5',
+    theme: 'emerald',
+    blurb:
+      'Does the institution outlast the people who built it? Twelve indicators across institutional memory, leadership pipeline, governance renewal, long-term finance, mission integrity and intergenerational stewardship - tested over three legacy horizons.',
+    icon: 'Landmark',
   },
 ]
 

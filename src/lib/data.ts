@@ -1468,9 +1468,16 @@ for (const org of MOCK_ORGANIZATIONS) {
   org.scores = { ...full, ...org.scores }
 }
 
+// CRAFT-authored Readiness Architecture modules (Resilience, Transformation &
+// Adaptability, Legacy - see foundationModules.ts) store their indicator scores
+// in the same per-org map under this prefix. They are reported on their own
+// scales, so the core-bank aggregates below skip them.
+export const MODULE_SCORE_PREFIX = 'CRAFT-'
+export const isCoreScoreKey = (k: string) => !k.startsWith(MODULE_SCORE_PREFIX)
+
 // Helper: compute overall score percentage for an org
 export function computeOrgScore(scores: Record<string, number>): number {
-  const keys = Object.keys(scores)
+  const keys = Object.keys(scores).filter(isCoreScoreKey)
   if (keys.length === 0) return 0
   const total = keys.reduce((sum, k) => sum + (scores[k] || 0), 0)
   return Math.round((total / (keys.length * 5)) * 100)
@@ -2303,7 +2310,7 @@ export function deriveFindings(
 // Implementation Evidence (0–100): share of answered controls that are actually
 // implemented or system-enforced (score ≥ 4). Reflects execution, not paper.
 export function computeImplementationEvidence(orgScores: Record<string, number>): number {
-  const keys = Object.keys(orgScores)
+  const keys = Object.keys(orgScores).filter(isCoreScoreKey)
   if (keys.length === 0) return 0
   const enforced = keys.filter(k => orgScores[k] >= 4).length
   return Math.round((enforced / keys.length) * 100)
@@ -2311,7 +2318,7 @@ export function computeImplementationEvidence(orgScores: Record<string, number>)
 
 // Number of questions the user has actually answered.
 export function answeredCount(orgScores: Record<string, number>): number {
-  return Object.keys(orgScores).length
+  return Object.keys(orgScores).filter(isCoreScoreKey).length
 }
 
 // --- Interactive user guide ------------------------------------------------
