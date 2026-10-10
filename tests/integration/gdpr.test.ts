@@ -27,8 +27,8 @@ describe('GDPR export', () => {
     }), 201)
     expectStatus(await as(ASSESSOR).post(`/workspaces/${wsId}/reports/cap-summary`, {}), 201)
     expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/reports/esg-status`, {}), 201)
-    await as(null).post('/support-bot/submit-issue', { description: 'Someone else\'s issue', contactEmail: 'stranger@public.example' })
-    await as(ASSESSOR).post('/support-bot/submit-issue', { description: 'My own issue', contactEmail: ASSESSOR })
+    expectStatus(await as(null).post('/support-bot/submit-issue', { description: 'Someone else\'s issue', contactEmail: 'stranger@public.example', publicIssueDisclosure: true }), 201)
+    expectStatus(await as(ASSESSOR).post('/support-bot/submit-issue', { description: 'My own issue', contactEmail: ASSESSOR, publicIssueDisclosure: true }), 201)
 
     // A completely separate org the requester does not belong to.
     const otherOwner = 'owner@beta.example'

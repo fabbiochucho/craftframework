@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('recovery link is scrubbed and cannot sign in before passwords match', async ({ page }) => {
   let redeemed = false

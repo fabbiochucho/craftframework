@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { createHmac } from 'node:crypto'
+import { decryptField } from '../../netlify/lib/crypto.ts'
 import {
   ADMIN, ASSESSOR, OWNER, VIEWER, as, createAssessment, createOrg, expectStatus, rows, truncateAll,
 } from './harness.ts'
@@ -89,9 +90,11 @@ describe('field encryption at rest', () => {
     assert.ok(isCipher(sched.recipients[0]))
     assert.deepEqual((await as(ADMIN).get(`/workspaces/${wsId}/reports/schedules`)).body[0].recipients, ['board@acme.example'])
 
-    const issue = expectStatus(await as(null).post('/support-bot/submit-issue', { description: 'Help', contactEmail: 'reporter@public.example' }), 201)
-    assert.equal(issue.body.contactEmail, 'reporter@public.example')
-    assert.ok(isCipher((await rows('SELECT contact_email FROM support_issues'))[0].contact_email))
+    const issue = expectStatus(await as(null).post('/support-bot/submit-issue', { description: 'Help', contactEmail: 'reporter@public.example', publicIssueDisclosure: true }), 201)
+    assert.equal(issue.body.success, true)
+    const [{ contact_email: contactEmail }] = await rows('SELECT contact_email FROM support_issues')
+    assert.equal(decryptField(contactEmail), 'reporter@public.example')
+    assert.ok(isCipher(contactEmail))
   })
 
   it('fails closed instead of returning ciphertext when a stored value is tampered with', async () => {
