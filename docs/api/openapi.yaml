@@ -1,0 +1,376 @@
+openapi: 3.0.3
+info:
+  title: CRAFT Workspace Platform API
+  version: 1.0.0
+  description: Min role per operation in x-min-role. Generated from netlify/functions/workspace-api.mts route table (regenerate when routes change).
+paths:
+  /orgs:
+    get:
+      x-min-role: authed
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    post:
+      x-min-role: authed
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /orgs/{org}:
+    put:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /orgs/{org}/members:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /orgs/{org}/members/{member}:
+    delete:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /orgs/{org}/workspaces:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /support-bot/github-issue:
+    post:
+      x-min-role: public
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /support-bot/issue/{id}/respond:
+    post:
+      x-min-role: authed
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /support-bot/issues:
+    get:
+      x-min-role: authed
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /support-bot/submit-issue:
+    post:
+      x-min-role: public
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}/approve:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}/findings:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}/findings/{fid}:
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}/reject:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}/scorecard:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}/scores/{pillar}/{domain}:
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/assessments/{id}/submit:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/audit-log:
+    get:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/audit-log/export:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/cap:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/cap/summary:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/cap/{id}:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/cap/{id}/actions:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/cap/{id}/actions/{aid}:
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/cap/{id}/close:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/esg-frameworks:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/esg-frameworks/{id}/adopt:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/esg-plans/{id}:
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/esg-requirements:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/esg-requirements/{id}/create-plan:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/esg-roadmap:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/evidence:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/evidence/expiry-alerts:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/evidence/upload:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/evidence/{id}:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+    delete:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/evidence/{id}/approve:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/evidence/{id}/download:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports/audit-trail:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports/cap-summary:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports/esg-status:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports/governance-scorecard:
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports/{id}:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports/{id}/email:
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+  /workspaces/{workspace_id}/reports/{id}/versions:
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
