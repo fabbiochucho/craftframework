@@ -1,6 +1,7 @@
 # CRAFT Workspace Platform Guide
 
 ## Architecture
+- **Hosting decision** — stabilize Netlify first, preserve existing legacy routes and data, then consolidate incrementally. `/app/*` integer organization IDs and legacy string tenant IDs remain distinct; no implicit data migration or DNS cutover is authorized by a frontend preview.
 - **Schema** — `db/schema.ts` (tables prefixed `ws_`/domain names; every workspace table has `org_id`). Migrations: `netlify/database/migrations`.
 - **API** — one route table in `netlify/functions/workspace-api.mts` serving `/api/orgs`, `/api/workspaces/*`, `/api/support-bot/*`, and `/api/privacy/*`. Pure rules (RBAC, scoring, CAP, evidence, fixed-window calculations) live in `netlify/lib/workspace.ts`; org authorization in `netlify/lib/orgAccess.ts`.
 - **UI** — `/app/*` routes in `src/routes/app.*.tsx`, pages in `src/pages/workspace/`.
@@ -76,3 +77,43 @@ Both suites need a throwaway Postgres whose database name contains `test` (the h
 - Erasure requests anonymise the requesting member's identity in workspace actor/assignment fields, remove their membership, and purge already soft-deleted evidence files. Other business records and active evidence remain where required for organisational accountability; the request record and anonymised audit trail are retained.
 - Scheduled reports are polled daily. If email is not configured, the report is still generated and the delivery failure is logged; configure `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, and `SUPPORT_EMAIL` in Netlify.
 - Field-encryption deployment requires key provisioning and running the documented backfill in a trusted environment; do not put key material in repository files or migration SQL.
+
+## Provider operations checklist
+
+These steps require an authorized operator or provider access. Repository changes
+cannot rotate credentials, verify sender domains, apply production migrations,
+or change DNS by themselves.
+
+1. **Credential incident review:** a historical commit tracked `.env.local`.
+   Removing it from the current tree does not remove it from Git history.
+   Privately inspect the affected commit in an authorized environment; revoke
+   and rotate every real credential exposed, review provider access logs, and
+   update Netlify secrets before redeploying. Never paste values into issues,
+   logs, PRs, or repository files. History cleanup, if required, is a separate
+   coordinated operation and does not substitute for rotation.
+2. **Sender domains:** verify the configured domains in Resend and SendGrid,
+   install the exact provider-issued DNS records, and verify sender addresses.
+   Use `INVITE_FROM_EMAIL`, `COMPLIANCE_FROM_EMAIL`, and
+   `SENDGRID_FROM_EMAIL` for their respective workflows. Record provider
+   acceptance separately from delivered/bounced results; confirm delivery using
+   provider event logs and a controlled recipient.
+3. **Netlify services:** confirm production Identity and enabled OAuth providers,
+   Database, Blobs, Forms, function routes, and scheduled jobs. Provision the
+   variables in `.env.example` through Netlify secrets. Browser PostHog
+   configuration requires a rebuild; do not expose server keys as `VITE_*`.
+4. **Production migrations:** take and verify a restorable backup, review pending
+   additive migrations against the actual deployed schema, test an in-place
+   upgrade on an isolated copy, then apply through the supported Netlify
+   deployment mechanism. Configure encryption keys and run the documented
+   trusted backfill. Keep a rollback/restore procedure and record migration
+   receipts. The integration harness drops `public` and must never target a
+   production or preview database.
+5. **Operational checks:** verify real login/confirmation/recovery, cross-tenant
+   denial, uploads/downloads, report generation, scheduled execution and email
+   events. A green mocked integration test or Ready Vercel preview is not this
+   verification.
+6. **DNS:** retain the current Netlify DNS target during stabilization. Any later
+   host migration requires equivalent backend/auth/storage/jobs, data preservation
+   and session cutover tests before an explicitly approved DNS change. Obtain
+   current DNS records from the provider, prepare rollback, and verify TLS and
+   canonical redirects after any change.

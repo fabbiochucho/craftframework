@@ -21,6 +21,25 @@ export async function api<T = any>(path: string, init: { method?: string; body?:
 
 export const wsPath = (workspaceId: string | number, rest = '') => `/workspaces/${workspaceId}${rest}`
 
+export const REPORT_TYPES = ['governance_scorecard', 'esg_status', 'cap_summary', 'audit_trail'] as const
+export const reportSlug = (type: string) => type.replace(/_/g, '-')
+export function selectedMembership<T extends { id: number }>(memberships: T[], selected: string | null): T | null {
+  return memberships.find(org => String(org.id) === selected) ?? memberships[0] ?? null
+}
+
+export async function downloadApi(path: string, filename: string, body?: unknown) {
+  const res = await fetch(`/api${path}`, { credentials: 'same-origin', method: body === undefined ? 'GET' : 'POST',
+    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new ApiError(res.status, data?.error ?? res.statusText)
+  }
+  const url = URL.createObjectURL(await res.blob())
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+
 export const SEVERITY_STYLE: Record<string, string> = {
   critical: 'bg-rose-100 text-rose-700',
   high: 'bg-amber-100 text-amber-800',

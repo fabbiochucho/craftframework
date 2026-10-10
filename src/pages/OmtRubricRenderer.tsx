@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 import {
   ResponsiveContainer,
   RadarChart,
@@ -41,7 +43,7 @@ export function OmtRubricRenderer({ frameworkId }: { frameworkId: RendererId }) 
   )
   const max = meta ? scaleMax(meta.scale) : 4
 
-  const [scores, setScores] = useState<Record<string, number>>({})
+  const [scores, setScores, saveStatus] = useLegacyAssessment<Record<string, number>>(`${frameworkId}:scores`, {})
 
   const select = (qId: string, value: number) =>
     setScores(prev => ({ ...prev, [qId]: value }))
@@ -81,6 +83,8 @@ export function OmtRubricRenderer({ frameworkId }: { frameworkId: RendererId }) 
   if (!meta) {
     return (
       <div className="space-y-6">
+        <LegacySaveStatus status={saveStatus} />
+        <LegacySaveStatus status={saveStatus} />
         <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
           Unknown framework: <span className="font-mono">{frameworkId}</span>
         </div>

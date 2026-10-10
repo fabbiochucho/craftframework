@@ -1,4 +1,6 @@
-import { useState, useMemo, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 import {
   ResponsiveContainer,
   BarChart,
@@ -65,7 +67,7 @@ function docKey(pillarKey: string, doc: string): string {
 }
 
 export function GfaDiagnosticPanel() {
-  const [docs, setDocs] = useState<DocState>({})
+  const [docs, setDocs, saveStatus] = useLegacyAssessment<DocState>('gfa:docs', {})
 
   const toggle = (pillarKey: string, doc: string) => {
     const k = docKey(pillarKey, doc)
@@ -107,6 +109,8 @@ export function GfaDiagnosticPanel() {
 
   return (
     <div className="space-y-6">
+      <LegacySaveStatus status={saveStatus} />
+      <p className="text-sm text-amber-700">Readiness figures below are illustrative benchmarks, not an assessment of your institution. Checklist selections record requests only; they do not verify stored evidence.</p>
       {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-3">

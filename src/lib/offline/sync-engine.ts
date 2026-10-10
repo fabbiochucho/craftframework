@@ -23,12 +23,14 @@
 // ============================================================================
 
 import { offlineDB, type QueuedMutation, type QueuedFile } from './db'
+import { authenticatedSignal, getOfflineSession, ownsRecord } from './session'
 
 export type SyncStatus = 'idle' | 'offline' | 'syncing' | 'error'
 
 export interface SyncState {
   status: SyncStatus
   pending: number
+  failed: number
   lastSyncedAt: number | null
   lastError: string | null
 }
@@ -44,6 +46,7 @@ export class SyncEngine {
   private state: SyncState = {
     status: 'idle',
     pending: 0,
+    failed: 0,
     lastSyncedAt: null,
     lastError: null,
   }
@@ -61,9 +64,10 @@ export class SyncEngine {
     // The service worker (or another tab) can ask us to flush after a
     // Background Sync wake-up.
     window.addEventListener('craft:sync', this.kick as EventListener)
+    window.addEventListener('craft:session', this.kick)
 
     this.state.status = navigator.onLine ? 'idle' : 'offline'
-    void this.refreshPending()
+    void this.refreshPending().catch(() => this.emit({ status: 'error', lastError: 'Saved changes could not be read; they have been preserved.' }))
     // Attempt an initial drain in case we launched with a queue and a signal.
     if (navigator.onLine) void this.sync()
   }
@@ -73,6 +77,7 @@ export class SyncEngine {
     window.removeEventListener('online', this.handleOnline)
     window.removeEventListener('offline', this.handleOffline)
     window.removeEventListener('craft:sync', this.kick as EventListener)
+    window.removeEventListener('craft:session', this.kick)
     this.started = false
   }
 
@@ -105,8 +110,18 @@ export class SyncEngine {
   }
 
   private async refreshPending(): Promise<void> {
-    const [m, f] = await Promise.all([offlineDB.countMutations(), offlineDB.countFiles()])
-    this.emit({ pending: m + f })
+    const [m, f] = await Promise.all([offlineDB.getMutations(), offlineDB.getFiles()])
+    this.emit({ pending: m.length + f.length, failed: [...m, ...f].filter(record => record.failed).length })
+  }
+
+  async retryFailed(): Promise<void> {
+    if (this.running || !getOfflineSession()) return
+    const [mutations, files] = await Promise.all([offlineDB.getMutations(), offlineDB.getFiles()])
+    await Promise.all([
+      ...mutations.filter(record => record.failed).map(record => offlineDB.updateMutation({ ...record, failed: false, attempts: 0, lastError: undefined })),
+      ...files.filter(record => record.failed).map(record => offlineDB.updateFile({ ...record, failed: false, attempts: 0, lastError: undefined })),
+    ])
+    await this.sync()
   }
 
   /**
@@ -120,6 +135,10 @@ export class SyncEngine {
       return
     }
     if (!offlineDB.isAvailable()) return
+    if (!getOfflineSession()) {
+      this.emit({ status: 'idle', pending: 0, failed: 0, lastError: null, lastSyncedAt: null })
+      return
+    }
 
     this.running = true
     this.emit({ status: 'syncing', lastError: null })
@@ -128,8 +147,8 @@ export class SyncEngine {
       await this.processFiles()
       await this.refreshPending()
       this.emit({
-        status: navigator.onLine ? 'idle' : 'offline',
-        lastSyncedAt: Date.now(),
+        status: !navigator.onLine ? 'offline' : this.state.pending ? 'error' : 'idle',
+        lastSyncedAt: this.state.pending ? this.state.lastSyncedAt : Date.now(),
       })
     } catch (err) {
       this.emit({ status: 'error', lastError: err instanceof Error ? err.message : String(err) })
@@ -142,7 +161,8 @@ export class SyncEngine {
   private async processMutations(): Promise<void> {
     const queue = await offlineDB.getMutations()
     for (const mutation of queue) {
-      if (!navigator.onLine) return // signal dropped mid-drain; resume later
+      if (!navigator.onLine || !getOfflineSession()) return
+      if (!ownsRecord(mutation) || mutation.failed) continue
       await this.replayMutation(mutation)
       await this.refreshPending()
     }
@@ -150,46 +170,44 @@ export class SyncEngine {
 
   private async replayMutation(mutation: QueuedMutation): Promise<void> {
     try {
-      const res = await fetch(mutation.endpoint, {
+      const signal = await authenticatedSignal()
+      if (!ownsRecord(mutation)) return
+      const res = await fetch(safeEndpoint(mutation.endpoint), {
+        signal,
+        credentials: 'same-origin',
+        cache: 'no-store',
         method: mutation.method,
         headers: { 'content-type': 'application/json' },
         body: mutation.body != null ? JSON.stringify(mutation.body) : undefined,
       })
       // CRUCIAL: only remove the queued write once the server confirms it.
-      if (res.ok) {
+      if (res.ok && !signal.aborted && ownsRecord(mutation)) {
         if (mutation.id != null) await offlineDB.deleteMutation(mutation.id)
         return
       }
-      // 4xx (other than transient auth) will never succeed on replay — drop it
-      // after logging so one poisoned record can't wedge the queue forever.
       if (res.status >= 400 && res.status < 500 && res.status !== 401 && res.status !== 408 && res.status !== 429) {
-        console.warn('[sync] dropping permanently-rejected mutation', mutation.kind, res.status)
-        if (mutation.id != null) await offlineDB.deleteMutation(mutation.id)
+        await this.recordMutationFailure(mutation, `Server rejected saved change (${res.status}). Review and retry.`, true)
         return
       }
       await this.recordMutationFailure(mutation, `${res.status} ${res.statusText}`)
     } catch (err) {
       // Network blip — keep it queued for the next pass.
-      await this.recordMutationFailure(mutation, err instanceof Error ? err.message : String(err))
+      if (ownsRecord(mutation)) await this.recordMutationFailure(mutation, err instanceof Error ? err.message : String(err))
     }
   }
 
-  private async recordMutationFailure(mutation: QueuedMutation, message: string): Promise<void> {
+  private async recordMutationFailure(mutation: QueuedMutation, message: string, permanent = false): Promise<void> {
     const attempts = mutation.attempts + 1
-    if (attempts >= MAX_ATTEMPTS && mutation.id != null) {
-      console.error('[sync] mutation exceeded retry budget, dropping', mutation.kind, message)
-      await offlineDB.deleteMutation(mutation.id)
-      return
-    }
-    await offlineDB.updateMutation({ ...mutation, attempts, lastError: message })
-    throw new Error(`sync failed for ${mutation.kind}: ${message}`)
+    await offlineDB.updateMutation({ ...mutation, attempts, failed: permanent || attempts >= MAX_ATTEMPTS, lastError: message })
+    this.emit({ lastError: message })
   }
 
   // --- Files ----------------------------------------------------------------
   private async processFiles(): Promise<void> {
     const queue = await offlineDB.getFiles()
     for (const file of queue) {
-      if (!navigator.onLine) return
+      if (!navigator.onLine || !getOfflineSession()) return
+      if (!ownsRecord(file) || file.failed) continue
       await this.uploadFile(file)
       await this.refreshPending()
     }
@@ -197,8 +215,13 @@ export class SyncEngine {
 
   private async uploadFile(file: QueuedFile): Promise<void> {
     try {
+      const signal = await authenticatedSignal()
+      if (!ownsRecord(file)) return
       // 1) Ask the Netlify function for a scoped, short-lived upload target.
-      const presignRes = await fetch(file.presignEndpoint || PRESIGN_ENDPOINT, {
+      const presignRes = await fetch(safeEndpoint(file.presignEndpoint || PRESIGN_ENDPOINT), {
+        signal,
+        credentials: 'same-origin',
+        cache: 'no-store',
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -208,48 +231,68 @@ export class SyncEngine {
           organizationId: file.organizationId,
         }),
       })
-      if (!presignRes.ok) throw new Error(`presign ${presignRes.status} ${presignRes.statusText}`)
+      if (!presignRes.ok) throw new HTTPFailure(presignRes.status)
       const { uploadUrl, key } = (await presignRes.json()) as { uploadUrl: string; key: string }
-      if (!uploadUrl) throw new Error('presign response missing uploadUrl')
+      if (!uploadUrl || new URL(uploadUrl).protocol !== 'https:') throw new Error('Invalid secure upload target')
+      if (signal.aborted || !ownsRecord(file)) return
 
       // 2) PUT the bytes straight to storage (they never transit the app server).
       const putRes = await fetch(uploadUrl, {
+        signal,
+        credentials: 'omit',
         method: 'PUT',
         headers: { 'content-type': file.contentType || 'application/octet-stream' },
         body: file.blob,
       })
-      if (!putRes.ok) throw new Error(`upload ${putRes.status} ${putRes.statusText}`)
+      if (!putRes.ok) throw new HTTPFailure(putRes.status)
 
       // 3) Record the document metadata now that the object exists. Optional:
       //    skipped when no metadata endpoint was supplied.
       if (file.metadataEndpoint) {
-        const metaRes = await fetch(file.metadataEndpoint, {
+        await authenticatedSignal()
+        if (signal.aborted || !ownsRecord(file)) return
+        const metaRes = await fetch(safeEndpoint(file.metadataEndpoint), {
+          signal,
+          credentials: 'same-origin',
+          cache: 'no-store',
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
+            ...file.metadata,
             key,
             fileName: file.fileName,
             contentType: file.contentType,
             category: file.category,
             organizationId: file.organizationId,
-            ...file.metadata,
           }),
         })
-        if (!metaRes.ok) throw new Error(`metadata ${metaRes.status} ${metaRes.statusText}`)
+        if (!metaRes.ok) throw new HTTPFailure(metaRes.status)
       }
 
       // Confirmed-delete: the blob only leaves the device after every step is OK.
-      if (file.id != null) await offlineDB.deleteFile(file.id)
+      if (file.id != null && !signal.aborted && ownsRecord(file)) await offlineDB.deleteFile(file.id)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       const attempts = file.attempts + 1
-      if (attempts >= MAX_ATTEMPTS && file.id != null) {
-        console.error('[sync] file upload exceeded retry budget, dropping', file.fileName, message)
-        await offlineDB.deleteFile(file.id)
-        return
+      if (!ownsRecord(file)) return
+      await offlineDB.updateFile({ ...file, attempts, failed: attempts >= MAX_ATTEMPTS || (err instanceof HTTPFailure && err.permanent), lastError: message })
+      this.emit({ lastError: message })
+    }
+
+    function safeEndpoint(endpoint: string): string {
+      const url = new URL(endpoint, window.location.origin)
+      if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) {
+        throw new Error('Saved requests may only sync to this workspace API.')
       }
-      await offlineDB.updateFile({ ...file, attempts, lastError: message })
-      throw new Error(`file upload failed for ${file.fileName}: ${message}`)
+      return url.href
+    }
+
+    class HTTPFailure extends Error {
+      permanent: boolean
+      constructor(status: number) {
+        super(`Upload rejected (${status}). Saved file retained.`)
+        this.permanent = status >= 400 && status < 500 && ![401, 408, 429].includes(status)
+      }
     }
   }
 }

@@ -146,7 +146,7 @@ export function DashboardPage() {
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Composite Score" value={`${composite}%`} accent={composite >= 70 ? 'emerald' : composite >= 50 ? 'amber' : 'rose'} hint="Weighted across answered domains" />
-        <Stat label="Implementation Evidence" value={`${implementationEvidence}%`} accent={penalty ? 'rose' : 'emerald'} hint="System-enforced execution" />
+        <Stat label="Implementation self-score proxy" value={`${implementationEvidence}%`} accent={penalty ? 'rose' : 'emerald'} hint="Derived from scores, not verified documents" />
         <Stat label="Open Critical Risks" value={criticalFindings.length} accent="rose" hint="Top of the mitigation queue" />
         <Stat label="Plan Items Off-Track" value={offTrack} accent="amber" hint="Capacity plan attention" />
       </div>

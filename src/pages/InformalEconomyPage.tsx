@@ -6,6 +6,9 @@ import { useAuthCtx } from '../lib/context'
 import { INFORMAL_ROCA_DIMENSIONS } from '../lib/regulatory-context'
 import { Card, CardContent, Button, Badge } from '../components/ui'
 import { cn } from '../lib/utils'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
+import { saveLegacyState } from '../lib/api'
 
 // ============================================================================
 // FEATURE 4 - Micro / Informal Economy assessment track.
@@ -32,40 +35,18 @@ function classify(index: number): { label: string; tone: string; chip: string; n
   return { label: 'Emerging', tone: 'text-rose-600', chip: 'bg-rose-100 text-rose-700', note: 'Early stage — focus on membership register and group savings first.' }
 }
 
-interface StoredRecord {
-  answers: Answers
-  savedAt: string
-  synced: boolean
-}
-
 export function InformalEconomyPage() {
   const { currentUser, isDemo } = useAuthCtx()
-  const orgId = currentUser?.orgId ?? 'anon'
-  const storageKey = `craft-informal-${orgId}`
-
-  const [answers, setAnswers] = useState<Answers>({})
+  const [answers, setAnswers, saveStatus] = useLegacyAssessment<Answers>('roca:answers',
+    () => isDemo ? { records: 2, savings: 3, leadership: 3, membership: 2, repayment: 3 } : {})
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [synced, setSynced] = useState(false)
   const [online, setOnline] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
 
-  // Load any locally-saved record + wire up online/offline detection.
   useEffect(() => {
     if (typeof window === 'undefined') return
     setOnline(navigator.onLine)
-    try {
-      const raw = window.localStorage.getItem(storageKey)
-      if (raw) {
-        const rec = JSON.parse(raw) as StoredRecord
-        setAnswers(rec.answers ?? {})
-        setSavedAt(rec.savedAt ?? null)
-        setSynced(rec.synced ?? false)
-      } else if (isDemo) {
-        setAnswers({ records: 2, savings: 3, leadership: 3, membership: 2, repayment: 3 })
-      }
-    } catch {
-      /* ignore corrupt local data */
-    }
     const goOnline = () => setOnline(true)
     const goOffline = () => setOnline(false)
     window.addEventListener('online', goOnline)
@@ -74,7 +55,7 @@ export function InformalEconomyPage() {
       window.removeEventListener('online', goOnline)
       window.removeEventListener('offline', goOffline)
     }
-  }, [storageKey, isDemo])
+  }, [])
 
   const answered = Object.keys(answers).length
   const total = INFORMAL_ROCA_DIMENSIONS.length
@@ -90,38 +71,28 @@ export function InformalEconomyPage() {
     setSynced(false)
   }
 
-  // Persist locally — always works, even fully offline.
-  function saveLocal() {
-    if (typeof window === 'undefined') return
-    const now = new Date()
-    const stamp = now.toISOString()
-    const rec: StoredRecord = { answers, savedAt: stamp, synced: false }
-    window.localStorage.setItem(storageKey, JSON.stringify(rec))
-    setSavedAt(stamp)
-    setSynced(false)
-    setToast('Saved on this device — works offline.')
-  }
-
-  // Sync to the workspace when a connection is available.
-  function syncNow() {
-    if (typeof window === 'undefined') return
+  async function syncNow() {
+    if (isDemo) { setToast('Demo only — no live data saved.'); return }
+    if (!currentUser || saveStatus === 'loading' || saveStatus === 'read-only') return
     if (!navigator.onLine) {
-      setToast('No connection — your answers are safe on this device and will sync later.')
+      setToast('No connection — changes are only in this session. Reconnect and retry before leaving.')
       return
     }
-    const raw = window.localStorage.getItem(storageKey)
-    const rec: StoredRecord = raw ? JSON.parse(raw) : { answers, savedAt: new Date().toISOString(), synced: false }
-    rec.synced = true
-    window.localStorage.setItem(storageKey, JSON.stringify(rec))
-    setSynced(true)
-    setToast('Synced to your CRAFT workspace.')
+    try {
+      await saveLegacyState(currentUser.orgId, 'roca:answers', answers)
+      setSavedAt(new Date().toISOString())
+      setSynced(true)
+      setToast('Synced to your CRAFT workspace.')
+    } catch {
+      setSynced(false)
+      setToast('Sync failed — no backend confirmation. Reconnect and retry.')
+    }
   }
 
   function reset() {
     setAnswers({})
     setSynced(false)
     setSavedAt(null)
-    if (typeof window !== 'undefined') window.localStorage.removeItem(storageKey)
   }
 
   return (
@@ -135,16 +106,17 @@ export function InformalEconomyPage() {
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           A short, plain-language check-up for cooperatives and informal groups working toward micro-finance or DFI grants.
-          Your answers are saved on this device and work without internet.
+          Changes save to your tenant workspace when connected. Offline changes remain in this session until you reconnect.
         </p>
       </header>
+      <LegacySaveStatus status={saveStatus} />
 
       {/* Connectivity + save status */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold',
           online ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600')}>
           {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-          {online ? 'Online' : 'Offline — saving locally'}
+          {online ? 'Online' : 'Offline — session only'}
         </span>
         {savedAt && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
@@ -208,7 +180,7 @@ export function InformalEconomyPage() {
 
       {/* Actions (mobile-friendly, sticky feel) */}
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button onClick={saveLocal} className="flex-1"><Save className="h-4 w-4" /> Save on device</Button>
+        <Button onClick={syncNow} disabled={saveStatus === 'loading' || saveStatus === 'read-only'} className="flex-1"><Save className="h-4 w-4" /> Save to workspace</Button>
         <Button variant="outline" onClick={syncNow} className="flex-1"><CloudUpload className="h-4 w-4" /> Sync when online</Button>
         <Button variant="ghost" onClick={reset}><RotateCcw className="h-4 w-4" /> Reset</Button>
       </div>
