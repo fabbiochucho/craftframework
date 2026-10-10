@@ -8,7 +8,7 @@ A comprehensive, production-ready, multi-tenant web application for assessing go
 
 The G2G-ICGMT toolkit enables:
 - **Multi-tenant assessment management** — Each organization sees only its own assessment data
-- **5-Tier structured evaluation** across 19 domains (Governance, Fiduciary, Grant Management, USG Compliance, Digital Readiness)
+- **5-Tier structured evaluation** across 20 canonical domains, grouped by question-bank tier (Organizational Maturity, Fiduciary Assurance, Grant Management, Donor & USG Readiness, Digital & Operational Readiness)
 - **Real-time dashboard** with radar charts, tier performance bars, and risk classification
 - **Interactive scoring wizard** with 0–5 sliders, evidence upload, and live risk badge updates
 - **Automated Capacity Development Plan (CIP)** filtered from low-scoring items
@@ -54,3 +54,5 @@ USAID (2 CFR 200) · Global Fund FMS · World Bank · PEPFAR/CDC · WHO IHR
 ## Workspace Platform
 
 Organization workspaces, governance assessments, ESG roadmap, corrective action plans, evidence registry, reports and audit log are served by `netlify/functions/workspace-api.mts` (schema in `db/schema.ts`, UI under `/app/*`). See [docs/platform-guide.md](docs/platform-guide.md) and [docs/api/openapi.yaml](docs/api/openapi.yaml). Run the unit tests with `npm test`.
+
+The canonical `data.ts` question bank has 20 base assessment domains; its separate climate module adds four additional domain labels. The former README count of 19 and the hand-maintained workspace pillar labels did not match the bank. Workspace assessment labels now derive from `TIER_NAMES`, `DOMAIN_DISPLAY`, and the T1–T5 question assignments; [the full tier mapping and legacy-data note](docs/platform-guide.md#canonical-domain-reconciliation) are documented in the platform guide.

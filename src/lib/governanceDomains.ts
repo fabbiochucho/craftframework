@@ -1,10 +1,13 @@
-// The 19 governance domains grouped into the 5 G2G-ICGMT pillars, used by the
-// workspace assessment wizard (scores are persisted per pillar/domain via the API).
-export const GOVERNANCE_DOMAINS: Record<string, string[]> = {
-  Governance: ['Board Oversight', 'Leadership & Ethics', 'Strategy & Planning', 'Stakeholder Engagement'],
-  Fiduciary: ['Financial Management', 'Internal Controls', 'Procurement', 'Asset Management'],
-  'Grant Management': ['Programme Delivery', 'Monitoring & Evaluation', 'Human Resources', 'Sub-recipient Oversight'],
-  'USG Compliance': ['Legal & Regulatory', 'Risk Management', 'Audit & Assurance', 'Anti-Corruption & Integrity'],
-  'Digital Readiness': ['IT & Data Management', 'Cybersecurity', 'Transparency & Reporting'],
-}
-export const ALL_DOMAINS = Object.entries(GOVERNANCE_DOMAINS).flatMap(([pillar, ds]) => ds.map(domain => ({ pillar, domain })))
+import { DOMAINS, MOCK_QUESTIONS, TIER_NAMES } from './data.ts'
+
+// The question bank is canonical: its T1–T5 categories define the workspace
+// pillars, while DOMAIN_DISPLAY defines the 20 governance-domain labels.
+export const GOVERNANCE_DOMAINS: Record<string, string[]> = Object.fromEntries(
+  TIER_NAMES.map((pillar, index) => [
+    pillar,
+    DOMAINS.filter((domain) => MOCK_QUESTIONS.some((question) => question.domain === domain && question.tier === index + 1)),
+  ]),
+)
+
+export const ALL_DOMAINS = Object.entries(GOVERNANCE_DOMAINS)
+  .flatMap(([pillar, domains]) => domains.map((domain) => ({ pillar, domain })))

@@ -22,6 +22,7 @@ import {
   index,
   boolean,
   date,
+  primaryKey,
 } from 'drizzle-orm/pg-core'
 
 // --- organizations ----------------------------------------------------------
@@ -511,13 +512,18 @@ export const wsOrgMembers = pgTable(
   {
     id: serial('id').primaryKey(),
     userId: text('user_id').notNull(),
+    userIdHash: text('user_id_hash'),
     orgId: integer('org_id').notNull(),
     // 'owner' | 'admin' | 'assessor' | 'viewer'
     role: text('role').notNull().default('viewer'),
     permissions: integer('permissions').notNull().default(0),
     joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [unique('ws_org_members_user_org_uq').on(t.userId, t.orgId), index('ws_org_members_org_idx').on(t.orgId)],
+  (t) => [
+    unique('ws_org_members_user_org_uq').on(t.userId, t.orgId),
+    unique('ws_org_members_user_hash_org_uq').on(t.userIdHash, t.orgId),
+    index('ws_org_members_org_idx').on(t.orgId),
+  ],
 )
 
 export const workspaces = pgTable(
@@ -582,6 +588,7 @@ export const governanceFindings = pgTable(
     // 'critical' | 'high' | 'medium' | 'low'
     severity: text('severity').notNull().default('medium'),
     description: text('description').notNull(),
+    sensitive: boolean('sensitive').notNull().default(false),
     recommendation: text('recommendation').notNull().default(''),
     evidenceLink: text('evidence_link'),
     ownerAssignment: text('owner_assignment'),
@@ -858,4 +865,48 @@ export const supportIssueResponses = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index('support_issue_responses_issue_idx').on(t.issueId)],
+)
+
+export const reportSchedules = pgTable(
+  'report_schedules',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    reportType: text('report_type').notNull(),
+    cadence: text('cadence').notNull(),
+    recipients: jsonb('recipients').$type<string[]>().notNull().default([]),
+    format: text('format').notNull().default('pdf'),
+    paused: boolean('paused').notNull().default(false),
+    scheduleDay: integer('schedule_day').notNull().default(1),
+    nextRunAt: timestamp('next_run_at', { withTimezone: true }).notNull(),
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('report_schedules_due_idx').on(t.paused, t.nextRunAt), index('report_schedules_workspace_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const gdprRequests = pgTable(
+  'gdpr_requests',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    requestedBy: text('requested_by').notNull(),
+    requestType: text('request_type').notNull(),
+    status: text('status').notNull().default('pending'),
+    approvedBy: text('approved_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+  },
+  (t) => [index('gdpr_requests_org_idx').on(t.orgId, t.status)],
+)
+
+export const rateLimits = pgTable(
+  'rate_limits',
+  {
+    key: text('key').notNull(),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.windowStart] })],
 )

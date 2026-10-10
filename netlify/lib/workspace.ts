@@ -166,18 +166,28 @@ export function evidenceExpiryState(
 }
 
 // --- Misc ------------------------------------------------------------------------------
-// Fixed-window in-memory limiter (per function instance): 100/min for public
-// endpoints per IP, 1000/min for authenticated callers per user.
-const windows = new Map<string, { start: number; count: number }>()
-export function rateLimited(key: string, limit: number, now = Date.now()): boolean {
-  if (windows.size > 10_000) for (const [k, v] of windows) if (now - v.start >= 60_000) windows.delete(k)
-  const w = windows.get(key)
-  if (!w || now - w.start >= 60_000) {
-    windows.set(key, { start: now, count: 1 })
-    return false
+// The API persists these fixed-window counters in Postgres; keep only the
+// deterministic windowing and threshold rules here for unit tests.
+export function rateLimitWindowStart(now: number, windowMs = 60_000): number {
+  return Math.floor(now / windowMs) * windowMs
+}
+
+export function isRateLimitedCount(count: number, limit: number): boolean {
+  return count > limit
+}
+
+export function nextReportRun(cadence: 'weekly' | 'monthly' | 'quarterly', from: Date, anchorDay = from.getUTCDate()): Date {
+  const next = new Date(from)
+  if (cadence === 'weekly') {
+    next.setUTCDate(next.getUTCDate() + 7)
+    return next
   }
-  w.count++
-  return w.count > limit
+  const day = Math.min(Math.max(1, anchorDay), 31)
+  next.setUTCDate(1)
+  next.setUTCMonth(next.getUTCMonth() + (cadence === 'monthly' ? 1 : 3))
+  const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate()
+  next.setUTCDate(Math.min(day, lastDay))
+  return next
 }
 
 export const ALLOWED_ORIGINS = ['https://craftframework.becomechange.institute']
