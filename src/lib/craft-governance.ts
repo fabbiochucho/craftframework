@@ -249,7 +249,7 @@ export const GOVERNANCE_PILLARS: Record<GovernancePillarId, GovernancePillar> = 
       'The institution creates sustainable value while managing environmental and social impacts responsibly.',
     weight: 10,
     icon: 'Leaf',
-    theme: 'green',
+    theme: 'emerald',
   },
   data: {
     id: 'data',
