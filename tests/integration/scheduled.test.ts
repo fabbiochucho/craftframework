@@ -58,7 +58,12 @@ describe('scheduled report processing', () => {
     assert.equal(Buffer.from(dl.raw).subarray(0, 5).toString(), '%PDF-')
     const [next] = await rows('SELECT next_run_at > now() AS future FROM report_schedules WHERE id = $1', [id])
     assert.equal(next.future, true, 'schedule moved into the future')
-    assert.equal((await rows("SELECT count(*)::int AS n FROM ws_audit_log WHERE actor_id = 'system' AND details->>'scheduled' = 'true'"))[0].n, 1)
+    const events = await rows("SELECT action, details FROM ws_audit_log WHERE actor_id = 'system' AND details->>'scheduled' = 'true' ORDER BY id")
+    assert.equal(events.length, 3)
+    assert.equal(events[0].action, 'create')
+    assert.equal(events[0].details.deliveryAttempted, false, 'creation event remains unchanged')
+    assert.equal(events[1].details.deliveryAttempted, true)
+    assert.equal(events[2].details.emailDelivered, true)
 
     await runScheduled() // nothing is due any more
     assert.equal((await rows('SELECT count(*)::int AS n FROM reports'))[0].n, 1)

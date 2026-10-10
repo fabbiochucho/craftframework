@@ -32,4 +32,13 @@ describe('legacy tenant assessment state', () => {
     assert.equal((await call('other@example.com', 'PUT', 'tenant', {})).status, 403)
     assert.equal((await call('owner@example.com', 'PUT', 'tenant', {}, 'https://untrusted.example')).status, 403)
   })
+  it('rejects revoked and expired grants without changing persisted state', async () => {
+    await call('owner@example.com', 'PUT', 'tenant', { records: 2 })
+    await rows("INSERT INTO access_grants(id,org_id,grantee,level,status,expires_at) VALUES('grant','tenant','other@example.com','write','active',now()-interval '1 second')")
+    assert.equal((await call('other@example.com', 'GET', 'tenant')).status, 403)
+    assert.equal((await call('other@example.com', 'PUT', 'tenant', { records: 4 })).status, 403)
+    await rows("UPDATE access_grants SET expires_at=now()+interval '1 hour',status='revoked'")
+    assert.equal((await call('other@example.com', 'GET', 'tenant')).status, 403)
+    assert.deepEqual(await (await call('owner@example.com', 'GET', 'tenant')).json(), { value: { records: 2 } })
+  })
 })
