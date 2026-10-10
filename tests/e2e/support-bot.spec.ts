@@ -74,7 +74,7 @@ test('PostHog is opt-in and captures only support metadata, never message or con
   await page.getByRole('button', { name: 'Send message' }).click()
   await expect.poll(() => captures.length, { timeout: 30_000 }).toBe(2)
   expect(captures.map(event => event.event)).toEqual(['support_chat_message_sent', 'support_issue_created'])
-  expect(captures[0].properties.topic_keywords).toEqual(['setup'])
+  expect(captures[0].properties).not.toHaveProperty('topic_keywords')
   expect(captures.every(event => event.properties.$process_person_profile === false)).toBe(true)
   expect(JSON.stringify(captures)).not.toContain('private@example.com')
   expect(JSON.stringify(captures)).not.toContain('$current_url')

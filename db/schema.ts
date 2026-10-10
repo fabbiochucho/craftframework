@@ -25,7 +25,7 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core'
 
-export { offlineFrameworks, offlineFrameworkReceipts } from './offline-schema.js'
+export { offlineFrameworks, offlineFrameworkReceipts } from './offline-schema.ts'
 
 // --- organizations ----------------------------------------------------------
 // A tenant: the institution being assessed. Multi-tenant isolation is enforced
@@ -540,7 +540,7 @@ export const workspaces = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index('workspaces_org_idx').on(t.orgId)],
+  (t) => [index('workspaces_org_idx').on(t.orgId), unique('workspaces_org_id_id_unique').on(t.orgId, t.id)],
 )
 
 // --- governance -------------------------------------------------------------
