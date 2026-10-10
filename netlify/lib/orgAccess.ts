@@ -2,11 +2,12 @@
 // The org id from a URL is never trusted on its own: access is granted only
 // when the verified caller has a membership row for that org with at least the
 // required role. The platform Super Admin may act as owner everywhere.
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray, or } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { wsOrgMembers, workspaces } from '../../db/schema.js'
 import type { Caller } from './auth.js'
 import { hasMinRole, type OrgRole } from './workspace.js'
+import { fieldLookupHashes } from './crypto.js'
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -19,10 +20,14 @@ export async function requireOrgAccess(caller: Caller, orgId: number, minRole: O
   let role: string | null = null
   if (caller.role === 'super_admin') role = 'owner'
   else {
+    const hashes = fieldLookupHashes(caller.email)
     const [m] = await db
       .select({ role: wsOrgMembers.role })
       .from(wsOrgMembers)
-      .where(and(eq(wsOrgMembers.orgId, orgId), eq(wsOrgMembers.userId, caller.email)))
+      .where(and(
+        eq(wsOrgMembers.orgId, orgId),
+        hashes.length ? or(inArray(wsOrgMembers.userIdHash, hashes), eq(wsOrgMembers.userId, caller.email)) : eq(wsOrgMembers.userId, caller.email),
+      ))
       .limit(1)
     role = m?.role ?? null
   }

@@ -41,10 +41,13 @@ The multi-tenant workspace platform (`netlify/functions/workspace-api.mts`) enfo
 - **Row-level isolation** — every workspace-scoped table carries `org_id`; queries filter by the org resolved from the workspace row, never from the request body.
 - **Segregation of duties** — creators cannot approve their own assessments, uploaders cannot approve their own evidence, and CAPs close only with verified evidence.
 - **Audit logging** — every mutation and sensitive read (downloads, report views, audit exports) is written to `ws_audit_log` with actor, IP and user agent.
-- **Rate limiting** — 100 req/min per IP (public endpoints), 1000 req/min per authenticated user.
+- **Rate limiting** — atomic shared Postgres fixed-window counters: 100 req/min per IP (public endpoints), 1000 req/min per authenticated user. Limiter-store errors are logged and fail open to preserve availability.
 - **CORS** — only `https://craftframework.becomechange.institute` is allowed cross-origin.
 - **Uploads** — type allow-list, 10 MB limit, `nosniff` + attachment downloads.
-- **Secrets** — `SENDGRID_API_KEY`, `GITHUB_TOKEN` and database credentials live only in Netlify environment variables.
+- **Field encryption** — AES-256-GCM protects selected contact details and reviewer notes; `FIELD_ENCRYPTION_KEY` must be a base64-encoded 32-byte key in production. Key versions support rotation; see `docs/platform-guide.md`.
+- **Secrets** — `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `SUPPORT_EMAIL`, `FIELD_ENCRYPTION_KEY`, `GITHUB_TOKEN` and database credentials live only in Netlify environment variables.
+
+Data subject exports are authenticated and scoped to the requesting member's organisations. Erasure requires approval by a different organisation admin/owner; workspace audit actors are pseudonymised rather than removed, and archived evidence blobs are purged.
 
 ## Security Best Practices
 

@@ -8,7 +8,6 @@ import { Button, Reveal } from '../components/ui'
 import { BRAND, BLINDSPOTS, LIFECYCLE, PANAFRICAN_BADGES, ARCHETYPES } from '../lib/data'
 import { SECTORS_BY_ARCHETYPE } from '../lib/dataroom'
 import { useI18n } from '../lib/i18n'
-import { LAUNCH } from '../lib/launch'
 
 const blindspotIcons: Record<string, typeof Shield> = {
   spreadsheet: FileSpreadsheet,
