@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {
   buildScorecard, canAssignRole, capCloseBlockers, csvEscape, effectiveCapStatus, evidenceExpiryState,
-  hasMinRole, isVerifiedOrgEmailDomain, rateLimited, severityFromTier, summarizeCaps, tierFromScore,
+  hasMinRole, isRateLimitedCount, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore,
 } from './workspace.ts'
 
 assert.ok(hasMinRole('owner', 'admin'))
@@ -68,9 +68,14 @@ assert.equal(evidenceExpiryState(null, now), 'none')
 assert.equal(csvEscape('=cmd()'), "'=cmd()")
 assert.equal(csvEscape('a,b'), '"a,b"')
 
-assert.ok(!rateLimited('t', 2, 0))
-assert.ok(!rateLimited('t', 2, 1))
-assert.ok(rateLimited('t', 2, 2))
-assert.ok(!rateLimited('t', 2, 70_000))
+assert.equal(rateLimitWindowStart(0), 0)
+assert.equal(rateLimitWindowStart(59_999), 0)
+assert.equal(rateLimitWindowStart(60_000), 60_000)
+assert.ok(!isRateLimitedCount(2, 2))
+assert.ok(isRateLimitedCount(3, 2))
+assert.equal(nextReportRun('weekly', new Date('2026-10-10T12:00:00Z')).toISOString(), '2026-10-17T12:00:00.000Z')
+assert.equal(nextReportRun('monthly', new Date('2026-01-31T12:00:00Z')).toISOString(), '2026-02-28T12:00:00.000Z')
+assert.equal(nextReportRun('monthly', new Date('2026-02-28T12:00:00Z'), 31).toISOString(), '2026-03-31T12:00:00.000Z')
+assert.equal(nextReportRun('quarterly', new Date('2026-10-10T12:00:00Z')).toISOString(), '2027-01-10T12:00:00.000Z')
 
 console.log('workspace.test.ts: all assertions passed')

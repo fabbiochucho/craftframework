@@ -1,21 +1,23 @@
 import type { Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
-import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, or, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
-  supportIssueResponses,
+  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
-import { logger } from '../lib/logger.js'
 import {
   ALLOWED_EVIDENCE_MIME, MAX_EVIDENCE_BYTES, SEVERITIES, buildScorecard, canAssignRole, capCloseBlockers,
-  corsHeaders, csvEscape, effectiveCapStatus, evidenceExpiryState, hasMinRole,
-  isVerifiedOrgEmailDomain, rateLimited, severityFromTier, summarizeCaps, tierFromScore, type OrgRole,
+  corsHeaders, csvEscape, effectiveCapStatus, evidenceExpiryState, hasMinRole, isRateLimitedCount,
+  isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore, type OrgRole,
 } from '../lib/workspace.js'
+import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
+import { escapeHtml, renderReportPdf } from '../lib/reports.js'
+import { logger } from '../lib/logger.js'
 
 // ============================================================================
 // Workspace platform API — orgs, governance, ESG, CAP, evidence, reports,
@@ -24,9 +26,235 @@ import {
 // workspace row (never from the request body).
 // ============================================================================
 
-const SUPPORT_EMAIL = 'craftframework@becomechange.institute'
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'craftframework@becomechange.institute'
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const today = () => new Date().toISOString().slice(0, 10)
+const exposeOrganization = <T extends { contactEmail: string; contactPhone: string }>(organization: T): T => ({
+  ...organization, contactEmail: decryptField(organization.contactEmail), contactPhone: decryptField(organization.contactPhone),
+})
+const memberEmailFilter = (email: string) => {
+  const hashes = fieldLookupHashes(email)
+  return hashes.length ? or(inArray(wsOrgMembers.userIdHash, hashes), eq(wsOrgMembers.userId, email))! : eq(wsOrgMembers.userId, email)
+}
+const exposeMember = <T extends { userId: string; userIdHash?: string | null }>(member: T) => {
+  const { userIdHash: _userIdHash, ...safe } = member
+  return { ...safe, userId: decryptField(member.userId) }
+}
+function redactIdentity(value: unknown, subject: string, replacement: string): unknown {
+  if (typeof value === 'string') return value.replace(new RegExp(subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), replacement)
+  if (Array.isArray(value)) return value.map((item) => redactIdentity(item, subject, replacement))
+  if (value && typeof value === 'object') return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, redactIdentity(item, subject, replacement)]),
+  )
+  return value
+}
+
+async function exportDataForCaller(c: Ctx, caller: Caller): Promise<Response> {
+  const memberships = await db.select().from(wsOrgMembers).where(memberEmailFilter(caller.email))
+  const orgIds = memberships.map((membership) => membership.orgId)
+  if (orgIds.length) {
+    for (const orgId of orgIds) await audit(c, orgId, null, 'gdpr_export', caller.email, 'read')
+  } else {
+    await db.insert(auditLogs).values({ actor: caller.email, action: 'exported personal data', target: 'GDPR data export', category: 'Privacy' })
+  }
+  const [profile] = await db.select().from(users).where(eq(users.email, caller.email))
+  const legacyAuditEntries = await db.select().from(auditLogs).where(eq(auditLogs.actor, caller.email))
+  const organizations = orgIds.length
+    ? (await db.select().from(wsOrganizations).where(inArray(wsOrganizations.id, orgIds))).map(exposeOrganization)
+    : []
+  const scoped = async <T>(table: any, orgColumn: any): Promise<T[]> =>
+    orgIds.length ? db.select().from(table).where(inArray(orgColumn, orgIds)) as Promise<T[]> : []
+  const [workspaceRows, assessmentRows, evidenceRows, capRows, allScheduleRows, reportRows, auditRows] = await Promise.all([
+    scoped(workspaces, workspaces.orgId),
+    orgIds.length ? db.select().from(governanceAssessments).where(and(inArray(governanceAssessments.orgId, orgIds), eq(governanceAssessments.createdBy, caller.email))) : [],
+    orgIds.length ? db.select().from(evidenceRegistry).where(and(inArray(evidenceRegistry.orgId, orgIds), eq(evidenceRegistry.uploadedBy, caller.email))) : [],
+    orgIds.length ? db.select().from(capRecords).where(and(inArray(capRecords.orgId, orgIds), eq(capRecords.assignedTo, caller.email))) : [],
+    scoped(reportSchedules, reportSchedules.orgId),
+    orgIds.length ? db.select().from(reports).where(and(inArray(reports.orgId, orgIds), eq(reports.generatedBy, caller.email))) : [],
+    orgIds.length ? db.select().from(wsAuditLog).where(and(inArray(wsAuditLog.orgId, orgIds), eq(wsAuditLog.actorId, caller.email))) : [],
+  ])
+  const assessments = assessmentRows as typeof governanceAssessments.$inferSelect[]
+  const [scores, findings, approvals, actions, actionEvents] = await Promise.all([
+    assessments.length ? db.select().from(governanceScores).where(and(
+      inArray(governanceScores.orgId, orgIds), inArray(governanceScores.assessmentId, assessments.map((a) => a.id)),
+    )) : [],
+    orgIds.length ? db.select().from(governanceFindings).where(and(
+      inArray(governanceFindings.orgId, orgIds), eq(governanceFindings.ownerAssignment, caller.email),
+    )) : [],
+    orgIds.length ? db.select().from(documentApprovals).where(and(
+      inArray(documentApprovals.orgId, orgIds), eq(documentApprovals.reviewerId, caller.email),
+    )) : [],
+    orgIds.length ? db.select().from(actionItems).where(and(
+      inArray(actionItems.orgId, orgIds), eq(actionItems.owner, caller.email),
+    )) : [],
+    orgIds.length ? db.select().from(actionLogs).where(and(
+      inArray(actionLogs.orgId, orgIds), eq(actionLogs.actorId, caller.email),
+    )) : [],
+  ])
+  const scheduleRows = allScheduleRows.filter((schedule) =>
+    schedule.createdBy === caller.email || schedule.recipients.map(decryptField).includes(caller.email))
+  const recipientVersions = orgIds.length
+    ? (await db.select().from(reportVersions).where(inArray(reportVersions.orgId, orgIds)))
+      .filter((version) => version.emailSentTo && decryptField(version.emailSentTo).split(',').includes(caller.email))
+    : []
+  const allSupport = await db.select().from(supportIssues)
+  const support = allSupport.filter((issue) => decryptField(issue.contactEmail) === caller.email)
+    .map((issue) => ({ ...issue, contactEmail: decryptField(issue.contactEmail) }))
+  const issueIds = support.map((issue) => issue.id)
+  const supportResponses = issueIds.length
+    ? await db.select().from(supportIssueResponses).where(inArray(supportIssueResponses.issueId, issueIds))
+    : []
+  const bundle = {
+    exportedAt: new Date().toISOString(),
+    subject: caller.email,
+    profile: profile ?? null,
+    legacyAuditEntries,
+    memberships: memberships.map(exposeMember),
+    organizations,
+    workspaces: workspaceRows,
+    assessments,
+    scores: scores.map((score) => ({ ...score, reviewerNotes: decryptField(score.reviewerNotes) })),
+    findings: findings.map((finding) => ({ ...finding, description: decryptField(finding.description) })),
+    evidence: evidenceRows,
+    approvals: approvals.map((approval) => ({ ...approval, comments: decryptField(approval.comments) })),
+    actionItems: actions,
+    actionEvents,
+    capRecords: capRows,
+    reportSchedules: scheduleRows.map((schedule) => ({
+      ...schedule, recipients: schedule.recipients.map(decryptField),
+    })),
+    reports: reportRows,
+    reportVersions: recipientVersions.map((version) => ({
+      ...version, emailSentTo: version.emailSentTo ? decryptField(version.emailSentTo) : null,
+    })),
+    auditEntries: auditRows,
+    supportIssues: support,
+    supportIssueResponses: supportResponses,
+  }
+  return new Response(JSON.stringify(bundle, null, 2), { headers: {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Disposition': 'attachment; filename="craft-data-export.json"',
+    'Cache-Control': 'no-store',
+  } })
+}
+
+async function approveErasureRequest(c: Ctx, caller: Caller, requestId: number): Promise<Response> {
+  const [request] = await db.select().from(gdprRequests).where(eq(gdprRequests.id, requestId))
+  if (!request) throw new HttpError(404, 'Not found')
+  await requireOrgAccess(caller, request.orgId, 'admin')
+  if (request.requestedBy === caller.email) throw new HttpError(403, 'A different organization admin must approve the request')
+  if (request.requestType !== 'erasure' || request.status !== 'pending') throw new HttpError(409, 'Request is not pending erasure')
+
+  const [membership] = await db.select().from(wsOrgMembers).where(and(
+    eq(wsOrgMembers.orgId, request.orgId), memberEmailFilter(request.requestedBy),
+  ))
+  if (membership?.role === 'owner') {
+    const owners = await db.select({ id: wsOrgMembers.id }).from(wsOrgMembers)
+      .where(and(eq(wsOrgMembers.orgId, request.orgId), eq(wsOrgMembers.role, 'owner')))
+    if (owners.length < 2) throw new HttpError(409, 'Transfer workspace ownership before erasing the last owner')
+  }
+
+  await audit(c, request.orgId, null, 'gdpr_erasure', request.id, 'update', { approvalStarted: true })
+  const pseudonym = pseudonymizeIdentifier(request.requestedBy, String(request.orgId))
+  const archivedEvidence = await db.select().from(evidenceRegistry).where(and(
+    eq(evidenceRegistry.orgId, request.orgId), isNotNull(evidenceRegistry.archivedAt),
+  ))
+  for (const evidence of archivedEvidence) {
+    await getStore('evidence').delete(evidence.filePath)
+    await db.delete(evidenceLinks).where(and(eq(evidenceLinks.orgId, request.orgId), eq(evidenceLinks.evidenceId, evidence.id)))
+    await db.delete(documentApprovals).where(and(eq(documentApprovals.orgId, request.orgId), eq(documentApprovals.evidenceId, evidence.id)))
+    await db.delete(evidenceRegistry).where(and(eq(evidenceRegistry.orgId, request.orgId), eq(evidenceRegistry.id, evidence.id)))
+  }
+
+  await db.update(governanceAssessments).set({ createdBy: pseudonym }).where(and(
+    eq(governanceAssessments.orgId, request.orgId), eq(governanceAssessments.createdBy, request.requestedBy),
+  ))
+  await db.update(governanceFindings).set({ ownerAssignment: pseudonym }).where(and(
+    eq(governanceFindings.orgId, request.orgId), eq(governanceFindings.ownerAssignment, request.requestedBy),
+  ))
+  await db.update(capRecords).set({ assignedTo: pseudonym }).where(and(
+    eq(capRecords.orgId, request.orgId), eq(capRecords.assignedTo, request.requestedBy),
+  ))
+  await db.update(actionItems).set({ owner: pseudonym }).where(and(
+    eq(actionItems.orgId, request.orgId), eq(actionItems.owner, request.requestedBy),
+  ))
+  const subjectActionLogs = await db.select().from(actionLogs).where(and(
+    eq(actionLogs.orgId, request.orgId), eq(actionLogs.actorId, request.requestedBy),
+  ))
+  for (const entry of subjectActionLogs) await db.update(actionLogs).set({
+    actorId: pseudonym, oldValue: entry.oldValue == null ? null : String(redactIdentity(entry.oldValue, request.requestedBy, pseudonym)),
+    newValue: entry.newValue == null ? null : String(redactIdentity(entry.newValue, request.requestedBy, pseudonym)),
+  }).where(eq(actionLogs.id, entry.id))
+  await db.update(evidenceRegistry).set({ uploadedBy: pseudonym }).where(and(
+    eq(evidenceRegistry.orgId, request.orgId), eq(evidenceRegistry.uploadedBy, request.requestedBy),
+  ))
+  await db.update(documentApprovals).set({ reviewerId: pseudonym }).where(and(
+    eq(documentApprovals.orgId, request.orgId), eq(documentApprovals.reviewerId, request.requestedBy),
+  ))
+  await db.update(reports).set({ generatedBy: pseudonym }).where(and(
+    eq(reports.orgId, request.orgId), eq(reports.generatedBy, request.requestedBy),
+  ))
+  const orgReports = await db.select({ id: reports.id }).from(reports).where(eq(reports.orgId, request.orgId))
+  for (const report of orgReports) {
+    const versions = await db.select().from(reportVersions).where(and(
+      eq(reportVersions.orgId, request.orgId), eq(reportVersions.reportId, report.id),
+    ))
+    for (const version of versions) {
+      if (version.emailSentTo) {
+        const sentTo = decryptField(version.emailSentTo).split(',').map((email) => email === request.requestedBy ? pseudonym : email)
+        await db.update(reportVersions).set({ emailSentTo: encryptField(sentTo.join(',')) }).where(eq(reportVersions.id, version.id))
+      }
+    }
+  }
+  await db.update(reportSchedules).set({ createdBy: pseudonym }).where(and(
+    eq(reportSchedules.orgId, request.orgId), eq(reportSchedules.createdBy, request.requestedBy),
+  ))
+  const schedules = await db.select().from(reportSchedules).where(eq(reportSchedules.orgId, request.orgId))
+  for (const schedule of schedules) {
+    const recipients = schedule.recipients.map(decryptField)
+    if (recipients.includes(request.requestedBy)) {
+      await db.update(reportSchedules).set({
+        recipients: recipients.filter((email) => email !== request.requestedBy).map(encryptField),
+      }).where(eq(reportSchedules.id, schedule.id))
+    }
+  }
+  const subjectAuditRows = await db.select().from(wsAuditLog).where(and(
+    eq(wsAuditLog.orgId, request.orgId), eq(wsAuditLog.actorId, request.requestedBy),
+  ))
+  for (const entry of subjectAuditRows) await db.update(wsAuditLog).set({
+    actorId: pseudonym,
+    resourceId: entry.resourceId === request.requestedBy ? pseudonym : entry.resourceId,
+    details: redactIdentity(entry.details, request.requestedBy, pseudonym) as Record<string, unknown>,
+  }).where(eq(wsAuditLog.id, entry.id))
+  const orgIssues = await db.select().from(supportIssues).where(eq(supportIssues.orgId, request.orgId))
+  const issueIds: number[] = []
+  for (const issue of orgIssues) {
+    issueIds.push(issue.id)
+    if (decryptField(issue.contactEmail) === request.requestedBy) {
+      await db.update(supportIssues).set({
+        contactEmail: '', description: '[redacted following data subject erasure]',
+      }).where(eq(supportIssues.id, issue.id))
+    }
+  }
+  if (issueIds.length) {
+    const responses = await db.select().from(supportIssueResponses).where(and(
+      inArray(supportIssueResponses.issueId, issueIds), eq(supportIssueResponses.responder, request.requestedBy),
+    ))
+    for (const response of responses) await db.update(supportIssueResponses).set({
+      responder: pseudonym, message: '[redacted following data subject erasure]',
+    }).where(eq(supportIssueResponses.id, response.id))
+  }
+  const [org] = await db.select().from(wsOrganizations).where(eq(wsOrganizations.id, request.orgId))
+  if (org && decryptField(org.contactEmail) === request.requestedBy) {
+    await db.update(wsOrganizations).set({ contactEmail: '', contactPhone: '' }).where(eq(wsOrganizations.id, request.orgId))
+  }
+  if (membership) await db.delete(wsOrgMembers).where(eq(wsOrgMembers.id, membership.id))
+  await audit(c, request.orgId, null, 'gdpr_erasure', request.id, 'update', { subject: pseudonym, purgedEvidenceBlobs: archivedEvidence.length })
+  const [approved] = await db.update(gdprRequests).set({
+    status: 'approved', approvedBy: caller.email, approvedAt: new Date(),
+  }).where(eq(gdprRequests.id, request.id)).returning()
+  return json(approved)
+}
 
 type Ctx = {
   req: Request
@@ -83,17 +311,46 @@ async function audit(
   })
 }
 
-async function sendEmail(to: string[], subject: string, text: string): Promise<boolean> {
+async function incrementRateLimit(key: string, now: number): Promise<number> {
+  const windowStart = new Date(rateLimitWindowStart(now))
+  const hashedKey = createHash('sha256').update(key).digest('hex')
+  const [counter] = await db.insert(rateLimits).values({ key: hashedKey, windowStart, count: 1 })
+    .onConflictDoUpdate({
+      target: [rateLimits.key, rateLimits.windowStart],
+      set: { count: sql`${rateLimits.count} + 1` },
+    }).returning({ count: rateLimits.count })
+  if (Math.random() < 0.01) {
+    await db.delete(rateLimits).where(lte(rateLimits.windowStart, new Date(now - 120_000)))
+  }
+  return counter.count
+}
+
+function tooManyRequests(now: number): Response {
+  const seconds = Math.max(1, Math.ceil((rateLimitWindowStart(now) + 60_000 - now) / 1000))
+  return Response.json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': String(seconds) } })
+}
+
+async function sendEmail(
+  to: string[],
+  subject: string,
+  html: string,
+  attachment?: { filename: string; bytes: Uint8Array },
+): Promise<boolean> {
   const key = process.env.SENDGRID_API_KEY
-  if (!key || !to.length) return false
+  const from = process.env.SENDGRID_FROM_EMAIL
+  if (!key || !from || !to.length) return false
   const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       personalizations: [{ to: to.map((email) => ({ email })) }],
-      from: { email: process.env.SENDGRID_FROM_EMAIL || 'noreply@craftframework.becomechange.institute' },
+      from: { email: from },
       subject,
-      content: [{ type: 'text/plain', value: text }],
+      content: [{ type: 'text/html', value: html }],
+      ...(attachment ? { attachments: [{
+        content: Buffer.from(attachment.bytes).toString('base64'),
+        type: 'application/pdf', filename: attachment.filename, disposition: 'attachment',
+      }] } : {}),
     }),
   })
   return res.ok
@@ -218,10 +475,20 @@ async function generateReport(c: Ctx, orgId: number, wsId: number, caller: Calle
   const [report] = await db.insert(reports).values({
     orgId, workspaceId: wsId, reportType, generatedBy: caller.email, dataAsOfDate: today(), statusSnapshot: snapshot,
   }).returning()
-  const [version] = await db.insert(reportVersions).values({
+  const [org] = await db.select({ name: wsOrganizations.name }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+  const pdfBytes = await renderReportPdf({
+    reportType, organizationName: org?.name ?? 'Organization', dataAsOfDate: report.dataAsOfDate,
+    generatedAt: report.generatedAt, snapshot,
+  })
+  const pdfKey = `reports/${orgId}/${wsId}/${report.id}/v1.pdf`
+  await getStore('reports').set(pdfKey, pdfBytes, { metadata: { contentType: 'application/pdf' } })
+  const [createdVersion] = await db.insert(reportVersions).values({
     orgId, reportId: report.id, versionNum: 1,
     jsonExportUrl: `/api/workspaces/${wsId}/reports/${report.id}`,
   }).returning()
+  const [version] = await db.update(reportVersions).set({
+    pdfUrl: `/api/workspaces/${wsId}/reports/${report.id}/pdf?version=${createdVersion.versionNum}`,
+  }).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.id, createdVersion.id))).returning()
   await audit(c, orgId, wsId, 'report', report.id, 'create', { reportType })
   return json({ ...report, versions: [version] }, 201)
 }
@@ -232,44 +499,81 @@ async function generateReport(c: Ctx, orgId: number, wsId: number, caller: Calle
 const W = '/workspaces/:ws'
 const A = `${W}/assessments/:id`
 const routes: Route[] = [
+  { method: 'GET', pattern: '/privacy/export', access: 'authed', handler: (c, { caller }) => exportDataForCaller(c, caller) },
+  { method: 'GET', pattern: '/privacy/erasure-requests', access: 'authed', handler: async (_c, { caller }) => {
+    const memberships = await db.select({ orgId: wsOrgMembers.orgId, role: wsOrgMembers.role }).from(wsOrgMembers)
+      .where(memberEmailFilter(caller.email))
+    const orgIds = memberships.filter((membership) => membership.role === 'owner' || membership.role === 'admin')
+      .map((membership) => membership.orgId)
+    const own = await db.select().from(gdprRequests).where(eq(gdprRequests.requestedBy, caller.email))
+    const managed = caller.role === 'super_admin'
+      ? await db.select().from(gdprRequests)
+      : orgIds.length ? await db.select().from(gdprRequests).where(inArray(gdprRequests.orgId, orgIds)) : []
+    if (memberships.length) {
+      for (const membership of memberships) await audit(_c, membership.orgId, null, 'gdpr_erasure', null, 'read')
+    } else {
+      await db.insert(auditLogs).values({ actor: caller.email, action: 'read erasure requests', target: 'GDPR requests', category: 'Privacy' })
+    }
+    return json([...new Map([...own, ...managed].map((request) => [request.id, request])).values()])
+  } },
+  { method: 'POST', pattern: '/privacy/erasure-requests', access: 'authed', handler: async (c, { caller }) => {
+    const orgId = intParam(String(c.body.orgId))
+    await requireOrgAccess(caller, orgId, 'viewer')
+    const [pending] = await db.select().from(gdprRequests).where(and(
+      eq(gdprRequests.orgId, orgId), eq(gdprRequests.requestedBy, caller.email), eq(gdprRequests.status, 'pending'),
+    ))
+    if (pending) {
+      await audit(c, orgId, null, 'gdpr_erasure', pending.id, 'read')
+      return json(pending)
+    }
+    const [request] = await db.insert(gdprRequests).values({ orgId, requestedBy: caller.email, requestType: 'erasure' }).returning()
+    await audit(c, orgId, null, 'gdpr_erasure', request.id, 'create')
+    return json(request, 201)
+  } },
+  { method: 'POST', pattern: '/privacy/erasure-requests/:id/approve', access: 'authed', handler: (c, { caller }) =>
+    approveErasureRequest(c, caller, intParam(c.p[0])) },
+
   // ---------------------------- 2.1 Organizations ----------------------------
   { method: 'GET', pattern: '/orgs', access: 'authed', handler: async (_c, { caller }) => {
     const rows = await db.select({ org: wsOrganizations, role: wsOrgMembers.role }).from(wsOrgMembers)
       .innerJoin(wsOrganizations, eq(wsOrganizations.id, wsOrgMembers.orgId))
-      .where(eq(wsOrgMembers.userId, caller.email))
-    return json(rows.map((r) => ({ ...r.org, role: r.role })))
+      .where(memberEmailFilter(caller.email))
+    return json(rows.map((r) => ({ ...exposeOrganization(r.org), role: r.role })))
   } },
   { method: 'POST', pattern: '/orgs', access: 'authed', handler: async (c, { caller }) => {
     if (!isVerifiedOrgEmailDomain(caller.email)) throw new HttpError(403, 'An organizational (non-consumer) email domain is required to create an organization')
     const type = oneOf(c.body.type, 'type', ['government', 'ngo', 'private'] as const, 'private')
     const [org] = await db.insert(wsOrganizations).values({
       name: str(c.body.name, 'name', 200), type, country: str(c.body.country, 'country', 100, false),
-      region: str(c.body.region, 'region', 100, false), contactEmail: str(c.body.contactEmail, 'contactEmail', 200, false) || caller.email,
-      contactPhone: str(c.body.contactPhone, 'contactPhone', 50, false),
+      region: str(c.body.region, 'region', 100, false), contactEmail: encryptField(str(c.body.contactEmail, 'contactEmail', 200, false) || caller.email),
+      contactPhone: encryptField(str(c.body.contactPhone, 'contactPhone', 50, false)),
     }).returning()
-    await db.insert(wsOrgMembers).values({ userId: caller.email, orgId: org.id, role: 'owner' })
+    await db.insert(wsOrgMembers).values({ userId: encryptField(caller.email), userIdHash: fieldLookupHashes(caller.email)[0] ?? null, orgId: org.id, role: 'owner' })
     const [ws] = await db.insert(workspaces).values({ orgId: org.id, workspaceName: 'Main workspace' }).returning()
     await audit(c, org.id, ws.id, 'org', org.id, 'create', { name: org.name })
-    return json({ ...org, role: 'owner', defaultWorkspaceId: ws.id }, 201)
+    return json({ ...exposeOrganization(org), role: 'owner', defaultWorkspaceId: ws.id }, 201)
   } },
   { method: 'PUT', pattern: '/orgs/:org', access: 'admin', scope: 'org', handler: async (c, { orgId }) => {
     const set: Record<string, unknown> = {}
     if (c.body.name !== undefined) set.name = str(c.body.name, 'name', 200)
     if (c.body.type !== undefined) set.type = oneOf(c.body.type, 'type', ['government', 'ngo', 'private'] as const)
-    for (const k of ['country', 'region', 'contactEmail', 'contactPhone'] as const) if (c.body[k] !== undefined) set[k] = str(c.body[k], k, 200, false)
+    for (const k of ['country', 'region', 'contactEmail', 'contactPhone'] as const) if (c.body[k] !== undefined) {
+      const value = str(c.body[k], k, 200, false)
+      set[k] = k === 'contactEmail' || k === 'contactPhone' ? encryptField(value) : value
+    }
     if (!Object.keys(set).length) throw bad('nothing to update')
     const [org] = await db.update(wsOrganizations).set(set).where(eq(wsOrganizations.id, orgId)).returning()
     await audit(c, orgId, null, 'org', orgId, 'update', { fields: Object.keys(set) })
-    return json(org)
+    return json(exposeOrganization(org))
   } },
   { method: 'GET', pattern: '/orgs/:org/members', access: 'viewer', scope: 'org', handler: async (_c, { orgId }) =>
-    json(await db.select().from(wsOrgMembers).where(eq(wsOrgMembers.orgId, orgId)).orderBy(asc(wsOrgMembers.id))) },
+    json((await db.select().from(wsOrgMembers).where(eq(wsOrgMembers.orgId, orgId)).orderBy(asc(wsOrgMembers.id))).map(exposeMember)) },
   { method: 'POST', pattern: '/orgs/:org/members', access: 'admin', scope: 'org', handler: async (c, { orgId, role, caller }) => {
     const email = str(c.body.email, 'email', 200).toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw bad('email invalid')
     const target = oneOf(c.body.role, 'role', ['owner', 'admin', 'assessor', 'viewer'] as const, 'viewer')
     if (!canAssignRole(role, target)) throw new HttpError(403, 'Cannot assign that role')
-    const [existing] = await db.select().from(wsOrgMembers).where(and(eq(wsOrgMembers.orgId, orgId), eq(wsOrgMembers.userId, email)))
+    const [existing] = await db.select().from(wsOrgMembers).where(and(eq(wsOrgMembers.orgId, orgId), memberEmailFilter(email)))
     if (existing && existing.role === 'owner' && role !== 'owner') throw new HttpError(403, 'Only an owner can change an owner')
     if (existing && existing.role === 'owner' && target !== 'owner') {
       const owners = await db.select({ id: wsOrgMembers.id }).from(wsOrgMembers).where(and(eq(wsOrgMembers.orgId, orgId), eq(wsOrgMembers.role, 'owner')))
@@ -277,9 +581,11 @@ const routes: Route[] = [
     }
     const [m] = existing
       ? await db.update(wsOrgMembers).set({ role: target }).where(eq(wsOrgMembers.id, existing.id)).returning()
-      : await db.insert(wsOrgMembers).values({ userId: email, orgId, role: target }).returning()
-    await audit(c, orgId, null, 'org', orgId, existing ? 'update' : 'create', { member: email, role: target, by: caller.email })
-    return json(m, existing ? 200 : 201)
+      : await db.insert(wsOrgMembers).values({
+        userId: encryptField(email), userIdHash: fieldLookupHashes(email)[0] ?? null, orgId, role: target,
+      }).returning()
+    await audit(c, orgId, null, 'org', orgId, existing ? 'update' : 'create', { memberHash: fieldLookupHashes(email)[0] ?? 'legacy', role: target, by: caller.email })
+    return json(exposeMember(m), existing ? 200 : 201)
   } },
   { method: 'DELETE', pattern: '/orgs/:org/members/:member', access: 'admin', scope: 'org', handler: async (c, { orgId, role }) => {
     const [m] = await db.select().from(wsOrgMembers).where(and(eq(wsOrgMembers.id, intParam(c.p[1])), eq(wsOrgMembers.orgId, orgId)))
@@ -290,7 +596,7 @@ const routes: Route[] = [
       if (owners.length < 2) throw new HttpError(409, 'Cannot remove the last owner')
     }
     await db.delete(wsOrgMembers).where(eq(wsOrgMembers.id, m.id))
-    await audit(c, orgId, null, 'org', orgId, 'delete', { member: m.userId })
+    await audit(c, orgId, null, 'org', orgId, 'delete', { memberHash: m.userIdHash ?? 'legacy' })
     return json({ ok: true })
   } },
   { method: 'GET', pattern: '/orgs/:org/workspaces', access: 'viewer', scope: 'org', handler: async (_c, { orgId }) =>
@@ -320,7 +626,11 @@ const routes: Route[] = [
       db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
       db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
     ])
-    return json({ ...a, scores, findings })
+    return json({
+      ...a,
+      scores: scores.map((s) => ({ ...s, reviewerNotes: decryptField(s.reviewerNotes) })),
+      findings: findings.map((f) => ({ ...f, description: decryptField(f.description) })),
+    })
   } },
   { method: 'PUT', pattern: `${A}/scores/:pillar/:domain`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
@@ -331,12 +641,12 @@ const routes: Route[] = [
     const domain = str(decodeURIComponent(c.p[3]), 'domain', 100)
     const values = {
       tierLevel: tierFromScore(score), evidenceUploaded: !!c.body.evidenceUploaded,
-      reviewerNotes: str(c.body.reviewerNotes, 'reviewerNotes', 2000, false),
+      reviewerNotes: encryptField(str(c.body.reviewerNotes, 'reviewerNotes', 2000, false)),
     }
     const [row] = await db.insert(governanceScores).values({ orgId, assessmentId: a.id, pillar, domain, ...values })
       .onConflictDoUpdate({ target: [governanceScores.assessmentId, governanceScores.pillar, governanceScores.domain], set: values }).returning()
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { pillar, domain, tier: row.tierLevel, by: caller.email })
-    return json({ ...row, suggestedSeverity: severityFromTier(row.tierLevel) })
+    return json({ ...row, reviewerNotes: decryptField(row.reviewerNotes), suggestedSeverity: severityFromTier(row.tierLevel) })
   } },
   { method: 'POST', pattern: `${A}/findings`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
@@ -349,20 +659,34 @@ const routes: Route[] = [
       severity = s ? severityFromTier(s.tierLevel) : null
       if (!severity) throw bad('severity required (no low score for that domain)')
     }
+    if (c.body.sensitive !== undefined && typeof c.body.sensitive !== 'boolean') throw bad('sensitive must be boolean')
+    const sensitive = c.body.sensitive === true
     const [f] = await db.insert(governanceFindings).values({
       orgId, assessmentId: a.id, domain, severity: oneOf(severity, 'severity', SEVERITIES),
-      description: str(c.body.description, 'description', 4000), recommendation: str(c.body.recommendation, 'recommendation', 4000, false),
+      description: sensitive ? encryptField(str(c.body.description, 'description', 4000)) : str(c.body.description, 'description', 4000),
+      sensitive, recommendation: str(c.body.recommendation, 'recommendation', 4000, false),
       evidenceLink: str(c.body.evidenceLink, 'evidenceLink', 500, false) || null,
       ownerAssignment: str(c.body.ownerAssignment, 'ownerAssignment', 200, false) || null, dueDate: dateOrNull(c.body.dueDate, 'dueDate'),
     }).returning()
     await refreshFindingsCount(orgId, a.id)
     await audit(c, orgId, wsId, 'assessment', a.id, 'create', { finding: f.id })
-    return json(f, 201)
+    return json({ ...f, description: decryptField(f.description) }, 201)
   } },
   { method: 'PUT', pattern: `${A}/findings/:fid`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
     if (a.status === 'approved') throw new HttpError(409, 'Assessment is approved')
+    const [existing] = await db.select().from(governanceFindings).where(and(
+      eq(governanceFindings.id, intParam(c.p[2])), eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id),
+    ))
+    if (!existing) throw new HttpError(404, 'Not found')
     const set: Record<string, unknown> = {}
+    const sensitive = c.body.sensitive === undefined ? existing.sensitive : c.body.sensitive
+    if (typeof sensitive !== 'boolean') throw bad('sensitive must be boolean')
+    if (c.body.sensitive !== undefined) set.sensitive = sensitive
+    if (c.body.description !== undefined || c.body.sensitive !== undefined) {
+      const description = c.body.description === undefined ? decryptField(existing.description) : str(c.body.description, 'description', 4000)
+      set.description = sensitive ? (isEncryptedField(description) ? description : encryptField(description)) : description
+    }
     if (c.body.severity !== undefined) set.severity = oneOf(c.body.severity, 'severity', SEVERITIES)
     if (c.body.status !== undefined) set.status = oneOf(c.body.status, 'status', ['open', 'in_progress', 'resolved'] as const)
     if (c.body.ownerAssignment !== undefined) set.ownerAssignment = str(c.body.ownerAssignment, 'ownerAssignment', 200, false) || null
@@ -372,9 +696,8 @@ const routes: Route[] = [
     if (!Object.keys(set).length) throw bad('nothing to update')
     const [f] = await db.update(governanceFindings).set(set)
       .where(and(eq(governanceFindings.id, intParam(c.p[2])), eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))).returning()
-    if (!f) throw new HttpError(404, 'Not found')
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { finding: f.id, fields: Object.keys(set) })
-    return json(f)
+    return json({ ...f, description: decryptField(f.description) })
   } },
   { method: 'GET', pattern: `${A}/scorecard`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
@@ -680,7 +1003,11 @@ const routes: Route[] = [
       db.select().from(evidenceLinks).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.evidenceId, e.id))),
       db.select().from(documentApprovals).where(and(eq(documentApprovals.orgId, orgId), eq(documentApprovals.evidenceId, e.id))).orderBy(desc(documentApprovals.id)),
     ])
-    return json({ ...e, expiryState: evidenceExpiryState(e.expiryDate), links, approvals })
+    return json({
+      ...e, expiryState: evidenceExpiryState(e.expiryDate),
+      links: links.map((link) => ({ ...link, reviewerNotes: decryptField(link.reviewerNotes) })),
+      approvals: approvals.map((approval) => ({ ...approval, comments: decryptField(approval.comments) })),
+    })
   } },
   { method: 'PUT', pattern: `${W}/evidence/:id`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const e = await loadEvidence(orgId, wsId, intParam(c.p[1]))
@@ -695,7 +1022,11 @@ const routes: Route[] = [
       if (targetType === 'cap') await loadCap(orgId, wsId, targetId)
       else if (targetType === 'assessment') await loadAssessment(orgId, wsId, targetId)
       else await loadRequirement(orgId, wsId, targetId)
-      await db.insert(evidenceLinks).values({ orgId, evidenceId: e.id, targetType, targetId, linkType: oneOf(c.body.link.linkType, 'link.linkType', ['supports', 'verifies'] as const, 'supports') })
+      await db.insert(evidenceLinks).values({
+        orgId, evidenceId: e.id, targetType, targetId,
+        linkType: oneOf(c.body.link.linkType, 'link.linkType', ['supports', 'verifies'] as const, 'supports'),
+        reviewerNotes: encryptField(str(c.body.link.reviewerNotes, 'link.reviewerNotes', 2000, false)),
+      })
     }
     if (!Object.keys(set).length && !c.body.link) throw bad('nothing to update')
     const [u] = Object.keys(set).length ? await db.update(evidenceRegistry).set(set).where(eq(evidenceRegistry.id, e.id)).returning() : [e]
@@ -707,7 +1038,7 @@ const routes: Route[] = [
     if (e.uploadedBy === caller.email && caller.role !== 'super_admin') throw new HttpError(403, 'Segregation of duties: uploader cannot approve their own evidence')
     const status = oneOf(c.body.status, 'status', ['approved', 'rejected'] as const, 'approved')
     const comments = str(c.body.comments, 'comments', 2000, false)
-    await db.insert(documentApprovals).values({ orgId, evidenceId: e.id, reviewerId: caller.email, status, comments })
+    await db.insert(documentApprovals).values({ orgId, evidenceId: e.id, reviewerId: caller.email, status, comments: encryptField(comments) })
     if (status === 'approved') await db.update(evidenceLinks).set({ approvedBy: caller.email, approvalDate: new Date() }).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.evidenceId, e.id)))
     const [u] = await db.update(evidenceRegistry).set({ status }).where(eq(evidenceRegistry.id, e.id)).returning()
     await audit(c, orgId, wsId, 'evidence', e.id, 'update', { review: status })
@@ -737,6 +1068,27 @@ const routes: Route[] = [
   })),
   { method: 'GET', pattern: `${W}/reports`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
     json(await db.select().from(reports).where(and(eq(reports.orgId, orgId), eq(reports.workspaceId, wsId))).orderBy(desc(reports.id)).limit(100)) },
+  { method: 'GET', pattern: `${W}/reports/:id/pdf`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const reportId = intParam(c.p[1])
+    const [report] = await db.select({ id: reports.id }).from(reports).where(and(
+      eq(reports.id, reportId), eq(reports.orgId, orgId), eq(reports.workspaceId, wsId),
+    ))
+    if (!report) throw new HttpError(404, 'Not found')
+    const versionNum = Number(c.url.searchParams.get('version'))
+    const versions = await db.select().from(reportVersions).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.reportId, reportId)))
+      .orderBy(desc(reportVersions.versionNum)).limit(100)
+    const version = Number.isInteger(versionNum) && versionNum > 0
+      ? versions.find((row) => row.versionNum === versionNum)
+      : versions.find((row) => !!row.pdfUrl)
+    if (!version?.pdfUrl) throw new HttpError(404, 'PDF not found')
+    const data = await getStore('reports').get(`reports/${orgId}/${wsId}/${reportId}/v${version.versionNum}.pdf`, { type: 'arrayBuffer' })
+    if (!data) throw new HttpError(404, 'PDF not found')
+    await audit(c, orgId, wsId, 'report', reportId, 'read', { download: 'pdf', version: version.versionNum })
+    return new Response(data, { headers: {
+      'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="report-${reportId}-v${version.versionNum}.pdf"`,
+      'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff',
+    } })
+  } },
   { method: 'GET', pattern: `${W}/reports/:id`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const [r] = await db.select().from(reports).where(and(eq(reports.id, intParam(c.p[1])), eq(reports.orgId, orgId), eq(reports.workspaceId, wsId)))
     if (!r) throw new HttpError(404, 'Not found')
@@ -747,21 +1099,66 @@ const routes: Route[] = [
   { method: 'POST', pattern: `${W}/reports/:id/email`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const [r] = await db.select().from(reports).where(and(eq(reports.id, intParam(c.p[1])), eq(reports.orgId, orgId), eq(reports.workspaceId, wsId)))
     if (!r) throw new HttpError(404, 'Not found')
+    if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_FROM_EMAIL) throw new HttpError(503, 'Email not configured')
     const recipients: string[] = Array.isArray(c.body.recipients) && c.body.recipients.length ? c.body.recipients : [SUPPORT_EMAIL]
     if (recipients.length > 10 || recipients.some((e) => typeof e !== 'string' || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(e))) throw bad('recipients invalid (max 10 emails)')
+    const versions = await db.select().from(reportVersions).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.reportId, r.id)))
+      .orderBy(desc(reportVersions.versionNum)).limit(1)
+    const latest = versions.find((version) => !!version.pdfUrl)
+    const pdf = latest?.pdfUrl
+      ? await getStore('reports').get(`reports/${orgId}/${wsId}/${r.id}/v${latest.versionNum}.pdf`, { type: 'arrayBuffer' })
+      : null
     const sent = await sendEmail(recipients, `CRAFT report: ${r.reportType} (${r.dataAsOfDate})`,
-      `A ${r.reportType} report was generated for workspace ${wsId} as of ${r.dataAsOfDate}.\n\n${JSON.stringify(r.statusSnapshot, null, 2).slice(0, 8000)}`)
+      `<p>A ${escapeHtml(r.reportType)} report was generated for workspace ${wsId} as of ${escapeHtml(r.dataAsOfDate)}.</p><pre>${escapeHtml(JSON.stringify(r.statusSnapshot, null, 2).slice(0, 8000))}</pre>`,
+      pdf ? { filename: `report-${r.id}.pdf`, bytes: new Uint8Array(pdf) } : undefined)
     const [v] = await db.insert(reportVersions).values({
       orgId, reportId: r.id, versionNum: 1 + (await db.select({ id: reportVersions.id }).from(reportVersions).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.reportId, r.id)))).length,
-      jsonExportUrl: `/api/workspaces/${wsId}/reports/${r.id}`, emailSentTo: recipients.join(','), sentAt: sent ? new Date() : null,
+      jsonExportUrl: `/api/workspaces/${wsId}/reports/${r.id}`, emailSentTo: encryptField(recipients.join(',')), sentAt: sent ? new Date() : null,
     }).returning()
-    await audit(c, orgId, wsId, 'report', r.id, 'update', { emailed: recipients, delivered: sent })
+    await audit(c, orgId, wsId, 'report', r.id, 'update', { recipientCount: recipients.length, delivered: sent })
     return json({ ...v, delivered: sent })
   } },
   { method: 'GET', pattern: `${W}/reports/:id/versions`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const [r] = await db.select({ id: reports.id }).from(reports).where(and(eq(reports.id, intParam(c.p[1])), eq(reports.orgId, orgId), eq(reports.workspaceId, wsId)))
     if (!r) throw new HttpError(404, 'Not found')
-    return json(await db.select().from(reportVersions).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.reportId, r.id))).orderBy(desc(reportVersions.versionNum)))
+    return json((await db.select().from(reportVersions).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.reportId, r.id))).orderBy(desc(reportVersions.versionNum)))
+      .map((version) => ({ ...version, emailSentTo: version.emailSentTo ? decryptField(version.emailSentTo) : null })))
+  } },
+  { method: 'GET', pattern: `${W}/reports/schedules`, access: 'admin', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
+    json((await db.select().from(reportSchedules).where(and(eq(reportSchedules.orgId, orgId), eq(reportSchedules.workspaceId, wsId))).orderBy(desc(reportSchedules.id)))
+      .map((schedule) => ({ ...schedule, recipients: schedule.recipients.map(decryptField) }))) },
+  { method: 'POST', pattern: `${W}/reports/schedules`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const reportType = oneOf(c.body.reportType, 'reportType', ['governance_scorecard', 'esg_status', 'cap_summary', 'audit_trail'] as const)
+    const cadence = oneOf(c.body.cadence, 'cadence', ['weekly', 'monthly', 'quarterly'] as const)
+    const format = oneOf(c.body.format, 'format', ['pdf', 'json', 'both'] as const, 'pdf')
+    const recipients = c.body.recipients
+    if (!Array.isArray(recipients) || recipients.length < 1 || recipients.length > 10 ||
+      recipients.some((email) => typeof email !== 'string' || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email.trim()))) {
+      throw bad('recipients must contain 1–10 valid email addresses')
+    }
+    const [schedule] = await db.insert(reportSchedules).values({
+      orgId, workspaceId: wsId, reportType, cadence, format, recipients: recipients.map((email: string) => encryptField(email.trim())),
+      scheduleDay: new Date().getUTCDate(), nextRunAt: nextReportRun(cadence, new Date()), createdBy: caller.email,
+    }).returning()
+    await audit(c, orgId, wsId, 'report_schedule', schedule.id, 'create', { reportType, cadence })
+    return json(schedule, 201)
+  } },
+  { method: 'POST', pattern: `${W}/reports/schedules/:id/pause`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    if (typeof c.body.paused !== 'boolean') throw bad('paused must be boolean')
+    const [schedule] = await db.update(reportSchedules).set({ paused: c.body.paused }).where(and(
+      eq(reportSchedules.id, intParam(c.p[1])), eq(reportSchedules.orgId, orgId), eq(reportSchedules.workspaceId, wsId),
+    )).returning()
+    if (!schedule) throw new HttpError(404, 'Not found')
+    await audit(c, orgId, wsId, 'report_schedule', schedule.id, 'update', { paused: schedule.paused })
+    return json(schedule)
+  } },
+  { method: 'DELETE', pattern: `${W}/reports/schedules/:id`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const [schedule] = await db.delete(reportSchedules).where(and(
+      eq(reportSchedules.id, intParam(c.p[1])), eq(reportSchedules.orgId, orgId), eq(reportSchedules.workspaceId, wsId),
+    )).returning()
+    if (!schedule) throw new HttpError(404, 'Not found')
+    await audit(c, orgId, wsId, 'report_schedule', schedule.id, 'delete')
+    return json({ ok: true })
   } },
 
   // ---------------------------- 2.8 Audit ----------------------------
@@ -787,10 +1184,12 @@ const routes: Route[] = [
     const wsParam = c.url.searchParams.get('workspaceId')
     if (wsParam) {
       const { orgId, workspace } = await requireWorkspaceAccess(caller, intParam(wsParam), 'assessor')
-      return json(await db.select().from(supportIssues).where(and(eq(supportIssues.orgId, orgId), eq(supportIssues.workspaceId, workspace.id))).orderBy(desc(supportIssues.id)).limit(200))
+      const issues = await db.select().from(supportIssues).where(and(eq(supportIssues.orgId, orgId), eq(supportIssues.workspaceId, workspace.id))).orderBy(desc(supportIssues.id)).limit(200)
+      return json(issues.map((issue) => ({ ...issue, contactEmail: decryptField(issue.contactEmail) })))
     }
     if (caller.role !== 'super_admin') throw new HttpError(403, 'Forbidden')
-    return json(await db.select().from(supportIssues).orderBy(desc(supportIssues.id)).limit(200))
+    const issues = await db.select().from(supportIssues).orderBy(desc(supportIssues.id)).limit(200)
+    return json(issues.map((issue) => ({ ...issue, contactEmail: decryptField(issue.contactEmail) })))
   } },
   { method: 'POST', pattern: '/support-bot/issue/:id/respond', access: 'authed', handler: async (c, { caller }) => {
     const [issue] = await db.select().from(supportIssues).where(eq(supportIssues.id, intParam(c.p[0])))
@@ -804,7 +1203,8 @@ const routes: Route[] = [
     }
     const [r] = await db.insert(supportIssueResponses).values({ issueId: issue.id, responder: caller.email, message: str(c.body.message, 'message', 4000) }).returning()
     await db.update(supportIssues).set({ status: oneOf(c.body.status, 'status', ['open', 'responded', 'closed'] as const, 'responded'), ...(capId ? { capId } : {}) }).where(eq(supportIssues.id, issue.id))
-    if (issue.contactEmail) await sendEmail([issue.contactEmail], `Re: your CRAFT support issue #${issue.id}`, r.message)
+    const contactEmail = decryptField(issue.contactEmail)
+    if (contactEmail) await sendEmail([contactEmail], `Re: your CRAFT support issue #${issue.id}`, `<p>${escapeHtml(r.message)}</p>`)
     return json(r, 201)
   } },
 ]
@@ -823,9 +1223,12 @@ async function submitIssue(c: Ctx, githubFirst: boolean): Promise<Response> {
   }
   const label = githubFirst || category === 'question' ? 'community-question' : category
   const url = await createGithubIssue(`[${category}] ${description.slice(0, 80)}`, `${description}\n\n_Submitted via the CRAFT support bot._`, [label])
-  const [issue] = await db.insert(supportIssues).values({ orgId, workspaceId, category, description, contactEmail, githubIssueUrl: url }).returning()
-  const emailed = await sendEmail([SUPPORT_EMAIL], `[CRAFT ${category}] issue #${issue.id}`, `${description}\n\nContact: ${contactEmail || 'n/a'}\nGitHub: ${url ?? 'n/a'}`)
-  return json({ ...issue, emailed }, 201)
+  const [issue] = await db.insert(supportIssues).values({
+    orgId, workspaceId, category, description, contactEmail: encryptField(contactEmail), githubIssueUrl: url,
+  }).returning()
+  const emailed = await sendEmail([SUPPORT_EMAIL], `[CRAFT ${category}] issue #${issue.id}`,
+    `<p>${escapeHtml(description)}</p><p>Contact: ${escapeHtml(contactEmail || 'n/a')}</p><p>GitHub: ${escapeHtml(url ?? 'n/a')}</p>`)
+  return json({ ...issue, contactEmail, emailed }, 201)
 }
 
 async function queryAudit(c: Ctx, orgId: number, wsId: number, pageSize: number, page: number) {
@@ -870,9 +1273,20 @@ export default async (req: Request) => {
       if (!m) continue
       const caller = r.access === 'public' ? await resolveCaller().catch(() => null) : await resolveCaller()
       if (r.access !== 'public' && !caller) return finish(json({ error: 'Unauthorized' }, 401))
-      // Public (side-effecting) routes are always limited per IP, even with a session.
-      if (r.access === 'public' && rateLimited(`pub:${ip}`, 100)) return finish(json({ error: 'Too many requests' }, 429))
-      if (rateLimited(caller ? `u:${caller.email}` : `ip:${ip}`, caller ? 1000 : 100)) return finish(json({ error: 'Too many requests' }, 429))
+      // Atomic counters in shared Postgres apply across function instances. If
+      // that store is unavailable, log and fail open so the application remains
+      // available; the decision is deliberate and documented in platform-guide.
+      const now = Date.now()
+      try {
+        if (r.access === 'public' && isRateLimitedCount(await incrementRateLimit(`pub:${ip}`, now), 100)) {
+          return finish(tooManyRequests(now))
+        }
+        if (isRateLimitedCount(await incrementRateLimit(caller ? `u:${caller.email}` : `ip:${ip}`, now), caller ? 1000 : 100)) {
+          return finish(tooManyRequests(now))
+        }
+      } catch (rateLimitError) {
+        logger.error('/api/workspace-api', 'shared rate limiter failed open', rateLimitError)
+      }
       // Cross-site browser writes must come from an allowed origin.
       if (req.method !== 'GET' && origin && !cors['Access-Control-Allow-Origin'] && origin !== url.origin) return finish(json({ error: 'Forbidden origin' }, 403))
       let body: any = {}
@@ -904,5 +1318,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = {
-  path: ['/api/orgs', '/api/orgs/*', '/api/workspaces/*', '/api/support-bot/*'],
+  path: ['/api/orgs', '/api/orgs/*', '/api/workspaces/*', '/api/support-bot/*', '/api/privacy/*'],
 }
