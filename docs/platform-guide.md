@@ -81,8 +81,10 @@ Processing is per object, not whole-manifest atomic: retain output and re-run th
 reviewed manifest after failure. A failed SQL insert can leave an encrypted deterministic
 orphan; a retry verifies its checksum and completes the row. Never delete source objects
 to recover. `--rollback` soft-archives only matching, still-pending imports with no links,
-CAP action references or approval history; it retains both copies, IDs and audit receipts,
-and repeated rollback is harmless. It refuses evidence already used or reviewed. Restore
+CAP action references or approval history. Active custom-framework evidence references
+also block rollback under the workspace mutation lock used by offline framework replay.
+Rollback retains both copies, IDs and audit receipts, and repetition is harmless.
+It refuses evidence already used or reviewed. Restore
 archived imports only through a separately reviewed operator procedure; apply never
 silently resurrects them. Stop migration writes and take a fresh backup before rollback.
 
@@ -125,7 +127,7 @@ Both suites need a throwaway Postgres whose database name contains `test` (the h
 - Scheduled reports are polled daily. Configure `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, and `SUPPORT_EMAIL` in Netlify. A missing configuration or failed provider request must not be reported as delivery; ambiguous provider outcomes require operator reconciliation before retry.
 - Field-encryption deployment requires key provisioning and running the documented backfill in a trusted environment; do not put key material in repository files or migration SQL.
 - Legacy and `/app` workspace IDs are deliberately separate. Evidence links from legacy pages are navigation into the real registry, not an automatic tenant mapping, attachment migration, or retrospective verification of legacy scores. Keep both routes and datasets until an explicit mapping and tested non-destructive migration are approved.
-- Legacy framework edits use encrypted tenant-state persistence while connected. A failed save is shown explicitly; these framework editors do not yet provide durable offline draft/replay support. Do not close a page with unsaved changes. The separately queued assessment/file workflows retain failed writes for retry.
+- Legacy framework edits use encrypted tenant-state persistence while connected. These legacy editors still lack durable offline draft/replay; do not close them with unsaved changes. The new **Custom framework editor** on workspace ESG frameworks saves encrypted IndexedDB drafts and supports create/update/delete with ordered replay, server receipts, version conflicts and explicit retries. It is not a migration of legacy framework answers, adopted ESG requirements, assessments or report consumers.
 - Framework calculators use their existing rubrics; framework labels and report output are not regulatory filings or independent certification.
 - Offline encryption reduces accidental local exposure but is not protection against malicious same-origin JavaScript or access to an unlocked browser profile. Failed and unowned historical pending records must not be silently discarded or submitted as another user.
 
@@ -199,3 +201,34 @@ service failure, model unavailability, timeout or a workflow awaiting authorizat
 must be reported **NOT VALIDATED** until a completed successful scan is available.
 No provider credentials, evidence, chat messages, keywords or PII belong in analytics;
 optional analytics still requires consent and the existing CSP remains unchanged.
+
+### October 10 remediation validation
+
+The untouched committed baseline was reproduced from a Git archive in an isolated
+disposable database: `timeout 300s npm run test:integration`, exit 1, **61/65**
+passed, four failed, zero skipped. The failures were:
+
+- `access.test.ts`: public submit fixture omitted required disclosure consent and
+  expected the obsolete response `category` field.
+- `encryption.test.ts`: support fixture omitted consent and expected a contact email
+  in the public response; now verifies the decrypted stored value and ciphertext.
+- `gdpr.test.ts`: two support fixtures silently failed consent validation, leaving
+  no own issue to export; creation status is now explicitly asserted.
+- `ratelimit.test.ts`: expected 100 support submissions despite the tighter 20/minute
+  support budget; now asserts 20 plus the independent 100-request public budget.
+
+Current `timeout 300s npm run test:integration` applied **16 migrations** on clean
+`craft_final_test`: exit 0, **74/74** passed, zero failed/skipped/cancelled. This is
+not a production migration. `npm test` and `npm run typecheck` passed (exit 0).
+`node --experimental-transform-types --test src/lib/offline/sync-engine.test.ts
+src/lib/offline/framework-sync.test.ts` passed **21/21**, exit 0; these suites are now
+included in `npm test`. All URLs used isolated localhost Postgres, not provider secrets.
+
+Secret scanning of changed source/config/test files passed. The required automated
+review was **NOT VALIDATED**: its configured model was absent from the service
+registry. CodeQL was **NOT VALIDATED**: the service timed out and instructed against
+repeating that invocation. The independent CI CodeQL configuration is a reproducible
+follow-up, not evidence of a completed scan. Dependency audit exits 1 with the
+13 high findings documented above. Browser/build results must be recorded separately;
+the original production-preview attempt stopped at SSR provider errors before tests
+ran and must not be counted as browser coverage.

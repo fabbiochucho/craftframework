@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { beforeEach, test } from 'node:test'
-import { ADMIN, ASSESSOR, OUTSIDER, OWNER, VIEWER, as, createOrg, expectStatus, rows, truncateAll, uploadEvidence } from './harness.ts'
+import { ADMIN, ASSESSOR, OUTSIDER, OWNER, VIEWER, as, createOrg, expectStatus, rows, truncateAll, uploadEvidence, type Res } from './harness.ts'
 // @ts-ignore -- test-only identity stub loaded by the integration harness
 import { identityStorage } from './stubs/identity.mjs'
 
@@ -80,4 +80,17 @@ test('evidence references are validated against this workspace, not arbitrary do
     scope: foreignScope, operation: { operationId: randomUUID(), frameworkId: randomUUID(), action: 'create', baseVersion: 0, data: { ...data, evidenceRefs: [evidence] } },
   }))
   assert.equal(foreign.status, 422)
+})
+
+test('concurrent replay of one operation commits one version, one receipt and one audit entry', async () => {
+  const { orgId, wsId } = await createOrg()
+  const scope = { userId: userId(OWNER), orgId, workspaceId: wsId }
+  const operation = { operationId: randomUUID(), frameworkId: randomUUID(), action: 'create', baseVersion: 0, data }
+  const send = () => signed(OWNER, () => as(OWNER).post(`/workspaces/${wsId}/offline-frameworks/mutations`, { scope, operation }))
+  const responses: Res[] = await Promise.all([send(), send(), send()])
+  for (const response of responses) expectStatus(response, 200)
+  assert.ok(responses.every(response => JSON.stringify(response.body) === JSON.stringify(responses[0].body)))
+  assert.equal((await rows('SELECT * FROM offline_frameworks')).length, 1)
+  assert.equal((await rows('SELECT * FROM offline_framework_receipts')).length, 1)
+  assert.equal((await rows("SELECT * FROM ws_audit_log WHERE resource_type = 'custom_framework'")).length, 1)
 })

@@ -4,6 +4,7 @@ import { beforeEach, describe, it } from 'node:test'
 import { ADMIN, ASSESSOR, VIEWER, as, blobStores, createOrg, expectStatus, pdfFile, rows, truncateAll, uploadEvidence } from './harness.ts'
 import { consolidateEvidence } from '../../netlify/scripts/consolidate-evidence.mts'
 import { decodeEvidence } from '../../netlify/lib/evidence-storage.ts'
+import { encryptField } from '../../netlify/lib/crypto.ts'
 const legacyUpload = (await import('../../netlify/functions/data-room-upload.mts')).default
 
 describe('reviewed evidence consolidation', () => {
@@ -87,6 +88,16 @@ describe('reviewed evidence consolidation', () => {
     assert.ok(!blobStores().get('data-room-legacy-tenant')!.get(key)!.bytes.includes(Buffer.from('%PDF')))
     await consolidateEvidence(manifest, '--apply')
     assert.equal((await rows('SELECT status FROM evidence_registry'))[0].status, 'pending_review')
+  })
+
+  it('refuses rollback when an active custom framework references imported evidence', async () => {
+    await consolidateEvidence(manifest, '--apply')
+    const [imported] = await rows('SELECT * FROM evidence_registry')
+    await rows("INSERT INTO offline_frameworks(org_id,workspace_id,id,version,payload) VALUES($1,$2,'custom',1,$3)", [
+      imported.org_id, imported.workspace_id, encryptField(JSON.stringify({ evidenceRefs: [imported.id] })),
+    ])
+    await assert.rejects(consolidateEvidence(manifest, '--rollback'), /downstream/)
+    assert.equal((await rows('SELECT archived_at FROM evidence_registry'))[0].archived_at, null)
   })
 
   it('encrypts new canonical uploads and reads historical plaintext at stable keys', async () => {

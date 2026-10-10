@@ -41,6 +41,16 @@ export const test = base.extend<{ signedIn: Page; apiRoutes: void }>({
     const reset = await request.post(`${API_ORIGIN}/__test/reset`)
     expect(reset.status()).toBe(204)
     await signInAs(context, 'owner@acme.example')
+    const cookies = await context.cookies(WEB_ORIGIN)
+    const session = cookies.find(cookie => cookie.name === 'nf_jwt')!.value
+    const profile = await request.put(`${API_ORIGIN}/api/legacy-state`, {
+      headers: { cookie: `nf_jwt=${session}` },
+      data: {
+        orgId: 'self_owner_acme_example', key: 'entity-profile',
+        value: { orgName: 'E2E Institution', archetype: 'civil_society', country: 'Kenya', sector: 'health', onboardingComplete: true },
+      },
+    })
+    expect(profile.status()).toBe(200)
     await use(page)
   },
 })

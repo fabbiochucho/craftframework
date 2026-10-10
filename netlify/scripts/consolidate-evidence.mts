@@ -4,11 +4,13 @@ import { createHash } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
 import { and, eq, like, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
+import { offlineFrameworks } from '../../db/offline-schema.js'
 import { documentApprovals, evidenceLinks, evidenceRegistry, users, wsAuditLog } from '../../db/schema.js'
 import { canAccessOrg, effectiveRole, type Caller } from '../lib/auth.js'
 import { requireWorkspaceAccess } from '../lib/orgAccess.js'
 import { consolidatedEvidenceKey, evidenceManifestSchema, legacyEvidenceStore } from '../lib/evidence-consolidation.ts'
 import { decodeEvidence, encodeEvidence } from '../lib/evidence-storage.ts'
+import { decryptField } from '../lib/crypto.js'
 import { ALLOWED_EVIDENCE_MIME, MAX_EVIDENCE_BYTES } from '../lib/workspace.js'
 
 async function directoryCaller(email: string): Promise<Caller> {
@@ -66,11 +68,21 @@ for (const entry of manifest.entries) {
         throw new Error('Existing evidence lacks matching migration provenance')
       }
       if (mode === '--rollback' && !existing.archivedAt) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`offline-frameworks:${entry.orgId}:${entry.workspaceId}`}, 0))`)
         const [links, approvals] = await Promise.all([
           tx.select({ id: evidenceLinks.id }).from(evidenceLinks).where(eq(evidenceLinks.evidenceId, existing.id)).limit(1),
           tx.select({ id: documentApprovals.id }).from(documentApprovals).where(eq(documentApprovals.evidenceId, existing.id)).limit(1),
         ])
-        if (links.length || approvals.length || existing.status !== 'pending_review') {
+        const frameworks = await tx.select({ payload: offlineFrameworks.payload }).from(offlineFrameworks).where(and(
+          eq(offlineFrameworks.orgId, entry.orgId), eq(offlineFrameworks.workspaceId, entry.workspaceId),
+          eq(offlineFrameworks.deleted, 0),
+        ))
+        const referenced = frameworks.some(row => {
+          const data = JSON.parse(decryptField(row.payload)) as { evidenceRefs?: unknown }
+          if (!Array.isArray(data.evidenceRefs)) throw new Error('Framework evidence references need manual reconciliation')
+          return data.evidenceRefs.includes(existing.id)
+        })
+        if (links.length || approvals.length || referenced || existing.status !== 'pending_review') {
           throw new Error('Rollback blocked: evidence has downstream links or review; reconcile manually')
         }
         await tx.update(evidenceRegistry).set({ archivedAt: new Date() }).where(eq(evidenceRegistry.id, existing.id))

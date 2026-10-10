@@ -17,12 +17,13 @@ import { applyMigrations, loadHandler, truncateAll } from '../integration/harnes
 const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://localhost:3000'
 const PORT = Number(process.env.E2E_API_PORT ?? 8899)
 
-function identityFromCookie(header: string | undefined): { email: string; name: string } | null {
+function identityFromCookie(header: string | undefined): { id: string; email: string; name: string } | null {
   const token = /(?:^|;\s*)nf_jwt=([^;]+)/.exec(header ?? '')?.[1]
   if (!token) return null
   try {
     const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'))
-    return typeof claims.email === 'string' ? { email: claims.email, name: claims.email } : null
+    return typeof claims.email === 'string' && typeof claims.sub === 'string' && claims.exp * 1000 > Date.now()
+      ? { id: claims.sub, email: claims.email, name: claims.email } : null
   } catch {
     return null
   }

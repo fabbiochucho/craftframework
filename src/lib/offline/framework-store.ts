@@ -51,7 +51,7 @@ export async function saveFramework(scope: FrameworkScope, action: 'create' | 'u
 export async function openFrameworkWorkspace(workspaceId: number): Promise<{ state: FrameworkState; role: string }> {
   const owner = getOfflineSession()
   if (!owner) throw new Error('Sign in to unlock saved frameworks')
-  const bindingKey = `framework-binding:${workspaceId}`
+  const bindingKey = `framework-binding:${owner.userId}:${workspaceId}`
   const binding = await offlineDB.getDraft<{ scope: FrameworkScope; role: string }>(bindingKey)
   if (!navigator.onLine) {
     if (!binding || binding.scope.userId !== owner.userId) throw new Error('Open this workspace online once before editing offline')
@@ -59,7 +59,10 @@ export async function openFrameworkWorkspace(workspaceId: number): Promise<{ sta
   }
   const signal = AbortSignal.any([await authenticatedSignal(), AbortSignal.timeout(30_000)])
   const response = await fetch(`/api/workspaces/${workspaceId}/offline-frameworks`, { credentials: 'same-origin', cache: 'no-store', signal })
-  if (!response.ok) throw new Error(`Workspace access verification failed (${response.status}); saved frameworks remain locked`)
+  if (!response.ok) {
+    if ([401, 403, 404].includes(response.status)) await offlineDB.deleteDraft(bindingKey)
+    throw new Error(`Workspace access verification failed (${response.status}); saved frameworks remain locked`)
+  }
   const result = await response.json() as { scope: FrameworkScope; role: string; records: FrameworkState['records'] }
   if (signal.aborted || result.scope.userId !== owner.userId || result.scope.workspaceId !== workspaceId ||
       !Number.isSafeInteger(result.scope.orgId) || result.scope.orgId <= 0) throw new Error('Workspace identity changed')
