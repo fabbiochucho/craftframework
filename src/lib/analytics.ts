@@ -42,6 +42,7 @@ export function setSupportAnalyticsConsent(enabled: boolean, key?: string) {
         if (!event || !consent || sensitiveRoute() || !['support_chat_message_sent', 'support_issue_created', 'support_escalated'].includes(event.event)) return null
         const allowed = ['token', 'distinct_id', 'classification', 'topic_keywords', 'category', 'privacy_level', 'reason', 'recipient_type']
         event.properties = Object.fromEntries(Object.entries(event.properties).filter(([key]) => allowed.includes(key)))
+        event.properties.$process_person_profile = false
         return event
       },
     })
