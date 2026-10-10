@@ -79,7 +79,7 @@ export default async () => {
         try {
           const sent = await fetch('https://api.sendgrid.com/v3/mail/send', {
             method: 'POST',
-            headers: { Authorization: `****** 'Content-Type': 'application/json' },
+            headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               personalizations: [{ to: schedule.recipients.map(decryptField).map((email) => ({ email })) }],
               from: { email: process.env.SENDGRID_FROM_EMAIL },

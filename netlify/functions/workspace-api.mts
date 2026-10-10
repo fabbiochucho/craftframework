@@ -1,4 +1,5 @@
 import type { Config } from '@netlify/functions'
+import { createHash } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
 import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, or, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
@@ -1068,6 +1069,10 @@ const routes: Route[] = [
   })),
   { method: 'GET', pattern: `${W}/reports`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
     json(await db.select().from(reports).where(and(eq(reports.orgId, orgId), eq(reports.workspaceId, wsId))).orderBy(desc(reports.id)).limit(100)) },
+  // Literal `schedules` must be registered before the `:id` routes below.
+  { method: 'GET', pattern: `${W}/reports/schedules`, access: 'admin', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
+    json((await db.select().from(reportSchedules).where(and(eq(reportSchedules.orgId, orgId), eq(reportSchedules.workspaceId, wsId))).orderBy(desc(reportSchedules.id)))
+      .map((schedule) => ({ ...schedule, recipients: schedule.recipients.map(decryptField) }))) },
   { method: 'GET', pattern: `${W}/reports/:id/pdf`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const reportId = intParam(c.p[1])
     const [report] = await db.select({ id: reports.id }).from(reports).where(and(
@@ -1124,9 +1129,6 @@ const routes: Route[] = [
     return json((await db.select().from(reportVersions).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.reportId, r.id))).orderBy(desc(reportVersions.versionNum)))
       .map((version) => ({ ...version, emailSentTo: version.emailSentTo ? decryptField(version.emailSentTo) : null })))
   } },
-  { method: 'GET', pattern: `${W}/reports/schedules`, access: 'admin', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
-    json((await db.select().from(reportSchedules).where(and(eq(reportSchedules.orgId, orgId), eq(reportSchedules.workspaceId, wsId))).orderBy(desc(reportSchedules.id)))
-      .map((schedule) => ({ ...schedule, recipients: schedule.recipients.map(decryptField) }))) },
   { method: 'POST', pattern: `${W}/reports/schedules`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const reportType = oneOf(c.body.reportType, 'reportType', ['governance_scorecard', 'esg_status', 'cap_summary', 'audit_trail'] as const)
     const cadence = oneOf(c.body.cadence, 'cadence', ['weekly', 'monthly', 'quarterly'] as const)

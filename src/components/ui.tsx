@@ -70,10 +70,13 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   error?: string
 }
 export function Input({ label, error, className, ...props }: InputProps) {
+  const autoId = React.useId()
+  const id = props.id ?? autoId
   return (
     <div className="w-full">
-      {label && <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>}
+      {label && <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1">{label}</label>}
       <input
+        id={id}
         className={cn(
           'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 shadow-sm transition-colors focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500',
           error && 'border-rose-400',
@@ -97,10 +100,12 @@ interface SelectProps {
   className?: string
 }
 export function Select({ label, options, value, onChange, placeholder, className }: SelectProps) {
+  const id = React.useId()
   return (
     <div className={cn('w-full', className)}>
-      {label && <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>}
+      {label && <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1">{label}</label>}
       <select
+        id={id}
         value={value}
         onChange={e => onChange(e.target.value)}
         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
