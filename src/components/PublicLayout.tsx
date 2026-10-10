@@ -60,7 +60,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
           <div className="ml-auto hidden items-center gap-2 lg:flex">
             <LanguageToggle tone="light" />
             <Link to="/auth">
-              <Button variant="ghost" size="sm">
+              <Button size="sm">
                 {t('nav.signIn', 'Sign in')}
               </Button>
             </Link>
@@ -92,7 +92,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
               </Link>
             ))}
             <Link to="/auth" onClick={() => setOpen(false)} className="mt-1 block">
-              <Button variant="ghost" size="sm" className="w-full justify-center">
+              <Button size="sm" className="w-full justify-center">
                 {t('nav.signIn', 'Sign in')}
               </Button>
             </Link>
