@@ -37,12 +37,6 @@ export function LandingPage() {
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
               <Globe2 className="h-3.5 w-3.5" /> {BRAND.institute} · A Digital Public Good
             </div>
-            <Link
-              to="/launch"
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 transition-colors hover:bg-amber-100"
-            >
-              Launching {LAUNCH.dateShort} · Press kit <ArrowRight className="h-3 w-3" />
-            </Link>
           </div>
           <h1 className="mt-6 font-display text-6xl font-bold leading-none tracking-tight text-emerald-900 md:text-8xl">
             CRAFT
@@ -88,7 +82,7 @@ export function LandingPage() {
             const Icon = blindspotIcons[b.icon]
             return (
               <Reveal key={b.title} delay={i * 90}>
-                <div className="group h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100">
+                <div className="group h-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/50">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-900 text-amber-400 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
                     <Icon className="h-5 w-5" />
                   </div>
@@ -121,7 +115,7 @@ export function LandingPage() {
             const sectors = SECTORS_BY_ARCHETYPE[a.id] ?? []
             return (
               <Reveal key={a.id} delay={i * 90}>
-                <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100">
+                <div className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-100/50">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-900 text-amber-400">
                     <Icon className="h-5 w-5" />
                   </div>
