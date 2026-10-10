@@ -6,7 +6,7 @@
 - **API** — one route table in `netlify/functions/workspace-api.mts` serving `/api/orgs`, `/api/workspaces/*`, `/api/support-bot/*`, and `/api/privacy/*`. Pure rules (RBAC, scoring, CAP, evidence, fixed-window calculations) live in `netlify/lib/workspace.ts`; org authorization in `netlify/lib/orgAccess.ts`.
 - **UI** — `/app/*` routes in `src/routes/app.*.tsx`, pages in `src/pages/workspace/`.
 - **Scheduled** — `evidence-expiry-alerts.mts` (daily), `weekly-reports.mts` (daily polling for due weekly/monthly/quarterly report schedules).
-- **Files** — evidence binaries are stored in Netlify Blobs (`evidence` store); only the key is kept in `evidence_registry.file_path`.
+- **Files** — evidence binaries are AES-256-GCM encrypted before storage in private Netlify Blobs (`evidence` store); only the unchanged key is kept in `evidence_registry.file_path`. New canonical and legacy Data Room uploads require `FIELD_ENCRYPTION_KEY` in every environment. Authorized downloads decrypt envelopes and retain compatibility with historical plaintext objects; previous field keys must remain configured until all old objects are rotated.
 - **PDFs** — reports are rendered server-side with `pdf-lib`, stored in the private `reports` Blobs store, and served only by a workspace-authorized download route.
 
 ## Roles
@@ -54,6 +54,55 @@ The climate extension adds four additional labels outside this 20-domain base se
 
 ## Integration and E2E tests
 
+### Reviewed evidence consolidation
+
+No implicit conversion of legacy string tenant IDs to workspace integer IDs is permitted.
+`netlify/scripts/consolidate-evidence.mts` copies only explicitly reviewed, already-uploaded
+legacy Data Room objects into the canonical registry. It retains source keys, metadata,
+legacy records and existing canonical IDs. Imports receive new canonical IDs, deterministic
+destination keys and auditable source/checksum provenance; they are **pending review**,
+never retrospectively approved or automatically attached to scores, CAPs or requirements.
+
+Run in a trusted Netlify database/Blobs environment with the encryption key configured:
+`node netlify/scripts/consolidate-evidence.mts reviewed-evidence.json --dry-run`
+(default), then `--apply` only after reviewing the output and a restorable database/Blobs
+backup. The external JSON manifest has `version: 1`, `reviewedBy` (active directory email)
+and `entries`, each containing `legacyOrgId`, `sourceKey`, `orgId`, `workspaceId`,
+`uploadedBy` (active directory email) and the plaintext file's `sha256` (64 lowercase hex
+characters). Keep this tenant-sensitive manifest outside version control. Both identities
+must retain source-tenant access and destination membership; the reviewer needs legacy
+write access and destination admin rights. Source metadata must match the exact tenant.
+Files outside canonical MIME/10 MB limits fail closed and remain in their original store.
+
+Dry-run reads and validates source bytes, metadata, memberships, mappings and existing
+provenance but changes no rows or blobs. Apply serializes each source with a database
+advisory lock and is idempotent across retries; conflicting mappings/checksums abort.
+Processing is per object, not whole-manifest atomic: retain output and re-run the same
+reviewed manifest after failure. A failed SQL insert can leave an encrypted deterministic
+orphan; a retry verifies its checksum and completes the row. Never delete source objects
+to recover. `--rollback` soft-archives only matching, still-pending imports with no links,
+CAP action references or approval history. Active custom-framework evidence references
+also block rollback under the workspace mutation lock used by offline framework replay.
+Rollback retains both copies, IDs and audit receipts, and repetition is harmless.
+It refuses evidence already used or reviewed. Restore
+archived imports only through a separately reviewed operator procedure; apply never
+silently resurrects them. Stop migration writes and take a fresh backup before rollback.
+
+Remaining consolidation inventory: encrypted `legacy_workspace_state` is still the
+compatibility repository for framework answers; legacy `responses`/assessment state,
+question IDs, compliance/Section 11 disclosures, capacity actions and external evidence
+URLs remain distinct from workspace assessments, evidence links/approvals and reports.
+Legacy evidence/Data Room routes already navigate live users to the authorized registry,
+while demo vaults stay illustrative. Legacy reports and canonical immutable report
+snapshots are not merged. Browser-only historical evidence has no recoverable server
+binary to backfill automatically. Full consolidation requires reviewed per-question,
+tenant and link mappings, original uploader provenance, report semantics, deployment
+backups and production operator access; this migration deliberately does not guess them.
+Historical canonical plaintext evidence is readable but is not swept or rotated by
+this legacy import tool. Report PDFs still use their existing private, authorized
+storage path rather than the evidence encryption envelope; bulk binary encryption and
+key rotation need a separately reviewed copy/verification/rollback procedure.
+
 Both suites need a throwaway Postgres whose database name contains `test` (the harness drops and recreates its `public` schema, then applies `netlify/database/migrations`). Locally: `docker compose -f docker-compose.test.yml up -d --wait`, then `export TEST_DATABASE_URL=postgres://craft@localhost:54329/craft_test`. CI uses a `services: postgres` container (`.github/workflows/validate.yml`).
 
 - `npm run test:integration` runs the real, unmodified `workspace-api.mts` handler (and the `weekly-reports` scheduled function) in Node against Postgres by building `Request` objects. Test-only Node module hooks in `tests/integration/` swap `db/index`, `@netlify/identity` (verified caller supplied by the test) and `@netlify/blobs` (in-memory); outbound `fetch` is blocked/mocked, so SendGrid is never contacted. The hooks refuse to load if `NODE_ENV=production`, `NETLIFY` or `CONTEXT` is set and nothing in production code references them. Encryption keys are generated at runtime. Covered: authentication, 404-not-403 and cross-org id probing, role matrix, owner-promotion guard, segregation of duties, CAP closure and assessment locks, evidence limits/soft delete/audit rows, ciphertext at rest and hash lookup, DB-backed rate limit across handler instances, PDF reports and schedule CRUD, the 503 email response, GDPR export/erasure.
@@ -78,7 +127,7 @@ Both suites need a throwaway Postgres whose database name contains `test` (the h
 - Scheduled reports are polled daily. Configure `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, and `SUPPORT_EMAIL` in Netlify. A missing configuration or failed provider request must not be reported as delivery; ambiguous provider outcomes require operator reconciliation before retry.
 - Field-encryption deployment requires key provisioning and running the documented backfill in a trusted environment; do not put key material in repository files or migration SQL.
 - Legacy and `/app` workspace IDs are deliberately separate. Evidence links from legacy pages are navigation into the real registry, not an automatic tenant mapping, attachment migration, or retrospective verification of legacy scores. Keep both routes and datasets until an explicit mapping and tested non-destructive migration are approved.
-- Legacy framework edits use encrypted tenant-state persistence while connected. A failed save is shown explicitly; these framework editors do not yet provide durable offline draft/replay support. Do not close a page with unsaved changes. The separately queued assessment/file workflows retain failed writes for retry.
+- Legacy framework edits use encrypted tenant-state persistence while connected. These legacy editors still lack durable offline draft/replay; do not close them with unsaved changes. The new **Custom framework editor** on workspace ESG frameworks saves encrypted IndexedDB drafts and supports create/update/delete with ordered replay, server receipts, version conflicts and explicit retries. It is not a migration of legacy framework answers, adopted ESG requirements, assessments or report consumers.
 - Framework calculators use their existing rubrics; framework labels and report output are not regulatory filings or independent certification.
 - Offline encryption reduces accidental local exposure but is not protection against malicious same-origin JavaScript or access to an unlocked browser profile. Failed and unowned historical pending records must not be silently discarded or submitted as another user.
 
@@ -95,7 +144,14 @@ or change DNS by themselves.
    update Netlify secrets before redeploying. Never paste values into issues,
    logs, PRs, or repository files. History cleanup, if required, is a separate
    coordinated operation and does not substitute for rotation.
-2. **Sender domains:** verify the configured domains in Resend and SendGrid,
+2. **Resend credential exposed in chat:** the authorized owner must revoke the
+   exposed key in Resend, create a replacement, and replace `RESEND_API_KEY` in
+   Netlify's appropriate deployment contexts before redeploying. Never reuse or
+   paste the exposed value. Current tracking contains only `.env.example`;
+   `.env.local` remains ignored. Repository validation cannot establish rotation.
+   **Sender domains:** keep Resend as the preferred configured provider; verify
+   its sender domain and, only for existing SendGrid workflows still in use,
+   verify the configured SendGrid domain,
    install the exact provider-issued DNS records, and verify sender addresses.
    Use `INVITE_FROM_EMAIL`, `COMPLIANCE_FROM_EMAIL`, and
    `SENDGRID_FROM_EMAIL` for their respective workflows. Record provider
@@ -121,3 +177,58 @@ or change DNS by themselves.
    and session cutover tests before an explicitly approved DNS change. Obtain
    current DNS records from the provider, prepare rollback, and verify TLS and
    canonical redirects after any change.
+
+## Bounded security validation
+
+The Validate workflow runs dependency security and CodeQL independently of functional
+tests, so an integration failure cannot prevent either scan. CodeQL uses the complete
+JavaScript/TypeScript source with `security-extended`, no build requirement, two threads
+and a 4096 MB budget; initialization is bounded to 10 minutes, analysis to 15 minutes,
+and the job to 25 minutes. No source paths or security rules are excluded. A prior
+service/model timeout is not a clean scan; its exact cause cannot be established from
+the available functional-job logs. These explicit budgets make retries diagnosable.
+
+Locally run `timeout 120s npm audit --audit-level=high`; exit 124 means timed out,
+not validated. Nonzero advisory results remain failures. The lockfile updates
+`@fastify/busboy` to 3.2.3 and `source-map-js` to 1.2.2; 13 high-severity dependency
+findings remain in the Netlify development chain (including node-forge, sharp and
+braces). They are **not remediated** by disabling emulation in browser tests. Review
+upstream compatible fixes before changing the production adapter; do not suppress
+the audit or treat lack of a suggested fix as security approval.
+
+Run the repository's secret scanner on every changed file before committing. CodeQL
+service failure, model unavailability, timeout or a workflow awaiting authorization
+must be reported **NOT VALIDATED** until a completed successful scan is available.
+No provider credentials, evidence, chat messages, keywords or PII belong in analytics;
+optional analytics still requires consent and the existing CSP remains unchanged.
+
+### October 10 remediation validation
+
+The untouched committed baseline was reproduced from a Git archive in an isolated
+disposable database: `timeout 300s npm run test:integration`, exit 1, **61/65**
+passed, four failed, zero skipped. The failures were:
+
+- `access.test.ts`: public submit fixture omitted required disclosure consent and
+  expected the obsolete response `category` field.
+- `encryption.test.ts`: support fixture omitted consent and expected a contact email
+  in the public response; now verifies the decrypted stored value and ciphertext.
+- `gdpr.test.ts`: two support fixtures silently failed consent validation, leaving
+  no own issue to export; creation status is now explicitly asserted.
+- `ratelimit.test.ts`: expected 100 support submissions despite the tighter 20/minute
+  support budget; now asserts 20 plus the independent 100-request public budget.
+
+Current `timeout 300s npm run test:integration` applied **16 migrations** on clean
+`craft_final_test`: exit 0, **74/74** passed, zero failed/skipped/cancelled. This is
+not a production migration. `npm test` and `npm run typecheck` passed (exit 0).
+`node --experimental-transform-types --test src/lib/offline/sync-engine.test.ts
+src/lib/offline/framework-sync.test.ts` passed **21/21**, exit 0; these suites are now
+included in `npm test`. All URLs used isolated localhost Postgres, not provider secrets.
+
+Secret scanning of changed source/config/test files passed. The required automated
+review was **NOT VALIDATED**: its configured model was absent from the service
+registry. CodeQL was **NOT VALIDATED**: the service timed out and instructed against
+repeating that invocation. The independent CI CodeQL configuration is a reproducible
+follow-up, not evidence of a completed scan. Dependency audit exits 1 with the
+13 high findings documented above. Browser/build results must be recorded separately;
+the original production-preview attempt stopped at SSR provider errors before tests
+ran and must not be counted as browser coverage.
