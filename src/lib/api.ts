@@ -9,14 +9,15 @@
 import type { Organization, AuditEntry, RiskStatus, Question, Portfolio } from './data'
 import type { Obligation } from './obligations'
 
-export async function fetchLegacyState<T>(orgId: string, key: string): Promise<T | null> {
-  const response = await jsonOrThrow(await fetch(`/api/legacy-state?orgId=${encodeURIComponent(orgId)}&key=${encodeURIComponent(key)}`, { cache: 'no-store' }))
+export async function fetchLegacyState<T>(orgId: string, key: string, signal?: AbortSignal): Promise<T | null> {
+  const response = await jsonOrThrow(await fetch(`/api/legacy-state?orgId=${encodeURIComponent(orgId)}&key=${encodeURIComponent(key)}`, { cache: 'no-store', signal }))
   return response.value as T | null
 }
 
-export async function saveLegacyState<T>(orgId: string, key: string, value: T): Promise<void> {
+export async function saveLegacyState<T>(orgId: string, key: string, value: T, signal?: AbortSignal): Promise<void> {
   await jsonOrThrow(await fetch('/api/legacy-state', {
     method: 'PUT',
+    signal,
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ orgId, key, value }),
   }))

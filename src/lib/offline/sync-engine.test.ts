@@ -111,3 +111,20 @@ test('logout during response preserves in-flight record for original user', asyn
   await engine().sync()
   assert.equal(mutations.length, 1)
 })
+
+test('older failed edits block newer edits to the same record until ordered retry', async () => {
+  status = 503
+  mutations = [
+    { ...mutation(1, '/api/bad'), dedupeKey: 'answer-a', attempts: 5 },
+    { ...mutation(2, '/api/bad'), dedupeKey: 'answer-a' },
+    { ...mutation(3), dedupeKey: 'answer-b' },
+  ]
+  const sync = engine()
+  await sync.sync()
+  assert.deepEqual(mutations.map(record => record.id), [1, 2])
+  assert.deepEqual(calls.map(url => new URL(url).pathname), ['/api/bad', '/api/good'])
+  status = 200
+  await sync.retryFailed()
+  assert.deepEqual(mutations, [])
+  assert.deepEqual(calls.slice(2).map(url => new URL(url).pathname), ['/api/bad', '/api/bad'])
+})
