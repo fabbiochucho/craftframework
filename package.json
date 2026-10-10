@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
-    "test": "node db/schema.test.ts && node netlify/lib/workspace.test.ts && node netlify/lib/crypto.test.ts && node netlify/lib/reports.test.ts && node src/lib/governanceDomains.test.ts && node netlify/lib/logger.test.ts && node netlify/lib/stripImageMetadata.test.ts",
+    "test": "node db/schema.test.ts && node netlify/lib/workspace.test.ts && node netlify/lib/crypto.test.ts && node netlify/lib/reports.test.ts && node netlify/lib/support-bot.test.ts && node src/lib/governanceDomains.test.ts && node netlify/lib/logger.test.ts && node netlify/lib/stripImageMetadata.test.ts",
     "typecheck": "tsc --noEmit",
     "docs:api": "node scripts/generate-openapi.mjs",
     "crypto:backfill": "node netlify/scripts/encrypt-existing-fields.mts",
