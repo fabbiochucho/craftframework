@@ -180,7 +180,7 @@ export function ComplianceDashboardPage({ workspaceId }: { workspaceId: string }
 }
 
 export function SupportBotPage({ workspaceId }: { workspaceId: string }) {
-  const [f, setF] = useState({ category: 'question', description: '', contactEmail: '', escalationConsent: false })
+  const [f, setF] = useState({ category: 'question', description: '', contactEmail: '', escalationConsent: false, publicIssueDisclosure: false, privacyLevel: 'public' })
   const [done, setDone] = useState<string | null>(null)
   const { run, error, busy } = useAction()
   return (
@@ -189,11 +189,14 @@ export function SupportBotPage({ workspaceId }: { workspaceId: string }) {
       <Select label="Category" value={f.category} onChange={category => setF({ ...f, category })} options={['bug', 'feature', 'question', 'documentation'].map(v => ({ value: v, label: v }))} />
       <Input label="Description" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
       <Input label="Contact email" type="email" value={f.contactEmail} onChange={e => setF({ ...f, contactEmail: e.target.value })} />
+      <Select label="Privacy" value={f.privacyLevel} onChange={privacyLevel => setF({ ...f, privacyLevel })} options={[{ value: 'public', label: 'Public support' }, { value: 'private', label: 'Private security/conduct report' }]} />
+      <p className="text-sm text-slate-600">Public support can create a public GitHub issue. Do not include confidential organizational or personal details. Private reports are never published.</p>
+      <label className="flex gap-2 text-sm"><input type="checkbox" checked={f.publicIssueDisclosure} onChange={e => setF({ ...f, publicIssueDisclosure: e.target.checked })} />I consent to sharing my redacted support message in a public GitHub issue.</label>
       <label className="flex gap-2 text-sm"><input type="checkbox" checked={f.escalationConsent} onChange={e => setF({ ...f, escalationConsent: e.target.checked })} />Allow private email escalation of security/conduct reports with my contact email.</label>
       <ErrorLine error={error} />{done && <p className="text-sm text-emerald-700">{done}</p>}
-      <Button disabled={busy || !f.description} onClick={() => run(async () => {
-        const r = await api('/support-bot/submit-issue', { method: 'POST', body: { ...f, workspaceId: Number(workspaceId) } })
-        setDone(r.recipientType ? `Private escalation: ${r.status}. Provider acceptance is not guaranteed delivery.` : `Issue #${r.id} submitted.`); setF({ ...f, description: '' })
+      <Button disabled={busy || !f.description.trim() || (f.privacyLevel === 'public' && !f.publicIssueDisclosure)} onClick={() => run(async () => {
+        const r = await api('/support-bot/chat', { method: 'POST', body: { ...f, message: f.description, workspaceId: Number(workspaceId) } })
+        setDone(r.recipientType ? `Private escalation: ${r.status}. Provider acceptance is not guaranteed delivery.` : r.message ?? r.answer ?? 'Support request processed.'); setF({ ...f, description: '' })
       })}>Submit</Button>
     </div>
   )

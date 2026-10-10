@@ -61,12 +61,12 @@ Both suites need a throwaway Postgres whose database name contains `test` (the h
 
 ### Known limitations of the test setup
 
-- E2E sign-in is not Netlify Identity. A genuine Identity login needs a live Netlify site, so the browser gets an unsigned, runtime-generated session and the test-only server trusts its `nf_jwt` cookie. That trust exists only in the test server; the production function still verifies Identity sessions and no backdoor was added. Netlify Identity itself, `netlify dev` and the edge/CDN layer are therefore not exercised.
+- E2E sign-in is not production Netlify Identity. The browser gets a runtime-generated test session and the test-only API server trusts its cookie; that trust exists only in the test server. Production functions still verify Identity sessions. Local Netlify adapter/edge startup checks do not establish production Identity or CDN operation.
 - Typechecking includes `.mts` production handlers as well as `.ts` and `.tsx`.
 - SendGrid delivery is only tested with a mocked `fetch`; no real email has been sent.
 - Browser coverage is not comprehensive: most role/error paths are exercised by integration tests rather than real Identity/CDN sessions.
 
-### Behaviour the tests pin down (not changed)
+### Behaviour the tests pin down
 
 - CAP action `verify` requires linked evidence that is approved, not archived, and not expired.
 - Erasure approval is per organisation: the global `users` row, legacy `audit_logs` and `gdpr_requests.requested_by` are retained, and all already-archived evidence in the org is purged, not only the subject's.
@@ -78,6 +78,7 @@ Both suites need a throwaway Postgres whose database name contains `test` (the h
 - Scheduled reports are polled daily. Configure `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, and `SUPPORT_EMAIL` in Netlify. A missing configuration or failed provider request must not be reported as delivery; ambiguous provider outcomes require operator reconciliation before retry.
 - Field-encryption deployment requires key provisioning and running the documented backfill in a trusted environment; do not put key material in repository files or migration SQL.
 - Legacy and `/app` workspace IDs are deliberately separate. Evidence links from legacy pages are navigation into the real registry, not an automatic tenant mapping, attachment migration, or retrospective verification of legacy scores. Keep both routes and datasets until an explicit mapping and tested non-destructive migration are approved.
+- Legacy framework edits use encrypted tenant-state persistence while connected. A failed save is shown explicitly; these framework editors do not yet provide durable offline draft/replay support. Do not close a page with unsaved changes. The separately queued assessment/file workflows retain failed writes for retry.
 - Framework calculators use their existing rubrics; framework labels and report output are not regulatory filings or independent certification.
 - Offline encryption reduces accidental local exposure but is not protection against malicious same-origin JavaScript or access to an unlocked browser profile. Failed and unowned historical pending records must not be silently discarded or submitted as another user.
 

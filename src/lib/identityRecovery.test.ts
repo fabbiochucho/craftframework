@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { completePasswordRecovery, readRecoveryHash, RECOVERY_ERROR } from './identityRecovery.ts'
+import { completePasswordRecovery, discardRecoverySession, readRecoveryHash, RECOVERY_ERROR } from './identityRecovery.ts'
 
 test('recovery tokens are recognized separately from sign-in callbacks', () => {
   assert.deepEqual(readRecoveryHash('#recovery_token=one-use-link'), { recovery: true, token: 'one-use-link' })
@@ -59,4 +59,28 @@ test('failed session establishment and unavailable logout still report a safe re
     async logout() { loggedOut = true; throw new Error('offline') },
   }), { message: RECOVERY_ERROR })
   assert.equal(loggedOut, true)
+})
+
+test('failed logout still deletes SDK session storage and browser auth cookies', async () => {
+  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
+  const cookies: string[] = []
+  const removed: string[] = []
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true, value: { set cookie(value: string) { cookies.push(value) } },
+  })
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true, value: { removeItem(key: string) { removed.push(key) } },
+  })
+  try {
+    await assert.rejects(discardRecoverySession(async () => { throw new Error('offline') }))
+    assert.deepEqual(removed, ['gotrue.user'])
+    assert.equal(cookies.length, 2)
+    assert.ok(cookies.every(cookie => cookie.includes('max-age=0')))
+  } finally {
+    if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument)
+    else Reflect.deleteProperty(globalThis, 'document')
+    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage)
+    else Reflect.deleteProperty(globalThis, 'localStorage')
+  }
 })

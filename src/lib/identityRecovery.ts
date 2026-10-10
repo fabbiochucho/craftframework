@@ -1,5 +1,21 @@
 export const RECOVERY_ERROR = 'This password reset link is invalid or has expired. Request a new link and try again.'
 
+export async function discardRecoverySession(logout: () => Promise<void>) {
+  try {
+    await logout()
+  } finally {
+    // SDK 1.2.0's logout can throw before removing cookies on a network failure.
+    if (typeof document !== 'undefined') {
+      for (const name of ['nf_jwt', 'nf_refresh']) {
+        document.cookie = `${name}=; path=/; secure; samesite=lax; max-age=0`
+      }
+    }
+    if (typeof localStorage !== 'undefined') {
+      try { localStorage.removeItem('gotrue.user') } catch { /* Storage may be disabled. */ }
+    }
+  }
+}
+
 /** Inspect before the SDK callback handler: it otherwise signs in recovery users. */
 export function readRecoveryHash(hash: string): { recovery: boolean; token: string | null } {
   const params = new URLSearchParams(hash.replace(/^#/, ''))
@@ -28,7 +44,7 @@ export async function completePasswordRecovery<T extends { email?: string }>(
     return await identity.login(user.email, password)
   } catch {
     // Redemption may create a session before the password update fails.
-    await identity.logout().catch(() => {})
+    await discardRecoverySession(identity.logout).catch(() => {})
     throw new Error(RECOVERY_ERROR)
   }
 }

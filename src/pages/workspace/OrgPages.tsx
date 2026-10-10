@@ -8,8 +8,8 @@ import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from '.
 type Org = { id: number; name: string; type: string; country: string; region: string; contactEmail: string; role: string }
 
 function useOrg() {
-  const orgs = useApi<Org[]>('/orgs')
   const { currentUser } = useAuthCtx()
+  const orgs = useApi<Org[]>(currentUser ? '/orgs' : null, currentUser?.email ?? '')
   const key = `craft.workspace.org:${currentUser?.email?.toLowerCase() ?? ''}`
   const [selection, setSelection] = useState<{ key: string; id: string | null }>({ key: '', id: null })
   useEffect(() => {
@@ -164,6 +164,7 @@ export function WorkspacesPage() {
 }
 
 function PrivacyControls({ org }: { org: Org }) {
+  const { currentUser } = useAuthCtx()
   const requests = useApi<any[]>('/privacy/erasure-requests')
   const { run, busy, error } = useAction(requests.reload)
   return <Card><CardContent className="space-y-3">
@@ -176,7 +177,7 @@ function PrivacyControls({ org }: { org: Org }) {
     <ErrorLine error={error} /><State loading={requests.loading} error={requests.error} />
     <ul className="space-y-2 text-sm">{requests.data?.filter(r => r.orgId === org.id).map(r => <li key={r.id}>
       #{r.id} · {r.requestedBy} · <StatusPill value={r.status} />
-      {r.status === 'pending' && ['admin', 'owner'].includes(org.role) && <Button size="sm" disabled={busy} onClick={() => { if (confirm('Approve irreversible personal data erasure?')) void run(() => api(`/privacy/erasure-requests/${r.id}/approve`, { method: 'POST', body: {} })) }}>Approve erasure</Button>}
+      {r.status === 'pending' && r.requestedBy !== currentUser?.email && ['admin', 'owner'].includes(org.role) && <Button size="sm" disabled={busy} onClick={() => { if (confirm('Approve irreversible personal data erasure?')) void run(() => api(`/privacy/erasure-requests/${r.id}/approve`, { method: 'POST', body: {} })) }}>Approve erasure</Button>}
     </li>)}</ul>
   </CardContent></Card>
 }
