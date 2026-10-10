@@ -1,5 +1,7 @@
 # G2G-ICGMT v2.0 — Universal Institutional Capacity & Grant Management Assessment Toolkit
 
+[![Code of Conduct](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
 A comprehensive, production-ready, multi-tenant web application for assessing government agency capacity to receive and manage direct donor funding (G2G — Government-to-Government).
 
 ## What It Does
@@ -48,3 +50,7 @@ Sign in with any credentials. Use the **role switcher** in the sidebar to toggle
 ## Standards Alignment
 
 USAID (2 CFR 200) · Global Fund FMS · World Bank · PEPFAR/CDC · WHO IHR
+
+## Workspace Platform
+
+Organization workspaces, governance assessments, ESG roadmap, corrective action plans, evidence registry, reports and audit log are served by `netlify/functions/workspace-api.mts` (schema in `db/schema.ts`, UI under `/app/*`). See [docs/platform-guide.md](docs/platform-guide.md) and [docs/api/openapi.yaml](docs/api/openapi.yaml). Run the unit tests with `npm test`.

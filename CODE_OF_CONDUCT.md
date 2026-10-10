@@ -95,3 +95,14 @@ To report violations of this Code of Conduct, please email the community team at
 craftframework@becomechange.institute
 
 Include a description of the incident, relevant context, and any supporting details. Reports are reviewed as promptly as possible and handled with care.
+
+## Appeals
+
+Anyone subject to a corrective action may appeal by emailing craftframework@becomechange.institute within 30 days of the decision, explaining why the outcome should be reconsidered. Appeals are reviewed by community leaders who were not involved in the original decision, and the outcome of the appeal is final.
+
+## Enforcement Process
+
+1. **Report received** — acknowledged by the community team.
+2. **Investigation** — facts are gathered from the reporter, the people involved and any public record; confidentiality is maintained.
+3. **Decision** — leaders apply the Correction, Warning, Temporary Ban or Permanent Ban guidelines above.
+4. **Notification and appeal** — the outcome is communicated in writing along with appeal instructions.

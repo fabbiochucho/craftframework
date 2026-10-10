@@ -86,3 +86,14 @@
 #   compliance.mts         →  GET/POST/PATCH /api/compliance (Obligations calendar)
 #   audit.mts              →  GET/POST /api/audit          (append-only activity log)
 
+# ---------------------------------------------------------------------------
+# Workspace platform (orgs, governance, ESG, CAP, evidence, reports, audit)
+# ---------------------------------------------------------------------------
+# Environment variables (set in the Netlify UI — never commit values):
+#   DATABASE_URL      Postgres connection (only for an external DB; Netlify DB is automatic)
+#   SENDGRID_API_KEY  report / support email delivery
+#   GITHUB_TOKEN      support-bot GitHub issue creation (label `community-question`)
+#
+#   workspace-api.mts          →  /api/orgs, /api/workspaces/*, /api/support-bot/*
+#   evidence-expiry-alerts.mts →  scheduled @daily (evidence expiring in 30 days / expired)
+#   weekly-reports.mts         →  scheduled @weekly (CAP summary snapshot per workspace)
