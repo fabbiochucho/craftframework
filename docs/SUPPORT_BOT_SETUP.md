@@ -220,22 +220,24 @@ View function logs in Netlify:
 
 ### Issues not created
 
-1. Verify `GITHUB_TOKEN` has `repo` and `issues` scopes
+1. Verify `GITHUB_TOKEN` is restricted to this repository with Issues read/write
 2. Check Netlify function logs
 3. Ensure the token hasn't expired
 
 ### Emails not sending
 
-1. Verify `SENDGRID_API_KEY` is correct
-2. Check that sender email is verified in SendGrid
-3. Look for bounce/delivery issues in SendGrid dashboard
+1. Identify the workflow: Resend handles explicit escalation/invitations/reminders;
+   SendGrid handles reports and support responses.
+2. Verify that workflow's key and exact sender in the relevant provider.
+3. Inspect provider acceptance, bounce, and delivery events separately.
 
 ## Customization Ideas
 
 - Add language support (translations for bot responses)
 - Integrate with Slack for urgent issues
 - Add sentiment analysis for priority routing
-- Connect to analytics to track common questions
+- Extend opt-in, metadata-only support analytics only after privacy review;
+  the existing PostHog integration must not capture confidential workspace data
 - Add FAQ tags or categories for better routing
 - Set up automatic label assignment based on classification
 

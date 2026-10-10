@@ -62,7 +62,7 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.2.0",
-    "deno": "2.4.2",
+    "deno": "2.5.6",
     "drizzle-kit": "^1.0.0-beta.22",
     "lucide-react": "0.576.0",
     "pg": "^8.23.1",

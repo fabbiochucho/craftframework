@@ -455,11 +455,12 @@ export interface FinancialTriangulationPayload {
   history: string[]
 }
 
-export async function fetchFinancialTriangulation(orgId: string, contextKey: string): Promise<FinancialTriangulationPayload | null> {
+export async function fetchFinancialTriangulation(orgId: string, contextKey: string, strict = false): Promise<FinancialTriangulationPayload | null> {
   try {
     const qs = `?orgId=${encodeURIComponent(orgId)}&contextKey=${encodeURIComponent(contextKey)}`
     return (await jsonOrThrow(await fetch(`/api/financial-triangulation${qs}`))) as FinancialTriangulationPayload | null
   } catch (err) {
+    if (strict) throw err
     console.warn('[api] fetchFinancialTriangulation failed', err)
     return null
   }

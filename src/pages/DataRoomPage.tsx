@@ -19,6 +19,7 @@ import { Card, Button, Badge, Select, Input, ProgressBar, Toast, Tabs } from '..
 import { cn } from '../lib/utils'
 import { DataRoomVaultsPage } from './DataRoomVaultsPage'
 import { EvidencePage } from './EvidencePage'
+import { LegacyEvidenceBridge } from '../components/LegacyEvidenceBridge'
 
 const DATA_ROOM_TABS = [
   { id: 'compliance', label: 'Compliance Engine' },
@@ -30,7 +31,9 @@ const DATA_ROOM_TABS = [
 // checklist, the framework-specific evidence vaults, and the centralized document
 // vault are now three tabs of one surface rather than three separate routes.
 export function DataRoomPage() {
+  const { isDemo } = useAuthCtx()
   const [tab, setTab] = useState('compliance')
+  if (!isDemo) return <LegacyEvidenceBridge />
   return (
     <div className="space-y-6">
       <div>

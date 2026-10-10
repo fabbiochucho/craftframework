@@ -3,7 +3,6 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
-import { organizations } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 import { encryptField, decryptField } from '../lib/crypto.js'
 import { logger } from '../lib/logger.js'
@@ -24,7 +23,7 @@ export default async (req: Request) => {
       const orgId = params.get('orgId')
       const key = keySchema.safeParse(params.get('key'))
       if (!orgId || !key.success) return Response.json({ error: 'Invalid scope' }, { status: 400 })
-      if (!(await canAccessOrg(caller, orgId))) return forbidden()
+      if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
       const [row] = await db.select().from(legacyWorkspaceState)
         .where(and(eq(legacyWorkspaceState.orgId, orgId), eq(legacyWorkspaceState.key, key.data))).limit(1)
       return Response.json({ value: row ? JSON.parse(decryptField(row.value)) : null }, {
@@ -32,16 +31,17 @@ export default async (req: Request) => {
       })
     }
     if (req.method === 'PUT') {
+      const origin = req.headers.get('origin')
+      if (origin && origin !== new URL(req.url).origin) return forbidden()
+      if (!req.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
+        return Response.json({ error: 'JSON required' }, { status: 415 })
+      }
       const text = await req.text()
       if (text.length > 200_000) return Response.json({ error: 'State too large' }, { status: 413 })
       const parsed = bodySchema.safeParse(JSON.parse(text))
       if (!parsed.success) return Response.json({ error: 'Invalid state' }, { status: 400 })
       const { orgId, key, value } = parsed.data
-      // A read-only access grant must never allow changing an institution's state.
-      if (orgId !== caller.orgId && caller.role !== 'super_admin') {
-        const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1)
-        if (!org || ![org.createdBy, org.reviewer].some(email => email?.toLowerCase() === caller.email)) return forbidden()
-      }
+      if (!(await canAccessOrg(caller, orgId, 'write'))) return forbidden()
       const record = { orgId, key, value: encryptField(JSON.stringify(value)), updatedAt: new Date() }
       await db.insert(legacyWorkspaceState).values(record).onConflictDoUpdate({
         target: [legacyWorkspaceState.orgId, legacyWorkspaceState.key],

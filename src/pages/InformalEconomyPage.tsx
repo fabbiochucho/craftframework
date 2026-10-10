@@ -8,15 +8,13 @@ import { Card, CardContent, Button, Badge } from '../components/ui'
 import { cn } from '../lib/utils'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
-import { saveLegacyState } from '../lib/api'
 
 // ============================================================================
 // FEATURE 4 - Micro / Informal Economy assessment track.
-// A real, mobile-first, OFFLINE-CAPABLE simplified ROCA/CPI assessment for
+// A mobile-first simplified ROCA/CPI assessment for
 // cooperatives, street-level distributors and unregistered collectives seeking
-// micro-finance or DFI grants. Answers persist to localStorage so the tool works
-// with no connectivity; when a connection returns, the record can be synced to
-// the workspace. Vernacular, plain-language prompts drive each dimension.
+// micro-finance or DFI grants. Online writes use the tenant-scoped API; offline
+// answers remain session-only and the UI states this explicitly.
 // ============================================================================
 
 // Simplified 4-level scale (mirrors OMT Statements of Excellence, plain-language).
@@ -38,11 +36,19 @@ function classify(index: number): { label: string; tone: string; chip: string; n
 export function InformalEconomyPage() {
   const { currentUser, isDemo } = useAuthCtx()
   const [answers, setAnswers, saveStatus] = useLegacyAssessment<Answers>('roca:answers',
-    () => isDemo ? { records: 2, savings: 3, leadership: 3, membership: 2, repayment: 3 } : {})
+    (): Answers => isDemo ? { records: 2, savings: 3, leadership: 3, membership: 2, repayment: 3 } : {})
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [synced, setSynced] = useState(false)
   const [online, setOnline] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
+  useEffect(() => {
+    if (saveStatus === 'saved') {
+      setSavedAt(new Date().toISOString())
+      setSynced(true)
+    } else if (saveStatus === 'error' || saveStatus === 'saving') {
+      setSynced(false)
+    }
+  }, [saveStatus])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -71,22 +77,15 @@ export function InformalEconomyPage() {
     setSynced(false)
   }
 
-  async function syncNow() {
+  function syncNow() {
     if (isDemo) { setToast('Demo only — no live data saved.'); return }
-    if (!currentUser || saveStatus === 'loading' || saveStatus === 'read-only') return
+    if (!currentUser || saveStatus === 'loading' || saveStatus === 'read-only' || (saveStatus === 'error' && !Object.keys(answers).length)) return
     if (!navigator.onLine) {
       setToast('No connection — changes are only in this session. Reconnect and retry before leaving.')
       return
     }
-    try {
-      await saveLegacyState(currentUser.orgId, 'roca:answers', answers)
-      setSavedAt(new Date().toISOString())
-      setSynced(true)
-      setToast('Synced to your CRAFT workspace.')
-    } catch {
-      setSynced(false)
-      setToast('Sync failed — no backend confirmation. Reconnect and retry.')
-    }
+    setAnswers(prev => ({ ...prev }))
+    setToast('Saving to workspace — wait for backend confirmation.')
   }
 
   function reset() {
@@ -123,7 +122,7 @@ export function InformalEconomyPage() {
             <Save className="h-3.5 w-3.5" /> Saved {new Date(savedAt).toLocaleString()}
           </span>
         )}
-        {synced
+        {(synced || saveStatus === 'saved')
           ? <Badge className="bg-emerald-100 text-emerald-700"><CheckCircle2 className="mr-1 h-3 w-3" /> Synced</Badge>
           : <Badge className="bg-amber-100 text-amber-700">Not synced</Badge>}
       </div>

@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions'
-import { and, eq } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { section11Disclosures } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'

@@ -8,6 +8,7 @@ test('org/workspace -> assessment -> finding -> CAP -> evidence -> report PDF', 
   await page.getByLabel('Country').fill('Kenya')
   await page.getByRole('button', { name: 'Create organization' }).click()
   await expect(page.getByRole('heading', { name: 'Workspaces' })).toBeVisible()
+  await expect(page.getByLabel('Organization', { exact: true })).toBeVisible()
 
   // Workspace
   await page.getByLabel('New workspace').fill('E2E Workspace')
@@ -23,8 +24,16 @@ test('org/workspace -> assessment -> finding -> CAP -> evidence -> report PDF', 
   await page.getByRole('link', { name: 'G2G' }).click()
   await page.getByRole('button', { name: 'Findings', exact: true }).click()
   await page.getByLabel('Description').fill('Board minutes are not retained')
+  await page.getByLabel('Owner assignment').fill('assessor@acme.example')
+  await page.getByLabel('Finding due date').fill('2027-01-15')
+  await page.getByLabel('Recommendation').fill('Keep signed minutes')
   await page.getByRole('button', { name: 'Add finding' }).click()
   await expect(page.getByText('Board minutes are not retained')).toBeVisible()
+  await page.getByLabel('Recommendation').last().fill('Retain approved signed minutes')
+  await page.getByRole('button', { name: 'Save changes' }).click()
+  await page.reload()
+  await page.getByRole('button', { name: 'Findings', exact: true }).click()
+  await expect(page.getByLabel('Recommendation').last()).toHaveValue('Retain approved signed minutes')
 
   // Corrective action plan
   await page.goto(dashboardUrl)
@@ -41,10 +50,16 @@ test('org/workspace -> assessment -> finding -> CAP -> evidence -> report PDF', 
     name: 'policy.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% e2e evidence\n'),
   })
   await expect(page.getByText('policy.pdf')).toBeVisible()
+  await page.getByRole('link', { name: 'policy.pdf' }).click()
+  await page.getByLabel('Expiry date').fill('2027-02-01')
+  await page.getByRole('button', { name: 'Save changes' }).click()
+  await page.reload()
+  await expect(page.getByLabel('Expiry date')).toHaveValue('2027-02-01')
 
   // Report generation + PDF download
   await page.goto(dashboardUrl)
   await page.getByRole('main').getByRole('link', { name: 'Reports', exact: true }).click()
+  await page.getByLabel('Scheduled report type').selectOption('esg_status')
   await page.getByRole('button', { name: 'Generate' }).click()
   await page.getByRole('link', { name: 'governance scorecard' }).click()
   const [download] = await Promise.all([

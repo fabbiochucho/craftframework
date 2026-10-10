@@ -22,8 +22,8 @@
 // engine works unchanged against a Supabase REST/RPC URL.
 // ============================================================================
 
-import { offlineDB, type QueuedMutation, type QueuedFile } from './db'
-import { authenticatedSignal, getOfflineSession, ownsRecord } from './session'
+import { offlineDB, type QueuedMutation, type QueuedFile } from './db.ts'
+import { authenticatedSignal, getOfflineSession, ownsRecord } from './session.ts'
 
 export type SyncStatus = 'idle' | 'offline' | 'syncing' | 'error'
 
@@ -31,6 +31,7 @@ export interface SyncState {
   status: SyncStatus
   pending: number
   failed: number
+  blocked: number
   lastSyncedAt: number | null
   lastError: string | null
 }
@@ -47,12 +48,18 @@ export class SyncEngine {
     status: 'idle',
     pending: 0,
     failed: 0,
+    blocked: 0,
     lastSyncedAt: null,
     lastError: null,
   }
   private listeners = new Set<Listener>()
   private running = false
   private started = false
+
+  private verifySession: () => Promise<AbortSignal>
+  constructor(verifySession: () => Promise<AbortSignal> = authenticatedSignal) {
+    this.verifySession = verifySession
+  }
 
   /** Wire up online/offline listeners. Safe to call once, browser-only. */
   start(): void {
@@ -110,8 +117,8 @@ export class SyncEngine {
   }
 
   private async refreshPending(): Promise<void> {
-    const [m, f] = await Promise.all([offlineDB.getMutations(), offlineDB.getFiles()])
-    this.emit({ pending: m.length + f.length, failed: [...m, ...f].filter(record => record.failed).length })
+    const [m, f, totalM, totalF] = await Promise.all([offlineDB.getMutations(), offlineDB.getFiles(), offlineDB.countMutations(), offlineDB.countFiles()])
+    this.emit({ pending: m.length + f.length, failed: [...m, ...f].filter(record => record.failed).length, blocked: totalM + totalF - m.length - f.length })
   }
 
   async retryFailed(): Promise<void> {
@@ -136,7 +143,7 @@ export class SyncEngine {
     }
     if (!offlineDB.isAvailable()) return
     if (!getOfflineSession()) {
-      this.emit({ status: 'idle', pending: 0, failed: 0, lastError: null, lastSyncedAt: null })
+      this.emit({ status: 'idle', pending: 0, failed: 0, blocked: 0, lastError: null, lastSyncedAt: null })
       return
     }
 
@@ -146,9 +153,13 @@ export class SyncEngine {
       await this.processMutations()
       await this.processFiles()
       await this.refreshPending()
+      if (!getOfflineSession()) {
+        this.emit({ status: 'idle', pending: 0, failed: 0, blocked: 0, lastSyncedAt: null, lastError: null })
+        return
+      }
       this.emit({
         status: !navigator.onLine ? 'offline' : this.state.pending ? 'error' : 'idle',
-        lastSyncedAt: this.state.pending ? this.state.lastSyncedAt : Date.now(),
+        lastSyncedAt: this.state.pending || this.state.blocked ? this.state.lastSyncedAt : Date.now(),
       })
     } catch (err) {
       this.emit({ status: 'error', lastError: err instanceof Error ? err.message : String(err) })
@@ -170,8 +181,9 @@ export class SyncEngine {
 
   private async replayMutation(mutation: QueuedMutation): Promise<void> {
     try {
-      const signal = await authenticatedSignal()
+      const signal = AbortSignal.any([await this.verifySession(), AbortSignal.timeout(30_000)])
       if (!ownsRecord(mutation)) return
+      validateTenant(mutation.owner!.tenantId, mutation.body)
       const res = await fetch(safeEndpoint(mutation.endpoint), {
         signal,
         credentials: 'same-origin',
@@ -215,8 +227,10 @@ export class SyncEngine {
 
   private async uploadFile(file: QueuedFile): Promise<void> {
     try {
-      const signal = await authenticatedSignal()
+      const signal = AbortSignal.any([await this.verifySession(), AbortSignal.timeout(120_000)])
       if (!ownsRecord(file)) return
+      validateTenant(file.owner!.tenantId, file)
+      validateTenant(file.owner!.tenantId, file.metadata)
       // 1) Ask the Netlify function for a scoped, short-lived upload target.
       const presignRes = await fetch(safeEndpoint(file.presignEndpoint || PRESIGN_ENDPOINT), {
         signal,
@@ -249,7 +263,7 @@ export class SyncEngine {
       // 3) Record the document metadata now that the object exists. Optional:
       //    skipped when no metadata endpoint was supplied.
       if (file.metadataEndpoint) {
-        await authenticatedSignal()
+        await this.verifySession()
         if (signal.aborted || !ownsRecord(file)) return
         const metaRes = await fetch(safeEndpoint(file.metadataEndpoint), {
           signal,
@@ -279,6 +293,9 @@ export class SyncEngine {
       this.emit({ lastError: message })
     }
 
+  }
+}
+
     function safeEndpoint(endpoint: string): string {
       const url = new URL(endpoint, window.location.origin)
       if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/')) {
@@ -287,6 +304,14 @@ export class SyncEngine {
       return url.href
     }
 
+function validateTenant(tenantId: string, payload: unknown): void {
+  if (!payload || typeof payload !== 'object') return
+  const body = payload as Record<string, unknown>
+  for (const field of ['orgId', 'organizationId', 'tenantId']) {
+    if (body[field] != null && body[field] !== tenantId) throw new Error('Saved change targets another tenant. It has been retained.')
+  }
+}
+
     class HTTPFailure extends Error {
       permanent: boolean
       constructor(status: number) {
@@ -294,9 +319,6 @@ export class SyncEngine {
         this.permanent = status >= 400 && status < 500 && ![401, 408, 429].includes(status)
       }
     }
-  }
-}
-
 // Singleton — one queue drainer per tab.
 export const syncEngine = new SyncEngine()
 

@@ -67,14 +67,14 @@ async function exportDataForCaller(c: Ctx, caller: Caller): Promise<Response> {
   const organizations = orgIds.length
     ? (await db.select().from(wsOrganizations).where(inArray(wsOrganizations.id, orgIds))).map(exposeOrganization)
     : []
-  const scoped = async <T>(table: any, orgColumn: any): Promise<T[]> =>
+  const scoped = async <T,>(table: any, orgColumn: any): Promise<T[]> =>
     orgIds.length ? db.select().from(table).where(inArray(orgColumn, orgIds)) as Promise<T[]> : []
   const [workspaceRows, assessmentRows, evidenceRows, capRows, allScheduleRows, reportRows, auditRows] = await Promise.all([
     scoped(workspaces, workspaces.orgId),
     orgIds.length ? db.select().from(governanceAssessments).where(and(inArray(governanceAssessments.orgId, orgIds), eq(governanceAssessments.createdBy, caller.email))) : [],
     orgIds.length ? db.select().from(evidenceRegistry).where(and(inArray(evidenceRegistry.orgId, orgIds), eq(evidenceRegistry.uploadedBy, caller.email))) : [],
     orgIds.length ? db.select().from(capRecords).where(and(inArray(capRecords.orgId, orgIds), eq(capRecords.assignedTo, caller.email))) : [],
-    scoped(reportSchedules, reportSchedules.orgId),
+    scoped<typeof reportSchedules.$inferSelect>(reportSchedules, reportSchedules.orgId),
     orgIds.length ? db.select().from(reports).where(and(inArray(reports.orgId, orgIds), eq(reports.generatedBy, caller.email))) : [],
     orgIds.length ? db.select().from(wsAuditLog).where(and(inArray(wsAuditLog.orgId, orgIds), eq(wsAuditLog.actorId, caller.email))) : [],
   ])
@@ -501,7 +501,7 @@ async function generateReport(c: Ctx, orgId: number, wsId: number, caller: Calle
     generatedAt: report.generatedAt, snapshot,
   })
   const pdfKey = `reports/${orgId}/${wsId}/${report.id}/v1.pdf`
-  await getStore('reports').set(pdfKey, pdfBytes, { metadata: { contentType: 'application/pdf' } })
+  await getStore('reports').set(pdfKey, new Uint8Array(pdfBytes).buffer, { metadata: { contentType: 'application/pdf' } })
   const [createdVersion] = await db.insert(reportVersions).values({
     orgId, reportId: report.id, versionNum: 1,
     jsonExportUrl: `/api/workspaces/${wsId}/reports/${report.id}`,
@@ -1248,6 +1248,9 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
   const message = str(c.body.message, 'message', 5000)
 
   if (isPrivateReport(message) || c.body.privacyLevel === 'private') {
+    if (c.body.escalationConsent === true) {
+      return escalateSupport({ ...c.body, message, classification: classifySupportMessage(message).type, privacyLevel: 'private' })
+    }
     return json({
       success: true,
       type: 'private_report',
@@ -1261,8 +1264,7 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
   if (contactEmail && !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(contactEmail)) throw bad('contactEmail invalid')
   let orgId: number | null = null
   let workspaceId: number | null = null
-  if (c.body.workspaceId != null) {
-    if (!c.caller) throw new HttpError(401, 'Sign in to associate a workspace')
+  if (c.caller && c.body.workspaceId != null) {
     const ws = await requireWorkspaceAccess(c.caller, intParam(String(c.body.workspaceId)), 'viewer')
     orgId = ws.orgId
     workspaceId = ws.workspace.id

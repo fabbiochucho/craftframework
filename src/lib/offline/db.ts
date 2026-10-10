@@ -3,9 +3,7 @@
 // ----------------------------------------------------------------------------
 // This is the on-device buffer that lets field assessors, supply-chain auditors
 // and informal-economy users keep working with no connectivity. It is a
-// TEMPORARY, security-sensitive cache — never a permanent store (see the
-// 15-minute auto-wipe in hooks/use-offline-security.ts and the Sovereignty
-// Shield rules in AGENTS/results).
+// Security-sensitive buffer: sign-out locks rather than erases pending work.
 //
 // Three object stores:
 //   • mutations — the durable write-ahead queue. Every state change (assessment
@@ -22,7 +20,7 @@
 // ============================================================================
 
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import { getOfflineSession, ownsRecord, type OfflineOwner } from './session'
+import { getOfflineSession, ownsRecord, type OfflineOwner } from './session.ts'
 
 export const DB_NAME = 'craft-offline'
 export const DB_VERSION = 2
@@ -32,7 +30,7 @@ export const STORE_DRAFTS = 'drafts' as const
 export const STORE_FILES = 'files' as const
 
 // A single queued write, expressed as a replayable request against the app's
-// own /api/* layer (which persists to the Netlify Database) or any absolute URL.
+// own /api/* layer (which persists to the Netlify Database).
 // Keeping mutations transport-shaped means the sync engine can replay anything
 // the online code path would have sent, without knowing the domain.
 export interface QueuedMutation {
@@ -45,9 +43,7 @@ export interface QueuedMutation {
   endpoint: string
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
-  // De-dupe key: a newer mutation with the same dedupeKey supersedes older ones
-  // still in the queue (e.g. repeated edits to the same score/field), so we sync
-  // the final value rather than replaying every keystroke.
+  // Logical grouping only; every accepted edit is retained until confirmed.
   dedupeKey?: string
   createdAt: number
   attempts: number
@@ -61,7 +57,7 @@ export interface DraftRecord {
   updatedAt: number
 }
 
-// A file awaiting upload. The blob is stored verbatim; on sync the engine calls
+// A file awaiting upload. The blob is encrypted; on sync the engine calls
 // the presigned-URL function, PUTs the bytes, then records document metadata.
 export interface QueuedFile {
   owner?: OfflineOwner
@@ -131,10 +127,15 @@ function getDB(): Promise<IDBPDatabase<CraftDB>> {
     })
   }
 
+  return dbPromise
+}
+
   type Envelope = {
     encrypted: true
     iv: Uint8Array<ArrayBuffer>
     ciphertext: ArrayBuffer
+    blobIv?: Uint8Array<ArrayBuffer>
+    blobCiphertext?: ArrayBuffer
     owner?: OfflineOwner
     id?: number
     key?: string
@@ -158,12 +159,16 @@ function getDB(): Promise<IDBPDatabase<CraftDB>> {
     const key = await encryptionKey(db)
     const iv = crypto.getRandomValues(new Uint8Array(12))
     const payload = { ...record } as Record<string, unknown>
+    let blobIv: Uint8Array<ArrayBuffer> | undefined
+    let blobCiphertext: ArrayBuffer | undefined
     if ('blob' in record) {
-      payload.blob = Array.from(new Uint8Array(await record.blob.arrayBuffer()))
+      blobIv = crypto.getRandomValues(new Uint8Array(12))
+      blobCiphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: blobIv }, key, await record.blob.arrayBuffer())
+      delete payload.blob
       payload.blobType = record.blob.type
     }
     const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)))
-    return { encrypted: true, iv, ciphertext, owner: record.owner, ...('id' in record ? { id: record.id } : {}),
+    return { encrypted: true, iv, ciphertext, blobIv, blobCiphertext, owner: record.owner, ...('id' in record ? { id: record.id } : {}),
       ...('key' in record ? { key: record.key } : {}),
       ...('createdAt' in record ? { createdAt: record.createdAt } : {}),
       ...('dedupeKey' in record ? { dedupeKey: record.dedupeKey } : {}) } as unknown as T
@@ -176,13 +181,24 @@ function getDB(): Promise<IDBPDatabase<CraftDB>> {
     if (!key) throw new Error('Offline encryption key is missing. Saved records have been preserved.')
     const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: envelope.iv }, key, envelope.ciphertext)
     const record = JSON.parse(new TextDecoder().decode(plaintext))
-    if (Array.isArray(record.blob)) record.blob = new Blob([new Uint8Array(record.blob)], { type: record.blobType })
+    if (!ownsRecord(record)) throw new Error('Saved record belongs to another session; it has been retained.')
+    if (envelope.blobIv && envelope.blobCiphertext) {
+      const bytes = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: envelope.blobIv }, key, envelope.blobCiphertext)
+      record.blob = new Blob([bytes], { type: record.blobType })
+    }
     if (envelope.id != null) record.id = envelope.id
     return record as T
   }
-  return dbPromise
-}
 
+async function readOwned<T extends QueuedMutation | QueuedFile>(db: IDBPDatabase<CraftDB>, records: T[]): Promise<T[]> {
+  const result: T[] = []
+  for (const stored of records.filter(ownsRecord)) {
+    try { result.push(await unseal(db, stored)) } catch {
+      // A damaged/missing-key record stays untouched; it must not block others.
+    }
+  }
+  return result
+}
 // ---------------------------------------------------------------------------
 // Public API — a small, framework-agnostic facade used by hooks, the sync
 // engine and the local-first UI paths.
@@ -196,9 +212,10 @@ export const offlineDB = {
     input: Omit<QueuedMutation, 'id' | 'createdAt' | 'attempts'> & { createdAt?: number },
   ): Promise<number | null> {
     if (!hasIndexedDB()) return null
+    const owner = getOfflineSession() ?? undefined
     const db = await getDB()
     const record: QueuedMutation = {
-      owner: getOfflineSession() ?? undefined,
+      owner,
       kind: input.kind,
       endpoint: input.endpoint,
       method: input.method,
@@ -215,7 +232,7 @@ export const offlineDB = {
     if (!hasIndexedDB()) return []
     const db = await getDB()
     const records = await db.getAllFromIndex(STORE_MUTATIONS, 'by-created')
-    return Promise.all(records.filter(ownsRecord).map(record => unseal(db, record)))
+    return readOwned(db, records)
   },
 
   async deleteMutation(id: number): Promise<void> {
@@ -267,10 +284,11 @@ export const offlineDB = {
     input: Omit<QueuedFile, 'id' | 'createdAt' | 'attempts'> & { createdAt?: number },
   ): Promise<number | null> {
     if (!hasIndexedDB()) return null
+    const owner = getOfflineSession() ?? undefined
     const db = await getDB()
     const record: QueuedFile = {
       ...input,
-      owner: getOfflineSession() ?? undefined,
+      owner,
       createdAt: input.createdAt ?? Date.now(),
       attempts: 0,
     }
@@ -281,7 +299,7 @@ export const offlineDB = {
     if (!hasIndexedDB()) return []
     const db = await getDB()
     const records = await db.getAllFromIndex(STORE_FILES, 'by-created')
-    return Promise.all(records.filter(ownsRecord).map(record => unseal(db, record)))
+    return readOwned(db, records)
   },
 
   async deleteFile(id: number): Promise<void> {

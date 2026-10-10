@@ -69,13 +69,17 @@ export function OfflineBanner() {
 
   // Nothing worth interrupting the user for: online, idle, nothing pending, and
   // no recent-sync flash to show.
-  if (!isOffline && !isSyncing && !isError && !justSynced) return null
+  if (!isOffline && !isSyncing && !isError && !justSynced && !sync.blocked) return null
 
   let tone: string
   let icon: React.ReactNode
   let label: string
 
-  if (isOffline) {
+  if (sync.blocked && !isOffline && !isSyncing && !isError) {
+    tone = 'border-amber-300 bg-amber-100 text-amber-950'
+    icon = <AlertTriangle className="h-4 w-4 shrink-0" />
+    label = 'Older or other-session changes are retained and locked. Original ownership must be verified.'
+  } else if (isOffline) {
     tone = 'border-rose-400/60 bg-rose-600 text-white'
     icon = <WifiOff className="h-4 w-4 shrink-0" />
     label = 'Offline Mode. Changes saved locally.'
