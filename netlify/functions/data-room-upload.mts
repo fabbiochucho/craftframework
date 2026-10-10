@@ -4,6 +4,7 @@ import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/aut
 import { MAX_UPLOAD_BYTES } from '../lib/uploads.js'
 import { stripImageMetadata } from '../lib/stripImageMetadata.js'
 import { logger } from '../lib/logger.js'
+import { encodeEvidence } from '../lib/evidence-storage.js'
 
 // ============================================================================
 // CRAFT v4.0 — Data Room evidence upload sink
@@ -73,7 +74,7 @@ export default async (req: Request, _context: Context) => {
     // editor metadata from images before they're stored.
     buf = stripImageMetadata(buf, contentType)
 
-    await store.set(key, buf, {
+    await store.set(key, encodeEvidence(buf), {
       metadata: {
         fileName: meta.fileName ?? '',
         category: meta.category ?? 'general',

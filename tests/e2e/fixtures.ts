@@ -1,7 +1,7 @@
 import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test'
 
 const API_ORIGIN = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 8899}`
-const WEB_ORIGIN = 'http://localhost:3000'
+const WEB_ORIGIN = `http://localhost:${process.env.E2E_WEB_PORT ?? 3000}`
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
 
 // Unsigned, runtime-generated session token. Only the test API server reads it;
@@ -24,16 +24,19 @@ export async function signInAs(context: BrowserContext, email: string) {
       created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     }))
   }, [email, token, exp] as const)
-  // Forward the app's workspace API calls to the real handler (test API server).
-  await context.route(/\/api\/(orgs|workspaces|privacy|support-bot)(\/|\?|$)/, async (route: Route) => {
-    const req = route.request()
-    const u = new URL(req.url())
-    const response = await route.fetch({ url: `${API_ORIGIN}${u.pathname}${u.search}`, headers: { ...req.headers(), cookie: `nf_jwt=${token}` } })
-    await route.fulfill({ response })
-  })
 }
 
-export const test = base.extend<{ signedIn: Page }>({
+export const test = base.extend<{ signedIn: Page; apiRoutes: void }>({
+  apiRoutes: [async ({ context }, use) => {
+    // Only this test fixture redirects APIs; deployed bundles retain normal auth.
+    await context.route(/\/api\//, async (route: Route) => {
+      const req = route.request()
+      const url = new URL(req.url())
+      const response = await route.fetch({ url: `${API_ORIGIN}${url.pathname}${url.search}`, headers: await req.allHeaders() })
+      await route.fulfill({ response })
+    })
+    await use()
+  }, { auto: true }],
   signedIn: async ({ page, context, request }, use) => {
     const reset = await request.post(`${API_ORIGIN}/__test/reset`)
     expect(reset.status()).toBe(204)

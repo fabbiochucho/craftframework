@@ -25,6 +25,8 @@ import {
   primaryKey,
 } from 'drizzle-orm/pg-core'
 
+export { offlineFrameworks, offlineFrameworkReceipts } from './offline-schema.js'
+
 // --- organizations ----------------------------------------------------------
 // A tenant: the institution being assessed. Multi-tenant isolation is enforced
 // by scoping every read/write below by `org_id`.

@@ -11,6 +11,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16
@@ -43,6 +44,7 @@ jobs:
       - run: npm run test:integration
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        timeout-minutes: 15
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -54,3 +56,38 @@ jobs:
           retention-days: 7
       - run: npm run docs:api -- --check
       - run: npm run build
+
+  dependency-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.3
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: timeout 120s npm audit --audit-level=high
+
+  codeql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v4
+        timeout-minutes: 10
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended
+          ram: 4096
+          threads: 2
+      - uses: github/codeql-action/analyze@v4
+        timeout-minutes: 15
+        with:
+          ram: 4096
+          threads: 2

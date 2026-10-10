@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { decryptField, decryptFieldWithKeys, encryptFieldWithKey, encryptField, fieldLookupHashes } from './crypto.ts'
+import { encodeEvidence, decodeEvidence } from './evidence-storage.ts'
 
 const firstKey = Buffer.alloc(32, 1)
 const secondKey = Buffer.alloc(32, 2)
@@ -26,13 +27,23 @@ process.env.FIELD_ENCRYPTION_KEY_VERSION = 'v1'
 delete process.env.FIELD_ENCRYPTION_PREVIOUS_KEYS
 const stableHash = fieldLookupHashes('USER@example.org')[0]
 const envCiphertext = encryptField('member@example.org')
+const evidence = new TextEncoder().encode('%PDF private evidence').buffer
+const storedEvidence = encodeEvidence(evidence)
+assert.ok(!Buffer.from(storedEvidence).includes(Buffer.from('%PDF private evidence')))
+assert.deepEqual(Buffer.from(decodeEvidence(storedEvidence)), Buffer.from(evidence))
+assert.equal(decodeEvidence(evidence), evidence, 'historical plaintext bytes remain readable')
+const corruptEvidence = Buffer.from(new Uint8Array(storedEvidence))
+corruptEvidence[corruptEvidence.length - 4] = corruptEvidence[corruptEvidence.length - 4] === 65 ? 66 : 65
+assert.throws(() => decodeEvidence(corruptEvidence.buffer.slice(corruptEvidence.byteOffset, corruptEvidence.byteOffset + corruptEvidence.byteLength) as ArrayBuffer), 'tampered evidence cannot be downloaded')
 process.env.FIELD_ENCRYPTION_KEY = secondKey.toString('base64')
 process.env.FIELD_ENCRYPTION_KEY_VERSION = 'v2'
 process.env.FIELD_ENCRYPTION_PREVIOUS_KEYS = JSON.stringify({ v1: firstKey.toString('base64') })
 assert.ok(fieldLookupHashes('user@example.org').includes(stableHash!))
 assert.notEqual(fieldLookupHashes('user@example.org')[0], stableHash)
 assert.equal(decryptField(envCiphertext), 'member@example.org')
+assert.deepEqual(Buffer.from(decodeEvidence(storedEvidence)), Buffer.from(evidence), 'previous keys decrypt historical evidence')
 delete process.env.FIELD_ENCRYPTION_KEY
+assert.throws(() => encodeEvidence(evidence), /FIELD_ENCRYPTION_KEY/)
 process.env.NODE_ENV = 'production'
 assert.throws(() => encryptField('requires key'), /FIELD_ENCRYPTION_KEY/)
 if (saved.key === undefined) delete process.env.FIELD_ENCRYPTION_KEY; else process.env.FIELD_ENCRYPTION_KEY = saved.key

@@ -25,8 +25,9 @@ describe('authentication', () => {
   })
 
   it('still serves the public support-bot submit route without a session', async () => {
-    const res = expectStatus(await as(null).post('/support-bot/submit-issue', { description: 'How do I add a workspace?' }), 201)
-    assert.equal(res.body.category, 'question')
+    const res = expectStatus(await as(null).post('/support-bot/submit-issue', { description: 'How do I add a workspace?', publicIssueDisclosure: true }), 201)
+    assert.equal(res.body.classification, 'question')
+    assert.equal((await rows('SELECT category FROM support_issues'))[0].category, 'question')
   })
 
   it('refuses consumer-mail users creating organizations', async () => {

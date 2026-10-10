@@ -1,7 +1,9 @@
 import type { Config } from '@netlify/functions'
+import { listOfflineFrameworks, mutateOfflineFramework } from '../lib/offline-frameworks.js'
 import { escalateSupport } from '../lib/support-escalation.js'
 import { createHash } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
+import { decodeEvidence, encodeEvidence } from '../lib/evidence-storage.js'
 import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, or, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
@@ -519,6 +521,10 @@ async function generateReport(c: Ctx, orgId: number, wsId: number, caller: Calle
 const W = '/workspaces/:ws'
 const A = `${W}/assessments/:id`
 const routes: Route[] = [
+  { method: 'GET', pattern: `${W}/offline-frameworks`, access: 'viewer', scope: 'workspace',
+    handler: (_c, { caller, orgId, wsId, role }) => listOfflineFrameworks(caller, orgId, wsId, role) },
+  { method: 'POST', pattern: `${W}/offline-frameworks/mutations`, access: 'admin', scope: 'workspace',
+    handler: (c, { caller, orgId, wsId }) => mutateOfflineFramework(caller, orgId, wsId, c.body) },
   { method: 'GET', pattern: '/privacy/export', access: 'authed', handler: (c, { caller }) => exportDataForCaller(c, caller) },
   { method: 'GET', pattern: '/privacy/erasure-requests', access: 'authed', handler: async (_c, { caller }) => {
     const memberships = await db.select({ orgId: wsOrgMembers.orgId, role: wsOrgMembers.role }).from(wsOrgMembers)
@@ -999,7 +1005,7 @@ const routes: Route[] = [
     if (!ALLOWED_EVIDENCE_MIME.includes(file.type)) throw bad('unsupported file type (PDF, DOCX, XLSX, images, ZIP)')
     const documentType = oneOf(form.get('documentType') ?? undefined, 'documentType', ['assessment', 'policy', 'evidence', 'certification'] as const, 'evidence')
     const key = `${orgId}/${wsId}/${crypto.randomUUID()}`
-    await getStore('evidence').set(key, await file.arrayBuffer(), { metadata: { mimeType: file.type } })
+    await getStore('evidence').set(key, encodeEvidence(await file.arrayBuffer()), { metadata: { mimeType: file.type } })
     const [e] = await db.insert(evidenceRegistry).values({
       orgId, workspaceId: wsId, documentName: file.name.slice(0, 255), documentType, uploadedBy: caller.email, filePath: key,
       fileSizeKb: Math.ceil(file.size / 1024), mimeType: file.type, expiryDate: dateOrNull(form.get('expiryDate') || null, 'expiryDate'),
@@ -1081,7 +1087,7 @@ const routes: Route[] = [
     const data = await getStore('evidence').get(e.filePath, { type: 'arrayBuffer' })
     if (!data) throw new HttpError(404, 'File not found')
     await audit(c, orgId, wsId, 'evidence', e.id, 'read', { download: true })
-    return new Response(data, { headers: {
+    return new Response(decodeEvidence(data), { headers: {
       'Content-Type': e.mimeType, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store',
       'Content-Disposition': `attachment; filename="${e.documentName.replace(/[^\w.\- ]/g, '_')}"`,
     } })
