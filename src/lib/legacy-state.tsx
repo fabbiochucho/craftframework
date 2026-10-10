@@ -8,6 +8,13 @@ export function usePersistedTenantState<T>(
   orgId: string | undefined, demo: boolean, key: string, initial: T | (() => T), readOnly = false,
 ): [T, Dispatch<SetStateAction<T>>, SaveStatus] {
   const { currentUser } = useAuthCtx()
+  return useTenantState(currentUser?.email, orgId, demo, key, initial, readOnly)
+}
+
+export function useTenantState<T>(
+  userEmail: string | undefined, orgId: string | undefined, demo: boolean, key: string,
+  initial: T | (() => T), readOnly = false,
+): [T, Dispatch<SetStateAction<T>>, SaveStatus] {
   const initialRef = useRef(initial)
   initialRef.current = initial
   const fresh = useCallback(() => typeof initialRef.current === 'function'
@@ -20,7 +27,7 @@ export function usePersistedTenantState<T>(
   const generation = useRef(0)
   const edited = useRef(false)
   const writes = useRef(Promise.resolve())
-  const scope = `${currentUser?.email ?? ''}|${orgId ?? ''}|${demo}|${key}|${readOnly}`
+  const scope = `${userEmail ?? ''}|${orgId ?? ''}|${demo}|${key}|${readOnly}`
   const activeScope = useRef(scope)
   activeScope.current = scope
   const controller = useRef(new AbortController())

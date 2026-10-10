@@ -256,11 +256,13 @@ export const offlineDB = {
   // --- Drafts (instant UI state) -------------------------------------------
   async putDraft(key: string, value: unknown): Promise<void> {
     if (!hasIndexedDB()) return
-    const db = await getDB()
     const owner = getOfflineSession()
-    if (!owner) return
+    if (!owner) throw new Error('Saved changes are locked')
+    const db = await getDB()
     const scopedKey = JSON.stringify([owner.userId, owner.tenantId, key])
-    await db.put(STORE_DRAFTS, await seal(db, { key: scopedKey, value, updatedAt: Date.now(), owner }))
+    const sealed = await seal(db, { key: scopedKey, value, updatedAt: Date.now(), owner })
+    if (!ownsRecord({ owner })) throw new Error('Session changed before the draft was saved')
+    await db.put(STORE_DRAFTS, sealed)
   },
 
   async getDraft<T = unknown>(key: string): Promise<T | undefined> {

@@ -1,4 +1,4 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AppProvider } from '../lib/context'
 import { I18nProvider } from '../lib/i18n'
@@ -68,8 +68,26 @@ export const Route = createRootRoute({
       { rel: 'manifest', href: '/manifest.json' },
     ],
   }),
+  component: RootApp,
   shellComponent: RootDocument,
 })
+
+function RootApp() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppProvider>
+        <I18nProvider>
+          <IdentityBridge>
+            <Outlet />
+          </IdentityBridge>
+          <OfflineBanner />
+          <AutoTranslate />
+          <SupportBot />
+        </I18nProvider>
+      </AppProvider>
+    </QueryClientProvider>
+  )
+}
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
@@ -78,18 +96,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="font-sans antialiased">
-        <QueryClientProvider client={queryClient}>
-          <AppProvider>
-            <I18nProvider>
-              <IdentityBridge>
-                {children}
-              </IdentityBridge>
-              <OfflineBanner />
-              <AutoTranslate />
-              <SupportBot />
-            </I18nProvider>
-          </AppProvider>
-        </QueryClientProvider>
+        {children}
         <Scripts />
       </body>
     </html>

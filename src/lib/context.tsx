@@ -25,7 +25,7 @@ import * as api from './api'
 import { offlineDB } from './offline/db'
 import { queueAndSync } from './offline/sync-engine'
 import type { JurisdictionId, SectorArchetype } from './regulatory-context'
-import { usePersistedTenantState, type SaveStatus } from './legacy-state'
+import { useTenantState, type SaveStatus } from './legacy-state'
 import { clearOfflineSession } from './offline/session'
 
 // ============================================================================
@@ -336,13 +336,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
   const auditSeq = useRef(0)
   // Active thematic lenses (Core Foundation is always on, tracked implicitly).
-  const [activeLenses, setActiveLenses, lensSaveStatus] = usePersistedTenantState<Record<LensId, boolean>>(activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'active-lenses', defaultActiveLenses, !!activeClientOrgId)
+  const [activeLenses, setActiveLenses, lensSaveStatus] = useTenantState<Record<LensId, boolean>>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'active-lenses', defaultActiveLenses, !!activeClientOrgId)
   // Portfolio-mandated lenses - forced on for every institution in the portfolio.
-  const [mandatoryLenses, setMandatoryLenses, mandateSaveStatus] = usePersistedTenantState<Record<LensId, boolean>>(activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'mandatory-lenses', {
+  const [mandatoryLenses, setMandatoryLenses, mandateSaveStatus] = useTenantState<Record<LensId, boolean>>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'mandatory-lenses', {
     climate: false, emergency: false, research: false,
   }, !!activeClientOrgId)
   // Entity profile - blank in a live workspace until the user selects it.
-  const [entityProfile, setEntityProfileState, profileSaveStatus] = usePersistedTenantState<EntityProfile>(activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
+  const [entityProfile, setEntityProfileState, profileSaveStatus] = useTenantState<EntityProfile>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
     archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
   }, !!activeClientOrgId)
   useEffect(() => {

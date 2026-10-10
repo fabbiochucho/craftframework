@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { MessageCircle, Send, X } from 'lucide-react'
-import { setSupportAnalyticsConsent, supportTopicKeywords, trackSupportEvent } from '../lib/analytics'
+import { setSupportAnalyticsConsent, trackSupportEvent } from '../lib/analytics'
 
 interface Message {
   id: string
@@ -142,7 +142,6 @@ export function SupportBot() {
       if (!response.ok) throw new Error(data.error || 'Unable to submit your message')
       trackSupportEvent({
         event: 'support_chat_message_sent', classification: data.classification,
-        topic_keywords: data.type === 'private_report' ? [] : supportTopicKeywords(message),
       })
       if (data.issueCreated && !data.deduplicated) {
         trackSupportEvent({ event: 'support_issue_created', category: data.classification, privacy_level: 'public' })

@@ -1,9 +1,23 @@
 // Self-check — run directly with `node netlify/lib/workspace.test.ts`.
 import assert from 'node:assert/strict'
+import { consolidatedEvidenceKey, evidenceManifestSchema, legacyEvidenceStore } from './evidence-consolidation.ts'
 import {
   buildScorecard, canAssignRole, capCloseBlockers, csvEscape, effectiveCapStatus, evidenceExpiryState,
   hasMinRole, isRateLimitedCount, isVerificationEvidence, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore,
 } from './workspace.ts'
+
+const migrationEntry = {
+  legacyOrgId: 'tenant-abc', sourceKey: 'tenant-abc/policy/file.pdf',
+  orgId: 1, workspaceId: 2, uploadedBy: 'assessor@example.org', sha256: 'a'.repeat(64),
+}
+const manifest = { version: 1, reviewedBy: 'reviewer@example.org', entries: [migrationEntry] }
+assert.ok(evidenceManifestSchema.safeParse(manifest).success)
+assert.equal(legacyEvidenceStore('tenant-abc'), 'data-room-tenant-abc')
+assert.equal(consolidatedEvidenceKey(migrationEntry), consolidatedEvidenceKey({ ...migrationEntry }))
+assert.notEqual(consolidatedEvidenceKey(migrationEntry), consolidatedEvidenceKey({ ...migrationEntry, workspaceId: 3 }))
+assert.ok(!evidenceManifestSchema.safeParse({ ...manifest, entries: [migrationEntry, migrationEntry] }).success)
+assert.ok(!evidenceManifestSchema.safeParse({ ...manifest, entries: [{ ...migrationEntry, sourceKey: 'other/file.pdf' }] }).success)
+assert.ok(!evidenceManifestSchema.safeParse({ ...manifest, entries: [{ ...migrationEntry, orgId: 'tenant-abc' }] }).success)
 
 assert.ok(hasMinRole('owner', 'admin'))
 assert.ok(hasMinRole('assessor', 'assessor'))

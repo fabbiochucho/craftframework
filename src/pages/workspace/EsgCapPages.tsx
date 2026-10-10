@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { OfflineFrameworkEditor } from '../../components/OfflineFrameworkEditor'
 import { Link } from '@tanstack/react-router'
 import { api, SEVERITY_STYLE, wsPath } from '../../lib/workspaceApi'
 import { Accordion, Badge, Button, Card, CardContent, Input, ProgressBar, Select, Table, Tbody, Td, Th, Thead } from '../../components/ui'
@@ -13,6 +14,7 @@ export function EsgFrameworksPage({ workspaceId }: { workspaceId: string }) {
   return (
     <div className="space-y-6">
       <Header title="ESG frameworks" back={dash(workspaceId)} />
+      <OfflineFrameworkEditor workspaceId={workspaceId} />
       <div className="w-48"><Select placeholder="All jurisdictions" value={jur} onChange={setJur} options={['EU', 'global'].map(v => ({ value: v, label: v }))} /></div>
       <ErrorLine error={error} /><State loading={list.loading} error={list.error} />
       <div className="grid gap-4 md:grid-cols-3">{list.data?.map(f => (
