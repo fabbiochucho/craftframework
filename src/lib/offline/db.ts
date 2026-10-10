@@ -22,9 +22,10 @@
 // ============================================================================
 
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import { getOfflineSession, ownsRecord, type OfflineOwner } from './session'
 
 export const DB_NAME = 'craft-offline'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export const STORE_MUTATIONS = 'mutations' as const
 export const STORE_DRAFTS = 'drafts' as const
@@ -35,6 +36,8 @@ export const STORE_FILES = 'files' as const
 // Keeping mutations transport-shaped means the sync engine can replay anything
 // the online code path would have sent, without knowing the domain.
 export interface QueuedMutation {
+  owner?: OfflineOwner
+  failed?: boolean
   id?: number
   // Human label for logging / the sync UI, e.g. "assessment:score" or
   // "financial-triangulation".
@@ -52,6 +55,7 @@ export interface QueuedMutation {
 }
 
 export interface DraftRecord {
+  owner?: OfflineOwner
   key: string
   value: unknown
   updatedAt: number
@@ -60,6 +64,8 @@ export interface DraftRecord {
 // A file awaiting upload. The blob is stored verbatim; on sync the engine calls
 // the presigned-URL function, PUTs the bytes, then records document metadata.
 export interface QueuedFile {
+  owner?: OfflineOwner
+  failed?: boolean
   id?: number
   fileName: string
   contentType: string
@@ -78,6 +84,7 @@ export interface QueuedFile {
 }
 
 interface CraftDB extends DBSchema {
+  keys: { key: string; value: CryptoKey }
   mutations: {
     key: number
     value: QueuedMutation
@@ -119,8 +126,59 @@ function getDB(): Promise<IDBPDatabase<CraftDB>> {
           const store = db.createObjectStore(STORE_FILES, { keyPath: 'id', autoIncrement: true })
           store.createIndex('by-created', 'createdAt')
         }
+        if (!db.objectStoreNames.contains('keys')) db.createObjectStore('keys')
       },
     })
+  }
+
+  type Envelope = {
+    encrypted: true
+    iv: Uint8Array<ArrayBuffer>
+    ciphertext: ArrayBuffer
+    owner?: OfflineOwner
+    id?: number
+    key?: string
+    createdAt?: number
+    dedupeKey?: string
+  }
+
+  async function encryptionKey(db: IDBPDatabase<CraftDB>): Promise<CryptoKey> {
+    const existing = await db.get('keys', 'device')
+    if (existing) return existing
+    if (!globalThis.crypto?.subtle) throw new Error('Secure browser storage is unavailable; pending data was not removed.')
+    const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
+    const tx = db.transaction('keys', 'readwrite')
+    const raced = await tx.store.get('device')
+    if (!raced) await tx.store.put(key, 'device')
+    await tx.done
+    return raced ?? key
+  }
+
+  async function seal<T extends QueuedMutation | QueuedFile | DraftRecord>(db: IDBPDatabase<CraftDB>, record: T): Promise<T> {
+    const key = await encryptionKey(db)
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const payload = { ...record } as Record<string, unknown>
+    if ('blob' in record) {
+      payload.blob = Array.from(new Uint8Array(await record.blob.arrayBuffer()))
+      payload.blobType = record.blob.type
+    }
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)))
+    return { encrypted: true, iv, ciphertext, owner: record.owner, ...('id' in record ? { id: record.id } : {}),
+      ...('key' in record ? { key: record.key } : {}),
+      ...('createdAt' in record ? { createdAt: record.createdAt } : {}),
+      ...('dedupeKey' in record ? { dedupeKey: record.dedupeKey } : {}) } as unknown as T
+  }
+
+  async function unseal<T>(db: IDBPDatabase<CraftDB>, stored: T): Promise<T> {
+    const envelope = stored as unknown as Envelope
+    if (!envelope.encrypted) return stored // Existing pending plaintext records remain recoverable.
+    const key = await db.get('keys', 'device')
+    if (!key) throw new Error('Offline encryption key is missing. Saved records have been preserved.')
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: envelope.iv }, key, envelope.ciphertext)
+    const record = JSON.parse(new TextDecoder().decode(plaintext))
+    if (Array.isArray(record.blob)) record.blob = new Blob([new Uint8Array(record.blob)], { type: record.blobType })
+    if (envelope.id != null) record.id = envelope.id
+    return record as T
   }
   return dbPromise
 }
@@ -140,6 +198,7 @@ export const offlineDB = {
     if (!hasIndexedDB()) return null
     const db = await getDB()
     const record: QueuedMutation = {
+      owner: getOfflineSession() ?? undefined,
       kind: input.kind,
       endpoint: input.endpoint,
       method: input.method,
@@ -148,27 +207,15 @@ export const offlineDB = {
       createdAt: input.createdAt ?? Date.now(),
       attempts: 0,
     }
-    // Collapse superseded edits: drop any pending mutation sharing this dedupeKey
-    // before enqueuing the newer value, so only the latest state is synced.
-    if (record.dedupeKey) {
-      const tx = db.transaction(STORE_MUTATIONS, 'readwrite')
-      const idx = tx.store.index('by-dedupe')
-      let cursor = await idx.openCursor(IDBKeyRange.only(record.dedupeKey))
-      while (cursor) {
-        await cursor.delete()
-        cursor = await cursor.continue()
-      }
-      const id = await tx.store.add(record)
-      await tx.done
-      return id as number
-    }
-    return (await db.add(STORE_MUTATIONS, record)) as number
+    // Never replace an in-flight or legacy record: each accepted write is durable.
+    return (await db.add(STORE_MUTATIONS, await seal(db, record))) as number
   },
 
   async getMutations(): Promise<QueuedMutation[]> {
     if (!hasIndexedDB()) return []
     const db = await getDB()
-    return db.getAllFromIndex(STORE_MUTATIONS, 'by-created')
+    const records = await db.getAllFromIndex(STORE_MUTATIONS, 'by-created')
+    return Promise.all(records.filter(ownsRecord).map(record => unseal(db, record)))
   },
 
   async deleteMutation(id: number): Promise<void> {
@@ -180,7 +227,7 @@ export const offlineDB = {
   async updateMutation(record: QueuedMutation): Promise<void> {
     if (!hasIndexedDB() || record.id == null) return
     const db = await getDB()
-    await db.put(STORE_MUTATIONS, record)
+    await db.put(STORE_MUTATIONS, await seal(db, record))
   },
 
   async countMutations(): Promise<number> {
@@ -193,20 +240,26 @@ export const offlineDB = {
   async putDraft(key: string, value: unknown): Promise<void> {
     if (!hasIndexedDB()) return
     const db = await getDB()
-    await db.put(STORE_DRAFTS, { key, value, updatedAt: Date.now() })
+    const owner = getOfflineSession()
+    if (!owner) return
+    const scopedKey = JSON.stringify([owner.userId, owner.tenantId, key])
+    await db.put(STORE_DRAFTS, await seal(db, { key: scopedKey, value, updatedAt: Date.now(), owner }))
   },
 
   async getDraft<T = unknown>(key: string): Promise<T | undefined> {
     if (!hasIndexedDB()) return undefined
     const db = await getDB()
-    const rec = await db.get(STORE_DRAFTS, key)
-    return rec?.value as T | undefined
+    const owner = getOfflineSession()
+    if (!owner) return undefined
+    const rec = await db.get(STORE_DRAFTS, JSON.stringify([owner.userId, owner.tenantId, key]))
+    return rec && ownsRecord(rec) ? (await unseal(db, rec)).value as T : undefined
   },
 
   async deleteDraft(key: string): Promise<void> {
     if (!hasIndexedDB()) return
     const db = await getDB()
-    await db.delete(STORE_DRAFTS, key)
+    const owner = getOfflineSession()
+    if (owner) await db.delete(STORE_DRAFTS, JSON.stringify([owner.userId, owner.tenantId, key]))
   },
 
   // --- File upload queue ----------------------------------------------------
@@ -217,16 +270,18 @@ export const offlineDB = {
     const db = await getDB()
     const record: QueuedFile = {
       ...input,
+      owner: getOfflineSession() ?? undefined,
       createdAt: input.createdAt ?? Date.now(),
       attempts: 0,
     }
-    return (await db.add(STORE_FILES, record)) as number
+    return (await db.add(STORE_FILES, await seal(db, record))) as number
   },
 
   async getFiles(): Promise<QueuedFile[]> {
     if (!hasIndexedDB()) return []
     const db = await getDB()
-    return db.getAllFromIndex(STORE_FILES, 'by-created')
+    const records = await db.getAllFromIndex(STORE_FILES, 'by-created')
+    return Promise.all(records.filter(ownsRecord).map(record => unseal(db, record)))
   },
 
   async deleteFile(id: number): Promise<void> {
@@ -238,7 +293,7 @@ export const offlineDB = {
   async updateFile(record: QueuedFile): Promise<void> {
     if (!hasIndexedDB() || record.id == null) return
     const db = await getDB()
-    await db.put(STORE_FILES, record)
+    await db.put(STORE_FILES, await seal(db, record))
   },
 
   async countFiles(): Promise<number> {
@@ -247,10 +302,15 @@ export const offlineDB = {
     return db.count(STORE_FILES)
   },
 
-  // --- Sovereignty Shield: full local wipe ---------------------------------
-  // Called by the auto-wipe hook on inactivity and on sign-out. Purges every
-  // store so no fiduciary/regulatory data lingers on the device.
-  async clearAll(): Promise<void> {
+  async clearDrafts(): Promise<void> {
+    if (!hasIndexedDB()) return
+    const db = await getDB()
+    await db.clear(STORE_DRAFTS)
+  },
+
+  // Destruction of pending writes requires explicit caller/user confirmation.
+  async clearAll(options?: { discardPending: true }): Promise<void> {
+    if (!options?.discardPending) throw new Error('Explicit confirmation is required to discard pending changes.')
     if (!hasIndexedDB()) return
     const db = await getDB()
     const tx = db.transaction([STORE_MUTATIONS, STORE_DRAFTS, STORE_FILES], 'readwrite')

@@ -32,9 +32,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.23.3
           cache: npm
       - run: npm ci
+      # npm scripts resolve the lockfile-pinned Deno before Netlify's downloader,
+      # whose fallback (2.2.4) cannot accept edge-functions-dev's --allow-scripts.
+      - run: npm exec -- deno eval --allow-scripts --quiet --no-lock 'console.log(Deno.version.deno)'
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:integration

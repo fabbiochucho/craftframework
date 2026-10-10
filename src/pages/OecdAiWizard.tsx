@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 import {
   ShieldCheck,
   ChevronLeft,
@@ -51,10 +53,10 @@ export function OecdAiWizard() {
   const dim = AI_DIMENSIONS[step]
 
   // Wizard answers keyed by facetKey -> classification
-  const [answers, setAnswers] = useState<Record<string, Classification>>({})
+  const [answers, setAnswers, saveStatus] = useLegacyAssessment<Record<string, Classification>>('oecd:answers', {})
 
   // EIA checklist state keyed by check.key -> boolean
-  const [checks, setChecks] = useState<Record<string, boolean>>({})
+  const [checks, setChecks, checkStatus] = useLegacyAssessment<Record<string, boolean>>('oecd:checks', {})
 
   const setAnswer = (key: string, value: Classification) =>
     setAnswers(prev => ({ ...prev, [key]: value }))
@@ -85,6 +87,8 @@ export function OecdAiWizard() {
 
   return (
     <div className="space-y-6">
+      <LegacySaveStatus status={saveStatus} />
+      <LegacySaveStatus status={checkStatus} />
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>

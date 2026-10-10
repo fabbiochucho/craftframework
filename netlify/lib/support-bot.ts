@@ -133,9 +133,9 @@ export function redactSupportMessage(message: string): string {
     .slice(0, 4000)
 }
 
-export function supportDeduplicationKey(category: SupportCategory, message: string): string {
+export function supportDeduplicationKey(category: SupportCategory, message: string, orgId: number | null = null, workspaceId: number | null = null): string {
   const digest = createHash('sha256')
-    .update(`${category}:${normalizeSupportMessage(redactSupportMessage(message))}`)
+    .update(`${orgId ?? 'public'}:${workspaceId ?? 'public'}:${category}:${normalizeSupportMessage(redactSupportMessage(message))}`)
     .digest('hex')
   return `chat/${digest}`
 }

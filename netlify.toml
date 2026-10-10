@@ -90,7 +90,8 @@
 # Workspace platform (orgs, governance, ESG, CAP, evidence, reports, audit)
 # ---------------------------------------------------------------------------
 # Environment variables (set in the Netlify UI — never commit values):
-#   DATABASE_URL      Postgres connection (only for an external DB; Netlify DB is automatic)
+#   Netlify Database is configured through the native platform adapter.
+#   A generic DATABASE_URL does not replace the Netlify adapter.
 #   SENDGRID_API_KEY  report / support email delivery
 #   GITHUB_TOKEN      support-bot GitHub issue creation (label `community-question`)
 #

@@ -2,6 +2,12 @@
 
 This guide walks you through setting up the lightweight support bot and issue-routing layer for craftframework.
 
+The current handlers are in `netlify/functions/workspace-api.mts`. Public intake
+uses `/api/support-bot/chat`; confidential consent-based escalation uses
+`/api/support-bot/escalate` and Resend. FAQ answers do not automatically send mail.
+See [the current integration checklist](chatbot-support-plan.md#implemented-support-escalation-and-analytics)
+and [provider operations](platform-guide.md#provider-operations-checklist).
+
 ## Overview
 
 The support bot provides:
@@ -16,12 +22,12 @@ The support bot provides:
 
 ### Components
 
-1. **Netlify Function** (`netlify/functions/support-bot.ts`)
+1. **Netlify Function** (`netlify/functions/workspace-api.mts`)
    - Receives POST requests from the chat widget
    - Classifies requests
    - Answers common questions from knowledge base
    - Creates GitHub issues
-   - Sends email notifications
+   - Offers explicit private escalation; SendGrid is used for report/support responses
 
 2. **Chat Widget** (`src/components/SupportBot.tsx`)
    - React component embedded on docs/support pages
@@ -34,11 +40,11 @@ The support bot provides:
 ### 1. Create GitHub Token
 
 1. Go to [GitHub Settings → Developer Settings → Personal Access Tokens](https://github.com/settings/tokens)
-2. Click "Generate new token (classic)"
+2. Prefer a fine-grained token restricted to this repository with Issues read/write
 3. Give it a name like `craftframework-support-bot`
-4. Grant these scopes:
-   - `repo` (full control of private repositories)
-   - `issues` (read/write issues)
+4. Grant only the required repository permissions. If a classic token is
+   necessary, `repo` includes private-repository issue access; there is no
+   separate classic `issues` scope. Do not grant unrelated administrative scopes.
 5. Click "Generate token"
 6. Copy the token (you won't see it again)
 
@@ -125,7 +131,9 @@ export default function DocsPage() {
 
 ## Customizing the Knowledge Base
 
-Edit `netlify/functions/support-bot.ts` and update the `KNOWLEDGE_BASE` array:
+Edit the FAQ catalogue and ranking rules in `netlify/lib/support-bot.ts`, and
+validate changes with its existing unit tests. The snippets below illustrate FAQ
+content rather than the current catalogue schema:
 
 ```typescript
 const KNOWLEDGE_BASE = [
@@ -172,32 +180,24 @@ Keywords are case-insensitive and partial matches work.
 Test the GitHub API by sending a curl request:
 
 ```bash
-curl -X POST http://localhost:8889/.netlify/functions/support-bot \
+curl -X POST http://localhost:8889/api/support-bot/chat \
   -H "Content-Type: application/json" \
   -d '{
     "message": "Test: Dashboard crashes on load",
-    "email": "test@example.com",
-    "context": "/dashboard"
+    "publicIssueDisclosure": true
   }'
 ```
 
-Expect a response:
-```json
-{
-  "success": true,
-  "type": "bug",
-  "issueCreated": true,
-  "issueUrl": "https://github.com/fabbiochucho/craftframework/issues/123",
-  "emailSent": true,
-  "message": "Your bug has been recorded. [Track it here](...)"
-}
-```
+The response distinguishes FAQ answers, classification, issue creation and
+configuration failures. Do not expect automatic email for this public request.
+Use a controlled test project/token for write tests; never send confidential
+details through a public issue test.
 
 ## Monitoring
 
 ### GitHub Issues
 
-Check the repository for issues labeled `bot-generated`, `bug`, or `feature` to see incoming requests.
+Check the repository for `bug`, `enhancement`, or `community-question` labels.
 
 ### Email
 

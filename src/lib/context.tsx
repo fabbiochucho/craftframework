@@ -25,6 +25,7 @@ import * as api from './api'
 import { offlineDB } from './offline/db'
 import { queueAndSync } from './offline/sync-engine'
 import type { JurisdictionId, SectorArchetype } from './regulatory-context'
+import { usePersistedTenantState, type SaveStatus } from './legacy-state'
 
 // ============================================================================
 // This used to be a single AppContext exposing 40+ values through one object,
@@ -207,6 +208,7 @@ interface LensContextType {
 interface EntityProfileContextType {
   entityProfile: EntityProfile
   setEntityProfile: (patch: Partial<EntityProfile>) => void
+  profileSaveStatus: SaveStatus
 }
 
 interface TeamContextType {
@@ -329,14 +331,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
   const auditSeq = useRef(0)
   // Active thematic lenses (Core Foundation is always on, tracked implicitly).
-  const [activeLenses, setActiveLenses] = useState<Record<LensId, boolean>>(defaultActiveLenses)
+  const [activeLenses, setActiveLenses] = usePersistedTenantState<Record<LensId, boolean>>(currentUser?.orgId, !!currentUser?.isDemo, 'active-lenses', defaultActiveLenses)
   // Portfolio-mandated lenses - forced on for every institution in the portfolio.
-  const [mandatoryLenses, setMandatoryLenses] = useState<Record<LensId, boolean>>({
+  const [mandatoryLenses, setMandatoryLenses] = usePersistedTenantState<Record<LensId, boolean>>(currentUser?.orgId, !!currentUser?.isDemo, 'mandatory-lenses', {
     climate: false, emergency: false, research: false,
   })
   // Entity profile - blank in a live workspace until the user selects it.
-  const [entityProfile, setEntityProfileState] = useState<EntityProfile>({
-    archetype: '', country: '', sector: '', subsector: '', jurisdictions: [], regSector: '',
+  const [entityProfile, setEntityProfileState, profileSaveStatus] = usePersistedTenantState<EntityProfile>(currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
+    archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
   })
 
   // A reviewer drilled into a client's workspace views it strictly read-only in
@@ -574,7 +576,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPortfolios(MOCK_PORTFOLIOS)
     setOnboardingComplete(true)
     // Showcase the dynamic engines with an illustrative Nigerian fintech.
-    setEntityProfileState({ archetype: 'Private', country: 'NG', sector: 'Fintech', subsector: 'Digital Lending & Credit', jurisdictions: ['NG', 'EU'], regSector: 'bank_dfi' })
     setCurrentUser({
       id: 'demo-user',
       email: 'demo@craft.dibadili',
@@ -590,6 +591,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setEntityProfile = useCallback(
     (patch: Partial<EntityProfile>) => {
+      if (readOnlyRef.current) return
       setEntityProfileState(prev => {
         const next = { ...prev, ...patch }
         // Changing archetype invalidates the previously selected sector and
@@ -630,7 +632,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     pfSeq.current = 0
     setAuditLog([])
     auditSeq.current = 0
-    setEntityProfileState({ archetype: '', country: '', sector: '', subsector: '', jurisdictions: [], regSector: '' })
   }, [])
 
   const setRole = useCallback((role: UserRole) => {
@@ -1243,8 +1244,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   )
 
   const entityProfileValue = useMemo<EntityProfileContextType>(
-    () => ({ entityProfile, setEntityProfile }),
-    [entityProfile, setEntityProfile],
+    () => ({ entityProfile, setEntityProfile, profileSaveStatus }),
+    [entityProfile, setEntityProfile, profileSaveStatus],
   )
 
   const teamValue = useMemo<TeamContextType>(
