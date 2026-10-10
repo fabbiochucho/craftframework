@@ -60,14 +60,15 @@ const CLAUSES: Clause[] = [
       <>
         If you are in the European Economic Area, the UK, or California, you have the right to access the
         personal data we hold about you, correct it, export it, and request its deletion (the
-        "right to be forgotten"). California residents additionally have the right to opt out of the sale
+        "right to be forgotten"). Once signed in, download an export at <code>/api/privacy/export</code> or
+        request organisation-scoped erasure through <code>POST /api/privacy/erasure-requests</code>. A different
+        organisation admin or owner must approve erasure; you may also contact us for assistance. California residents additionally have the right to opt out of the sale
         or sharing of personal data — we do not sell or share personal data, so this right is satisfied by
         default. To exercise any of these rights, contact{' '}
         <a href={`mailto:${BRAND.contactEmail}`} className="font-semibold text-emerald-700 underline-offset-2 hover:underline">
           {BRAND.contactEmail}
         </a>{' '}
-        or use the account-deletion request available from your workspace settings once signed in. We
-        respond to verified requests within 30 days.
+        We respond to verified requests within 30 days.
       </>
     ),
   },
@@ -76,11 +77,12 @@ const CLAUSES: Clause[] = [
     title: '5. Data Retention',
     body: (
       <>
-        We retain your account and workspace data for as long as your organization's workspace remains
-        active. If your organization deletes its workspace, all associated assessment, compliance,
-        financial, and Data Room records are permanently removed at that time. Audit log entries
-        referencing a deleted user's actions are retained in anonymized form to preserve the integrity of
-        the compliance trail, with the identifying email address removed.
+        We retain organisational assessment, compliance, financial, and evidence records while the
+        organisation needs them for accountability. An approved erasure request removes the member's
+        organisation membership and replaces their identity in audit actors and assigned/created-by fields
+        with a pseudonym; archived evidence blobs are purged. The audit trail and a minimal erasure-request
+        record are retained to preserve integrity and demonstrate that the request was handled. Active
+        organisational evidence and business records may remain where needed for legal or audit obligations.
       </>
     ),
   },

@@ -1,4 +1,4 @@
-import { Handler } from "@netlify/functions";
+import { Handler, HandlerResponse } from "@netlify/functions";
 
 /**
  * Support Bot Handler
@@ -248,7 +248,7 @@ async function createGitHubIssue(
     return { success: false };
   }
 
-  const labels = [classification.type];
+  const labels: string[] = [classification.type];
   if (classification.urgency === "high") labels.push("urgent");
 
   const body = `**Type:** ${classification.type}\n**Urgency:** ${classification.urgency}\n**User Email:** ${userEmail || "not provided"}\n\n---\n\n${classification.summary}`;
@@ -356,7 +356,7 @@ ${issueUrl ? `GitHub Issue: ${issueUrl}` : "No issue created."}
   }
 }
 
-const handler: Handler = async (event) => {
+const handler: Handler = async (event): Promise<HandlerResponse> => {
   // Handle CORS preflight
   if (event.httpMethod === "OPTIONS") {
     return {

@@ -65,7 +65,7 @@ function ScoringWizard({ workspaceId, a, reload }: { workspaceId: string; a: any
 }
 
 function FindingsTab({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
-  const [f, setF] = useState({ domain: ALL_DOMAINS[0].domain, severity: 'medium', description: '' })
+  const [f, setF] = useState({ domain: ALL_DOMAINS[0].domain, severity: 'medium', description: '', sensitive: false })
   const { run, error } = useAction(reload)
   const locked = a.status === 'approved'
   return (
@@ -75,6 +75,7 @@ function FindingsTab({ workspaceId, a, reload }: { workspaceId: string; a: any; 
           <div className="w-60"><Select label="Domain" value={f.domain} onChange={domain => setF({ ...f, domain })} options={ALL_DOMAINS.map(d => ({ value: d.domain, label: d.domain }))} /></div>
           <div className="w-36"><Select label="Severity" value={f.severity} onChange={severity => setF({ ...f, severity })} options={['critical', 'high', 'medium', 'low'].map(v => ({ value: v, label: v }))} /></div>
           <div className="min-w-[240px] flex-1"><Input label="Description" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.sensitive} onChange={e => setF({ ...f, sensitive: e.target.checked })} /> Contains sensitive personal details</label>
           <Button disabled={!f.description} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/findings`), { method: 'POST', body: f }))}>Add finding</Button>
         </div>
       )}
