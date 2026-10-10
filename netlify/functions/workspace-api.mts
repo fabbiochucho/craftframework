@@ -19,6 +19,9 @@ import {
 import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
 import { logger } from '../lib/logger.js'
+import {
+  classifySupportMessage, isPrivateReport, rankSupportFaq, redactSupportMessage, supportDeduplicationKey,
+} from '../lib/support-bot.js'
 
 // ============================================================================
 // Workspace platform API — orgs, governance, ESG, CAP, evidence, reports,
@@ -1182,6 +1185,7 @@ const routes: Route[] = [
   // ---------------------------- 2.7 Support bot ----------------------------
   { method: 'POST', pattern: '/support-bot/submit-issue', access: 'public', handler: (c) => submitIssue(c, false) },
   { method: 'POST', pattern: '/support-bot/github-issue', access: 'public', handler: (c) => submitIssue(c, true) },
+  { method: 'POST', pattern: '/support-bot/chat', access: 'public', handler: handleSupportChat },
   { method: 'GET', pattern: '/support-bot/issues', access: 'authed', handler: async (c, { caller }) => {
     const wsParam = c.url.searchParams.get('workspaceId')
     if (wsParam) {
@@ -1233,6 +1237,91 @@ async function submitIssue(c: Ctx, githubFirst: boolean): Promise<Response> {
   return json({ ...issue, contactEmail, emailed }, 201)
 }
 
+async function handleSupportChat(c: Ctx): Promise<Response> {
+  const message = str(c.body.message, 'message', 5000)
+  if (c.body.publicIssueDisclosure !== true) throw bad('Public issue disclosure must be accepted')
+
+  if (isPrivateReport(message)) {
+    return json({
+      success: true,
+      type: 'private_report',
+      answer: 'For conduct or security reports, please contact craftframework@becomechange.institute directly. Do not include sensitive details in this public chat.',
+    })
+  }
+
+  const classification = classifySupportMessage(message)
+  const faq = classification.type === 'question' ? rankSupportFaq(message) : null
+  const description = redactSupportMessage(message)
+  const key = supportDeduplicationKey(classification.type, description)
+  const digest = Buffer.from(key.slice('chat/'.length), 'hex')
+  const lockA = digest.readInt32BE(0)
+  const lockB = digest.readInt32BE(4)
+  const store = getStore('support-intake')
+  const labels = classification.type === 'feature'
+    ? ['enhancement']
+    : classification.type === 'question'
+      ? ['community-question']
+      : ['bug']
+  if (classification.urgency === 'high') labels.push('urgent')
+  const title = `[${classification.type}] ${description.slice(0, 70) || 'Support request'}`
+  const body = `${description}\n\n_Submitted through the public CRAFT support chat. No tenant or account context is included._`
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockA}, ${lockB})`)
+
+    let cached: { id?: number; url?: string | null } | null = null
+    try {
+      const cachedValue = await store.get(key, { type: 'text' }) as string | null
+      cached = cachedValue ? JSON.parse(cachedValue) as { id?: number; url?: string | null } : null
+    } catch {
+      // Postgres remains the source of truth if the blob cache is unavailable.
+    }
+    const retryIssue = async (id: number) => {
+      const url = await createGithubIssue(title, body, labels)
+      if (url) await tx.update(supportIssues).set({ githubIssueUrl: url }).where(eq(supportIssues.id, id))
+      return { id, url, created: false }
+    }
+    if (cached?.id) return cached.url
+      ? { id: cached.id, url: cached.url, created: false }
+      : retryIssue(cached.id)
+
+    const [existing] = await tx.select({ id: supportIssues.id, url: supportIssues.githubIssueUrl })
+      .from(supportIssues)
+      .where(and(
+        isNull(supportIssues.orgId),
+        isNull(supportIssues.workspaceId),
+        eq(supportIssues.category, classification.type),
+        eq(supportIssues.description, description),
+      ))
+      .orderBy(desc(supportIssues.id))
+      .limit(1)
+    if (existing) return existing.url ? { id: existing.id, url: existing.url, created: false } : retryIssue(existing.id)
+    const url = await createGithubIssue(title, body, labels)
+    const [issue] = await tx.insert(supportIssues).values({
+      category: classification.type,
+      description,
+      contactEmail: '',
+      githubIssueUrl: url,
+    }).returning({ id: supportIssues.id })
+    return { id: issue.id, url, created: true }
+  })
+
+  await store.set(key, JSON.stringify({ id: result.id, url: result.url })).catch((error) => {
+    logger.error('/api/workspace-api', 'support deduplication cache write failed', error)
+  })
+  return json({
+    success: true,
+    type: classification.type,
+    confidence: classification.confidence,
+    answer: faq?.answer,
+    issueCreated: !!result.url,
+    issueUrl: result.url,
+    deduplicated: !result.created,
+    message: result.url
+      ? 'Your message has been added to a public GitHub issue.'
+      : 'Your message was recorded, but GitHub issue creation is currently unavailable.',
+  }, result.created ? 201 : 200)
+}
+
 async function queryAudit(c: Ctx, orgId: number, wsId: number, pageSize: number, page: number) {
   const q = c.url.searchParams
   const conds = [eq(wsAuditLog.orgId, orgId), eq(wsAuditLog.workspaceId, wsId)]
@@ -1281,6 +1370,9 @@ export default async (req: Request) => {
       const now = Date.now()
       try {
         if (r.access === 'public' && isRateLimitedCount(await incrementRateLimit(`pub:${ip}`, now), 100)) {
+          return finish(tooManyRequests(now))
+        }
+        if (r.pattern === '/support-bot/chat' && isRateLimitedCount(await incrementRateLimit(`support-chat:${ip}`, now), 20)) {
           return finish(tooManyRequests(now))
         }
         if (isRateLimitedCount(await incrementRateLimit(caller ? `u:${caller.email}` : `ip:${ip}`, now), caller ? 1000 : 100)) {

@@ -5,6 +5,7 @@ import { I18nProvider } from '../lib/i18n'
 import { IdentityBridge } from '../components/IdentityBridge'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { AutoTranslate } from '../components/AutoTranslate'
+import { SupportBot } from '../components/SupportBot'
 import '../styles.css'
 // Self-hosted fonts: loading them from fonts.googleapis.com sends every
 // visitor's IP to Google before consent, which German (Munich, 2022) and other
@@ -85,6 +86,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               </IdentityBridge>
               <OfflineBanner />
               <AutoTranslate />
+              <SupportBot />
             </I18nProvider>
           </AppProvider>
         </QueryClientProvider>
