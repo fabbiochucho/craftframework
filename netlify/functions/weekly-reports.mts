@@ -63,7 +63,7 @@ export default async () => {
         eq(wsAuditLog.resourceType, 'report'),
         sql`${wsAuditLog.details}->>'scheduleId' = ${String(schedule.id)}`,
         sql`${wsAuditLog.details}->>'occurrence' = ${occurrence}`,
-      )).limit(1)
+      )).orderBy(desc(wsAuditLog.id)).limit(1)
       const deliveryDetails = (delivery?.details ?? {}) as Record<string, unknown>
       if (deliveryDetails.deliveryAttempted && !deliveryDetails.emailDelivered) {
         logger.warn('weekly-reports', `schedule ${schedule.id} requires provider reconciliation before retry`)
@@ -112,7 +112,10 @@ export default async () => {
         try {
           // Persist send intent first. SendGrid has no idempotent send endpoint;
           // an interrupted/ambiguous send must be reconciled, not blindly retried.
-          await db.update(wsAuditLog).set({ details: { ...deliveryDetails, scheduled: true, scheduleId: schedule.id, occurrence, deliveryAttempted: true } }).where(eq(wsAuditLog.id, delivery.id))
+          await db.insert(wsAuditLog).values({
+            orgId: schedule.orgId, workspaceId, actorId: 'system', resourceType: 'report', resourceId: String(report.id),
+            action: 'update', details: { ...deliveryDetails, scheduled: true, scheduleId: schedule.id, occurrence, deliveryAttempted: true },
+          })
           const sent = await fetch('https://api.sendgrid.com/v3/mail/send', {
             method: 'POST',
             signal: AbortSignal.timeout(15_000),
@@ -126,11 +129,13 @@ export default async () => {
             }),
           })
           delivered = sent.ok
-          await db.update(wsAuditLog).set({ details: {
+          await db.insert(wsAuditLog).values({
+            orgId: schedule.orgId, workspaceId, actorId: 'system', resourceType: 'report', resourceId: String(report.id),
+            action: 'update', details: {
             ...deliveryDetails, scheduled: true, scheduleId: schedule.id, occurrence,
             deliveryAttempted: delivered || sent.status >= 500, emailDelivered: delivered,
             providerStatus: sent.status,
-          } }).where(eq(wsAuditLog.id, delivery.id))
+          } })
           if (!delivered) logger.warn('weekly-reports', `email delivery failed for schedule ${schedule.id}`)
         } catch (err) {
           logger.warn('weekly-reports', `email delivery failed for schedule ${schedule.id}`, { error: err })

@@ -170,11 +170,20 @@ export class SyncEngine {
 
   // --- Mutations ------------------------------------------------------------
   private async processMutations(): Promise<void> {
-    const queue = await offlineDB.getMutations()
+    const queue = (await offlineDB.getMutations()).sort((a, b) => a.createdAt - b.createdAt || (a.id ?? 0) - (b.id ?? 0))
+    const blocked = new Set<string>()
     for (const mutation of queue) {
       if (!navigator.onLine || !getOfflineSession()) return
-      if (!ownsRecord(mutation) || mutation.failed) continue
+      if (!ownsRecord(mutation)) continue
+      const key = mutation.dedupeKey ?? `${mutation.endpoint}|${JSON.stringify(
+        mutation.body && typeof mutation.body === 'object'
+          ? { orgId: (mutation.body as Record<string, unknown>).orgId, questionId: (mutation.body as Record<string, unknown>).questionId, key: (mutation.body as Record<string, unknown>).key }
+          : null,
+      )}`
+      if (blocked.has(key)) continue
+      if (mutation.failed) { blocked.add(key); continue }
       await this.replayMutation(mutation)
+      if ((await offlineDB.getMutations()).some(record => record.id === mutation.id)) blocked.add(key)
       await this.refreshPending()
     }
   }
