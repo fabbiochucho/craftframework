@@ -3,9 +3,7 @@
 // ----------------------------------------------------------------------------
 // This is the on-device buffer that lets field assessors, supply-chain auditors
 // and informal-economy users keep working with no connectivity. It is a
-// TEMPORARY, security-sensitive cache — never a permanent store (see the
-// 15-minute auto-wipe in hooks/use-offline-security.ts and the Sovereignty
-// Shield rules in AGENTS/results).
+// Security-sensitive buffer: sign-out locks rather than erases pending work.
 //
 // Three object stores:
 //   • mutations — the durable write-ahead queue. Every state change (assessment
@@ -22,19 +20,22 @@
 // ============================================================================
 
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import { getOfflineSession, ownsRecord, type OfflineOwner } from './session.ts'
 
 export const DB_NAME = 'craft-offline'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export const STORE_MUTATIONS = 'mutations' as const
 export const STORE_DRAFTS = 'drafts' as const
 export const STORE_FILES = 'files' as const
 
 // A single queued write, expressed as a replayable request against the app's
-// own /api/* layer (which persists to the Netlify Database) or any absolute URL.
+// own /api/* layer (which persists to the Netlify Database).
 // Keeping mutations transport-shaped means the sync engine can replay anything
 // the online code path would have sent, without knowing the domain.
 export interface QueuedMutation {
+  owner?: OfflineOwner
+  failed?: boolean
   id?: number
   // Human label for logging / the sync UI, e.g. "assessment:score" or
   // "financial-triangulation".
@@ -42,9 +43,7 @@ export interface QueuedMutation {
   endpoint: string
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
-  // De-dupe key: a newer mutation with the same dedupeKey supersedes older ones
-  // still in the queue (e.g. repeated edits to the same score/field), so we sync
-  // the final value rather than replaying every keystroke.
+  // Logical grouping only; every accepted edit is retained until confirmed.
   dedupeKey?: string
   createdAt: number
   attempts: number
@@ -52,14 +51,17 @@ export interface QueuedMutation {
 }
 
 export interface DraftRecord {
+  owner?: OfflineOwner
   key: string
   value: unknown
   updatedAt: number
 }
 
-// A file awaiting upload. The blob is stored verbatim; on sync the engine calls
+// A file awaiting upload. The blob is encrypted; on sync the engine calls
 // the presigned-URL function, PUTs the bytes, then records document metadata.
 export interface QueuedFile {
+  owner?: OfflineOwner
+  failed?: boolean
   id?: number
   fileName: string
   contentType: string
@@ -78,6 +80,7 @@ export interface QueuedFile {
 }
 
 interface CraftDB extends DBSchema {
+  keys: { key: string; value: CryptoKey }
   mutations: {
     key: number
     value: QueuedMutation
@@ -119,12 +122,83 @@ function getDB(): Promise<IDBPDatabase<CraftDB>> {
           const store = db.createObjectStore(STORE_FILES, { keyPath: 'id', autoIncrement: true })
           store.createIndex('by-created', 'createdAt')
         }
+        if (!db.objectStoreNames.contains('keys')) db.createObjectStore('keys')
       },
     })
   }
+
   return dbPromise
 }
 
+  type Envelope = {
+    encrypted: true
+    iv: Uint8Array<ArrayBuffer>
+    ciphertext: ArrayBuffer
+    blobIv?: Uint8Array<ArrayBuffer>
+    blobCiphertext?: ArrayBuffer
+    owner?: OfflineOwner
+    id?: number
+    key?: string
+    createdAt?: number
+    dedupeKey?: string
+  }
+
+  async function encryptionKey(db: IDBPDatabase<CraftDB>): Promise<CryptoKey> {
+    const existing = await db.get('keys', 'device')
+    if (existing) return existing
+    if (!globalThis.crypto?.subtle) throw new Error('Secure browser storage is unavailable; pending data was not removed.')
+    const key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'])
+    const tx = db.transaction('keys', 'readwrite')
+    const raced = await tx.store.get('device')
+    if (!raced) await tx.store.put(key, 'device')
+    await tx.done
+    return raced ?? key
+  }
+
+  async function seal<T extends QueuedMutation | QueuedFile | DraftRecord>(db: IDBPDatabase<CraftDB>, record: T): Promise<T> {
+    const key = await encryptionKey(db)
+    const iv = crypto.getRandomValues(new Uint8Array(12))
+    const payload = { ...record } as Record<string, unknown>
+    let blobIv: Uint8Array<ArrayBuffer> | undefined
+    let blobCiphertext: ArrayBuffer | undefined
+    if ('blob' in record) {
+      blobIv = crypto.getRandomValues(new Uint8Array(12))
+      blobCiphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: blobIv }, key, await record.blob.arrayBuffer())
+      delete payload.blob
+      payload.blobType = record.blob.type
+    }
+    const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)))
+    return { encrypted: true, iv, ciphertext, blobIv, blobCiphertext, owner: record.owner, ...('id' in record ? { id: record.id } : {}),
+      ...('key' in record ? { key: record.key } : {}),
+      ...('createdAt' in record ? { createdAt: record.createdAt } : {}),
+      ...('dedupeKey' in record ? { dedupeKey: record.dedupeKey } : {}) } as unknown as T
+  }
+
+  async function unseal<T>(db: IDBPDatabase<CraftDB>, stored: T): Promise<T> {
+    const envelope = stored as unknown as Envelope
+    if (!envelope.encrypted) return stored // Existing pending plaintext records remain recoverable.
+    const key = await db.get('keys', 'device')
+    if (!key) throw new Error('Offline encryption key is missing. Saved records have been preserved.')
+    const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: envelope.iv }, key, envelope.ciphertext)
+    const record = JSON.parse(new TextDecoder().decode(plaintext))
+    if (!ownsRecord(record)) throw new Error('Saved record belongs to another session; it has been retained.')
+    if (envelope.blobIv && envelope.blobCiphertext) {
+      const bytes = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: envelope.blobIv }, key, envelope.blobCiphertext)
+      record.blob = new Blob([bytes], { type: record.blobType })
+    }
+    if (envelope.id != null) record.id = envelope.id
+    return record as T
+  }
+
+async function readOwned<T extends QueuedMutation | QueuedFile>(db: IDBPDatabase<CraftDB>, records: T[]): Promise<T[]> {
+  const result: T[] = []
+  for (const stored of records.filter(ownsRecord)) {
+    try { result.push(await unseal(db, stored)) } catch {
+      // A damaged/missing-key record stays untouched; it must not block others.
+    }
+  }
+  return result
+}
 // ---------------------------------------------------------------------------
 // Public API — a small, framework-agnostic facade used by hooks, the sync
 // engine and the local-first UI paths.
@@ -138,8 +212,10 @@ export const offlineDB = {
     input: Omit<QueuedMutation, 'id' | 'createdAt' | 'attempts'> & { createdAt?: number },
   ): Promise<number | null> {
     if (!hasIndexedDB()) return null
+    const owner = getOfflineSession() ?? undefined
     const db = await getDB()
     const record: QueuedMutation = {
+      owner,
       kind: input.kind,
       endpoint: input.endpoint,
       method: input.method,
@@ -148,27 +224,15 @@ export const offlineDB = {
       createdAt: input.createdAt ?? Date.now(),
       attempts: 0,
     }
-    // Collapse superseded edits: drop any pending mutation sharing this dedupeKey
-    // before enqueuing the newer value, so only the latest state is synced.
-    if (record.dedupeKey) {
-      const tx = db.transaction(STORE_MUTATIONS, 'readwrite')
-      const idx = tx.store.index('by-dedupe')
-      let cursor = await idx.openCursor(IDBKeyRange.only(record.dedupeKey))
-      while (cursor) {
-        await cursor.delete()
-        cursor = await cursor.continue()
-      }
-      const id = await tx.store.add(record)
-      await tx.done
-      return id as number
-    }
-    return (await db.add(STORE_MUTATIONS, record)) as number
+    // Never replace an in-flight or legacy record: each accepted write is durable.
+    return (await db.add(STORE_MUTATIONS, await seal(db, record))) as number
   },
 
   async getMutations(): Promise<QueuedMutation[]> {
     if (!hasIndexedDB()) return []
     const db = await getDB()
-    return db.getAllFromIndex(STORE_MUTATIONS, 'by-created')
+    const records = await db.getAllFromIndex(STORE_MUTATIONS, 'by-created')
+    return readOwned(db, records)
   },
 
   async deleteMutation(id: number): Promise<void> {
@@ -180,7 +244,7 @@ export const offlineDB = {
   async updateMutation(record: QueuedMutation): Promise<void> {
     if (!hasIndexedDB() || record.id == null) return
     const db = await getDB()
-    await db.put(STORE_MUTATIONS, record)
+    await db.put(STORE_MUTATIONS, await seal(db, record))
   },
 
   async countMutations(): Promise<number> {
@@ -193,20 +257,26 @@ export const offlineDB = {
   async putDraft(key: string, value: unknown): Promise<void> {
     if (!hasIndexedDB()) return
     const db = await getDB()
-    await db.put(STORE_DRAFTS, { key, value, updatedAt: Date.now() })
+    const owner = getOfflineSession()
+    if (!owner) return
+    const scopedKey = JSON.stringify([owner.userId, owner.tenantId, key])
+    await db.put(STORE_DRAFTS, await seal(db, { key: scopedKey, value, updatedAt: Date.now(), owner }))
   },
 
   async getDraft<T = unknown>(key: string): Promise<T | undefined> {
     if (!hasIndexedDB()) return undefined
     const db = await getDB()
-    const rec = await db.get(STORE_DRAFTS, key)
-    return rec?.value as T | undefined
+    const owner = getOfflineSession()
+    if (!owner) return undefined
+    const rec = await db.get(STORE_DRAFTS, JSON.stringify([owner.userId, owner.tenantId, key]))
+    return rec && ownsRecord(rec) ? (await unseal(db, rec)).value as T : undefined
   },
 
   async deleteDraft(key: string): Promise<void> {
     if (!hasIndexedDB()) return
     const db = await getDB()
-    await db.delete(STORE_DRAFTS, key)
+    const owner = getOfflineSession()
+    if (owner) await db.delete(STORE_DRAFTS, JSON.stringify([owner.userId, owner.tenantId, key]))
   },
 
   // --- File upload queue ----------------------------------------------------
@@ -214,19 +284,22 @@ export const offlineDB = {
     input: Omit<QueuedFile, 'id' | 'createdAt' | 'attempts'> & { createdAt?: number },
   ): Promise<number | null> {
     if (!hasIndexedDB()) return null
+    const owner = getOfflineSession() ?? undefined
     const db = await getDB()
     const record: QueuedFile = {
       ...input,
+      owner,
       createdAt: input.createdAt ?? Date.now(),
       attempts: 0,
     }
-    return (await db.add(STORE_FILES, record)) as number
+    return (await db.add(STORE_FILES, await seal(db, record))) as number
   },
 
   async getFiles(): Promise<QueuedFile[]> {
     if (!hasIndexedDB()) return []
     const db = await getDB()
-    return db.getAllFromIndex(STORE_FILES, 'by-created')
+    const records = await db.getAllFromIndex(STORE_FILES, 'by-created')
+    return readOwned(db, records)
   },
 
   async deleteFile(id: number): Promise<void> {
@@ -238,7 +311,7 @@ export const offlineDB = {
   async updateFile(record: QueuedFile): Promise<void> {
     if (!hasIndexedDB() || record.id == null) return
     const db = await getDB()
-    await db.put(STORE_FILES, record)
+    await db.put(STORE_FILES, await seal(db, record))
   },
 
   async countFiles(): Promise<number> {
@@ -247,10 +320,15 @@ export const offlineDB = {
     return db.count(STORE_FILES)
   },
 
-  // --- Sovereignty Shield: full local wipe ---------------------------------
-  // Called by the auto-wipe hook on inactivity and on sign-out. Purges every
-  // store so no fiduciary/regulatory data lingers on the device.
-  async clearAll(): Promise<void> {
+  async clearDrafts(): Promise<void> {
+    if (!hasIndexedDB()) return
+    const db = await getDB()
+    await db.clear(STORE_DRAFTS)
+  },
+
+  // Destruction of pending writes requires explicit caller/user confirmation.
+  async clearAll(options?: { discardPending: true }): Promise<void> {
+    if (!options?.discardPending) throw new Error('Explicit confirmation is required to discard pending changes.')
     if (!hasIndexedDB()) return
     const db = await getDB()
     const tx = db.transaction([STORE_MUTATIONS, STORE_DRAFTS, STORE_FILES], 'readwrite')

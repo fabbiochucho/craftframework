@@ -17,7 +17,7 @@ export default async (req: Request) => {
     if (req.method === 'GET') {
       const orgId = new URL(req.url).searchParams.get('orgId')
       if (!orgId) return Response.json({ error: 'orgId required' }, { status: 400 })
-      if (!(await canAccessOrg(caller, orgId))) return forbidden()
+      if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
       const rows = await db
         .select()
         .from(capacityActions)

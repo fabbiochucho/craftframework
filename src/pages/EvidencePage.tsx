@@ -4,6 +4,7 @@ import { EVIDENCE_DOCS, EvidenceDoc } from '../lib/data'
 import { Card, CardContent, Badge } from '../components/ui'
 import { ExcelImport } from '../components/ExcelImport'
 import { useAuthCtx } from '../lib/context'
+import { LegacyEvidenceBridge } from '../components/LegacyEvidenceBridge'
 
 const typeIcon: Record<EvidenceDoc['type'], typeof FileText> = {
   PDF: FileText, XLSX: FileSpreadsheet, DOCX: FileText, IMG: FileImage,
@@ -20,6 +21,7 @@ export function EvidencePage() {
   // Demo sessions show an illustrative document set; a live vault starts empty
   // and fills as documents are imported or uploaded.
   const docs = isDemo ? EVIDENCE_DOCS : []
+  if (!isDemo) return <LegacyEvidenceBridge />
 
   return (
     <div className="space-y-6">

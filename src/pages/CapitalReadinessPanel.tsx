@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 import {
   Mountain, CheckCircle2, Lock, FileText, AlertTriangle, TrendingUp, ArrowUpRight,
 } from 'lucide-react'
@@ -14,7 +16,7 @@ import {
 } from '../components/ui'
 
 export function CapitalReadinessPanel() {
-  const [scores, setScores] = useState<Record<string, number>>({})
+  const [scores, setScores, saveStatus] = useLegacyAssessment<Record<string, number>>('capital:scores', {})
 
   const select = (qId: string, value: number) =>
     setScores(prev => ({ ...prev, [qId]: value }))
@@ -34,6 +36,7 @@ export function CapitalReadinessPanel() {
 
   return (
     <div className="space-y-6">
+      <LegacySaveStatus status={saveStatus} />
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 ring-1 ring-slate-200">

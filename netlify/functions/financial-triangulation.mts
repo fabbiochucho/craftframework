@@ -1,10 +1,11 @@
 import type { Config } from '@netlify/functions'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { financialTriangulations } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
+import { financeMutationError } from '../lib/finance-policy.js'
 
 function cleanNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 0
@@ -47,7 +48,7 @@ export default async (req: Request) => {
       const orgId = url.searchParams.get('orgId')
       const contextKey = url.searchParams.get('contextKey')
       if (!orgId || !contextKey) return Response.json({ error: 'orgId and contextKey required' }, { status: 400 })
-      if (!(await canAccessOrg(caller, orgId))) return forbidden()
+      if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
 
       const [row] = await db
         .select()
@@ -66,8 +67,17 @@ export default async (req: Request) => {
       const body = parsed.data
       if (!(await canAccessOrg(caller, body.orgId))) return forbidden()
 
+      return await db.transaction(async (tx) => {
+      // Serialize both first creation and transitions for this reporting context.
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${body.orgId}), hashtext(${body.contextKey}))`)
+      const [existing] = await tx.select().from(financialTriangulations).where(and(
+        eq(financialTriangulations.orgId, body.orgId), eq(financialTriangulations.contextKey, body.contextKey),
+      )).limit(1)
+      const error = financeMutationError(caller.role, existing ?? null, body)
+      if (error) return Response.json({ error }, { status: 403 })
       const value = {
-        id: body.id || `tri_${crypto.randomUUID()}`,
+        ...existing,
+        id: existing?.id || `tri_${crypto.randomUUID()}`,
         orgId: body.orgId,
         contextKey: body.contextKey,
         donorId: body.donorId ?? '',
@@ -85,13 +95,19 @@ export default async (req: Request) => {
         assessorNotes: body.assessorNotes ?? '',
         verificationStatus: body.verificationStatus ?? 'verified',
         status: body.status ?? 'draft',
-        lockedBy: body.lockedBy ?? null,
-        lockedAt: body.lockedAt ?? null,
-        history: Array.isArray(body.history) ? body.history : [],
+        lockedBy: body.status === 'locked' ? caller.email : null,
+        lockedAt: body.status === 'locked' ? new Date().toISOString() : null,
+        history: [...(existing?.history ?? []), `${new Date().toISOString()} - ${caller.email} (${caller.role}) saved ${body.status ?? existing?.status ?? 'draft'}`],
         updatedAt: new Date(),
       }
 
-      const [row] = await db
+      // Partial role-specific requests preserve the other participants' fields.
+      for (const key of Object.keys(value) as (keyof typeof value)[]) {
+        if (existing && !(key in body) && !['lockedBy', 'lockedAt', 'history', 'updatedAt'].includes(key)) {
+          Object.assign(value, { [key]: existing[key] })
+        }
+      }
+      const [row] = await tx
         .insert(financialTriangulations)
         .values(value)
         .onConflictDoUpdate({
@@ -101,6 +117,7 @@ export default async (req: Request) => {
         .returning()
 
       return Response.json(row, { status: 201 })
+      })
     }
 
     return new Response('Method Not Allowed', { status: 405 })

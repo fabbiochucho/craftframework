@@ -1,4 +1,6 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 import {
   ResponsiveContainer,
   RadarChart,
@@ -40,8 +42,8 @@ const PILLAR_ICONS: Record<EsgPillar, typeof Leaf> = {
 }
 
 export function EsgAssessmentPanel() {
-  const [scores, setScores] = useState<Record<string, number>>({})
-  const [evidence, setEvidence] = useState<Record<string, number>>({})
+  const [scores, setScores, saveStatus] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const [evidence, setEvidence, evidenceStatus] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
 
   const select = (qId: string, value: number) =>
     setScores(prev => ({ ...prev, [qId]: value }))
@@ -102,6 +104,9 @@ export function EsgAssessmentPanel() {
 
   return (
     <div className="space-y-6">
+      <LegacySaveStatus status={saveStatus} />
+      <LegacySaveStatus status={evidenceStatus} />
+      <p className="text-sm text-amber-700">Evidence confidence is self-reported, not independent verification or an external ESG rating.</p>
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200">
@@ -122,7 +127,7 @@ export function EsgAssessmentPanel() {
           accent={answeredCount === 0 ? 'slate' : 'emerald'}
         />
         <Stat
-          label="Verified Score"
+          label="Evidence-adjusted self-score"
           value={`${verifiedComposite.toFixed(2)} / 5`}
           hint="60% response + 40% evidence"
           accent={verifiedAccent}
@@ -235,7 +240,7 @@ export function EsgAssessmentPanel() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>E · S · G Radar (verified)</CardTitle>
+            <CardTitle>E · S · G Radar (self-reported)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
@@ -253,7 +258,7 @@ export function EsgAssessmentPanel() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Pillar Scorecard (verified)</CardTitle>
+            <CardTitle>Pillar Scorecard (self-reported)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">

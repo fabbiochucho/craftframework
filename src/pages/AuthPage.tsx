@@ -7,12 +7,14 @@ import {
   getSettings,
   AuthError,
   MissingIdentityError,
+  requestPasswordRecovery,
 } from '@netlify/identity'
 import { Shield, ArrowRight, MailCheck, Loader2, Eye, EyeOff, Github } from 'lucide-react'
 import { Button, Input } from '../components/ui'
 import { Footer } from '../components/Footer'
 import { Logo } from '../components/Logo'
-import { useAuthCtx } from '../lib/context'
+import { useIdentityRecovery } from '../components/IdentityBridge'
+import { useAuthCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
 
 type Status = 'idle' | 'submitting'
@@ -44,9 +46,11 @@ export function AuthPage() {
   // Navigation into the vault is driven off THIS (see the effect below) rather
   // than fired the instant login() resolves — otherwise the redirect can race
   // ahead of session hydration and the route guard bounces straight back here.
-  const { currentUser } = useAuthCtx()
-  const [mode, setMode] = useState<'login' | 'register'>('login')
-  const [email, setEmail] = useState('admin@workspace.org')
+  const { currentUser, authReady, onboardingComplete } = useAuthCtx()
+  const { entityProfile, profileSaveStatus } = useEntityProfileCtx()
+  const recovery = useIdentityRecovery()
+  const [mode, setMode] = useState<'login' | 'register' | 'recover'>('login')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   // Lets the visitor reveal the password they are typing by clicking the eye
   // icon (or the field's reveal control), toggling the input between masked and
@@ -60,6 +64,8 @@ export function AuthPage() {
   const [error, setError] = useState<string | null>(null)
   // After a successful registration we hold here until the user confirms by email.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [recoveryRequested, setRecoveryRequested] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState('')
   // Which external OAuth providers are actually enabled on this site's Identity
   // config. `null` = not yet loaded (or settings unreadable). A provider button
   // is only rendered once we KNOW it is enabled — showing a button for a
@@ -114,15 +120,21 @@ export function AuthPage() {
   // into the secure vault. Waiting for currentUser guarantees the session is
   // hydrated before we leave /auth, so the destination never bounces back.
   useEffect(() => {
-    if (currentUser && !currentUser.isDemo) {
-      navigate({ to: '/dashboard' })
+    if (authReady && recovery.state === 'none' && mode !== 'recover' && currentUser && !currentUser.isDemo &&
+        profileSaveStatus !== 'loading') {
+      const configured = onboardingComplete && !!(entityProfile.archetype && entityProfile.country && entityProfile.sector)
+      navigate({ to: configured ? '/dashboard' : '/onboarding' })
     }
-  }, [currentUser, navigate])
+  }, [currentUser, authReady, onboardingComplete, navigate, recovery.state, mode, entityProfile, profileSaveStatus])
 
-  function switchMode(m: 'login' | 'register') {
+  function switchMode(m: 'login' | 'register' | 'recover') {
     setMode(m)
     setError(null)
     setPendingEmail(null)
+    setRecoveryRequested(false)
+    setPassword('')
+    setConfirmPassword('')
+    setShowPassword(false)
   }
 
   function describeError(err: unknown): string {
@@ -163,6 +175,22 @@ export function AuthPage() {
     setError(null)
 
     const trimmedEmail = email.trim()
+    if (mode === 'recover') {
+      if (!trimmedEmail) {
+        setError('Enter your email address.')
+        return
+      }
+      setStatus('submitting')
+      try {
+        await requestPasswordRecovery(trimmedEmail)
+      } catch {
+        // Account existence, throttling and provider errors must not be exposed.
+      } finally {
+        setRecoveryRequested(true)
+        setStatus('idle')
+      }
+      return
+    }
     if (!trimmedEmail || !password) {
       setError('Email and password are required.')
       return
@@ -193,11 +221,35 @@ export function AuthPage() {
     } catch (err) {
       setError(describeError(err))
     } finally {
+      setPassword('')
       setStatus('idle')
     }
   }
 
   const submitting = status === 'submitting'
+
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (password.length < 8) {
+      setError('Use a password of at least 8 characters.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setError('The passwords do not match.')
+      return
+    }
+    setStatus('submitting')
+    try {
+      await recovery.resetPassword(password)
+    } catch {
+      setError('Your password could not be changed. Request a new reset link and try again.')
+    } finally {
+      setPassword('')
+      setConfirmPassword('')
+      setStatus('idle')
+    }
+  }
 
   // Social sign-in. oauthLogin() redirects the browser to the provider and
   // never returns; IdentityBridge.handleAuthCallback() completes the login when
@@ -244,7 +296,33 @@ export function AuthPage() {
 
           {/* Form panel */}
           <div className="bg-white p-8 sm:p-10">
-            {pendingEmail ? (
+            {recovery.state === 'loading' ? (
+              <p role="status">Checking sign-in…</p>
+            ) : recovery.state === 'ready' ? (
+              <>
+                <h1 className="font-display text-2xl font-bold text-emerald-900">Set a new password</h1>
+                <p className="mt-2 text-sm text-slate-500">Change your password before continuing to your workspace.</p>
+                <form onSubmit={handleReset} className="mt-6 space-y-4">
+                  <Input label="New password" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e => setPassword(e.target.value)} />
+                  <Input label="Confirm new password" type="password" autoComplete="new-password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+                  {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+                  <Button type="submit" disabled={submitting}>{submitting ? 'Changing password…' : 'Change password'}</Button>
+                  <Button type="button" variant="outline" disabled={submitting} onClick={() => { void recovery.dismiss(); switchMode('login') }}>Cancel</Button>
+                </form>
+              </>
+            ) : recovery.state === 'invalid' ? (
+              <>
+                <h1 className="font-display text-2xl font-bold text-emerald-900">Link unavailable</h1>
+                <p role="alert" className="mt-3 text-sm text-rose-700">This sign-in or password reset link is invalid or has expired. Request a new link and try again.</p>
+                <Button className="mt-6" onClick={() => { void recovery.dismiss(); switchMode('recover') }}>Request a new reset link</Button>
+              </>
+            ) : recoveryRequested ? (
+              <>
+                <h1 className="font-display text-2xl font-bold text-emerald-900">Check your email</h1>
+                <p role="status" className="mt-3 text-sm text-slate-500">If an account exists for that email address, you will receive a password reset link. Check your inbox and spam folder.</p>
+                <Button className="mt-6" variant="outline" onClick={() => switchMode('login')}>Back to sign in</Button>
+              </>
+            ) : pendingEmail ? (
               <ConfirmEmailNotice email={pendingEmail} onBack={() => switchMode('login')} />
             ) : (
               <>
@@ -253,6 +331,7 @@ export function AuthPage() {
                     <button
                       key={m}
                       type="button"
+                      disabled={submitting}
                       onClick={() => switchMode(m)}
                       className={`flex-1 rounded-md py-2 text-sm font-semibold capitalize transition-all ${
                         mode === m ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'
@@ -264,10 +343,10 @@ export function AuthPage() {
                 </div>
 
                 <h1 className="font-display text-2xl font-bold text-emerald-900">
-                  {mode === 'login' ? 'Welcome back' : 'Register your institution'}
+                  {mode === 'recover' ? 'Reset your password' : mode === 'login' ? 'Welcome back' : 'Register your institution'}
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  {mode === 'login'
+                  {mode === 'recover' ? 'Enter your email address to request a reset link.' : mode === 'login'
                     ? 'Access your secure organization vault.'
                     : 'Create a workspace and confirm your email to begin.'}
                 </p>
@@ -315,7 +394,7 @@ export function AuthPage() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                   />
-                  <div className="w-full">
+                  {mode !== 'recover' && <div className="w-full">
                     <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
                     <div className="relative">
                       <input
@@ -337,7 +416,7 @@ export function AuthPage() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                  </div>
+                  </div>}
 
                   {error && (
                     <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
@@ -349,18 +428,19 @@ export function AuthPage() {
                     {submitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        {mode === 'login' ? 'Signing in…' : 'Creating workspace…'}
+                        {mode === 'recover' ? 'Requesting link…' : mode === 'login' ? 'Signing in…' : 'Creating workspace…'}
                       </>
                     ) : (
                       <>
-                        {mode === 'login' ? 'Enter Secure Vault' : 'Create Workspace'}
+                        {mode === 'recover' ? 'Send reset link' : mode === 'login' ? 'Enter Secure Vault' : 'Create Workspace'}
                         <ArrowRight className="h-4 w-4" />
                       </>
                     )}
                   </Button>
                 </form>
+                {mode === 'login' && <button type="button" disabled={submitting} onClick={() => switchMode('recover')} className="mt-4 text-sm font-medium text-emerald-700">Forgot your password?</button>}
 
-                {(providers?.google || providers?.github) && (
+                {mode !== 'recover' && (providers?.google || providers?.github) && (
                   <>
                     <div className="mt-6 flex items-center gap-3">
                       <span className="h-px flex-1 bg-slate-200" />

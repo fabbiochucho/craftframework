@@ -15,7 +15,7 @@ import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgA
 import {
   ALLOWED_EVIDENCE_MIME, MAX_EVIDENCE_BYTES, SEVERITIES, buildScorecard, canAssignRole, capCloseBlockers,
   corsHeaders, csvEscape, effectiveCapStatus, evidenceExpiryState, hasMinRole, isRateLimitedCount,
-  isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore, type OrgRole,
+  isVerificationEvidence, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore, type OrgRole,
 } from '../lib/workspace.js'
 import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
@@ -67,14 +67,14 @@ async function exportDataForCaller(c: Ctx, caller: Caller): Promise<Response> {
   const organizations = orgIds.length
     ? (await db.select().from(wsOrganizations).where(inArray(wsOrganizations.id, orgIds))).map(exposeOrganization)
     : []
-  const scoped = async <T>(table: any, orgColumn: any): Promise<T[]> =>
+  const scoped = async <T,>(table: any, orgColumn: any): Promise<T[]> =>
     orgIds.length ? db.select().from(table).where(inArray(orgColumn, orgIds)) as Promise<T[]> : []
   const [workspaceRows, assessmentRows, evidenceRows, capRows, allScheduleRows, reportRows, auditRows] = await Promise.all([
     scoped(workspaces, workspaces.orgId),
     orgIds.length ? db.select().from(governanceAssessments).where(and(inArray(governanceAssessments.orgId, orgIds), eq(governanceAssessments.createdBy, caller.email))) : [],
     orgIds.length ? db.select().from(evidenceRegistry).where(and(inArray(evidenceRegistry.orgId, orgIds), eq(evidenceRegistry.uploadedBy, caller.email))) : [],
     orgIds.length ? db.select().from(capRecords).where(and(inArray(capRecords.orgId, orgIds), eq(capRecords.assignedTo, caller.email))) : [],
-    scoped(reportSchedules, reportSchedules.orgId),
+    scoped<typeof reportSchedules.$inferSelect>(reportSchedules, reportSchedules.orgId),
     orgIds.length ? db.select().from(reports).where(and(inArray(reports.orgId, orgIds), eq(reports.generatedBy, caller.email))) : [],
     orgIds.length ? db.select().from(wsAuditLog).where(and(inArray(wsAuditLog.orgId, orgIds), eq(wsAuditLog.actorId, caller.email))) : [],
   ])
@@ -392,6 +392,21 @@ async function loadEvidence(orgId: number, wsId: number, id: number) {
   if (!e) throw new HttpError(404, 'Not found')
   return e
 }
+
+async function actionHasValidEvidence(orgId: number, wsId: number, capId: number, actionId: number, candidateId?: number) {
+  let evidenceId = candidateId
+  if (evidenceId === undefined) {
+    const logs = await db.select().from(actionLogs).where(and(eq(actionLogs.orgId, orgId), eq(actionLogs.actionId, actionId))).orderBy(desc(actionLogs.id))
+    const latest = logs.find(log => /^evidence:\d+$/.test(log.newValue ?? ''))
+    if (!latest) return false
+    evidenceId = Number(latest.newValue!.slice('evidence:'.length))
+  }
+  const [linked] = await db.select({ evidence: evidenceRegistry }).from(evidenceLinks)
+    .innerJoin(evidenceRegistry, eq(evidenceRegistry.id, evidenceLinks.evidenceId))
+    .where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.evidenceId, evidenceId), eq(evidenceLinks.targetType, 'cap'),
+      eq(evidenceLinks.targetId, capId), eq(evidenceRegistry.orgId, orgId), eq(evidenceRegistry.workspaceId, wsId)))
+  return !!linked && isVerificationEvidence(linked.evidence)
+}
 async function loadRequirement(orgId: number, wsId: number, id: number) {
   const [r] = await db
     .select({ req: esgRequirements })
@@ -486,7 +501,7 @@ async function generateReport(c: Ctx, orgId: number, wsId: number, caller: Calle
     generatedAt: report.generatedAt, snapshot,
   })
   const pdfKey = `reports/${orgId}/${wsId}/${report.id}/v1.pdf`
-  await getStore('reports').set(pdfKey, pdfBytes, { metadata: { contentType: 'application/pdf' } })
+  await getStore('reports').set(pdfKey, new Uint8Array(pdfBytes).buffer, { metadata: { contentType: 'application/pdf' } })
   const [createdVersion] = await db.insert(reportVersions).values({
     orgId, reportId: report.id, versionNum: 1,
     jsonExportUrl: `/api/workspaces/${wsId}/reports/${report.id}`,
@@ -936,6 +951,7 @@ const routes: Route[] = [
     if (c.body.evidenceId != null) {
       await loadEvidence(orgId, wsId, intParam(String(c.body.evidenceId))) // must exist in this workspace
       set.evidenceUploadedAt = new Date()
+      set.verifiedBy = null
       const [dupLink] = await db.select({ id: evidenceLinks.id }).from(evidenceLinks).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.evidenceId, Number(c.body.evidenceId)), eq(evidenceLinks.targetType, 'cap'), eq(evidenceLinks.targetId, cap.id)))
       if (!dupLink) await db.insert(evidenceLinks).values({ orgId, evidenceId: Number(c.body.evidenceId), targetType: 'cap', targetId: cap.id, linkType: 'supports' })
       events.push({ event: 'updated', oldValue: null, newValue: `evidence:${c.body.evidenceId}` })
@@ -943,6 +959,9 @@ const routes: Route[] = [
     if (c.body.verify === true) {
       if (!hasMinRole(role, 'admin')) throw new HttpError(403, 'Only an admin can verify completion')
       if (!(set.evidenceUploadedAt ?? a.evidenceUploadedAt)) throw new HttpError(409, 'Evidence is required before verification')
+      if (!await actionHasValidEvidence(orgId, wsId, cap.id, a.id, c.body.evidenceId == null ? undefined : Number(c.body.evidenceId))) {
+        throw new HttpError(409, 'Approved, nonarchived, unexpired action evidence is required before verification')
+      }
       set.verifiedBy = caller.email
     }
     if (c.body.status !== undefined) {
@@ -964,6 +983,8 @@ const routes: Route[] = [
     const actions = await db.select().from(actionItems).where(and(eq(actionItems.orgId, orgId), eq(actionItems.capId, cap.id)))
     const blockers = capCloseBlockers(actions)
     if (blockers.length) return json({ error: 'Evidence verification required', blockers }, 409)
+    const invalid = await Promise.all(actions.map(async (a, i) => await actionHasValidEvidence(orgId, wsId, cap.id, a.id) ? null : `Action ${i + 1} needs approved, nonarchived, unexpired evidence`))
+    if (invalid.some(Boolean)) return json({ error: 'Evidence verification required', blockers: invalid.filter(Boolean) }, 409)
     const [u] = await db.update(capRecords).set({ status: 'completed', completionDate: new Date() }).where(eq(capRecords.id, cap.id)).returning()
     await audit(c, orgId, wsId, 'cap', cap.id, 'update', { status: 'completed', by: caller.email })
     return json(u)
@@ -1218,35 +1239,18 @@ const routes: Route[] = [
 ]
 
 async function submitIssue(c: Ctx, githubFirst: boolean): Promise<Response> {
-  const category = oneOf(c.body.category, 'category', ['bug', 'feature', 'question', 'documentation'] as const, 'question')
-  const description = str(c.body.description ?? c.body.message, 'description', 5000)
-  if (isPrivateReport(description) || c.body.privacyLevel === 'private') {
-    return escalateSupport({ ...c.body, message: description, classification: classifySupportMessage(description).type, privacyLevel: 'private' })
-  }
-  const contactEmail = str(c.body.contactEmail ?? c.body.email, 'contactEmail', 200, false)
-  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) throw bad('contactEmail invalid')
-  let orgId: number | null = null
-  let workspaceId: number | null = null
-  if (c.caller && c.body.workspaceId != null) {
-    const ws = await requireWorkspaceAccess(c.caller, intParam(String(c.body.workspaceId)), 'viewer')
-    orgId = ws.orgId
-    workspaceId = ws.workspace.id
-  }
-  const label = githubFirst || category === 'question' ? 'community-question' : category
-  const url = await createGithubIssue(`[${category}] ${description.slice(0, 80)}`, `${description}\n\n_Submitted via the CRAFT support bot._`, [label])
-  const [issue] = await db.insert(supportIssues).values({
-    orgId, workspaceId, category, description, contactEmail: encryptField(contactEmail), githubIssueUrl: url,
-  }).returning()
-  const emailed = await sendEmail([SUPPORT_EMAIL], `[CRAFT ${category}] issue #${issue.id}`,
-    `<p>${escapeHtml(description)}</p><p>Contact: ${escapeHtml(contactEmail || 'n/a')}</p><p>GitHub: ${escapeHtml(url ?? 'n/a')}</p>`)
-  return json({ ...issue, contactEmail, emailed }, 201)
+  // Compatibility routes share the chat's publication safety contract.
+  void githubFirst
+  return handleSupportChat({ ...c, body: { ...c.body, message: c.body.description ?? c.body.message, contactEmail: c.body.contactEmail ?? c.body.email } })
 }
 
 async function handleSupportChat(c: Ctx): Promise<Response> {
   const message = str(c.body.message, 'message', 5000)
-  if (c.body.publicIssueDisclosure !== true) throw bad('Public issue disclosure must be accepted')
 
-  if (isPrivateReport(message)) {
+  if (isPrivateReport(message) || c.body.privacyLevel === 'private') {
+    if (c.body.escalationConsent === true) {
+      return escalateSupport({ ...c.body, message, classification: classifySupportMessage(message).type, privacyLevel: 'private' })
+    }
     return json({
       success: true,
       type: 'private_report',
@@ -1255,12 +1259,22 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
       answer: 'For conduct or security reports, please contact craftframework@becomechange.institute directly. Do not include sensitive details in this public chat.',
     })
   }
+  if (c.body.publicIssueDisclosure !== true) throw bad('Public issue disclosure must be accepted')
+  const contactEmail = str(c.body.contactEmail, 'contactEmail', 254, false)
+  if (contactEmail && !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(contactEmail)) throw bad('contactEmail invalid')
+  let orgId: number | null = null
+  let workspaceId: number | null = null
+  if (c.caller && c.body.workspaceId != null) {
+    const ws = await requireWorkspaceAccess(c.caller, intParam(String(c.body.workspaceId)), 'viewer')
+    orgId = ws.orgId
+    workspaceId = ws.workspace.id
+  }
 
   const classification = classifySupportMessage(message)
   const faq = classification.type === 'question' ? rankSupportFaq(message) : null
   const description = redactSupportMessage(message)
-  const key = supportDeduplicationKey(classification.type, description)
-  const digest = Buffer.from(key.slice('chat/'.length), 'hex')
+  const key = supportDeduplicationKey(classification.type, description, orgId, workspaceId)
+  const digest = Buffer.from(key.split('/').at(-1)!, 'hex')
   const lockA = digest.readInt32BE(0)
   const lockB = digest.readInt32BE(4)
   const store = getStore('support-intake')
@@ -1275,27 +1289,16 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
   const result = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockA}, ${lockB})`)
 
-    let cached: { id?: number; url?: string | null } | null = null
-    try {
-      const cachedValue = await store.get(key, { type: 'text' }) as string | null
-      cached = cachedValue ? JSON.parse(cachedValue) as { id?: number; url?: string | null } : null
-    } catch {
-      // Postgres remains the source of truth if the blob cache is unavailable.
-    }
     const retryIssue = async (id: number) => {
       const url = await createGithubIssue(title, body, labels)
       if (url) await tx.update(supportIssues).set({ githubIssueUrl: url }).where(eq(supportIssues.id, id))
       return { id, url, created: false }
     }
-    if (cached?.id) return cached.url
-      ? { id: cached.id, url: cached.url, created: false }
-      : retryIssue(cached.id)
-
     const [existing] = await tx.select({ id: supportIssues.id, url: supportIssues.githubIssueUrl })
       .from(supportIssues)
       .where(and(
-        isNull(supportIssues.orgId),
-        isNull(supportIssues.workspaceId),
+        orgId === null ? isNull(supportIssues.orgId) : eq(supportIssues.orgId, orgId),
+        workspaceId === null ? isNull(supportIssues.workspaceId) : eq(supportIssues.workspaceId, workspaceId),
         eq(supportIssues.category, classification.type),
         eq(supportIssues.description, description),
       ))
@@ -1304,9 +1307,10 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
     if (existing) return existing.url ? { id: existing.id, url: existing.url, created: false } : retryIssue(existing.id)
     const url = await createGithubIssue(title, body, labels)
     const [issue] = await tx.insert(supportIssues).values({
+      orgId, workspaceId,
       category: classification.type,
       description,
-      contactEmail: '',
+      contactEmail: encryptField(contactEmail),
       githubIssueUrl: url,
     }).returning({ id: supportIssues.id })
     return { id: issue.id, url, created: true }
@@ -1316,6 +1320,10 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
     logger.error('/api/workspace-api', 'support deduplication cache write failed', error)
   })
   return json({
+    id: result.id,
+    orgId, workspaceId,
+    githubIssueUrl: result.url,
+    emailed: false,
     success: true,
     type: classification.type,
     classification: classification.type,
@@ -1381,14 +1389,14 @@ export default async (req: Request) => {
         if (r.access === 'public' && isRateLimitedCount(await incrementRateLimit(`pub:${ip}`, now), 100)) {
           return finish(tooManyRequests(now))
         }
-        if ((r.pattern === '/support-bot/chat' || r.pattern === '/support-bot/escalate') && isRateLimitedCount(await incrementRateLimit(`support-chat:${ip}`, now), 20)) {
+        if (r.pattern.startsWith('/support-bot/') && isRateLimitedCount(await incrementRateLimit(`support-chat:${ip}`, now), 20)) {
           return finish(tooManyRequests(now))
         }
         if (isRateLimitedCount(await incrementRateLimit(caller ? `u:${caller.email}` : `ip:${ip}`, now), caller ? 1000 : 100)) {
           return finish(tooManyRequests(now))
         }
       } catch (rateLimitError) {
-        if (r.pattern === '/support-bot/escalate') return finish(json({ error: 'Escalation temporarily unavailable' }, 503))
+        if (r.pattern.startsWith('/support-bot/')) return finish(json({ error: 'Support temporarily unavailable' }, 503))
         logger.error('/api/workspace-api', 'shared rate limiter failed open', rateLimitError)
       }
       // Cross-site browser writes must come from an allowed origin.

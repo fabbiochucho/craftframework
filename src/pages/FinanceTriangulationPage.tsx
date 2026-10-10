@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { Accordion, Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { cn } from '../lib/utils'
-import { useAuthCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace } from '../lib/context'
 import * as api from '../lib/api'
 import { offlineDB } from '../lib/offline/db'
 import { queueAndSync } from '../lib/offline/sync-engine'
@@ -231,9 +231,11 @@ function NumberInput({
 }
 
 export function FinanceTriangulationPage() {
-  const { currentUser } = useAuthCtx()
+  const { currentUser, isDemo } = useAuthCtx()
+  const { readOnly, currentOrg } = useWorkspace()
   const queryClient = useQueryClient()
-  const [role, setRole] = useState<WorkflowRole>('org_finance_officer')
+  const [demoRole, setRole] = useState<WorkflowRole>('org_finance_officer')
+  const role = (isDemo ? demoRole : String(currentUser?.role ?? '')) as WorkflowRole
   const [donorId, setDonorId] = useState(DONORS[0].id)
   const donor = DONORS.find((d) => d.id === donorId) ?? DONORS[0]
   const [grantId, setGrantId] = useState(donor.grants[0].id)
@@ -250,7 +252,7 @@ export function FinanceTriangulationPage() {
   }, [donor.id])
 
   const contextKey = `${donorId}|${grantId}|${reportTypeId}|${streamId}|${periodId}`
-  const orgId = currentUser?.orgId ?? 'demo'
+  const orgId = currentOrg?.id ?? currentUser?.orgId ?? 'demo'
   const periodLabel = PERIODS.find((p) => p.id === periodId)?.label ?? periodId
   const reportTypeLabel = donor.reportTypes.find((r) => r.id === reportTypeId)?.name ?? reportTypeId
   const userName = currentUser?.email?.split('@')[0] || 'Current User'
@@ -258,16 +260,18 @@ export function FinanceTriangulationPage() {
 
   const baselineQuery = useQuery({
     queryKey: ['financial-triangulation', orgId, contextKey],
+    enabled: !!currentUser,
     queryFn: async () => {
-      const persisted = await api.fetchFinancialTriangulation(orgId, contextKey)
+      if (isDemo) return BASELINE[contextKey] ? { ...BASELINE[contextKey], history: [...BASELINE[contextKey].history] } : emptyRecord(contextKey)
+      const persisted = await api.fetchFinancialTriangulation(orgId, contextKey, true)
       if (persisted) return persisted
-      return BASELINE[contextKey] ? { ...BASELINE[contextKey], history: [...BASELINE[contextKey].history] } : emptyRecord(contextKey)
+      return emptyRecord(contextKey)
     },
   })
 
   useEffect(() => {
-    if (baselineQuery.data) setRecord(baselineQuery.data)
-  }, [baselineQuery.data])
+    setRecord(baselineQuery.data ?? emptyRecord(contextKey))
+  }, [baselineQuery.data, contextKey, orgId])
 
   const expectedClosing = useMemo(
     () => record.openingBalance + record.incomeReceived - record.expenditures + record.adjustments,
@@ -275,13 +279,15 @@ export function FinanceTriangulationPage() {
   )
   const variance = expectedClosing - record.actualBankBalance
   const locked = record.status === 'locked'
-  const financeCanEdit = role === 'org_finance_officer' && !locked
-  const managerCanEdit = role === 'org_grant_manager' && !locked
-  const assessorCanEdit = role === 'independent_assessor' && !locked
+  const loaded = !baselineQuery.isLoading && !baselineQuery.isError && !readOnly
+  const financeCanEdit = role === 'org_finance_officer' && !locked && loaded
+  const managerCanEdit = role === 'org_grant_manager' && !locked && loaded
+  const assessorCanEdit = role === 'independent_assessor' && !locked && loaded
 
   const saveMutation = useMutation({
     mutationFn: async (next: TriangulationRecord) => {
-      BASELINE[contextKey] = next
+      if (isDemo) { BASELINE[contextKey] = next; return next }
+      if (readOnly) throw new Error('Read-only workspace')
       const payload = {
         ...next,
         orgId,
@@ -298,8 +304,8 @@ export function FinanceTriangulationPage() {
       // the dedupeKey means only the latest reconciliation state is synced, not
       // every keystroke.
       const draftKey = `triangulation:${orgId}:${contextKey}`
-      void offlineDB.putDraft(draftKey, payload)
-      void queueAndSync({
+      await offlineDB.putDraft(draftKey, payload)
+      await queueAndSync({
         kind: 'financial-triangulation',
         endpoint: '/api/financial-triangulation',
         method: 'POST',
@@ -351,9 +357,12 @@ export function FinanceTriangulationPage() {
           </div>
           <h1 className="mt-1 font-display text-3xl font-bold text-slate-900">Universal Donor Reconciliation</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-600">
-            Select a donor context, enter the period cash flow, explain variance drivers, and lock the final verified submission through an independent assessor workflow.
+            Select a donor context, record cash flow and reconcile variance. Live workflow permissions use your assigned account role. A recorded verification status is not external audit certification.
           </p>
         </div>
+        {baselineQuery.isError && <p role="alert" className="text-sm text-rose-700">Unable to load the saved reconciliation. Editing is disabled to protect existing data.</p>}
+        {saveMutation.isError && <p role="alert" className="text-sm text-rose-700">Unable to persist reconciliation. Reconnect and retry before leaving.</p>}
+        <p role="status" className="text-xs text-slate-500">{isDemo ? 'Demo — no live writes.' : saveMutation.isPending ? 'Saving locally and queuing backend sync…' : saveMutation.isSuccess ? 'Queued for sync — backend verification is not implied.' : 'Saved backend data loaded when available.'}</p>
         <Badge className={cn('border', statusStyle[record.status])}>
           {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
           {statusLabel[record.status]}
@@ -377,7 +386,8 @@ export function FinanceTriangulationPage() {
             <Select label="Report Type" value={reportTypeId} onChange={setReportTypeId} options={donor.reportTypes.map((r) => ({ value: r.id, label: r.name }))} />
             <Select label="Funding Stream/Tranche" value={streamId} onChange={setStreamId} options={donor.streams.map((s) => ({ value: s.id, label: s.name }))} />
             <Select label="Reporting Period" value={periodId} onChange={setPeriodId} options={PERIODS.map((p) => ({ value: p.id, label: p.label }))} />
-            <Select label="Workflow Role" value={role} onChange={(value) => setRole(value as WorkflowRole)} options={ROLE_OPTIONS} />
+            {isDemo ? <Select label="Demo Workflow Role" value={role} onChange={(value) => setRole(value as WorkflowRole)} options={ROLE_OPTIONS} /> :
+              <p className="text-sm text-slate-600">Workflow role is assigned server-side: {role || 'unassigned'}. A finance officer, grant manager or independent assessor assignment is required.</p>}
           </div>
           <p className="mt-3 text-xs font-medium text-slate-500">
             Current agreement term: <span className="text-slate-800">{donor.agreementPartyLabel}</span>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
-import { logout as identityLogout } from '@netlify/identity'
+import { getUser, logout as identityLogout } from '@netlify/identity'
+import { clearOfflineSession, setOfflineSession } from '../lib/offline/session'
 import { cn } from '../lib/utils'
 import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
 import { Badge, Button } from './ui'
@@ -52,7 +53,7 @@ const adminNav = [
 
 // Secure multi-tenant vault chrome (Zones 3 & 4).
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const { currentUser, setRole, logout, onboardingComplete, enterDemo, authReady } = useAuthCtx()
+  const { currentUser, setRole, logout, onboardingComplete, enterDemo, authReady, sessionTimeout } = useAuthCtx()
   const { currentOrg, organizations, activeClientOrgId, setActiveClient, isViewingClient } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -60,14 +61,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const pathname = router.location.pathname
 
+  useEffect(() => {
+    let cancelled = false
+    setOfflineSession(null)
+    if (authReady && currentUser && !currentUser.isDemo) {
+      void getUser().then(user => {
+        if (!cancelled && user && user.email === currentUser.email) {
+          setOfflineSession({ userId: user.id, email: user.email, tenantId: currentUser.orgId })
+        }
+      }).catch(() => {})
+    }
+    return () => { cancelled = true; setOfflineSession(null) }
+  }, [authReady, currentUser?.email, currentUser?.orgId, currentUser?.isDemo])
+
   // Sovereignty Shield — wipe the on-device buffer after 15 minutes idle, drop
   // session state, and return to the login gateway with a timeout reason. Only
   // armed for signed-in, non-demo sessions (demo data is disposable anyway).
   useOfflineSecurity({
     enabled: Boolean(currentUser) && !currentUser?.isDemo,
-    onWipe: () => {
+    timeoutMs: sessionTimeout * 60 * 1000,
+    onWipe: async () => {
       try {
-        identityLogout()
+        await identityLogout()
       } catch {
         /* identity may be absent in local/demo */
       }
@@ -146,7 +161,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-emerald-50/30 font-sans">
+    <div data-sensitive-workspace translate="no" className="flex h-screen bg-emerald-50/30 font-sans">
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -258,10 +273,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className="border-t border-slate-700/60 px-4 py-3">
           <button
-            onClick={() => {
+            onClick={async () => {
               // Clear the real Identity session first so it can't re-hydrate the
               // demo session on the next page load, then drop local app state.
-              identityLogout().catch(() => {})
+              try { await clearOfflineSession() } catch { /* pending records remain locked */ }
+              await identityLogout().catch(() => {})
               logout()
               navigate({ to: '/' })
             }}

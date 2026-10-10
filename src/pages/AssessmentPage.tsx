@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 import { Link } from '@tanstack/react-router'
 import {
   ChevronLeft, ChevronRight, Lightbulb, Lock, ShieldCheck, UploadCloud, Layers, FolderCheck,
@@ -22,8 +24,8 @@ export function AssessmentPage() {
     scores, getScore, updateScore,
     getAssessorScore, updateAssessorScore, scoreAttribution,
   } = useScoresCtx()
-  const { activeLenses } = useLensCtx()
-  const { entityProfile } = useEntityProfileCtx()
+  const { activeLenses, lensSaveStatus, mandateSaveStatus } = useLensCtx()
+  const { entityProfile, profileSaveStatus } = useEntityProfileCtx()
   const orgId = currentOrg?.id ?? currentUser?.orgId ?? 'org-001'
   // An Independent Assessor scores the same institution on a parallel track:
   // their input is written to assessor_score (reconciled on Trust Delta), never
@@ -35,7 +37,7 @@ export function AssessmentPage() {
   const [domainFilter, setDomainFilter] = useState('All')
   const [toast, setToast] = useState<string | null>(null)
   const [showImport, setShowImport] = useState(false)
-  const [evidence, setEvidence] = useState<Record<string, number>>({})
+  const [evidence, setEvidence, evidenceStatus] = useLegacyAssessment<Record<string, number>>('craft:evidence-confidence', {})
 
   // Only questions in the active scope (Core Foundation + active lenses) AND
   // matching the workspace's entity archetype are visible - a Private startup
@@ -71,6 +73,11 @@ export function AssessmentPage() {
 
   return (
     <div className="space-y-6">
+      <LegacySaveStatus status={evidenceStatus} />
+      <LegacySaveStatus status={lensSaveStatus} />
+      <LegacySaveStatus status={mandateSaveStatus} />
+      <LegacySaveStatus status={profileSaveStatus} />
+      <p className="text-xs text-slate-500">Evidence matrix entries are self-reported confidence, not verified uploads.</p>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">

@@ -9,6 +9,24 @@
 import type { Organization, AuditEntry, RiskStatus, Question, Portfolio } from './data'
 import type { Obligation } from './obligations'
 
+export async function fetchLegacyState<T>(orgId: string, key: string, signal?: AbortSignal): Promise<T | null> {
+  const response = await jsonOrThrow(await fetch(`/api/legacy-state?orgId=${encodeURIComponent(orgId)}&key=${encodeURIComponent(key)}`, { cache: 'no-store', signal }))
+  return response.value as T | null
+}
+
+export async function saveLegacyState<T>(orgId: string, key: string, value: T, signal?: AbortSignal): Promise<void> {
+  await jsonOrThrow(await fetch('/api/legacy-state', {
+    method: 'PUT',
+    signal,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ orgId, key, value }),
+  }))
+}
+
+export async function fetchResponseRecords(orgId: string): Promise<{ scores: Record<string, number>; details: Record<string, ResponseDetail> }> {
+  return jsonOrThrow(await fetch(`/api/responses?orgId=${encodeURIComponent(orgId)}`, { cache: 'no-store' }))
+}
+
 async function jsonOrThrow(res: Response) {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
@@ -234,17 +252,17 @@ export async function fetchResponseDetails(orgId: string): Promise<Record<string
 
 // Persist Trust Delta / debrief detail for a single question without disturbing
 // the self-score (the server only writes the keys present in the body).
-export function saveResponseDetail(
+export async function saveResponseDetail(
   orgId: string,
   questionId: string,
   detail: ResponseDetail,
   updatedBy?: string,
-): void {
-  void fetch('/api/responses', {
+): Promise<void> {
+  await jsonOrThrow(await fetch('/api/responses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ orgId, questionId, ...detail, updatedBy }),
-  }).catch((err) => console.warn('[api] saveResponseDetail failed', err))
+  }))
 }
 
 export function saveScore(orgId: string, questionId: string, score: number, updatedBy?: string): void {
@@ -438,11 +456,12 @@ export interface FinancialTriangulationPayload {
   history: string[]
 }
 
-export async function fetchFinancialTriangulation(orgId: string, contextKey: string): Promise<FinancialTriangulationPayload | null> {
+export async function fetchFinancialTriangulation(orgId: string, contextKey: string, strict = false): Promise<FinancialTriangulationPayload | null> {
   try {
     const qs = `?orgId=${encodeURIComponent(orgId)}&contextKey=${encodeURIComponent(contextKey)}`
     return (await jsonOrThrow(await fetch(`/api/financial-triangulation${qs}`))) as FinancialTriangulationPayload | null
   } catch (err) {
+    if (strict) throw err
     console.warn('[api] fetchFinancialTriangulation failed', err)
     return null
   }
