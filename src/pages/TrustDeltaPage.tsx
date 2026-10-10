@@ -108,25 +108,28 @@ export function TrustDeltaPage() {
 
   // Hydrate previously-recorded negotiated scores and consensus notes for a
   // live (non-demo) workspace. Demo sessions stay entirely in-memory by design.
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
+    setRows(isDemo ? TRUST_DELTA_SEED.map(r => ({ ...r })) : [])
+    setConsensus({})
+    setSelectedRow(null)
     if (!currentUser || isDemo) return
     let active = true
     const orgId = currentUser.orgId
-    api.fetchResponseDetails(orgId).then(details => {
-      if (!active || !Object.keys(details).length) return
-      setRows(prev =>
-        prev.map(r => {
-          const d = details[r.qId]
-          return d && d.negotiatedScore != null ? { ...r, negotiatedScore: d.negotiatedScore } : r
-        }),
-      )
+    api.fetchResponseRecords(orgId).then(({ scores, details }) => {
+      if (!active) return
+      setRows(Object.entries(details).filter(([qId, d]) => d.assessorScore != null && scores[qId] != null).map(([qId, d]) => ({
+        qId, domain: qId.split('-')[0], question: qId,
+        prScore: scores[qId], assessorScore: d.assessorScore!,
+        negotiatedScore: d.negotiatedScore, scale: qId.startsWith('OMT-') ? 'omt-1-4' : 'fiduciary-0-5',
+      })))
       setConsensus(prev => {
         const next = { ...prev }
         for (const [qId, d] of Object.entries(details)) {
           if (d.notes != null) next[qId] = { comment: d.notes, justification: next[qId]?.justification ?? '' }
         }
         return next
-      })
+      }).catch(() => { if (active) setError('Unable to load the response register. Please reconnect and reload.') })
     })
     return () => {
       active = false
@@ -169,8 +172,17 @@ export function TrustDeltaPage() {
     [rows],
   )
 
-  const saveConsensus = (idx: number, negotiated: number, comment: string, justification: string) => {
+  const saveConsensus = async (idx: number, negotiated: number, comment: string, justification: string) => {
     const row = rows[idx]
+    if (currentUser && !isDemo) {
+      try {
+        await api.saveResponseDetail(currentUser.orgId, row.qId,
+          { negotiatedScore: negotiated, assessorScore: row.assessorScore, notes: comment }, currentUser.email)
+      } catch {
+        setError('Consensus was not saved. Please reconnect and retry.')
+        return
+      }
+    }
     setRows(prev =>
       prev.map((r, i) => (i === idx ? { ...r, negotiatedScore: negotiated } : r)),
     )
@@ -179,12 +191,6 @@ export function TrustDeltaPage() {
     // The mandatory consensus comment is stored as the response note; the
     // assessor's proposed score is captured for the Trust Delta record.
     if (currentUser && !isDemo) {
-      api.saveResponseDetail(
-        currentUser.orgId,
-        row.qId,
-        { negotiatedScore: negotiated, assessorScore: row.assessorScore, notes: comment },
-        currentUser.email,
-      )
       logActivity('Recorded negotiated consensus', `${row.qId} → ${negotiated}`, 'Assessment')
     }
     setSelectedRow(null)
@@ -192,6 +198,7 @@ export function TrustDeltaPage() {
 
   return (
     <div className="space-y-6">
+      {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       {/* Header --------------------------------------------------------------*/}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>

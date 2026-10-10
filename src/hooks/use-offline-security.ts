@@ -13,7 +13,7 @@
 // ============================================================================
 
 import { useEffect, useRef } from 'react'
-import { offlineDB } from '../lib/offline/db'
+import { clearOfflineSession } from '../lib/offline/session'
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000
 
@@ -23,7 +23,7 @@ export interface OfflineSecurityOptions {
   /** Where to send the user after a wipe. */
   redirectTo?: string
   /** Optional app-level cleanup (e.g. context logout) run before redirect. */
-  onWipe?: () => void
+  onWipe?: () => void | Promise<void>
   /** Set false to temporarily disable (e.g. on public/marketing routes). */
   enabled?: boolean
 }
@@ -34,6 +34,8 @@ const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
   'scroll',
   'touchstart',
   'pointerdown',
+  'mousemove',
+  'click',
 ]
 
 export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
@@ -53,17 +55,18 @@ export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
 
     let timer: ReturnType<typeof setTimeout>
     let wiped = false
+    let deadline = Date.now() + timeoutMs
 
     const wipe = async () => {
       if (wiped) return
       wiped = true
       try {
-        await offlineDB.clearAll()
+        await clearOfflineSession()
       } catch (err) {
         console.error('[security] auto-wipe failed', err)
       }
       try {
-        onWipeRef.current?.()
+        await onWipeRef.current?.()
       } catch (err) {
         console.error('[security] onWipe callback failed', err)
       }
@@ -73,6 +76,11 @@ export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
 
     const reset = () => {
       clearTimeout(timer)
+      if (Date.now() >= deadline) {
+        void wipe()
+        return
+      }
+      deadline = Date.now() + timeoutMs
       timer = setTimeout(() => void wipe(), timeoutMs)
     }
 
@@ -81,7 +89,7 @@ export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
     }
     // Wipe sooner if the tab is hidden past the window (backgrounded device).
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') reset()
+      if (document.visibilityState === 'visible' && Date.now() >= deadline) void wipe()
     }
     document.addEventListener('visibilitychange', onVisibility)
 

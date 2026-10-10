@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { api, SEVERITY_STYLE, wsPath } from '../../lib/workspaceApi'
 import { Accordion, Badge, Button, Card, CardContent, Input, ProgressBar, Select, Table, Tbody, Td, Th, Thead } from '../../components/ui'
-import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
+import { EditFields, ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
 
 const dash = (workspaceId: string) => ({ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' })
 
@@ -72,7 +72,8 @@ export function EsgRoadmapPage({ workspaceId }: { workspaceId: string }) {
 
 export function EsgPlanPage({ workspaceId, requirementId }: { workspaceId: string; requirementId: string }) {
   const rm = useApi<any>(wsPath(workspaceId, '/esg-requirements'))
-  const { run, error } = useAction(rm.reload)
+  const roadmap = useApi<any>(wsPath(workspaceId, '/esg-roadmap'))
+  const { run, error } = useAction(async () => { await rm.reload(); await roadmap.reload() })
   const req = rm.data?.find((r: any) => String(r.id) === requirementId)
   const [owner, setOwner] = useState<string | null>(null)
   if (!req) return <State loading={rm.loading} error={rm.error ?? (rm.data ? 'Requirement not found' : null)} />
@@ -85,7 +86,22 @@ export function EsgPlanPage({ workspaceId, requirementId }: { workspaceId: strin
       <ErrorLine error={error} />
       <Select label="Status" value={plan.status} onChange={status => update({ status })} options={['not_started', 'in_progress', 'completed'].map(v => ({ value: v, label: v.replace('_', ' ') }))} />
       <Input label="Owner" value={owner ?? plan.owner ?? ''} onChange={e => setOwner(e.target.value)} onBlur={() => owner !== null && update({ owner })} />
-      <Card><CardContent className="space-y-1 text-sm">{[plan.milestone1, plan.milestone2, plan.milestone3].map((m, i) => <p key={i}>Milestone {i + 1}: {m ?? '—'}</p>)}<p>Evidence items: {plan.evidenceCount}</p></CardContent></Card>
+      <EditFields key={plan.id} initial={plan} fields={[
+        { name: 'timelineStart', label: 'Timeline start', type: 'date' }, { name: 'timelineEnd', label: 'Timeline end', type: 'date' },
+        { name: 'evidenceCount', label: 'Evidence count (manual inventory)', type: 'number' },
+      ]} save={async body => { await api(wsPath(workspaceId, `/esg-plans/${plan.id}`), { method: 'PUT', body }); await rm.reload(); await roadmap.reload() }} />
+      <State loading={roadmap.loading} error={roadmap.error} />
+      {roadmap.data?.items?.find((i: any) => i.planId === plan.id)?.milestones?.map((m: any) => <Card key={m.id}><CardContent className="space-y-3">
+        <h2 className="font-semibold">Milestone {m.milestoneNum}</h2>
+        <EditFields initial={m} fields={[
+          { name: 'description', label: 'Milestone description' }, { name: 'targetDate', label: 'Milestone target date', type: 'date' },
+          { name: 'status', label: 'Milestone status', options: ['not_started', 'in_progress', 'completed'] },
+          { name: 'completionEvidenceLink', label: 'Completion evidence reference' },
+        ]} save={async body => {
+          await api(wsPath(workspaceId, `/esg-plans/${plan.id}`), { method: 'PUT', body: { [`milestone${m.milestoneNum}`]: body.description ?? m.description, milestones: [{ milestoneNum: m.milestoneNum, ...body }] } })
+          await rm.reload(); await roadmap.reload()
+        }} />
+      </CardContent></Card>)}
     </div>
   )
 }

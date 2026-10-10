@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarCh
 import { api, SEVERITY_STYLE, TIER_LABEL, wsPath } from '../../lib/workspaceApi'
 import { ALL_DOMAINS, GOVERNANCE_DOMAINS } from '../../lib/governanceDomains'
 import { Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead, Tabs } from '../../components/ui'
-import { ErrorLine, Header, State, StatusPill, useAction, useApi } from './shared'
+import { EditFields, ErrorLine, Header, State, StatusPill, useAction, useApi } from './shared'
 
 export function AssessmentsListPage({ workspaceId }: { workspaceId: string }) {
   const list = useApi<any[]>(wsPath(workspaceId, '/assessments'))
@@ -12,7 +12,7 @@ export function AssessmentsListPage({ workspaceId }: { workspaceId: string }) {
   const { run, error, busy } = useAction(list.reload)
   return (
     <div className="space-y-6">
-      <Header title="Governance assessments" back={{ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' }} />
+      <Header title="Governance assessments" subtitle="All framework labels use the same shared governance-domain scoring. ISO and COSO labels are organizational tags, not specialized rubrics or certifications." back={{ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' }} />
       <div className="flex items-end gap-3">
         <div className="w-40"><Select label="Framework" value={type} onChange={setType} options={['G2G', 'ISO', 'COSO'].map(v => ({ value: v, label: v }))} /></div>
         <Button disabled={busy} onClick={() => run(() => api(wsPath(workspaceId, '/assessments'), { method: 'POST', body: { assessmentType: type } }))}>New assessment</Button>
@@ -65,7 +65,7 @@ function ScoringWizard({ workspaceId, a, reload }: { workspaceId: string; a: any
 }
 
 function FindingsTab({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
-  const [f, setF] = useState({ domain: ALL_DOMAINS[0].domain, severity: 'medium', description: '', sensitive: false })
+  const [f, setF] = useState({ domain: ALL_DOMAINS[0].domain, severity: 'medium', description: '', sensitive: false, ownerAssignment: '', dueDate: '', recommendation: '', evidenceLink: '' })
   const { run, error } = useAction(reload)
   const locked = a.status === 'approved'
   return (
@@ -75,8 +75,12 @@ function FindingsTab({ workspaceId, a, reload }: { workspaceId: string; a: any; 
           <div className="w-60"><Select label="Domain" value={f.domain} onChange={domain => setF({ ...f, domain })} options={ALL_DOMAINS.map(d => ({ value: d.domain, label: d.domain }))} /></div>
           <div className="w-36"><Select label="Severity" value={f.severity} onChange={severity => setF({ ...f, severity })} options={['critical', 'high', 'medium', 'low'].map(v => ({ value: v, label: v }))} /></div>
           <div className="min-w-[240px] flex-1"><Input label="Description" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></div>
+          <Input label="Owner assignment" value={f.ownerAssignment} onChange={e => setF({ ...f, ownerAssignment: e.target.value })} />
+          <Input label="Finding due date" type="date" value={f.dueDate} onChange={e => setF({ ...f, dueDate: e.target.value })} />
+          <Input label="Recommendation" value={f.recommendation} onChange={e => setF({ ...f, recommendation: e.target.value })} />
+          <Input label="Evidence reference" value={f.evidenceLink} onChange={e => setF({ ...f, evidenceLink: e.target.value })} />
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.sensitive} onChange={e => setF({ ...f, sensitive: e.target.checked })} /> Contains sensitive personal details</label>
-          <Button disabled={!f.description} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/findings`), { method: 'POST', body: f }))}>Add finding</Button>
+          <Button disabled={!f.description} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/findings`), { method: 'POST', body: { ...f, dueDate: f.dueDate || null } }))}>Add finding</Button>
         </div>
       )}
       <ErrorLine error={error} />
@@ -94,6 +98,13 @@ function FindingsTab({ workspaceId, a, reload }: { workspaceId: string; a: any; 
             </Td>
           </tr>))}</Tbody>
       </Table>
+      {a.findings.map((x: any) => <Card key={x.id}><CardContent className="space-y-3">
+        <h3 className="font-semibold">Finding #{x.id} details</h3>
+        <EditFields initial={x} disabled={locked} fields={[
+          { name: 'ownerAssignment', label: 'Owner assignment' }, { name: 'dueDate', label: 'Due date', type: 'date' },
+          { name: 'recommendation', label: 'Recommendation' }, { name: 'evidenceLink', label: 'Evidence reference' },
+        ]} save={async body => { await api(wsPath(workspaceId, `/assessments/${a.id}/findings/${x.id}`), { method: 'PUT', body }); reload() }} />
+      </CardContent></Card>)}
     </div>
   )
 }
@@ -130,7 +141,7 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
   const act = (what: string) => run(() => api(wsPath(workspaceId, `/assessments/${assessmentId}/${what}`), { method: 'POST', body: { comments } }))
   return (
     <div className="space-y-6">
-      <Header title={`${d.assessmentType} assessment v${d.version}`} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
+      <Header title={`${d.assessmentType} assessment v${d.version}`} subtitle="Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification." back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <ErrorLine error={error} />
       {tab === 'overview' && (

@@ -1,9 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   getUser,
   onAuthChange,
   handleAuthCallback,
+  recoverPassword,
+  login as identityLogin,
+  logout as identityLogout,
   type User,
 } from '@netlify/identity'
 import { useAuthCtx, SELF_ORG_ID } from '../lib/context'
@@ -14,6 +17,20 @@ import { fetchUserByEmail, recordSignIn } from '../lib/api'
 // is only ever granted from the allowlist / admin portal). Mirrors the choices
 // offered on the registration form.
 const VALID_SELF_ROLES = new Set<ViewLevel>(['assessor', 'independent', 'portfolio'])
+
+const RECOVERY_ERROR = 'This password reset link is invalid or has expired. Request a new link and try again.'
+type RecoveryState = 'loading' | 'none' | 'ready' | 'invalid'
+const RecoveryContext = createContext<{
+  state: RecoveryState
+  resetPassword: (password: string) => Promise<void>
+  dismiss: () => void
+} | null>(null)
+
+export function useIdentityRecovery() {
+  const context = useContext(RecoveryContext)
+  if (!context) throw new Error('IdentityBridge is required')
+  return context
+}
 
 // A confirmed Netlify Identity user is a real, signed-in institution. We map
 // them onto their own isolated, initially-empty live workspace - never the
@@ -35,12 +52,46 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
   // Tracks which identity is currently reflected in app context so we only
   // hydrate/clear on genuine transitions (not on every token refresh).
   const syncedEmail = useRef<string | null>(null)
+  const recoveryToken = useRef<string | null>(null)
+  const recoveryBlocked = useRef(false)
+  const syncUser = useRef<(user: User | null) => void>(() => {})
+  const initialized = useRef(false)
+  const [recoveryState, setRecoveryState] = useState<RecoveryState>('loading')
+
+  async function resetPassword(password: string) {
+    const token = recoveryToken.current
+    if (!token || !recoveryBlocked.current) throw new Error(RECOVERY_ERROR)
+    try {
+      const user = await recoverPassword(token, password)
+      // recoverPassword emits login but does not set browser auth cookies in
+      // SDK 1.2.0. A normal login establishes the verified, changed session.
+      const signedIn = await identityLogin(user.email, password)
+      recoveryToken.current = null
+      recoveryBlocked.current = false
+      setRecoveryState('none')
+      syncUser.current(signedIn)
+    } catch {
+      recoveryToken.current = null
+      setRecoveryState('invalid')
+      // Redemption can create a session before the password update fails.
+      await identityLogout().catch(() => {})
+      throw new Error(RECOVERY_ERROR)
+    }
+  }
+
+  async function dismissRecovery() {
+    recoveryToken.current = null
+    // Do not revive a pre-existing session after an abandoned reset.
+    await identityLogout().catch(() => {})
+    recoveryBlocked.current = false
+    setRecoveryState('none')
+  }
 
   useEffect(() => {
     let active = true
 
     function sync(user: User | null) {
-      if (!active) return
+      if (!active || recoveryBlocked.current) return
       if (user?.email) {
         if (syncedEmail.current === user.email) return
         syncedEmail.current = user.email
@@ -94,36 +145,54 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
               login(user.email, row.orgId, role, orgName)
             }
           }
-        })
+        }).catch(() => {})
       } else {
         if (syncedEmail.current === null) return
         syncedEmail.current = null
         logout()
       }
+      syncUser.current = sync
     }
 
     // 1) Handle a confirmation / recovery / OAuth token landing in the URL hash.
     //    When a freshly confirmed user clicks the email link they arrive here,
     //    get signed in, and are taken straight into the secure workspace.
-    handleAuthCallback()
-      .then(result => {
-        if (result?.user) {
-          sync(result.user)
-          navigate({ to: '/dashboard' })
+    async function initialize() {
+      if (!initialized.current) {
+        initialized.current = true
+        const params = new URLSearchParams(window.location.hash.slice(1))
+        if (params.has('recovery_token') || params.get('type') === 'recovery') {
+          recoveryBlocked.current = true
+          const token = params.get('recovery_token')
+          const valid = params.getAll('recovery_token').length === 1 &&
+            !!token && token.length <= 4096 && !/[\s\x00-\x1f]/.test(token) &&
+            !params.has('access_token') && !params.has('confirmation_token') && !params.has('error')
+          recoveryToken.current = valid ? token : null
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
+          logout()
+          syncedEmail.current = null
+          setRecoveryState(valid ? 'ready' : 'invalid')
+          void navigate({ to: '/auth', replace: true })
+        } else {
+          try {
+            const result = await handleAuthCallback()
+            if (result?.user) {
+              syncUser.current(result.user)
+              // AuthPage chooses onboarding vs dashboard after hydration.
+              void navigate({ to: '/auth', replace: true })
+            }
+          } catch {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search)
+            setRecoveryState('invalid')
+            void navigate({ to: '/auth', replace: true })
+          }
+          setRecoveryState(state => state === 'invalid' ? state : 'none')
         }
-      })
-      .catch(() => {
-        // Malformed or expired hash - ignore and fall through to normal load.
-      })
-
-    // 2) Hydrate from any existing session and stay in sync with future changes
-    //    (login, logout, cross-tab changes, token refresh). Once this initial
-    //    read settles — whether it finds a session or not — the auth gate opens
-    //    so route guards can act on a known state instead of a transient null.
-    getUser()
-      .then(sync)
-      .catch(() => {})
-      .finally(() => {
+      }
+      if (!recoveryBlocked.current) await getUser().then(user => syncUser.current(user)).catch(() => {})
+      if (active) setAuthReady(true)
+    }
+    void initialize().finally(() => {
         if (active) setAuthReady(true)
       })
     const unsubscribe = onAuthChange((_event, user) => sync(user ?? null))
@@ -134,5 +203,9 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
     }
   }, [login, logout, navigate, setAuthReady])
 
-  return <>{children}</>
+  return (
+    <RecoveryContext.Provider value={{ state: recoveryState, resetPassword, dismiss: dismissRecovery }}>
+      {children}
+    </RecoveryContext.Provider>
+  )
 }

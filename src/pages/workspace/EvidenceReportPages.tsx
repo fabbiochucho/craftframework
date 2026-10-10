@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { api, wsPath } from '../../lib/workspaceApi'
+import { api, REPORT_TYPES, reportSlug, wsPath } from '../../lib/workspaceApi'
 import { Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead } from '../../components/ui'
-import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
+import { EditFields, ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
 
 const dash = (workspaceId: string) => ({ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' })
 const ACCEPT = '.pdf,.docx,.xlsx,.zip,image/*'
@@ -52,9 +52,12 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
 export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: string; evidenceId: string }) {
   const ev = useApi<any>(wsPath(workspaceId, `/evidence/${evidenceId}`))
   const [comments, setComments] = useState('')
+  const [link, setLink] = useState({ targetType: 'cap', targetId: '', linkType: 'supports', reviewerNotes: '' })
+  const [archived, setArchived] = useState(false)
   const { run, error } = useAction(ev.reload)
   if (!ev.data) return <State loading={ev.loading} error={ev.error} />
   const e = ev.data
+  if (archived) return <div><Header title="Evidence archived" back={{ to: '/app/workspaces/$workspaceId/evidence', params: { workspaceId }, label: 'Registry' }} /><p>The original file is retained for audit.</p></div>
   const review = (status: string) => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}/approve`), { method: 'POST', body: { status, comments } }))
   return (
     <div className="max-w-3xl space-y-4">
@@ -64,22 +67,36 @@ export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: s
         <p>Expiry: {e.expiryDate ?? '—'} {e.expiryState === 'expired' && <Badge className="bg-rose-100 text-rose-700">expired</Badge>}</p><p>Status: <StatusPill value={e.status} /></p>
         <a className="text-emerald-700 underline" href={`/api${wsPath(workspaceId, `/evidence/${evidenceId}/download`)}`}>Download</a>
       </CardContent></Card>
+      <Card><CardContent className="space-y-3">
+        <h2 className="font-semibold">Edit evidence metadata</h2>
+        <EditFields key={`${workspaceId}-${evidenceId}`} initial={e} fields={[{ name: 'documentType', label: 'Document type', options: ['assessment', 'policy', 'evidence', 'certification'] }, { name: 'expiryDate', label: 'Expiry date', type: 'date' }]}
+          save={async body => { await api(wsPath(workspaceId, `/evidence/${evidenceId}`), { method: 'PUT', body }); await ev.reload() }} />
+        <Button variant="outline" onClick={() => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}`), { method: 'PUT', body: { status: 'pending_review' } }))}>Resubmit for review</Button>
+        <Button variant="destructive" onClick={() => { if (confirm('Archive this evidence? It will no longer count toward verification.')) void run(async () => { await api(wsPath(workspaceId, `/evidence/${evidenceId}`), { method: 'DELETE' }); setArchived(true) }) }}>Archive (admin)</Button>
+      </CardContent></Card>
       <ErrorLine error={error} />
       <Card><CardContent className="space-y-2"><p className="text-sm font-semibold">Approval workflow</p>
         <Input label="Reviewer comments" value={comments} onChange={x => setComments(x.target.value)} />
         <div className="flex gap-2"><Button onClick={() => review('approved')}>Approve</Button><Button variant="destructive" onClick={() => review('rejected')}>Reject</Button></div>
         <ul className="text-xs text-slate-600">{e.approvals.map((a: any) => <li key={a.id}>{new Date(a.reviewDate).toLocaleDateString()} — {a.reviewerId}: {a.status} {a.comments}</li>)}</ul></CardContent></Card>
       <Card><CardContent><p className="text-sm font-semibold">Linked to</p><ul className="text-sm">{e.links.map((l: any) => <li key={l.id}>{l.targetType} #{l.targetId} ({l.linkType})</li>)}</ul></CardContent></Card>
+      <Card><CardContent className="space-y-3">
+        <h2 className="font-semibold">Link evidence</h2>
+        <Select label="Target type" value={link.targetType} onChange={targetType => setLink({ ...link, targetType })} options={['cap', 'assessment', 'requirement'].map(value => ({ value, label: value }))} />
+        <Input label="Target ID (in this workspace)" type="number" value={link.targetId} onChange={x => setLink({ ...link, targetId: x.target.value })} />
+        <Select label="Link type" value={link.linkType} onChange={linkType => setLink({ ...link, linkType })} options={['supports', 'verifies'].map(value => ({ value, label: value }))} />
+        <Input label="Link reviewer notes" value={link.reviewerNotes} onChange={x => setLink({ ...link, reviewerNotes: x.target.value })} />
+        <Button disabled={!Number.isInteger(Number(link.targetId)) || Number(link.targetId) < 1} onClick={() => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}`), { method: 'PUT', body: { link: { ...link, targetId: Number(link.targetId) } } }))}>Link evidence</Button>
+      </CardContent></Card>
     </div>
   )
 }
 
-const REPORT_TYPES = [['governance-scorecard', 'Governance Scorecard'], ['esg-status', 'ESG Status'], ['cap-summary', 'CAP Summary'], ['audit-trail', 'Audit Trail']]
-
 export function ReportsPage({ workspaceId }: { workspaceId: string }) {
   const list = useApi<any[]>(wsPath(workspaceId, '/reports'))
   const schedules = useApi<any[]>(wsPath(workspaceId, '/reports/schedules'))
-  const [type, setType] = useState('governance-scorecard')
+  const [type, setType] = useState<string>('governance_scorecard')
+  const [scheduleType, setScheduleType] = useState<string>('governance_scorecard')
   const [cadence, setCadence] = useState('weekly')
   const [recipients, setRecipients] = useState('')
   const [format, setFormat] = useState('pdf')
@@ -88,8 +105,8 @@ export function ReportsPage({ workspaceId }: { workspaceId: string }) {
     <div className="space-y-6">
       <Header title="Reports" back={dash(workspaceId)} />
       <div className="flex items-end gap-3">
-        <div className="w-64"><Select label="Report type" value={type} onChange={setType} options={REPORT_TYPES.map(([value, label]) => ({ value, label }))} /></div>
-        <Button onClick={() => run(() => api(wsPath(workspaceId, `/reports/${type}`), { method: 'POST', body: {} }))}>Generate</Button>
+        <div className="w-64"><Select label="Report type" value={type} onChange={setType} options={REPORT_TYPES.map(value => ({ value, label: value.replace(/_/g, ' ') }))} /></div>
+        <Button onClick={() => run(() => api(wsPath(workspaceId, `/reports/${reportSlug(type)}`), { method: 'POST', body: {} }))}>Generate</Button>
         <Link className="text-sm text-emerald-700 underline" to="/app/workspaces/$workspaceId/compliance-dashboard" params={{ workspaceId }}>Compliance dashboard</Link>
       </div>
       <ErrorLine error={error} /><State loading={list.loading} error={list.error} />
@@ -98,12 +115,12 @@ export function ReportsPage({ workspaceId }: { workspaceId: string }) {
       <Card><CardContent className="space-y-3">
         <h2 className="font-semibold">Recurring schedules (admin+)</h2>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-56"><Select label="Report type" value={type} onChange={setType} options={REPORT_TYPES.map(([value, label]) => ({ value: value.replace(/-/g, '_'), label }))} /></div>
+          <div className="w-56"><Select label="Scheduled report type" value={scheduleType} onChange={setScheduleType} options={REPORT_TYPES.map(value => ({ value, label: value.replace(/_/g, ' ') }))} /></div>
           <div className="w-40"><Select label="Cadence" value={cadence} onChange={setCadence} options={['weekly', 'monthly', 'quarterly'].map(v => ({ value: v, label: v }))} /></div>
           <div className="w-28"><Select label="Format" value={format} onChange={setFormat} options={['pdf', 'json', 'both'].map(v => ({ value: v, label: v.toUpperCase() }))} /></div>
           <div className="min-w-64 flex-1"><Input label="Recipients (comma-separated, max 10)" value={recipients} onChange={e => setRecipients(e.target.value)} /></div>
           <Button onClick={() => run(() => api(wsPath(workspaceId, '/reports/schedules'), { method: 'POST', body: {
-            reportType: type, cadence, format, recipients: recipients.split(',').map(v => v.trim()).filter(Boolean),
+            reportType: scheduleType, cadence, format, recipients: recipients.split(',').map(v => v.trim()).filter(Boolean),
           } }))}>Create schedule</Button>
         </div>
         <ErrorLine error={schedules.error} />
@@ -185,16 +202,22 @@ export function SupportBotPage({ workspaceId }: { workspaceId: string }) {
 export function SupportIssuesPage({ workspaceId }: { workspaceId: string }) {
   const list = useApi<any[]>(`/support-bot/issues?workspaceId=${workspaceId}`)
   const [reply, setReply] = useState('')
+  const [status, setStatus] = useState('responded')
+  const [capId, setCapId] = useState('')
+  const caps = useApi<any[]>(wsPath(workspaceId, '/cap'))
   const { run, error } = useAction(list.reload)
   return (
     <div className="space-y-4">
       <Header title="Support issues" back={dash(workspaceId)} />
-      <Input placeholder="Response message" value={reply} onChange={e => setReply(e.target.value)} />
+      <Input label="Response message (maximum 4000 characters)" maxLength={4000} value={reply} onChange={e => setReply(e.target.value)} />
+      <Select label="Issue status after response" value={status} onChange={setStatus} options={['open', 'responded', 'closed'].map(value => ({ value, label: value }))} />
+      <Select label="Link corrective action plan" placeholder="No CAP" value={capId} onChange={setCapId} options={(caps.data ?? []).map(c => ({ value: String(c.id), label: `#${c.id} ${c.findingDescription}` }))} />
+      <State loading={caps.loading} error={caps.error} />
       <ErrorLine error={error} /><State loading={list.loading} error={list.error} />
       <Table><Thead><tr><Th>#</Th><Th>Category</Th><Th>Description</Th><Th>Status</Th><Th>{''}</Th></tr></Thead>
         <Tbody>{list.data?.map(i => (
           <tr key={i.id}><Td>{i.id}</Td><Td>{i.category}</Td><Td>{i.description}</Td><Td><StatusPill value={i.status} /></Td>
-            <Td><Button size="sm" disabled={!reply} onClick={() => run(() => api(`/support-bot/issue/${i.id}/respond`, { method: 'POST', body: { message: reply } }))}>Respond</Button></Td></tr>))}</Tbody></Table>
+            <Td><Button size="sm" disabled={!reply.trim()} onClick={() => run(() => api(`/support-bot/issue/${i.id}/respond`, { method: 'POST', body: { message: reply, status, ...(capId ? { capId: Number(capId) } : {}) } }))}>Respond</Button></Td></tr>))}</Tbody></Table>
     </div>
   )
 }

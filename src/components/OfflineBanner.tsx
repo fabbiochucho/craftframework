@@ -15,8 +15,10 @@
 import { useEffect, useState } from 'react'
 import { WifiOff, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { syncEngine, type SyncState } from '../lib/offline/sync-engine'
+import { useAuthCtx } from '../lib/context'
 
 export function OfflineBanner() {
+  const { currentUser } = useAuthCtx()
   const [mounted, setMounted] = useState(false)
   const [online, setOnline] = useState(true)
   const [sync, setSync] = useState<SyncState>(syncEngine.getState())
@@ -59,7 +61,7 @@ export function OfflineBanner() {
     }
   }, [sync.status, sync.lastSyncedAt])
 
-  if (!mounted) return null
+  if (!mounted || !currentUser || currentUser.isDemo) return null
 
   const isOffline = !online
   const isSyncing = sync.status === 'syncing'
@@ -84,7 +86,7 @@ export function OfflineBanner() {
   } else if (isError) {
     tone = 'border-rose-400/60 bg-rose-600 text-white'
     icon = <AlertTriangle className="h-4 w-4 shrink-0" />
-    label = 'Sync interrupted. Will retry automatically.'
+    label = sync.failed ? 'Saved changes need review. Nothing was discarded.' : 'Sync interrupted. Changes remain saved.'
   } else {
     tone = 'border-emerald-400/60 bg-emerald-500 text-white'
     icon = <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -100,10 +102,15 @@ export function OfflineBanner() {
     >
       {icon}
       <span className="font-sans">{label}</span>
-      {pending > 0 && (isOffline || isSyncing) && (
+      {pending > 0 && (
         <span className="ml-0.5 rounded-full bg-black/15 px-2 py-0.5 font-mono text-xs tabular-nums">
           {pending} queued
         </span>
+      )}
+      {isError && (
+        <button className="rounded bg-white/20 px-2 py-1 underline" onClick={() => void syncEngine.retryFailed().catch(() => {})}>
+          Retry saved changes
+        </button>
       )}
     </div>
   )

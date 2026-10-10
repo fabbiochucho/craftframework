@@ -1,15 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { api, wsPath } from '../../lib/workspaceApi'
+import { api, downloadApi, selectedMembership, wsPath } from '../../lib/workspaceApi'
+import { useAuthCtx } from '../../lib/context'
 import { Button, Card, CardContent, CardTitle, CardHeader, Input, Select, Table, Thead, Tbody, Th, Td, ProgressBar } from '../../components/ui'
 import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
 
 type Org = { id: number; name: string; type: string; country: string; region: string; contactEmail: string; role: string }
 
-// First organization the caller belongs to is the active one.
 function useOrg() {
   const orgs = useApi<Org[]>('/orgs')
-  return { ...orgs, org: orgs.data?.[0] ?? null }
+  const { currentUser } = useAuthCtx()
+  const key = `craft.workspace.org:${currentUser?.email?.toLowerCase() ?? ''}`
+  const [selection, setSelection] = useState<{ key: string; id: string | null }>({ key: '', id: null })
+  useEffect(() => {
+    let id = null
+    try { id = localStorage.getItem(key) } catch { /* Storage may be disabled. */ }
+    setSelection({ key, id })
+  }, [key])
+  const org = selectedMembership(orgs.data ?? [], selection.key === key ? selection.id : null)
+  const select = (id: string) => {
+    if (!orgs.data?.some(o => String(o.id) === id)) return
+    setSelection({ key, id })
+    try { localStorage.setItem(key, id) } catch { /* Selection still works without storage. */ }
+  }
+  return { ...orgs, org, selector: <Select label="Organization" value={String(org?.id ?? '')} onChange={select} options={(orgs.data ?? []).map(o => ({ value: String(o.id), label: o.name }))} /> }
 }
 
 function CreateOrg({ onDone }: { onDone: () => void }) {
@@ -31,8 +45,9 @@ function CreateOrg({ onDone }: { onDone: () => void }) {
 }
 
 export function OrgSettingsPage() {
-  const { org, loading, error, reload } = useOrg()
+  const { org, selector, loading, error, reload } = useOrg()
   const [f, setF] = useState<Partial<Org> | null>(null)
+  useEffect(() => { setF(null) }, [org?.id])
   const { run, error: saveErr, busy } = useAction(reload)
   if (loading || error) return <State loading={loading} error={error} />
   if (!org) return <CreateOrg onDone={reload} />
@@ -41,18 +56,22 @@ export function OrgSettingsPage() {
   return (
     <div className="max-w-2xl space-y-4">
       <Header title="Organization settings" subtitle={`Your role: ${org.role}`} />
+      {selector}
+      <div key={org.id} className="space-y-4">
       <Input label="Name" disabled={!canEdit} value={v.name} onChange={e => setF({ ...f, name: e.target.value })} />
       <Input label="Country" disabled={!canEdit} value={v.country} onChange={e => setF({ ...f, country: e.target.value })} />
       <Input label="Region" disabled={!canEdit} value={v.region} onChange={e => setF({ ...f, region: e.target.value })} />
       <Input label="Contact email" disabled={!canEdit} value={v.contactEmail} onChange={e => setF({ ...f, contactEmail: e.target.value })} />
       <ErrorLine error={saveErr} />
       {canEdit && <Button disabled={busy || !f} onClick={() => run(() => api(`/orgs/${org.id}`, { method: 'PUT', body: f }))}>Save</Button>}
+      </div>
+      <PrivacyControls key={`privacy-${org.id}`} org={org} />
     </div>
   )
 }
 
 export function OrgMembersPage() {
-  const { org, loading, error } = useOrg()
+  const { org, selector, loading, error } = useOrg()
   const members = useApi<{ id: number; userId: string; role: string; joinedAt: string }[]>(org ? `/orgs/${org.id}/members` : null)
   const [inv, setInv] = useState({ email: '', role: 'viewer' })
   const { run, error: actErr, busy } = useAction(members.reload)
@@ -62,6 +81,7 @@ export function OrgMembersPage() {
   return (
     <div className="space-y-6">
       <Header title="Members" subtitle={org.name} />
+      {selector}
       {canManage && (
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-72"><Input label="Email" value={inv.email} onChange={e => setInv({ ...inv, email: e.target.value })} /></div>
@@ -88,16 +108,20 @@ export function OrgMembersPage() {
 
 // Org-level audit view: pick a workspace, then read its audit trail (admins only).
 export function OrgAuditLogPage() {
-  const { org, loading, error } = useOrg()
+  const { org, selector, loading, error } = useOrg()
   const wss = useApi<{ id: number; workspaceName: string }[]>(org ? `/orgs/${org.id}/workspaces` : null)
   const [ws, setWs] = useState('')
-  const wsId = ws || wss.data?.[0]?.id
+  const wsId = wss.data?.find(w => String(w.id) === ws)?.id ?? wss.data?.[0]?.id
   const log = useApi<any[]>(wsId ? wsPath(wsId, '/audit-log') : null)
+  const { run, error: exportError } = useAction()
   if (loading || error) return <State loading={loading} error={error} />
   return (
     <div className="space-y-4">
       <Header title="Audit log" subtitle="Admin only — every mutation and sensitive read is recorded." />
+      {selector}
       <div className="w-64"><Select value={String(wsId ?? '')} onChange={setWs} options={(wss.data ?? []).map(w => ({ value: String(w.id), label: w.workspaceName }))} /></div>
+      <div className="flex gap-2">{['csv', 'json'].map(format => <Button key={format} disabled={!wsId} onClick={() => run(() => downloadApi(wsPath(wsId!, '/audit-log/export'), `audit-log.${format}`, { format }))}>Export {format.toUpperCase()}</Button>)}</div>
+      <ErrorLine error={exportError} /><State loading={wss.loading} error={wss.error} />
       <State loading={log.loading} error={log.error} />
       <Table>
         <Thead><tr><Th>When</Th><Th>Actor</Th><Th>Resource</Th><Th>Action</Th><Th>IP</Th></tr></Thead>
@@ -110,7 +134,7 @@ export function OrgAuditLogPage() {
 }
 
 export function WorkspacesPage() {
-  const { org, loading, error, reload: reloadOrg } = useOrg()
+  const { org, selector, loading, error, reload: reloadOrg } = useOrg()
   const wss = useApi<{ id: number; workspaceName: string; description: string; status: string }[]>(org ? `/orgs/${org.id}/workspaces` : null)
   const [name, setName] = useState('')
   const { run, error: actErr, busy } = useAction(async () => { setName(''); await wss.reload() })
@@ -119,6 +143,8 @@ export function WorkspacesPage() {
   return (
     <div className="space-y-6">
       <Header title="Workspaces" subtitle={org.name} />
+      {selector}
+      <State loading={wss.loading} error={wss.error} />
       {(org.role === 'owner' || org.role === 'admin') && (
         <div className="flex items-end gap-3">
           <div className="w-72"><Input label="New workspace" value={name} onChange={e => setName(e.target.value)} /></div>
@@ -135,6 +161,24 @@ export function WorkspacesPage() {
       </div>
     </div>
   )
+}
+
+function PrivacyControls({ org }: { org: Org }) {
+  const requests = useApi<any[]>('/privacy/erasure-requests')
+  const { run, busy, error } = useAction(requests.reload)
+  return <Card><CardContent className="space-y-3">
+    <h2 className="font-semibold">Privacy and personal data</h2>
+    <p className="text-sm text-slate-600">Export your personal data across memberships. Erasure applies to this organization and requires approval by a different administrator; audit records are retained.</p>
+    <div className="flex gap-2">
+      <Button disabled={busy} variant="outline" onClick={() => run(() => downloadApi('/privacy/export', 'personal-data.json'))}>Export personal data</Button>
+      <Button disabled={busy} variant="destructive" onClick={() => { if (confirm(`Request erasure of your personal data in ${org.name}?`)) void run(() => api('/privacy/erasure-requests', { method: 'POST', body: { orgId: org.id } })) }}>Request erasure</Button>
+    </div>
+    <ErrorLine error={error} /><State loading={requests.loading} error={requests.error} />
+    <ul className="space-y-2 text-sm">{requests.data?.filter(r => r.orgId === org.id).map(r => <li key={r.id}>
+      #{r.id} · {r.requestedBy} · <StatusPill value={r.status} />
+      {r.status === 'pending' && ['admin', 'owner'].includes(org.role) && <Button size="sm" disabled={busy} onClick={() => { if (confirm('Approve irreversible personal data erasure?')) void run(() => api(`/privacy/erasure-requests/${r.id}/approve`, { method: 'POST', body: {} })) }}>Approve erasure</Button>}
+    </li>)}</ul>
+  </CardContent></Card>
 }
 
 const SECTIONS: [string, string][] = [
