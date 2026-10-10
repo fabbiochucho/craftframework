@@ -8,7 +8,9 @@
     "test": "node db/schema.test.ts && node netlify/lib/workspace.test.ts && node netlify/lib/crypto.test.ts && node netlify/lib/reports.test.ts && node src/lib/governanceDomains.test.ts && node netlify/lib/logger.test.ts && node netlify/lib/stripImageMetadata.test.ts",
     "typecheck": "tsc --noEmit",
     "docs:api": "node scripts/generate-openapi.mjs",
-    "crypto:backfill": "node netlify/scripts/encrypt-existing-fields.mts"
+    "crypto:backfill": "node netlify/scripts/encrypt-existing-fields.mts",
+    "test:e2e": "playwright test",
+    "test:integration": "node --experimental-transform-types --import ./tests/integration/register.mjs tests/integration/migrate.ts && node --experimental-transform-types --import ./tests/integration/register.mjs --test --test-concurrency=1 tests/integration/*.test.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
