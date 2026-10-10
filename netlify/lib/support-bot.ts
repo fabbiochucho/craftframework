@@ -102,7 +102,7 @@ export function classifySupportMessage(message: string): SupportClassification {
 }
 
 export function isPrivateReport(message: string): boolean {
-  return /\b(security (?:report|issue|bug|vulnerability|incident|problem|concern)|conduct (?:report|issue|concern)|data breach|privacy breach|harassment|misconduct|code of conduct|abuse report|whistleblow(?:er|ing)?)\b/i.test(message)
+  return /\b(security (?:report|issue|bug|vulnerability|incident|problem|concern)|conduct (?:report|issue|concern)|data breach|privacy breach|harassment|misconduct|code of conduct|abuse report|whistleblow(?:er|ing)?|confidential|private report)\b/i.test(message)
 }
 
 export function rankSupportFaq(message: string): { answer: string; score: number } | null {

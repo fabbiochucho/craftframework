@@ -163,7 +163,7 @@ export function ComplianceDashboardPage({ workspaceId }: { workspaceId: string }
 }
 
 export function SupportBotPage({ workspaceId }: { workspaceId: string }) {
-  const [f, setF] = useState({ category: 'question', description: '', contactEmail: '' })
+  const [f, setF] = useState({ category: 'question', description: '', contactEmail: '', escalationConsent: false })
   const [done, setDone] = useState<string | null>(null)
   const { run, error, busy } = useAction()
   return (
@@ -172,10 +172,11 @@ export function SupportBotPage({ workspaceId }: { workspaceId: string }) {
       <Select label="Category" value={f.category} onChange={category => setF({ ...f, category })} options={['bug', 'feature', 'question', 'documentation'].map(v => ({ value: v, label: v }))} />
       <Input label="Description" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} />
       <Input label="Contact email" type="email" value={f.contactEmail} onChange={e => setF({ ...f, contactEmail: e.target.value })} />
+      <label className="flex gap-2 text-sm"><input type="checkbox" checked={f.escalationConsent} onChange={e => setF({ ...f, escalationConsent: e.target.checked })} />Allow private email escalation of security/conduct reports with my contact email.</label>
       <ErrorLine error={error} />{done && <p className="text-sm text-emerald-700">{done}</p>}
       <Button disabled={busy || !f.description} onClick={() => run(async () => {
         const r = await api('/support-bot/submit-issue', { method: 'POST', body: { ...f, workspaceId: Number(workspaceId) } })
-        setDone(`Issue #${r.id} submitted.`); setF({ ...f, description: '' })
+        setDone(r.recipientType ? `Private escalation: ${r.status}. Provider acceptance is not guaranteed delivery.` : `Issue #${r.id} submitted.`); setF({ ...f, description: '' })
       })}>Submit</Button>
     </div>
   )

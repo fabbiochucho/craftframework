@@ -2,6 +2,39 @@
 
 ## Phased continuation checklist
 
+### Implemented support escalation and analytics
+
+- Public widget intake uses `/api/support-bot/chat`. Private reports never create
+  GitHub issues. Unanswered questions offer an explicit private email escalation.
+- `POST /api/support-bot/escalate` accepts `message`, `classification`
+  (`bug`/`feature`/`question`), `contactEmail`, `escalationConsent: true`, and
+  `reason` (`unresolved_question` or `human_requested`). Security/conduct detection
+  or `privacyLevel: "private"` overrides the reason to `private_report`.
+- Resend sends redacted text to `craftframework@becomechange.institute`, with the
+  contact address as reply-to; private reports are marked PRIVATE / CONFIDENTIAL.
+  No automatic mail is sent for FAQ-resolved questions. Contact consent is for
+  maintainer follow-up, not automated answers to an unverified address.
+- `RESEND_API_KEY` and optional `INVITE_FROM_EMAIL` are read at runtime. Responses
+  distinguish `accepted` (provider acceptance, not delivery), `failed` (502), and
+  `not_configured` (saved for retry). The encrypted database queue and stable
+  Resend idempotency key prevent concurrent/repeated accepted submissions.
+  Resend's idempotency window is 24 hours; an ambiguous network failure should be
+  reconciled with the provider before retrying after that window.
+- Optional `VITE_POSTHOG_KEY` enables an unchecked analytics consent control.
+  The bundled PostHog client sends only allowlisted lifecycle metadata to EU
+  ingestion: `support_chat_message_sent`, `support_issue_created`, and
+  `support_escalated`. No chat/contact content, URLs, autocapture, replay, pageviews,
+  or authenticated workspace/assessment tracking is enabled.
+- Local validation: provision a disposable Postgres database whose name contains
+  `test`, export `TEST_DATABASE_URL` (see `.env.example`), then run `npm test`,
+  `npm run test:integration`, and `npm run test:e2e`. Integration/E2E setup **drops
+  the database's public schema** and applies all Drizzle migrations. Never point
+  it at a production or Netlify preview database. CI already provisions Postgres
+  and installs Chromium; locally run `npx playwright install --with-deps chromium`.
+- Use an untracked `.env.local` for actual local Resend values; never commit keys.
+  Configure deployment secrets in the Netlify dashboard and redeploy. Browser
+  analytics configuration and mocked email tests do not verify live delivery.
+
 This checklist supersedes the historical suggestions below where they conflict. The policy-only PR implements Phase 1; it does not implement chatbot intake, mail delivery, or analytics. Before each subsequent PR, re-check main, open PR heads, local changes, and any active work; do not overwrite PR #10 or assume its draft status indicates an active session.
 
 ### Phase 1 — policy only

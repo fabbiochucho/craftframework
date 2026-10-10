@@ -15,6 +15,7 @@ process.env.FIELD_ENCRYPTION_KEY ??= randomBytes(32).toString('base64')
 delete process.env.SENDGRID_API_KEY
 delete process.env.SENDGRID_FROM_EMAIL
 delete process.env.GITHUB_TOKEN
+delete process.env.RESEND_API_KEY
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 export const migrationsDir = path.join(repoRoot, 'netlify/database/migrations')

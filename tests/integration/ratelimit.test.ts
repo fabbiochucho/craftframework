@@ -68,7 +68,7 @@ describe('database-backed rate limiting', () => {
     const ip = '198.51.100.31'
     for (let i = 1; i <= 21; i++) {
       const res = await call(null, 'POST', '/support-bot/chat', {
-        json: { message: `How do I get started ${i}?`, publicIssueDisclosure: true },
+        json: { message: 'How do I get started?', publicIssueDisclosure: true },
         ip,
         instance: `chat-rl-${i % 2}`,
       })
