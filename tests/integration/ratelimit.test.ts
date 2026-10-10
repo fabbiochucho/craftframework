@@ -34,14 +34,14 @@ describe('database-backed rate limiting', () => {
     assert.equal(new Set(handlers).size, 3, 'three distinct handler module instances')
     let last = { status: 0 } as Awaited<ReturnType<typeof call>>
     let firstLimited = -1
-    for (let i = 1; i <= 101; i++) {
+    for (let i = 1; i <= 21; i++) {
       // Each request goes to a different instance; invalid body -> 400 once admitted.
       last = await call(null, 'POST', '/support-bot/submit-issue', { json: {}, ip, instance: `rl-${'abc'[i % 3]}` })
       if (last.status === 429 && firstLimited < 0) firstLimited = i
-      if (i <= 100) assert.equal(last.status, 400, `request ${i} should be admitted`)
+      if (i <= 20) assert.equal(last.status, 400, `request ${i} should be admitted`)
     }
     assert.equal(last.status, 429)
-    assert.equal(firstLimited, 101)
+    assert.equal(firstLimited, 21)
     assert.deepEqual(last.body, { error: 'Too many requests' })
     const retry = Number(last.headers.get('retry-after'))
     assert.ok(Number.isInteger(retry) && retry >= 1 && retry <= 60, `Retry-After=${last.headers.get('retry-after')}`)
@@ -50,7 +50,17 @@ describe('database-backed rate limiting', () => {
     assert.equal(cold.status, 429)
     // A different client IP has its own budget.
     assert.equal((await call(null, 'POST', '/support-bot/submit-issue', { json: {}, ip: '198.51.100.24', instance: 'rl-cold' })).status, 400)
-    assert.equal((await rows('SELECT count FROM rate_limits WHERE key = $1', [hashed(`pub:${ip}`)]))[0].count >= 101, true)
+    assert.equal((await rows('SELECT count FROM rate_limits WHERE key = $1', [hashed(`pub:${ip}`)]))[0].count >= 21, true)
+    assert.equal((await rows('SELECT count FROM rate_limits WHERE key = $1', [hashed(`support-chat:${ip}`)]))[0].count >= 21, true)
+
+    // The broader public budget also rejects requests before the support budget.
+    const publicIp = '198.51.100.25'
+    const { windowStart } = (await rows("SELECT date_trunc('minute', now()) AS \"windowStart\""))[0]
+    await rows('INSERT INTO rate_limits (key, window_start, count) VALUES ($1, $2, 100)', [hashed(`pub:${publicIp}`), windowStart])
+    const publicLimited = await call(null, 'POST', '/support-bot/submit-issue', { json: {}, ip: publicIp, instance: 'rl-cold' })
+    assert.equal(publicLimited.status, 429)
+    assert.ok(Number(publicLimited.headers.get('retry-after')) >= 1)
+    assert.equal((await rows('SELECT count FROM rate_limits WHERE key = $1', [hashed(`pub:${publicIp}`)]))[0].count, 101)
   })
 
   it('limits authenticated callers per user (1000/min) across instances', async () => {

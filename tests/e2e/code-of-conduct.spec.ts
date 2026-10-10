@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 test('public conduct summary links to the canonical policy and private reporting', async ({ page }) => {
   await page.goto('/code-of-conduct')

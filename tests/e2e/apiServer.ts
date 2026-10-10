@@ -17,12 +17,13 @@ import { applyMigrations, loadHandler, truncateAll } from '../integration/harnes
 const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://localhost:3000'
 const PORT = Number(process.env.E2E_API_PORT ?? 8899)
 
-function identityFromCookie(header: string | undefined): { email: string; name: string } | null {
+function identityFromCookie(header: string | undefined): { id: string; email: string; name: string } | null {
   const token = /(?:^|;\s*)nf_jwt=([^;]+)/.exec(header ?? '')?.[1]
   if (!token) return null
   try {
     const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'))
-    return typeof claims.email === 'string' ? { email: claims.email, name: claims.email } : null
+    return typeof claims.email === 'string' && typeof claims.sub === 'string' && claims.exp * 1000 > Date.now()
+      ? { id: claims.sub, email: claims.email, name: claims.email } : null
   } catch {
     return null
   }
@@ -31,6 +32,11 @@ function identityFromCookie(header: string | undefined): { email: string; name: 
 await applyMigrations()
 const handler = await loadHandler('e2e')
 const als = (globalThis as any).__craftTestIdentityAls
+const legacyHandlers = new Map<string, (request: Request) => Promise<Response>>()
+for (const name of ['legacy-state', 'organizations', 'responses', 'response-notes', 'presigned-url', 'data-room-upload']) {
+  const module = await import(new URL(`../../netlify/functions/${name}.mts`, import.meta.url).href)
+  legacyHandlers.set(`/api/${name}`, module.default)
+}
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -55,7 +61,8 @@ const server = http.createServer(async (req, res) => {
     headers.set('x-nf-client-connection-ip', '127.0.0.1')
     const body = chunks.length && req.method !== 'GET' && req.method !== 'HEAD' ? Buffer.concat(chunks) : undefined
     const request = new Request(`${WEB_ORIGIN}${req.url}`, { method: req.method, headers, body })
-    const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => handler(request))
+    const routeHandler = legacyHandlers.get(url.pathname) ?? handler
+    const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => routeHandler(request))
     const out: Record<string, string> = {}
     response.headers.forEach((v, k) => { out[k] = v })
     res.writeHead(response.status, out).end(Buffer.from(await response.arrayBuffer()))
