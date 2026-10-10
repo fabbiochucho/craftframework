@@ -1,0 +1,420 @@
+export type GovernanceStatus = 'met' | 'partial' | 'not_met' | 'n/a'
+
+export type GovernanceProfile = {
+  organisationName: string
+  organisationType: string
+  country: string
+  sector: string
+  reportingPeriod: string
+  scope: string
+  frameworkSelection: string[]
+}
+
+export type GovernanceCriterion = {
+  id: string
+  pillarId: string
+  title: string
+  weight: number
+  status: GovernanceStatus
+  evidence: string
+  recommendation: string
+}
+
+export type GovernancePillar = {
+  id: string
+  name: string
+  description: string
+  outcome: string
+  criteria: GovernanceCriterion[]
+  weight: number
+}
+
+export const CRAFT_GOVERNANCE_PILLARS: GovernancePillar[] = [
+  {
+    id: 'leadership',
+    name: 'Leadership, Board Effectiveness and Strategic Direction',
+    description: 'Leadership sets direction, oversees strategy and monitors delivery across the institution.',
+    outcome: 'Clear governance and accountability for strategic performance.',
+    weight: 12,
+    criteria: [
+      { id: 'lead-1', pillarId: 'leadership', title: 'Board charter and governance calendar', weight: 28, status: 'met', evidence: 'Board charter and meeting schedule', recommendation: 'Confirm annual board calendar and delegate oversight responsibilities.' },
+      { id: 'lead-2', pillarId: 'leadership', title: 'Strategic plan and performance review rhythm', weight: 32, status: 'partial', evidence: 'Strategy document and KPI review pack', recommendation: 'Tie strategy reviews to measurable outcomes and annual board reporting.' },
+      { id: 'lead-3', pillarId: 'leadership', title: 'Leadership accountability and succession planning', weight: 40, status: 'not_met', evidence: 'Succession and role coverage evidence', recommendation: 'Establish a formal succession and leadership continuity plan.' },
+    ],
+  },
+  {
+    id: 'ethics',
+    name: 'Ethics, Integrity and Organisational Culture',
+    description: 'The institution demonstrates sound conduct, reinforced by clear policies and accountable behaviour.',
+    outcome: 'High ethical standards and consistent culture across the organisation.',
+    weight: 11,
+    criteria: [
+      { id: 'eth-1', pillarId: 'ethics', title: 'Code of conduct and declarations', weight: 35, status: 'met', evidence: 'Signed policies and awareness attestations', recommendation: 'Refresh disclosure and acknowledgment flows for all staff and contractors.' },
+      { id: 'eth-2', pillarId: 'ethics', title: 'Whistleblowing and investigation process', weight: 35, status: 'partial', evidence: 'Whistleblowing policy and case register', recommendation: 'Document investigation handling, escalation paths and confidentiality protections.' },
+      { id: 'eth-3', pillarId: 'ethics', title: 'Culture and speak-up monitoring', weight: 30, status: 'not_met', evidence: 'Culture survey and closed-loop tracking', recommendation: 'Introduce a periodic culture pulse check with action tracking.' },
+    ],
+  },
+  {
+    id: 'accountability',
+    name: 'Accountability, Transparency and Stakeholder Engagement',
+    description: 'The institution explains decisions, engages stakeholders and demonstrates accountability for outcomes.',
+    outcome: 'Trust and transparency in governance and decision-making.',
+    weight: 10,
+    criteria: [
+      { id: 'acc-1', pillarId: 'accountability', title: 'Stakeholder engagement plan', weight: 40, status: 'met', evidence: 'Stakeholder map and engagement logs', recommendation: 'Refresh stakeholder feedback loops for each operating unit.' },
+      { id: 'acc-2', pillarId: 'accountability', title: 'Transparent reporting and disclosure controls', weight: 35, status: 'partial', evidence: 'Reporting workflows and sign-off checklist', recommendation: 'Create a formal approval matrix for governance and sustainability reporting.' },
+      { id: 'acc-3', pillarId: 'accountability', title: 'External assurance and performance feedback', weight: 25, status: 'not_met', evidence: 'Assurance plan and management response log', recommendation: 'Establish periodic feedback mechanisms with external stakeholders and oversight bodies.' },
+    ],
+  },
+  {
+    id: 'risk',
+    name: 'Risk Management, Internal Controls and Assurance',
+    description: 'Risk and control governance identify material threats and enable effective response.',
+    outcome: 'Sound risk discipline and measurable control effectiveness.',
+    weight: 12,
+    criteria: [
+      { id: 'risk-1', pillarId: 'risk', title: 'Risk register and treatment plan', weight: 38, status: 'met', evidence: 'Risk register and risk owner assignments', recommendation: 'Review risk treatment plans quarterly against emerging exposures.' },
+      { id: 'risk-2', pillarId: 'risk', title: 'Internal control design and testing', weight: 37, status: 'partial', evidence: 'Internal control matrix and testing reports', recommendation: 'Formalise testing cycles and close high-risk control gaps.' },
+      { id: 'risk-3', pillarId: 'risk', title: 'Independent assurance coverage', weight: 25, status: 'not_met', evidence: 'Internal audit or assurance plan', recommendation: 'Define recommended assurance scope for priority risk domains.' },
+    ],
+  },
+  {
+    id: 'finance',
+    name: 'Financial Stewardship and Fiduciary Responsibility',
+    description: 'Financial practices support value protection, accountability and sustainable resource allocation.',
+    outcome: 'Reliable, transparent and disciplined financial oversight.',
+    weight: 11,
+    criteria: [
+      { id: 'fin-1', pillarId: 'finance', title: 'Budgeting and financial controls', weight: 40, status: 'met', evidence: 'Budget policy and monthly controls', recommendation: 'Review budget variance thresholds and management action plans.' },
+      { id: 'fin-2', pillarId: 'finance', title: 'Procurement and conflict-of-interest controls', weight: 35, status: 'partial', evidence: 'Procurement process and declarations', recommendation: 'Enhance declaration tracking and independent review of procurement decisions.' },
+      { id: 'fin-3', pillarId: 'finance', title: 'External audit, compliance and remediation', weight: 25, status: 'not_met', evidence: 'Audit reports and action tracker', recommendation: 'Formalise remediation review and escalation for overdue audit issues.' },
+    ],
+  },
+  {
+    id: 'operations',
+    name: 'Operational Capability, Performance and Service Delivery',
+    description: 'Operational systems enable delivery, resilience and accountable service outcomes.',
+    outcome: 'Effective operations that consistently meet stated objectives.',
+    weight: 10,
+    criteria: [
+      { id: 'ops-1', pillarId: 'operations', title: 'Operational performance metrics', weight: 34, status: 'met', evidence: 'Service KPI dashboard', recommendation: 'Confirm KPI ownership and threshold triggers for interventions.' },
+      { id: 'ops-2', pillarId: 'operations', title: 'Service continuity and resilience planning', weight: 33, status: 'partial', evidence: 'Business continuity documentation', recommendation: 'Document continuity roles, response triggers and recovery tests.' },
+      { id: 'ops-3', pillarId: 'operations', title: 'Operational improvement cycle', weight: 33, status: 'not_met', evidence: 'Improvement plan and lessons learned log', recommendation: 'Create a learning loop linking service incidents to corrective actions.' },
+    ],
+  },
+  {
+    id: 'people',
+    name: 'People, Inclusion and Human-Capital Management',
+    description: 'People capability, inclusion and development support sustainable institutional performance.',
+    outcome: 'A capable, diverse and accountable workforce.',
+    weight: 9,
+    criteria: [
+      { id: 'people-1', pillarId: 'people', title: 'Role clarity, performance management and learning', weight: 45, status: 'met', evidence: 'Job descriptions and learning records', recommendation: 'Strengthen annual capability planning and role-based development pathways.' },
+      { id: 'people-2', pillarId: 'people', title: 'Inclusion and employee wellbeing', weight: 30, status: 'partial', evidence: 'Diversity and wellbeing plan', recommendation: 'Introduce measurable inclusion indicators and workforce feedback processes.' },
+      { id: 'people-3', pillarId: 'people', title: 'Critical skills and succession coverage', weight: 25, status: 'not_met', evidence: 'Skills inventory and contingency coverage', recommendation: 'Map critical roles and identify succession risks across key functions.' },
+    ],
+  },
+  {
+    id: 'sustainability',
+    name: 'Sustainability, Climate and Responsible Value Creation',
+    description: 'The organisation manages environmental and social impacts and aligns value creation to long-term resilience.',
+    outcome: 'Responsible value creation and measurable sustainability performance.',
+    weight: 9,
+    criteria: [
+      { id: 'sus-1', pillarId: 'sustainability', title: 'Sustainability strategy and materiality', weight: 38, status: 'partial', evidence: 'Sustainability strategy and materiality map', recommendation: 'Define material topics and convert them into governance and reporting actions.' },
+      { id: 'sus-2', pillarId: 'sustainability', title: 'Climate and environmental risk management', weight: 36, status: 'not_met', evidence: 'Climate-risk register and plans', recommendation: 'Identify climate risks, emissions hotspots and management responses.' },
+      { id: 'sus-3', pillarId: 'sustainability', title: 'Social and community impact oversight', weight: 26, status: 'partial', evidence: 'Social impact plan and monitoring reports', recommendation: 'Document stakeholder-level social impact measures with governance ownership.' },
+    ],
+  },
+  {
+    id: 'digital',
+    name: 'Data Governance, Cybersecurity and Digital Accountability',
+    description: 'Information and digital systems are governed, secure and fit for purpose.',
+    outcome: 'Trustworthy, protected and accountable digital operations.',
+    weight: 10,
+    criteria: [
+      { id: 'dig-1', pillarId: 'digital', title: 'Data governance and access controls', weight: 40, status: 'met', evidence: 'Data classification and access review', recommendation: 'Reassess privileged access and data retention intervals regularly.' },
+      { id: 'dig-2', pillarId: 'digital', title: 'Cybersecurity readiness and incident response', weight: 35, status: 'partial', evidence: 'Cyber incident procedure and testing records', recommendation: 'Run tabletop exercises and monitor closed findings from security reviews.' },
+      { id: 'dig-3', pillarId: 'digital', title: 'Digital ethics and accountability', weight: 25, status: 'not_met', evidence: 'AI, automation and digital policy register', recommendation: 'Define accountable governance for digital decisions and high-risk use cases.' },
+    ],
+  },
+  {
+    id: 'resilience',
+    name: 'Institutional Resilience, Continuity and Succession',
+    description: 'The institution plans for disruption, continuity and long-term stability.',
+    outcome: 'Continuity and resilience under operational and external stress.',
+    weight: 8,
+    criteria: [
+      { id: 'res-1', pillarId: 'resilience', title: 'Business continuity and disaster recovery', weight: 45, status: 'partial', evidence: 'Continuity plans and test records', recommendation: 'Complete exercises and update recovery objectives against current risk exposure.' },
+      { id: 'res-2', pillarId: 'resilience', title: 'Succession planning and institutional memory', weight: 35, status: 'not_met', evidence: 'Key-position dependency register', recommendation: 'Identify critical role dependencies and transfer plans for leadership continuity.' },
+      { id: 'res-3', pillarId: 'resilience', title: 'Resilience monitoring and scenario testing', weight: 20, status: 'not_met', evidence: 'Scenario test log', recommendation: 'Run scenario-based resilience testing and address repeat issues.' },
+    ],
+  },
+]
+
+export const DEFAULT_GOVERNANCE_PROFILE: GovernanceProfile = {
+  organisationName: 'Example Institution',
+  organisationType: 'Private company',
+  country: 'Nigeria',
+  sector: 'Financial services',
+  reportingPeriod: '2026',
+  scope: 'Pan-African operations',
+  frameworkSelection: ['IFRS S1 and IFRS S2', 'GRI Standards'],
+}
+
+export function calculateGovernanceScores(profile: Partial<GovernanceProfile> = DEFAULT_GOVERNANCE_PROFILE) {
+  const responseMatrix: Record<string, GovernanceStatus> = {}
+  for (const pillar of CRAFT_GOVERNANCE_PILLARS) {
+    for (const criterion of pillar.criteria) {
+      responseMatrix[criterion.id] = criterion.status
+    }
+  }
+
+  const pillarScores = CRAFT_GOVERNANCE_PILLARS.map((pillar) => {
+    const totalWeight = pillar.criteria.reduce((sum, criterion) => sum + criterion.weight, 0)
+    const scoredWeight = pillar.criteria.reduce((sum, criterion) => {
+      const statusScore = responseMatrix[criterion.id] === 'met' ? 1 : responseMatrix[criterion.id] === 'partial' ? 0.5 : 0
+      return sum + criterion.weight * statusScore
+    }, 0)
+
+    const percentage = totalWeight === 0 ? 0 : (scoredWeight / totalWeight) * 100
+    const rating = percentage >= 80 ? 'Strong' : percentage >= 65 ? 'Developing' : percentage >= 45 ? 'Watchlist' : 'High risk'
+
+    return {
+      id: pillar.id,
+      name: pillar.name,
+      score: Math.round(percentage),
+      rating,
+      weight: pillar.weight,
+      evidence: pillar.criteria.map(c => ({ id: c.id, title: c.title, evidence: c.evidence, recommendation: c.recommendation })),
+    }
+  })
+
+  const totalWeight = pillarScores.reduce((sum, p) => sum + p.weight, 0)
+  const weightedScore = pillarScores.reduce((sum, p) => sum + (p.score * p.weight), 0)
+  const overallScore = totalWeight === 0 ? 0 : Math.round(weightedScore / totalWeight)
+
+  let overallBand = 'Provisional'
+  if (overallScore >= 80) overallBand = 'Strong'
+  else if (overallScore >= 65) overallBand = 'Developing'
+  else if (overallScore >= 45) overallBand = 'Watchlist'
+  else overallBand = 'High risk'
+
+  const highRiskPillars = pillarScores.filter(p => p.score < 50).map(p => p.name)
+  const findings = pillarScores
+    .filter(p => p.score < 60)
+    .map(p => ({ pillar: p.name, message: `Gap in ${p.name.toLowerCase()} requires corrective action.`, score: p.score }))
+
+  return {
+    profile: {
+      organisationName: profile.organisationName ?? DEFAULT_GOVERNANCE_PROFILE.organisationName,
+      organisationType: profile.organisationType ?? DEFAULT_GOVERNANCE_PROFILE.organisationType,
+      country: profile.country ?? DEFAULT_GOVERNANCE_PROFILE.country,
+      sector: profile.sector ?? DEFAULT_GOVERNANCE_PROFILE.sector,
+      reportingPeriod: profile.reportingPeriod ?? DEFAULT_GOVERNANCE_PROFILE.reportingPeriod,
+      scope: profile.scope ?? DEFAULT_GOVERNANCE_PROFILE.scope,
+      frameworkSelection: profile.frameworkSelection ?? DEFAULT_GOVERNANCE_PROFILE.frameworkSelection,
+    },
+    overallScore,
+    overallBand,
+    pillarScores,
+    highRiskPillars,
+    findings,
+    methodology: 'CRAFT provisional governance scoring methodology',
+  }
+}
+
+export type ESGFramework = {
+  id: string
+  name: string
+  category: string
+  publisher: string
+  version: string
+  jurisdiction: string
+  status: 'mandatory' | 'voluntary' | 'contractual'
+}
+
+export const ESG_FRAMEWORKS: ESGFramework[] = [
+  { id: 'ifrs-s1-s2', name: 'IFRS S1 and IFRS S2', category: 'Disclosure standard', publisher: 'ISSB', version: '2024', jurisdiction: 'Global', status: 'mandatory' },
+  { id: 'gri', name: 'GRI Standards', category: 'Disclosure standard', publisher: 'GRI', version: '2021', jurisdiction: 'Global', status: 'voluntary' },
+  { id: 'esrs', name: 'ESRS and CSRD requirements', category: 'Disclosure standard', publisher: 'EFRAG', version: '2024', jurisdiction: 'EU', status: 'mandatory' },
+  { id: 'sasb', name: 'SASB Standards', category: 'Disclosure standard', publisher: 'ISSB', version: '2024', jurisdiction: 'Global', status: 'voluntary' },
+  { id: 'tnfd', name: 'TNFD', category: 'Nature-related disclosure', publisher: 'TNFD', version: '2023', jurisdiction: 'Global', status: 'voluntary' },
+  { id: 'ghg-protocol', name: 'GHG Protocol', category: 'Accounting framework', publisher: 'GHG Protocol', version: '2024', jurisdiction: 'Global', status: 'voluntary' },
+  { id: 'cdp', name: 'CDP disclosure questionnaire', category: 'Questionnaire', publisher: 'CDP', version: '2025', jurisdiction: 'Global', status: 'voluntary' },
+  { id: 'integrated-reporting', name: 'Integrated Reporting Framework', category: 'Reporting framework', publisher: 'IIRC', version: '2021', jurisdiction: 'Global', status: 'voluntary' },
+]
+
+export type ImplementationPlan = {
+  summary: string
+  workstreams: Array<{ title: string; owner: string; timeline: string; deliverable: string; evidence: string }>
+}
+
+export function buildImplementationPlan(profile: Partial<GovernanceProfile>, selectedFrameworks: string[]): ImplementationPlan {
+  const selected = selectedFrameworks.length ? selectedFrameworks : ['ifrs-s1-s2']
+  const frameworkNames = selected.map(id => ESG_FRAMEWORKS.find(f => f.id === id)?.name ?? id)
+
+  return {
+    summary: `CRAFT implementation plan for ${profile.organisationName ?? 'your institution'} covering ${frameworkNames.join(', ')} across ${profile.reportingPeriod ?? 'the current reporting cycle'}.`,
+    workstreams: [
+      {
+        title: 'Governance and accountability set-up',
+        owner: 'Board / Company Secretary',
+        timeline: '0-30 days',
+        deliverable: 'Governance oversight model and reporting responsibilities',
+        evidence: 'Board charter, reporting workflow, accountability matrix',
+      },
+      {
+        title: 'Materiality and readiness assessment',
+        owner: 'Sustainability lead',
+        timeline: '30-90 days',
+        deliverable: 'Materiality map and cross-framework gap analysis',
+        evidence: 'Materiality assessment, governance scorecard and evidence register',
+      },
+      {
+        title: 'Data, controls and reporting systems',
+        owner: 'Finance and Compliance',
+        timeline: '60-150 days',
+        deliverable: 'Data dictionary, controls map and reporting workflow',
+        evidence: 'Policy controls, management sign-offs, system mapping',
+      },
+      {
+        title: 'Implementation and corrective action tracking',
+        owner: 'Program manager',
+        timeline: '90-240 days',
+        deliverable: 'Closed corrective action plan with evidence verification',
+        evidence: 'Corrective action log, milestone evidence, reviewer acceptance record',
+      },
+    ],
+  }
+}
+
+export type CorrectiveAction = {
+  id: string
+  title: string
+  source: string
+  priority: 'High' | 'Medium' | 'Low'
+  status: 'Open' | 'Assigned' | 'In Progress' | 'Submitted for Verification' | 'Verified and Closed' | 'Blocked'
+  owner: string
+  dueDate: string
+  evidence: string
+}
+
+export const CORRECTIVE_ACTIONS: CorrectiveAction[] = [
+  { id: 'CAP-001', title: 'Formalise board governance calendar and approval matrix', source: 'CRAFT Governance Scorecard', priority: 'High', status: 'Assigned', owner: 'Company Secretary', dueDate: '2026-11-30', evidence: 'Board charter, meeting calendar, approvals register' },
+  { id: 'CAP-002', title: 'Define materiality and stakeholder engagement process', source: 'ESG Implementation Planner', priority: 'High', status: 'In Progress', owner: 'Sustainability Lead', dueDate: '2026-12-15', evidence: 'Materiality assessment, stakeholder engagement log' },
+  { id: 'CAP-003', title: 'Close risk and control testing gaps', source: 'ESG Report Quality Checklist', priority: 'Medium', status: 'Submitted for Verification', owner: 'Internal Audit', dueDate: '2026-12-20', evidence: 'Control testing reports, issue tracker evidence' },
+  { id: 'CAP-004', title: 'Establish climate risk and resilience monitoring baseline', source: 'CRAFT Governance Scorecard', priority: 'Medium', status: 'Open', owner: 'Risk Manager', dueDate: '2027-01-15', evidence: 'Climate risk register, scenario analysis, management responses' },
+]
+
+export type ChecklistItem = {
+  id: string
+  title: string
+  category: string
+  standard: string
+  owner: string
+  status: 'Not started' | 'In progress' | 'Met' | 'Partially met' | 'Not met' | 'Not applicable' | 'Awaiting verification' | 'Blocked'
+  critical: boolean
+}
+
+export const CRAFT_CHECKLIST: ChecklistItem[] = Array.from({ length: 30 }, (_, index) => {
+  const base = [
+    'Governance oversight and board approval',
+    'Risk and control register completeness',
+    'Materiality assessment and boundary definition',
+    'Climate risk identification',
+    'Scope 1 and 2 emissions inventory',
+    'Scope 3 screening and value-chain review',
+    'GRI content coverage',
+    'IFRS S1/S2 disclosure mapping',
+    'Policy coverage and document register',
+    'Evidence quality and version control',
+    'Management sign-off and reviewer acceptance',
+    'Data quality and calculation methodology',
+    'Assurance readiness assessment',
+    'Stakeholder engagement record',
+    'Financial reporting linkage',
+    'Internal control testing',
+    'Procurement and conflict-of-interest compliance',
+    'Whistleblowing and grievance mechanism',
+    'Cybersecurity policy and incident management',
+    'Data retention and privacy policy',
+    'Capex and resource planning',
+    'Goal-setting and target validation',
+    'Cross-framework overlap mapping',
+    'Reporting timeline and milestones',
+    'Board and management responsibility matrix',
+    'Evidence traceability to disclosure',
+    'Backward-looking comparison and restatement tracking',
+    'Narrative consistency and key number alignment',
+    'Critical omission review',
+    'Version-controlled document register',
+    'Disclosure sign-off and approval',
+  ]
+
+  const statusSequence: ChecklistItem['status'][] = ['Met', 'Partially met', 'In progress', 'Awaiting verification', 'Not started', 'Blocked', 'Not met', 'Not applicable']
+  const ownerSequence = ['Board Secretary', 'Sustainability Lead', 'Finance Controller', 'Risk Manager', 'Compliance Officer']
+  const status = statusSequence[index % statusSequence.length]
+
+  return {
+    id: `CK-${String(index + 1).padStart(2, '0')}`,
+    title: base[index % base.length],
+    category: index % 3 === 0 ? 'Governance' : index % 3 === 1 ? 'ESG & Reporting' : 'Evidence & Controls',
+    standard: index % 2 === 0 ? 'CRAFT / IFRS' : 'CRAFT / GRI',
+    owner: ownerSequence[index % ownerSequence.length],
+    status,
+    critical: index % 5 === 0,
+  }
+})
+
+export function calculateChecklistProgress(items: ChecklistItem[]) {
+  const total = items.length
+  const met = items.filter(item => item.status === 'Met').length
+  const partial = items.filter(item => item.status === 'Partially met').length
+  const awaiting = items.filter(item => item.status === 'Awaiting verification').length
+  const critical = items.filter(item => item.status !== 'Met' && item.critical).length
+  const percentage = total === 0 ? 0 : Math.round(((met + partial * 0.5) / total) * 100)
+
+  return { total, met, partial, awaiting, critical, percentage }
+}
+
+export const GOVERNANCE_FRAMEWORKS = [
+  'IFRS S1 and IFRS S2',
+  'GRI Standards',
+  'ESRS and CSRD requirements',
+  'SASB Standards',
+  'TNFD',
+  'GHG Protocol',
+  'CDP disclosure questionnaires',
+  'National or sector-specific requirements',
+  'Integrated Reporting Framework',
+]
+
+export function getRiskLabel(score: number) {
+  if (score >= 80) return 'Strong'
+  if (score >= 65) return 'Developing'
+  if (score >= 45) return 'Watchlist'
+  return 'High risk'
+}
+
+export function getStatusTone(status: GovernanceStatus) {
+  if (status === 'met') return 'bg-emerald-100 text-emerald-700'
+  if (status === 'partial') return 'bg-amber-100 text-amber-700'
+  if (status === 'not_met') return 'bg-rose-100 text-rose-700'
+  return 'bg-slate-100 text-slate-600'
+}
+
+export function getActionStatusTone(status: CorrectiveAction['status']) {
+  if (status === 'Verified and Closed') return 'bg-emerald-100 text-emerald-700'
+  if (status === 'Assigned' || status === 'In Progress') return 'bg-amber-100 text-amber-700'
+  if (status === 'Submitted for Verification') return 'bg-sky-100 text-sky-700'
+  if (status === 'Blocked') return 'bg-rose-100 text-rose-700'
+  return 'bg-slate-100 text-slate-700'
+}
+
+export function estimateOperationalReadiness(frameworks: string[]) {
+  if (!frameworks.length) return 'Startup'
+  if (frameworks.length >= 4) return 'Advanced'
+  if (frameworks.length >= 2) return 'Developing'
+  return 'Initial'
+}

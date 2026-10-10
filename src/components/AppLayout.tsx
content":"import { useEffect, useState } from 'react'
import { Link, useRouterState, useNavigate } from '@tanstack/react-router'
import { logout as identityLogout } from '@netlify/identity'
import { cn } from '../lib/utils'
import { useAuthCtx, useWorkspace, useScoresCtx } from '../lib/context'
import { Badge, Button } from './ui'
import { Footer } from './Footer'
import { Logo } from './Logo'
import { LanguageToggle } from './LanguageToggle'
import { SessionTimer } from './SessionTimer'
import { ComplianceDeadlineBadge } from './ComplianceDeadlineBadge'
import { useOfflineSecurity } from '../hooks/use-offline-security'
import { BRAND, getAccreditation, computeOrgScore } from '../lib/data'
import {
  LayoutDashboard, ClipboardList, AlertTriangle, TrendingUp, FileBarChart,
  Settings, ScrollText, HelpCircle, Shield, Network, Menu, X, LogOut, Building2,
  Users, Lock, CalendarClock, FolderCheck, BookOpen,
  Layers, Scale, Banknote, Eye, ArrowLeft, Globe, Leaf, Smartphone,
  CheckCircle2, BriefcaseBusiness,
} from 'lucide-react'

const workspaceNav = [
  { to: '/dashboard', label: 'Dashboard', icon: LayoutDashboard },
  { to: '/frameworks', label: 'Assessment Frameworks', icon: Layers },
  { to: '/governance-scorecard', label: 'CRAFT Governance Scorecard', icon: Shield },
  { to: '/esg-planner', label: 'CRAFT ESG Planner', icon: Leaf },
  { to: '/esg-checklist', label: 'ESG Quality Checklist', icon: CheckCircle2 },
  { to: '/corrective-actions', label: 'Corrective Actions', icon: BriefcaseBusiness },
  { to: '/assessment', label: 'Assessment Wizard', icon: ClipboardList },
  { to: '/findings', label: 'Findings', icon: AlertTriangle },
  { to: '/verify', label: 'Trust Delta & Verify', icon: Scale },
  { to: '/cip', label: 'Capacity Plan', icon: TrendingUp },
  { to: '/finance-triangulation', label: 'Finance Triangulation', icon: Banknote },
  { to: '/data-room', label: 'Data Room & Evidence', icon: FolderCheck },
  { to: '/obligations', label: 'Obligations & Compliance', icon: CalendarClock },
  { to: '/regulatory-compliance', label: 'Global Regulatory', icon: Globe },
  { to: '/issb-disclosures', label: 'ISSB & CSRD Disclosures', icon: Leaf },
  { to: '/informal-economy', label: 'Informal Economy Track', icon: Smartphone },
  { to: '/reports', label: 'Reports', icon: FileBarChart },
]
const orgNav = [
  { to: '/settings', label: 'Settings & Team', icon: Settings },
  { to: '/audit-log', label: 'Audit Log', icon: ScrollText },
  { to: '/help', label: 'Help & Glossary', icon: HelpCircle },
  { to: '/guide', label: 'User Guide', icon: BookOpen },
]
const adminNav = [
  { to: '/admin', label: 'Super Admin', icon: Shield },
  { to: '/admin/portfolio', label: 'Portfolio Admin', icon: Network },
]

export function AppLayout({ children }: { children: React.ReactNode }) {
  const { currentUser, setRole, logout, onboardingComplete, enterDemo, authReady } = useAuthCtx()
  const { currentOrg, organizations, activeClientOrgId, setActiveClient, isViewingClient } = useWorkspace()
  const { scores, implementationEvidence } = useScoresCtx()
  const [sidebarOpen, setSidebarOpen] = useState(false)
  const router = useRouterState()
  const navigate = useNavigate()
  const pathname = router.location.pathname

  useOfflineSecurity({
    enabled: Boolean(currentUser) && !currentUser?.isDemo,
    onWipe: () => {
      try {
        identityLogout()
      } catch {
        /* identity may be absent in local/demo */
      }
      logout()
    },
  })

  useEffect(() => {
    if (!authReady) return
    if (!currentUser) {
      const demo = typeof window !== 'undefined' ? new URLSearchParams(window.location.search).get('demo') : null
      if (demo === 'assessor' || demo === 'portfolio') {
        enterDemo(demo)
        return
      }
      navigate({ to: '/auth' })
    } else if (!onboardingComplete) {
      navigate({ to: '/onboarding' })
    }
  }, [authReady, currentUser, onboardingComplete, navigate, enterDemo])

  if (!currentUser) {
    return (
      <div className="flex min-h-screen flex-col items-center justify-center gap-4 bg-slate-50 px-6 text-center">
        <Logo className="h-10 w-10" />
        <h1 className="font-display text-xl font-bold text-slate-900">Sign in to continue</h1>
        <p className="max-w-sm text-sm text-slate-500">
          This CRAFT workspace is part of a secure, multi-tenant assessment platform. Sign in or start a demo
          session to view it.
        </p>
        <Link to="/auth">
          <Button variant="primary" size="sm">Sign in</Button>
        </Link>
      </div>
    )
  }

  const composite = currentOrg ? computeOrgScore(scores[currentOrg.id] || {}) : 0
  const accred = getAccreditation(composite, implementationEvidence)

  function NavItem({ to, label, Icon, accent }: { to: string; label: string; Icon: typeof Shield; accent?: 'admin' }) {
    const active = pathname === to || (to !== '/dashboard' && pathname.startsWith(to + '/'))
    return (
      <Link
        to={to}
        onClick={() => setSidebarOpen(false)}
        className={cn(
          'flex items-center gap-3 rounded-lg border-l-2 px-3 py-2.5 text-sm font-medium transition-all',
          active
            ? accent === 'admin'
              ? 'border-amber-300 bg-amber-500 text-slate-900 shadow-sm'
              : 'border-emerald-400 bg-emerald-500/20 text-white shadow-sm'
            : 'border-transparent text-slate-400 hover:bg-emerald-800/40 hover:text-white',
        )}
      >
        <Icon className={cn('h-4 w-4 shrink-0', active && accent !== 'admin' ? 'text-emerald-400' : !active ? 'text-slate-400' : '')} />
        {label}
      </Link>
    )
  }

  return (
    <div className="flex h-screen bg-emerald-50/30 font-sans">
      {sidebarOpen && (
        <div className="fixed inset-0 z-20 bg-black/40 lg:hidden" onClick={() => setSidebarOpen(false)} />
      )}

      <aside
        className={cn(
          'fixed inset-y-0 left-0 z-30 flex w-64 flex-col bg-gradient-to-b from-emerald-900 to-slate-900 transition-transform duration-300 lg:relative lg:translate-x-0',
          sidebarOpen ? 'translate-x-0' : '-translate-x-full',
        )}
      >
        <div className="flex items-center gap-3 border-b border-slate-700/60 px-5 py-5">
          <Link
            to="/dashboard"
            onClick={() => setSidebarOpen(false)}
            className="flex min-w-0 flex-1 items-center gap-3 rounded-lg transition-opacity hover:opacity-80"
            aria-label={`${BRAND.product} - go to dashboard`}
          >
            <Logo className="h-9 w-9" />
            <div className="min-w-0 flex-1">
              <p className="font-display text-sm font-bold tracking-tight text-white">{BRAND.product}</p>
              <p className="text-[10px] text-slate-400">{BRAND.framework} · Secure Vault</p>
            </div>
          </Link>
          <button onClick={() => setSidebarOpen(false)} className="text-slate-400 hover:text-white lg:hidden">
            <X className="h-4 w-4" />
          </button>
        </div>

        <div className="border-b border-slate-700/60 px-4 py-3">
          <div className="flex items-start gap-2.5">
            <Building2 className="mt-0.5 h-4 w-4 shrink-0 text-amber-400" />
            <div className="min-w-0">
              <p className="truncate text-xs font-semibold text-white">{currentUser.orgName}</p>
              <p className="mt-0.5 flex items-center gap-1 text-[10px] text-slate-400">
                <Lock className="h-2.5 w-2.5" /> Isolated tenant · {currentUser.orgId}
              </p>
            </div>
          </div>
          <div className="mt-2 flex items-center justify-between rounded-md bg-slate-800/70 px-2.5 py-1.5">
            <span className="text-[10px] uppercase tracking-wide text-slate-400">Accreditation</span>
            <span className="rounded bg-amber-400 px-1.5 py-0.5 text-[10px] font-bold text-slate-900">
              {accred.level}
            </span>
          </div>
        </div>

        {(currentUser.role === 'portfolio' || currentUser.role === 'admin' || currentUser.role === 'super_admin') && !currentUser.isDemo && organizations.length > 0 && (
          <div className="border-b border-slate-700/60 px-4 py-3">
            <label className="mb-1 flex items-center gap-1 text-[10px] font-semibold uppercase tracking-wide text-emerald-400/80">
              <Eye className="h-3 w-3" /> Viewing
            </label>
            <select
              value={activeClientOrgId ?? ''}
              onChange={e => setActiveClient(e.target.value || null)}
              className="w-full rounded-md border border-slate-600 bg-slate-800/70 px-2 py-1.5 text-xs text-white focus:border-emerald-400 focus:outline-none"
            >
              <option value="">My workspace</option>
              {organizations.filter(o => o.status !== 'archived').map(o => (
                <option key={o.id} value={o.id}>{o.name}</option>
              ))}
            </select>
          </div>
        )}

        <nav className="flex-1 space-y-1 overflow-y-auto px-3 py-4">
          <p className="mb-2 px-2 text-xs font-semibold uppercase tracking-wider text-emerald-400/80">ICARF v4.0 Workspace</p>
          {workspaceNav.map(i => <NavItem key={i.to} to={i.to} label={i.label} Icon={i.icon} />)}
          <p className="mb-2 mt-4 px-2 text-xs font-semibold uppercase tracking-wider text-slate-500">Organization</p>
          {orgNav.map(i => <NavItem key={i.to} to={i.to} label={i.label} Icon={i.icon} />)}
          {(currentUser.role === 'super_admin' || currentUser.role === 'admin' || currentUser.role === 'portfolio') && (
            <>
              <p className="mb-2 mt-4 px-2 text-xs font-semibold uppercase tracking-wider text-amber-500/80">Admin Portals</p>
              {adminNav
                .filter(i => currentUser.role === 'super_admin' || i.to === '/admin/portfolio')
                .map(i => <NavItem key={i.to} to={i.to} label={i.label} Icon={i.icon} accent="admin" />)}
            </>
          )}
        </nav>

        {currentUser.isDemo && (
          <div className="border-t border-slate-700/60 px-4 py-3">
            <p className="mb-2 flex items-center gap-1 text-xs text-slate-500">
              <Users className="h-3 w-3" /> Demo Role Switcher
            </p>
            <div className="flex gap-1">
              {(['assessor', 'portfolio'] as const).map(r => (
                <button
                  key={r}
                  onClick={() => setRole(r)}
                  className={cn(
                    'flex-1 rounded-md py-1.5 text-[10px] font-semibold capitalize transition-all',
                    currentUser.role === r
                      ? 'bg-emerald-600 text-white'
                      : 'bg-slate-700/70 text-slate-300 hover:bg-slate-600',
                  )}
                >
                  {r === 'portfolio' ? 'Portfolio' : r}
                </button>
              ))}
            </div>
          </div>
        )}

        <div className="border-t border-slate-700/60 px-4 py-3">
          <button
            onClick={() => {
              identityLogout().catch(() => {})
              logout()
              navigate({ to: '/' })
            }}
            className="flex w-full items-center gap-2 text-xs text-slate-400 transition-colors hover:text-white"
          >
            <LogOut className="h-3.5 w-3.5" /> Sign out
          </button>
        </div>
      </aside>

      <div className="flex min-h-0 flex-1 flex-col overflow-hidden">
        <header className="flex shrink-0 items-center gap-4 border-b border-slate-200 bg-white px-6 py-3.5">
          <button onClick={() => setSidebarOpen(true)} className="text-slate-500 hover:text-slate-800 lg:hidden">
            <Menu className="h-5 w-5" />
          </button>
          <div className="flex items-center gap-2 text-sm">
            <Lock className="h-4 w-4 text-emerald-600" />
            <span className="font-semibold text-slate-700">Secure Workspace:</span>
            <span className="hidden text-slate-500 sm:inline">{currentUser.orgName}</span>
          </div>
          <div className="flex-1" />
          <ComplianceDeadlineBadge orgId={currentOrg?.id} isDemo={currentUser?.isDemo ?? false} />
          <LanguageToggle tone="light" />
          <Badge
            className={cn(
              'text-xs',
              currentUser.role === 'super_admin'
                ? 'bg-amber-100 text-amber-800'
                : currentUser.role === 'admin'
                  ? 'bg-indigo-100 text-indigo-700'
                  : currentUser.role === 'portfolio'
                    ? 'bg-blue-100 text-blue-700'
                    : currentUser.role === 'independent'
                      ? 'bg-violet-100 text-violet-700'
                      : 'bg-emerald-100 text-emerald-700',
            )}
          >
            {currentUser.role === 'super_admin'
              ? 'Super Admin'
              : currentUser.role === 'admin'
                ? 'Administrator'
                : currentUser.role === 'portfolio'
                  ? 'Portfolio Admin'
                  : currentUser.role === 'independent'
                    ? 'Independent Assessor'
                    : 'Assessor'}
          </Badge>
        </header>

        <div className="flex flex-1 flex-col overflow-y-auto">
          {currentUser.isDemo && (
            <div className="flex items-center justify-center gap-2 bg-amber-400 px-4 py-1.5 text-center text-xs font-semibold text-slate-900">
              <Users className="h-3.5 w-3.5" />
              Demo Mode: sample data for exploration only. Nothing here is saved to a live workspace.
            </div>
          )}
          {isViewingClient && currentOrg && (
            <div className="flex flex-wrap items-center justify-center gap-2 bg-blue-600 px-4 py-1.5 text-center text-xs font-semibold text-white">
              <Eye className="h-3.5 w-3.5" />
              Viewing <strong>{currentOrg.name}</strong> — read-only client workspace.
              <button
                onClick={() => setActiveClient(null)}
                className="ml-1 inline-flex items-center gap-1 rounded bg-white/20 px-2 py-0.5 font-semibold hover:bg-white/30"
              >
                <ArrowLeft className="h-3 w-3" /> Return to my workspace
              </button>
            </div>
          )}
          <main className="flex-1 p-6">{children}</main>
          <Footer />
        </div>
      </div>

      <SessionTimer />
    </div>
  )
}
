@@ -1,0 +1,13 @@
+src/routes/esg-checklist.tsx
+content":"import { createFileRoute } from '@tanstack/react-router'
+import { AppLayout } from '../components/AppLayout'
+import { CraftChecklistPage } from '../pages/CraftChecklistPage'
+
+export const Route = createFileRoute('/esg-checklist')({
+  component: () => (
+    <AppLayout>
+      <CraftChecklistPage />
+    </AppLayout>
+  ),
+})
+"}]} ,{

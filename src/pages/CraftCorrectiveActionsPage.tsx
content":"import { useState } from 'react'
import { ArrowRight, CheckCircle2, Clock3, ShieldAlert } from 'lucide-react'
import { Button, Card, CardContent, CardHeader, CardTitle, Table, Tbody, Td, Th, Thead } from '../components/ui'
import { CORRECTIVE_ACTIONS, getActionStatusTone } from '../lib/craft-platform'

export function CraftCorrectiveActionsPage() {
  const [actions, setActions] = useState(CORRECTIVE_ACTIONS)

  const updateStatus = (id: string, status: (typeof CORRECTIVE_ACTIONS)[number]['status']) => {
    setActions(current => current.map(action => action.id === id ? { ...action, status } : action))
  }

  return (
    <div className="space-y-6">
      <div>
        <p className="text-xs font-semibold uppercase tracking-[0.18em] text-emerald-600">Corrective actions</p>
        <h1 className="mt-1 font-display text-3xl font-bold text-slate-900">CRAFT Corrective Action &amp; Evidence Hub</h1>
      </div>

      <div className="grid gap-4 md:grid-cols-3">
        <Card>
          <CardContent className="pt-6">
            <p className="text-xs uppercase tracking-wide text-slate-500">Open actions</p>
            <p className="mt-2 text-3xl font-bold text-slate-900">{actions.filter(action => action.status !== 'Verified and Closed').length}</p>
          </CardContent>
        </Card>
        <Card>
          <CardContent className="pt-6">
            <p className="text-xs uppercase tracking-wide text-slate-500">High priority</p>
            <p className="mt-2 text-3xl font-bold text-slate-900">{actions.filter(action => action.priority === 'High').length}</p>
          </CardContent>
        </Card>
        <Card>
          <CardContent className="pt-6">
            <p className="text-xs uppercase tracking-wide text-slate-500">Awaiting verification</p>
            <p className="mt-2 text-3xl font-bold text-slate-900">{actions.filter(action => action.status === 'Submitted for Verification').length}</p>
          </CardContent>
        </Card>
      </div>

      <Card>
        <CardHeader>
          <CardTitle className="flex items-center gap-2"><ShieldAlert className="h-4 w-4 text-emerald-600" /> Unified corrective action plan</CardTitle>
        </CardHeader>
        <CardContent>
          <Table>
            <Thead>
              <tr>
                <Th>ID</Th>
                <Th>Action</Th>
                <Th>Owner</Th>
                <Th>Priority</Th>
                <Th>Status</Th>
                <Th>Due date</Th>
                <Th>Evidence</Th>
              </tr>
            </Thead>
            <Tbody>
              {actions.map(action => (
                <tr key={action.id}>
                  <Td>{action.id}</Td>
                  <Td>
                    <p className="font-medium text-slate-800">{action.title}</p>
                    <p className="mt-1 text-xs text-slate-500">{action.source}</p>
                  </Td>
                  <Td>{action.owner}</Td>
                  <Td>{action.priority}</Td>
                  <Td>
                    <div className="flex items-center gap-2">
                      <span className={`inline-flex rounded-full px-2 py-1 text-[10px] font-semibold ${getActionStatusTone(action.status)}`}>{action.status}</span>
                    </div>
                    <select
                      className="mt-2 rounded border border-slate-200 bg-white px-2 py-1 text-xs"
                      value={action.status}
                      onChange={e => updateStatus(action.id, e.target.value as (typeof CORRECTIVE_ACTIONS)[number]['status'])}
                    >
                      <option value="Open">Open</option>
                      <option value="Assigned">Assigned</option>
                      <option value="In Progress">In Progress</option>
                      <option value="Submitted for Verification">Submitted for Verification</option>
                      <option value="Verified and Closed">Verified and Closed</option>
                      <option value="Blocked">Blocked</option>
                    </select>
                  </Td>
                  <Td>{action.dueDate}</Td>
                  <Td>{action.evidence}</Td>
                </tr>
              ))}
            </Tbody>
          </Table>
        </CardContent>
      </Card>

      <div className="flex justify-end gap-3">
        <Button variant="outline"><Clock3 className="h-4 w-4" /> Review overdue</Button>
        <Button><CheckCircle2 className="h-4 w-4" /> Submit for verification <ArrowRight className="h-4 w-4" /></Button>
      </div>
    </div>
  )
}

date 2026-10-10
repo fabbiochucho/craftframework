@@ -1,0 +1,423 @@
+import { useMemo, useState } from 'react'
+import { ArrowRight, CheckCircle2, FileText, Layers3, MapPinned } from 'lucide-react'
+import { Button, Card, CardContent, CardHeader, CardTitle, Select, Input, Table, Thead, Tbody, Th, Td } from '../components/ui'
+import { ESG_FRAMEWORKS, GOVERNANCE_FRAMEWORKS, buildImplementationPlan, estimateOperationalReadiness } from '../lib/craft-platform'
+
+export function CraftPlannerPage() {
+  const [profile, setProfile] = useState({
+    organisationName: 'Example Institution',
+    country: 'Nigeria',
+    sector: 'Financial services',
+    maturity: 'Emerging',
+  })
+  const [selectedFrameworks, setSelectedFrameworks] = useState<string[]>(['ifrs-s1-s2', 'gri'])
+
+  const plan = useMemo(() => buildImplementationPlan(profile as any, selectedFrameworks), [profile, selectedFrameworks])
+  const readiness = estimateOperationalReadiness(selectedFrameworks)
+
+  const toggleFramework = (id: string) => {
+    setSelectedFrameworks(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id])
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">CRAFT planner</p>
+        <h1 className="mt-1 font-display text-3xl font-bold text-slate-900">CRAFT ESG &amp; Sustainability Implementation Planner</h1>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <Input label="Organisation name" value={profile.organisationName} onChange={e => setProfile({ ...profile, organisationName: e.target.value })} />
+        <Input label="Country" value={profile.country} onChange={e => setProfile({ ...profile, country: e.target.value })} />
+        <Input label="Sector" value={profile.sector} onChange={e => setProfile({ ...profile, sector: e.target.value })} />
+        <Select label="Maturity" value={profile.maturity} onChange={value => setProfile({ ...profile, maturity: value })} options={[{ value: 'Emerging', label: 'Emerging' }, { value: 'Developing', label: 'Developing' }, { value: 'Mature', label: 'Mature' }]} />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Layers3 className="h-4 w-4 text-emerald-600" /> Framework selector</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {ESG_FRAMEWORKS.map((framework) => (
+            <button
+              key={framework.id}
+              type="button"
+              onClick={() => toggleFramework(framework.id)}
+              className={`rounded-xl border p-3 text-left transition-colors ${selectedFrameworks.includes(framework.id) ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white hover:border-emerald-300'}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-semibold text-slate-800">{framework.name}</p>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-700">{framework.status}</span>
+              </div>
+              <p className="mt-2 text-xs text-slate-500">{framework.publisher} · {framework.version}</p>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Implementation horizon</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">12 months</p>
+            <p className="mt-2 text-sm text-slate-500">Targeted to the selected reporting cycle and applicable obligations.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Operational readiness</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{readiness}</p>
+            <p className="mt-2 text-sm text-slate-500">Assessed from the selected framework mix and organisational maturity.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Frameworks selected</p>
+            <p className="mt-2 text-2xl font-bold text-slate-900">{selectedFrameworks.length}</p>
+            <p className="mt-2 text-sm text-slate-500">Mapped across shared controls and standard-specific actions.</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><MapPinned className="h-4 w-4 text-emerald-600" /> Requirements mapping</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <Thead>
+              <tr>
+                <Th>Topic</Th>
+                <Th>Shared requirement</Th>
+                <Th>Typical evidence</Th>
+                <Th>Notes</Th>
+              </tr>
+            </Thead>
+            <Tbody>
+              {['Governance and oversight', 'Strategy', 'Risk management', 'Metrics and targets', 'Data collection and assurance'].map(topic => (
+                <tr key={topic}>
+                  <Td>{topic}</Td>
+                  <Td>{topic === 'Risk management' ? 'Evaluate risk register, controls and mitigation' : 'Apply standard-specific requirements and evidence mapping'}</Td>
+                  <Td>Policy, register, KPI pack and management review</Td>
+                  <Td>Shared across multiple frameworks with standard-specific additions.</Td>
+                </tr>
+              ))}
+            </Tbody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-emerald-600" /> Structured implementation roadmap</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">{plan.summary}</p>
+            {plan.workstreams.map(workstream => (
+              <div key={workstream.title} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <p className="font-semibold text-slate-800">{workstream.title}</p>
+                  </div>
+                  <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{workstream.timeline}</span>
+                </div>
+                <div className="mt-3 grid gap-2 md:grid-cols-3">
+                  <p className="text-sm text-slate-600"><strong>Owner:</strong> {workstream.owner}</p>
+                  <p className="text-sm text-slate-600"><strong>Deliverable:</strong> {workstream.deliverable}</p>
+                  <p className="text-sm text-slate-600"><strong>Evidence:</strong> {workstream.evidence}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button variant="primary">Generate final plan <ArrowRight className="h-4 w-4" /></Button>
+      </div>
+    </div>
+  )
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

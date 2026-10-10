@@ -1,0 +1,13 @@
+src/routes/esg-planner.tsx
+content":"import { createFileRoute } from '@tanstack/react-router'
+import { AppLayout } from '../components/AppLayout'
+import { CraftPlannerPage } from '../pages/CraftPlannerPage'
+
+export const Route = createFileRoute('/esg-planner')({
+  component: () => (
+    <AppLayout>
+      <CraftPlannerPage />
+    </AppLayout>
+  ),
+})
+"} ,{
