@@ -1,10 +1,9 @@
 // ============================================================================
-// CRAFT v4.0 — 3-Layer Sovereignty Shield: local auto-wipe
+// CRAFT v4.0 — Inactivity session lock
 // ----------------------------------------------------------------------------
 // Local storage is a temporary, highly-secured buffer for fiduciary and
-// regulatory data — never a resting place. This hook enforces the inactivity
-// layer of the shield: after 15 minutes with no user activity it purges the
-// entire on-device buffer (offlineDB.clearAll) and sends the user back to the
+// regulatory data. This hook enforces the configured inactivity
+// window: it locks pending work without erasing it and sends the user back to the
 // login screen with ?reason=session_timeout so the UI can explain what happened.
 //
 // Activity is any of mousedown / keydown / scroll (plus touch for field tablets
@@ -13,7 +12,7 @@
 // ============================================================================
 
 import { useEffect, useRef } from 'react'
-import { offlineDB } from '../lib/offline/db'
+import { clearOfflineSession } from '../lib/offline/session'
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000
 
@@ -23,7 +22,7 @@ export interface OfflineSecurityOptions {
   /** Where to send the user after a wipe. */
   redirectTo?: string
   /** Optional app-level cleanup (e.g. context logout) run before redirect. */
-  onWipe?: () => void
+  onWipe?: () => void | Promise<void>
   /** Set false to temporarily disable (e.g. on public/marketing routes). */
   enabled?: boolean
 }
@@ -34,6 +33,8 @@ const ACTIVITY_EVENTS: Array<keyof WindowEventMap> = [
   'scroll',
   'touchstart',
   'pointerdown',
+  'mousemove',
+  'click',
 ]
 
 export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
@@ -53,17 +54,18 @@ export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
 
     let timer: ReturnType<typeof setTimeout>
     let wiped = false
+    let deadline = Date.now() + timeoutMs
 
     const wipe = async () => {
       if (wiped) return
       wiped = true
       try {
-        await offlineDB.clearAll()
+        await clearOfflineSession()
       } catch (err) {
         console.error('[security] auto-wipe failed', err)
       }
       try {
-        onWipeRef.current?.()
+        await onWipeRef.current?.()
       } catch (err) {
         console.error('[security] onWipe callback failed', err)
       }
@@ -73,6 +75,11 @@ export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
 
     const reset = () => {
       clearTimeout(timer)
+      if (Date.now() >= deadline) {
+        void wipe()
+        return
+      }
+      deadline = Date.now() + timeoutMs
       timer = setTimeout(() => void wipe(), timeoutMs)
     }
 
@@ -81,7 +88,7 @@ export function useOfflineSecurity(options: OfflineSecurityOptions = {}): void {
     }
     // Wipe sooner if the tab is hidden past the window (backgrounded device).
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') reset()
+      if (document.visibilityState === 'visible' && Date.now() >= deadline) void wipe()
     }
     document.addEventListener('visibilitychange', onVisibility)
 

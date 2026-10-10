@@ -107,6 +107,8 @@ describe('CAP closure requires verified evidence on every action', () => {
 
     // Only an admin may verify, and only once evidence is attached.
     assert.equal((await as(ASSESSOR).put(`/workspaces/${wsId}/cap/${capId}/actions/${a1}`, { verify: true })).status, 403)
+    assert.equal((await as(ADMIN).put(`/workspaces/${wsId}/cap/${capId}/actions/${a1}`, { verify: true })).status, 409, 'pending evidence cannot be verified')
+    expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/evidence/${evidence}/approve`, { status: 'approved' }), 200)
     expectStatus(await as(ADMIN).put(`/workspaces/${wsId}/cap/${capId}/actions/${a1}`, { verify: true }), 200)
     res = await close()
     assert.equal(res.status, 409)
@@ -130,6 +132,29 @@ describe('CAP closure requires verified evidence on every action', () => {
     assert.equal(res.status, 409)
     assert.equal((await as(ADMIN).put(`/workspaces/${wsId}/cap/${capId}`, { status: 'completed' })).status, 400)
     assert.equal((await rows('SELECT status FROM cap_records WHERE id = $1', [capId]))[0].status, 'in_progress')
+  })
+
+  it('rechecks evidence expiry, approval, archive and action-specific linkage at verification and closure', async () => {
+    const capId = await createCap(wsId)
+    const action = await addAction(capId, 'Fix controls')
+    const evidence = await uploadEvidence(wsId)
+    const actionPath = `/workspaces/${wsId}/cap/${capId}/actions/${action}`
+    expectStatus(await as(ASSESSOR).put(actionPath, { evidenceId: evidence, status: 'completed' }), 200)
+    expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/evidence/${evidence}/approve`, { status: 'approved' }), 200)
+    expectStatus(await as(ADMIN).put(actionPath, { verify: true }), 200)
+    expectStatus(await as(ASSESSOR).put(`/workspaces/${wsId}/evidence/${evidence}`, { expiryDate: '2000-01-01' }), 200)
+    assert.equal((await as(ADMIN).put(actionPath, { verify: true })).status, 409)
+    assert.equal((await as(ADMIN).post(`/workspaces/${wsId}/cap/${capId}/close`, {})).status, 409)
+    expectStatus(await as(ASSESSOR).put(`/workspaces/${wsId}/evidence/${evidence}`, { expiryDate: null, status: 'pending_review' }), 200)
+    assert.equal((await as(ADMIN).put(actionPath, { verify: true })).status, 409)
+    expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/evidence/${evidence}/approve`, { status: 'approved' }), 200)
+    const other = await addAction(capId, 'Independent action')
+    assert.equal((await as(ADMIN).put(`/workspaces/${wsId}/cap/${capId}/actions/${other}`, { verify: true })).status, 409)
+    expectStatus(await as(ASSESSOR).put(actionPath, { evidenceId: evidence }), 200)
+    assert.equal((await rows('SELECT verified_by FROM action_items WHERE id = $1', [action]))[0].verified_by, null)
+    expectStatus(await as(ADMIN).put(actionPath, { verify: true }), 200)
+    expectStatus(await as(ADMIN).del(`/workspaces/${wsId}/evidence/${evidence}`), 200)
+    assert.equal((await as(ADMIN).put(actionPath, { verify: true })).status, 409)
   })
 })
 

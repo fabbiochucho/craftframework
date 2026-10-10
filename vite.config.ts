@@ -40,18 +40,10 @@ const config = defineConfig({
         skipWaiting: true,
         runtimeCaching: [
           {
-            // Fiduciary/assessment data — always try the network first so a
-            // connected assessor sees fresh records; fall back to cache offline.
-            // Covers the app's own /api/* routes and any Supabase REST/RPC host.
+            // Private APIs must never use a shared service-worker cache.
             urlPattern: ({ url }) =>
-              url.pathname.startsWith('/api/') || /\.supabase\.(co|in)$/.test(url.hostname),
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'craft-api',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
+              url.pathname === '/api' || url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
           },
           {
             // Static build assets — serve instantly from cache, revalidate later.

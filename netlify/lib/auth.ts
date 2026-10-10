@@ -19,6 +19,7 @@ import { getUser } from '@netlify/identity'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { accessGrants, organizations, users } from '../../db/schema.js'
+import { grantAllows, SPECIALIZED_READONLY_ROLES } from './access-policy.js'
 
 const SUPER_ADMIN_EMAILS = ['fabbiochucho@gmail.com']
 
@@ -46,7 +47,7 @@ export function tenantOrgId(email: string): string {
   return `self_${email.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
 }
 
-export type Caller = { email: string; name: string; orgId: string; role: string }
+export type Caller = { email: string; name: string; orgId: string; role: string; readOnly?: boolean }
 
 // Resolve the verified caller from the Identity session. Returns null when there
 // is no valid session — callers should answer 401 (reads in the client helpers
@@ -57,6 +58,14 @@ export async function resolveCaller(): Promise<Caller | null> {
   const user = await getUser()
   if (!user?.email) return null
   const email = user.email.trim().toLowerCase()
+  const metadataRoles = Array.isArray(user.appMetadata?.roles) ? user.appMetadata.roles : []
+  const metadataRole = typeof user.appMetadata?.role === 'string' ? user.appMetadata.role
+    : metadataRoles.find((role): role is string => typeof role === 'string' && SPECIALIZED_READONLY_ROLES.has(role)) ?? ''
+  const readOnly = SPECIALIZED_READONLY_ROLES.has(metadataRole)
+  if (readOnly) {
+    const expiry = user.appMetadata?.access_expires_at
+    if (typeof expiry !== 'number' || !Number.isFinite(expiry) || expiry <= Date.now() / 1000) return null
+  }
   const name = ((user.userMetadata?.full_name as string) || user.name || email).trim()
   const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1)
   if (row && row.orgId) {
@@ -64,9 +73,9 @@ export async function resolveCaller(): Promise<Caller | null> {
     // a listed operator always resolves to `super_admin`; everyone else is
     // clamped so a directory row can neither revoke the Super Admin nor mint a
     // second one. The ordinary `admin` tier resolves through unchanged.
-    return { email, name, orgId: row.orgId, role: effectiveRole(email, row.role) }
+    return { email, name, orgId: row.orgId, role: effectiveRole(email, row.role), readOnly }
   }
-  return { email, name, orgId: tenantOrgId(email), role: effectiveRole(email) }
+  return { email, name, orgId: tenantOrgId(email), role: effectiveRole(email, row?.role), readOnly }
 }
 
 // Of the requested org ids, return the subset this caller may read/write. The
@@ -75,33 +84,39 @@ export async function resolveCaller(): Promise<Caller | null> {
 // access grant to them, and any org where they are the reviewer or creator of
 // record (backward compatibility for a reviewer's own administered
 // institutions — the same rule the batch score read has always used).
-export async function filterAuthorizedOrgIds(caller: Caller, ids: string[]): Promise<string[]> {
+export async function filterAuthorizedOrgIds(caller: Caller, ids: string[], access: 'read' | 'write' = 'read'): Promise<string[]> {
   if (!ids.length) return []
-  if (caller.role === 'super_admin') return ids
+  if (access === 'write' && (caller.readOnly || SPECIALIZED_READONLY_ROLES.has(caller.role))) return []
+  if (caller.role === 'super_admin' && !caller.readOnly) return ids
   const email = caller.email
   const [grantRows, orgRows] = await Promise.all([
     db
-      .select({ orgId: accessGrants.orgId })
+      .select({ orgId: accessGrants.orgId, status: accessGrants.status, level: accessGrants.level, role: accessGrants.role, expiresAt: accessGrants.expiresAt })
       .from(accessGrants)
-      .where(and(inArray(accessGrants.orgId, ids), eq(accessGrants.status, 'active'), eq(accessGrants.grantee, email))),
+      .where(and(inArray(accessGrants.orgId, ids), eq(accessGrants.grantee, email))),
     db
       .select({ id: organizations.id, createdBy: organizations.createdBy, reviewer: organizations.reviewer })
       .from(organizations)
       .where(inArray(organizations.id, ids)),
   ])
-  const allowed = new Set<string>(grantRows.map((r) => r.orgId))
-  allowed.add(caller.orgId)
-  for (const o of orgRows) {
-    if ((o.createdBy ?? '').toLowerCase() === email || (o.reviewer ?? '').toLowerCase() === email) allowed.add(o.id)
+  const allowed = new Set<string>(grantRows.filter((r) => grantAllows(r, access)).map((r) => r.orgId))
+  if (!caller.readOnly && !SPECIALIZED_READONLY_ROLES.has(caller.role)) {
+    allowed.add(caller.orgId)
+    for (const o of orgRows) {
+      const explicitGrant = grantRows.find((grant) => grant.orgId === o.id)
+      if ((o.createdBy ?? '').toLowerCase() === email ||
+        ((o.reviewer ?? '').toLowerCase() === email && !explicitGrant)) allowed.add(o.id)
+    }
   }
   return ids.filter((id) => allowed.has(id))
 }
 
 // Whether the caller may read/write a single org's tenant-scoped data.
-export async function canAccessOrg(caller: Caller, orgId: string): Promise<boolean> {
+export async function canAccessOrg(caller: Caller, orgId: string, access: 'read' | 'write' = 'write'): Promise<boolean> {
   if (!orgId) return false
-  if (caller.role === 'super_admin' || orgId === caller.orgId) return true
-  return (await filterAuthorizedOrgIds(caller, [orgId])).length > 0
+  if (access === 'write' && (caller.readOnly || SPECIALIZED_READONLY_ROLES.has(caller.role))) return false
+  if (!caller.readOnly && (caller.role === 'super_admin' || (orgId === caller.orgId && !SPECIALIZED_READONLY_ROLES.has(caller.role)))) return true
+  return (await filterAuthorizedOrgIds(caller, [orgId], access)).length > 0
 }
 
 export const unauthorized = () => Response.json({ error: 'Unauthorized' }, { status: 401 })

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Languages } from 'lucide-react'
 import { dictionaryValues, useI18n, type LangCode } from '../lib/i18n'
+import { useAuthCtx } from '../lib/context'
+import { useRouterState } from '@tanstack/react-router'
 
 // ---------------------------------------------------------------------------
 // Whole-page runtime translation.
@@ -23,6 +25,7 @@ const BATCH = 20
 const MAX_LEN = 4000
 const CACHE_PREFIX = 'craft_tx_v1_'
 const CACHE_LIMIT = 6000
+const PUBLIC_COPY_ROUTES = new Set(['/', '/architecture', '/methodology', '/institute', '/launch', '/privacy', '/terms', '/open-source', '/code-of-conduct', '/vaults'])
 
 type Tracked = { source: string; applied: string }
 
@@ -69,6 +72,9 @@ function saveCache(lang: LangCode, cache: Map<string, string>) {
 
 export function AutoTranslate() {
   const { lang, t } = useI18n()
+  const { currentUser, authReady } = useAuthCtx()
+  const pathname = useRouterState({ select: state => state.location.pathname })
+  const allowed = authReady && !currentUser && PUBLIC_COPY_ROUTES.has(pathname)
   const [pending, setPending] = useState(0)
   const textNodes = useRef(new Map<Text, Tracked>())
   const attrNodes = useRef(new Map<Element, Partial<Record<(typeof ATTRS)[number], Tracked>>>())
@@ -76,6 +82,12 @@ export function AutoTranslate() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return
+    if (!allowed) {
+      try {
+        for (const key of Object.keys(localStorage)) if (key.startsWith(CACHE_PREFIX)) localStorage.removeItem(key)
+      } catch { /* unavailable storage */ }
+      return
+    }
     const texts = textNodes.current
     const attrs = attrNodes.current
 
@@ -89,6 +101,11 @@ export function AutoTranslate() {
     let timer: ReturnType<typeof setTimeout> | undefined
     let saveTimer: ReturnType<typeof setTimeout> | undefined
     let cancelled = false
+    const controller = new AbortController()
+    const stillPublic = () => !cancelled && PUBLIC_COPY_ROUTES.has(window.location.pathname) && !document.querySelector('[data-sensitive-workspace]')
+    const clearSensitive = () => { cancelled = true; controller.abort(); cache.clear() }
+    window.addEventListener('craft:clear-sensitive', clearSensitive)
+    window.addEventListener('craft:session', clearSensitive)
 
     const needs = (s: string) => translatable(s) && !native.has(s.trim())
 
@@ -148,7 +165,7 @@ export function AutoTranslate() {
       timer = undefined
       const batch = Array.from(queue)
       queue.clear()
-      if (batch.length === 0 || cancelled) return
+      if (batch.length === 0 || !stillPublic()) return
       batch.forEach(s => inflight.add(s))
       const chunks: string[][] = []
       for (let i = 0; i < batch.length; i += BATCH) chunks.push(batch.slice(i, i + BATCH))
@@ -157,15 +174,16 @@ export function AutoTranslate() {
       // Four chunks at a time keeps the first screen fast without flooding the API.
       let next = 0
       const worker = async () => {
-        while (next < chunks.length && !cancelled) {
+        while (next < chunks.length && stillPublic()) {
           const chunk = chunks[next++]
           try {
             const res = await fetch('/api/translate', {
+              signal: controller.signal,
               method: 'POST',
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ lang, texts: chunk }),
             })
-            if (res.ok) {
+            if (res.ok && stillPublic()) {
               const { translations } = (await res.json()) as { translations: string[] }
               chunk.forEach((s, i) => {
                 if (typeof translations[i] === 'string') cache.set(s, translations[i])
@@ -177,10 +195,10 @@ export function AutoTranslate() {
             chunk.forEach(s => inflight.delete(s))
             setPending(p => Math.max(0, p - 1))
           }
-          if (!cancelled) {
+          if (stillPublic()) {
             applyAll()
             clearTimeout(saveTimer)
-            saveTimer = setTimeout(() => saveCache(lang, cache), 800)
+            saveTimer = setTimeout(() => { if (stillPublic()) saveCache(lang, cache) }, 800)
           }
         }
       }
@@ -248,6 +266,7 @@ export function AutoTranslate() {
     // Our own writes also show up here; trackText/trackAttrs recognise them by
     // their `applied` value and ignore them.
     const observer = new MutationObserver(records => {
+      if (!stillPublic()) return
       for (const r of records) {
         if (r.type === 'characterData') trackText(r.target as Text)
         else if (r.type === 'attributes') trackAttrs(r.target as Element)
@@ -271,12 +290,16 @@ export function AutoTranslate() {
     if (head) titleObserver.observe(head, { childList: true, characterData: true, subtree: true })
 
     return () => {
+      const persist = stillPublic()
       cancelled = true
+      controller.abort()
+      window.removeEventListener('craft:clear-sensitive', clearSensitive)
+      window.removeEventListener('craft:session', clearSensitive)
       observer.disconnect()
       titleObserver.disconnect()
       clearTimeout(timer)
       clearTimeout(saveTimer)
-      saveCache(lang, cache)
+      if (persist) saveCache(lang, cache)
       // Hand the original English back before the next language takes over,
       // so translations are always produced from the English source.
       texts.forEach((t, node) => {
@@ -293,9 +316,9 @@ export function AutoTranslate() {
       titleRef.current = null
       setPending(0)
     }
-  }, [lang])
+  }, [lang, allowed, pathname])
 
-  if (lang === 'en' || pending === 0) return null
+  if (!allowed || lang === 'en' || pending === 0) return null
   return (
     <div
       role="status"
