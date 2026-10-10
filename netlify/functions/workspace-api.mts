@@ -1,4 +1,5 @@
 import type { Config } from '@netlify/functions'
+import { escalateSupport } from '../lib/support-escalation.js'
 import { createHash } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
 import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, or, sql } from 'drizzle-orm'
@@ -1186,6 +1187,7 @@ const routes: Route[] = [
   { method: 'POST', pattern: '/support-bot/submit-issue', access: 'public', handler: (c) => submitIssue(c, false) },
   { method: 'POST', pattern: '/support-bot/github-issue', access: 'public', handler: (c) => submitIssue(c, true) },
   { method: 'POST', pattern: '/support-bot/chat', access: 'public', handler: handleSupportChat },
+  { method: 'POST', pattern: '/support-bot/escalate', access: 'public', handler: (c) => escalateSupport(c.body) },
   { method: 'GET', pattern: '/support-bot/issues', access: 'authed', handler: async (c, { caller }) => {
     const wsParam = c.url.searchParams.get('workspaceId')
     if (wsParam) {
@@ -1218,6 +1220,9 @@ const routes: Route[] = [
 async function submitIssue(c: Ctx, githubFirst: boolean): Promise<Response> {
   const category = oneOf(c.body.category, 'category', ['bug', 'feature', 'question', 'documentation'] as const, 'question')
   const description = str(c.body.description ?? c.body.message, 'description', 5000)
+  if (isPrivateReport(description) || c.body.privacyLevel === 'private') {
+    return escalateSupport({ ...c.body, message: description, classification: classifySupportMessage(description).type, privacyLevel: 'private' })
+  }
   const contactEmail = str(c.body.contactEmail ?? c.body.email, 'contactEmail', 200, false)
   if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) throw bad('contactEmail invalid')
   let orgId: number | null = null
@@ -1245,6 +1250,8 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
     return json({
       success: true,
       type: 'private_report',
+      classification: classifySupportMessage(message).type,
+      escalationReason: 'private_report',
       answer: 'For conduct or security reports, please contact craftframework@becomechange.institute directly. Do not include sensitive details in this public chat.',
     })
   }
@@ -1311,6 +1318,8 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
   return json({
     success: true,
     type: classification.type,
+    classification: classification.type,
+    escalationReason: classification.type === 'question' && !faq ? 'unresolved_question' : null,
     confidence: classification.confidence,
     answer: faq?.answer,
     issueCreated: !!result.url,
@@ -1372,13 +1381,14 @@ export default async (req: Request) => {
         if (r.access === 'public' && isRateLimitedCount(await incrementRateLimit(`pub:${ip}`, now), 100)) {
           return finish(tooManyRequests(now))
         }
-        if (r.pattern === '/support-bot/chat' && isRateLimitedCount(await incrementRateLimit(`support-chat:${ip}`, now), 20)) {
+        if ((r.pattern === '/support-bot/chat' || r.pattern === '/support-bot/escalate') && isRateLimitedCount(await incrementRateLimit(`support-chat:${ip}`, now), 20)) {
           return finish(tooManyRequests(now))
         }
         if (isRateLimitedCount(await incrementRateLimit(caller ? `u:${caller.email}` : `ip:${ip}`, now), caller ? 1000 : 100)) {
           return finish(tooManyRequests(now))
         }
       } catch (rateLimitError) {
+        if (r.pattern === '/support-bot/escalate') return finish(json({ error: 'Escalation temporarily unavailable' }, 503))
         logger.error('/api/workspace-api', 'shared rate limiter failed open', rateLimitError)
       }
       // Cross-site browser writes must come from an allowed origin.

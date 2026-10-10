@@ -855,6 +855,17 @@ export const supportIssues = pgTable(
   },
 )
 
+export const supportEscalations = pgTable('support_escalations', {
+  id: serial('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  message: text('message').notNull(),
+  contactEmail: text('contact_email').notNull(),
+  category: text('category').notNull(),
+  reason: text('reason').notNull(),
+  status: text('status').notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export const supportIssueResponses = pgTable(
   'support_issue_responses',
   {

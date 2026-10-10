@@ -36,6 +36,7 @@ export default defineConfig({
     },
     {
       command: `npm run dev`,
+      env: { VITE_POSTHOG_KEY: 'e2e-public-project' },
       url: `http://localhost:${WEB_PORT}/`,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
