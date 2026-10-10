@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
-import { as, blobStores, expectStatus, installFetchMock, rows, truncateAll } from './harness.ts'
+import { ADMIN, as, blobStores, createOrg, expectStatus, installFetchMock, rows, truncateAll } from './harness.ts'
 
 const originalToken = process.env.GITHUB_TOKEN
 
@@ -12,12 +12,14 @@ describe('public support chat intake', () => {
 
   afterEach(() => {
     delete process.env.RESEND_API_KEY
+    delete process.env.REMINDER_FROM_EMAIL
     if (originalToken === undefined) delete process.env.GITHUB_TOKEN
     else process.env.GITHUB_TOKEN = originalToken
   })
 
   it('queues encrypted confidential reports and sends only redacted text to the fixed Resend recipient', async () => {
     process.env.RESEND_API_KEY = 'test-provider'
+    process.env.REMINDER_FROM_EMAIL = 'support@acme.example'
     const mock = installFetchMock()
     try {
       const body = {
@@ -52,8 +54,9 @@ describe('public support chat intake', () => {
       message: 'Something completely unrelated', classification: 'question',
       contactEmail: 'reporter@example.com', escalationConsent: true, reason: 'unresolved_question',
     }
-    assert.equal(expectStatus(await as(null).post('/support-bot/escalate', body), 200).body.status, 'not_configured')
+    assert.equal(expectStatus(await as(null).post('/support-bot/escalate', body), 503).body.status, 'not_configured')
     process.env.RESEND_API_KEY = 'test-provider'
+    process.env.REMINDER_FROM_EMAIL = 'support@acme.example'
     let fail = true
     const mock = installFetchMock(() => new Response('{}', { status: fail ? 503 : 200 }))
     try {
@@ -81,8 +84,8 @@ describe('public support chat intake', () => {
 
   it('keeps private reports from legacy workspace and GitHub intake out of public issues', async () => {
     const body = { description: 'A harassment report', category: 'bug', contactEmail: 'reporter@example.com', escalationConsent: true }
-    expectStatus(await as(null).post('/support-bot/submit-issue', body), 200)
-    expectStatus(await as(null).post('/support-bot/github-issue', body), 200)
+    expectStatus(await as(null).post('/support-bot/submit-issue', body), 503)
+    expectStatus(await as(null).post('/support-bot/github-issue', body), 503)
     assert.equal((await rows('SELECT count(*)::int AS n FROM support_issues'))[0].n, 0)
     assert.equal((await rows('SELECT count(*)::int AS n FROM support_escalations'))[0].n, 1)
   })
@@ -171,5 +174,43 @@ describe('public support chat intake', () => {
     } finally {
       fetchMock.restore()
     }
+  })
+
+  it('shares disclosure, redaction and workspace deduplication across legacy intake and chat', async () => {
+    const { wsId } = await createOrg()
+    const mock = installFetchMock(() => new Response(JSON.stringify({ html_url: 'https://github.com/fabbiochucho/craftframework/issues/987' }), { status: 201 }))
+    try {
+      const body = { description: 'How do I install? person@example.com', workspaceId: wsId, contactEmail: ADMIN }
+      expectStatus(await as(ADMIN).post('/support-bot/submit-issue', body), 400)
+      const first = expectStatus(await as(ADMIN).post('/support-bot/submit-issue', { ...body, publicIssueDisclosure: true }), 201)
+      const second = expectStatus(await as(ADMIN).post('/support-bot/chat', { ...body, message: body.description, publicIssueDisclosure: true }), 200)
+      assert.equal(second.body.id, first.body.id)
+      assert.equal(second.body.deduplicated, true)
+      assert.equal(mock.calls.length, 1)
+      const [entry] = await rows('SELECT * FROM support_issues')
+      assert.equal(entry.workspace_id, wsId)
+      assert.ok(entry.org_id)
+      assert.match(entry.contact_email, /^enc:/)
+      assert.ok(!entry.description.includes('person@example.com'))
+      const outbound = String(mock.calls[0].init?.body)
+      assert.ok(!outbound.includes(ADMIN))
+      assert.ok(!outbound.includes('person@example.com'))
+    } finally { mock.restore() }
+  })
+
+  it('scheduled escalation retry uses the durable encrypted queue and provider idempotency key', async () => {
+    const body = { message: 'Something unrelated', classification: 'question', contactEmail: 'reporter@example.com', escalationConsent: true, reason: 'human_requested' }
+    expectStatus(await as(null).post('/support-bot/escalate', body), 503)
+    process.env.RESEND_API_KEY = 'test-provider'
+    process.env.REMINDER_FROM_EMAIL = 'support@acme.example'
+    const mock = installFetchMock()
+    try {
+      const worker = (await import(new URL('../../netlify/functions/support-escalation-retry.mts', import.meta.url).href)).default
+      await worker()
+      await worker()
+      assert.equal(mock.calls.length, 1)
+      assert.equal((await rows('SELECT status FROM support_escalations'))[0].status, 'accepted')
+      assert.ok(new Headers(mock.calls[0].init?.headers).get('Idempotency-Key'))
+    } finally { mock.restore() }
   })
 })

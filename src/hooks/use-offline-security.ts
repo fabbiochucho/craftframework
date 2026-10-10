@@ -1,10 +1,9 @@
 // ============================================================================
-// CRAFT v4.0 — 3-Layer Sovereignty Shield: local auto-wipe
+// CRAFT v4.0 — Inactivity session lock
 // ----------------------------------------------------------------------------
 // Local storage is a temporary, highly-secured buffer for fiduciary and
-// regulatory data — never a resting place. This hook enforces the inactivity
-// layer of the shield: after 15 minutes with no user activity it purges the
-// entire on-device buffer (offlineDB.clearAll) and sends the user back to the
+// regulatory data. This hook enforces the configured inactivity
+// window: it locks pending work without erasing it and sends the user back to the
 // login screen with ?reason=session_timeout so the UI can explain what happened.
 //
 // Activity is any of mousedown / keydown / scroll (plus touch for field tablets

@@ -58,7 +58,9 @@ export async function resolveCaller(): Promise<Caller | null> {
   const user = await getUser()
   if (!user?.email) return null
   const email = user.email.trim().toLowerCase()
-  const metadataRole = typeof user.appMetadata?.role === 'string' ? user.appMetadata.role : ''
+  const metadataRoles = Array.isArray(user.appMetadata?.roles) ? user.appMetadata.roles : []
+  const metadataRole = typeof user.appMetadata?.role === 'string' ? user.appMetadata.role
+    : metadataRoles.find((role): role is string => typeof role === 'string' && SPECIALIZED_READONLY_ROLES.has(role)) ?? ''
   const readOnly = SPECIALIZED_READONLY_ROLES.has(metadataRole)
   if (readOnly) {
     const expiry = user.appMetadata?.access_expires_at
@@ -73,7 +75,7 @@ export async function resolveCaller(): Promise<Caller | null> {
     // second one. The ordinary `admin` tier resolves through unchanged.
     return { email, name, orgId: row.orgId, role: effectiveRole(email, row.role), readOnly }
   }
-  return { email, name, orgId: tenantOrgId(email), role: effectiveRole(email), readOnly }
+  return { email, name, orgId: tenantOrgId(email), role: effectiveRole(email, row?.role), readOnly }
 }
 
 // Of the requested org ids, return the subset this caller may read/write. The
@@ -85,22 +87,26 @@ export async function resolveCaller(): Promise<Caller | null> {
 export async function filterAuthorizedOrgIds(caller: Caller, ids: string[], access: 'read' | 'write' = 'read'): Promise<string[]> {
   if (!ids.length) return []
   if (access === 'write' && (caller.readOnly || SPECIALIZED_READONLY_ROLES.has(caller.role))) return []
-  if (caller.role === 'super_admin') return ids
+  if (caller.role === 'super_admin' && !caller.readOnly) return ids
   const email = caller.email
   const [grantRows, orgRows] = await Promise.all([
     db
       .select({ orgId: accessGrants.orgId, status: accessGrants.status, level: accessGrants.level, role: accessGrants.role, expiresAt: accessGrants.expiresAt })
       .from(accessGrants)
-      .where(and(inArray(accessGrants.orgId, ids), eq(accessGrants.status, 'active'), eq(accessGrants.grantee, email))),
+      .where(and(inArray(accessGrants.orgId, ids), eq(accessGrants.grantee, email))),
     db
       .select({ id: organizations.id, createdBy: organizations.createdBy, reviewer: organizations.reviewer })
       .from(organizations)
       .where(inArray(organizations.id, ids)),
   ])
   const allowed = new Set<string>(grantRows.filter((r) => grantAllows(r, access)).map((r) => r.orgId))
-  allowed.add(caller.orgId)
-  for (const o of orgRows) {
-    if ((o.createdBy ?? '').toLowerCase() === email || (o.reviewer ?? '').toLowerCase() === email) allowed.add(o.id)
+  if (!caller.readOnly && !SPECIALIZED_READONLY_ROLES.has(caller.role)) {
+    allowed.add(caller.orgId)
+    for (const o of orgRows) {
+      const explicitGrant = grantRows.find((grant) => grant.orgId === o.id)
+      if ((o.createdBy ?? '').toLowerCase() === email ||
+        ((o.reviewer ?? '').toLowerCase() === email && !explicitGrant)) allowed.add(o.id)
+    }
   }
   return ids.filter((id) => allowed.has(id))
 }
@@ -109,7 +115,7 @@ export async function filterAuthorizedOrgIds(caller: Caller, ids: string[], acce
 export async function canAccessOrg(caller: Caller, orgId: string, access: 'read' | 'write' = 'write'): Promise<boolean> {
   if (!orgId) return false
   if (access === 'write' && (caller.readOnly || SPECIALIZED_READONLY_ROLES.has(caller.role))) return false
-  if (caller.role === 'super_admin' || orgId === caller.orgId) return true
+  if (!caller.readOnly && (caller.role === 'super_admin' || (orgId === caller.orgId && !SPECIALIZED_READONLY_ROLES.has(caller.role)))) return true
   return (await filterAuthorizedOrgIds(caller, [orgId], access)).length > 0
 }
 

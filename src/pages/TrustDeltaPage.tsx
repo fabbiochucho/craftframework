@@ -41,8 +41,10 @@ import {
   Input,
   Stat,
 } from '../components/ui'
-import { useAuthCtx, useAuditCtx } from '../lib/context'
+import { useAuthCtx, useAuditCtx, useQuestionsCtx, useWorkspace } from '../lib/context'
 import * as api from '../lib/api'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 
 // ---------------------------------------------------------------------------
 // Mock PR evidence narratives - what the PR submitted to justify the self-score.
@@ -78,7 +80,7 @@ const ASSESSOR_NOTE: Record<string, string> = {
     'Measurement instruments exist but evidence of use for learning/adaptation is absent. Level 2.',
 }
 
-const NEG_RANGE_HINT = 'Allowed range 0–5'
+const NEG_RANGE_HINT = 'Enter a score within the question’s scale'
 
 // SoE anchor lookup against the OMT 4-level scale (guarded for bounds).
 function omtAnchor(score: number): string | undefined {
@@ -95,6 +97,10 @@ function omtLabel(score: number): string | undefined {
 export function TrustDeltaPage() {
   const { currentUser, isDemo } = useAuthCtx()
   const { logActivity } = useAuditCtx()
+  const { questions } = useQuestionsCtx()
+  const { currentOrg, readOnly } = useWorkspace()
+  const orgId = currentOrg?.id ?? currentUser?.orgId
+  const [justifications, setJustifications, justificationStatus] = useLegacyAssessment<Record<string, string>>('trust-delta:justifications', {})
   // Demo sessions are seeded with an illustrative reconciliation register; a live
   // workspace starts empty until self vs independent scores are recorded.
   const [rows, setRows] = useState<TrustDeltaRow[]>(() =>
@@ -113,13 +119,12 @@ export function TrustDeltaPage() {
     setRows(isDemo ? TRUST_DELTA_SEED.map(r => ({ ...r })) : [])
     setConsensus({})
     setSelectedRow(null)
-    if (!currentUser || isDemo) return
+    if (!orgId || isDemo) return
     let active = true
-    const orgId = currentUser.orgId
     api.fetchResponseRecords(orgId).then(({ scores, details }) => {
       if (!active) return
       setRows(Object.entries(details).filter(([qId, d]) => d.assessorScore != null && scores[qId] != null).map(([qId, d]) => ({
-        qId, domain: qId.split('-')[0], question: qId,
+        qId, domain: questions.find(q => q.id === qId)?.domain ?? qId.split('-')[0], question: questions.find(q => q.id === qId)?.question ?? qId,
         prScore: scores[qId], assessorScore: d.assessorScore!,
         negotiatedScore: d.negotiatedScore, scale: qId.startsWith('OMT-') ? 'omt-1-4' : 'fiduciary-0-5',
       })))
@@ -129,12 +134,12 @@ export function TrustDeltaPage() {
           if (d.notes != null) next[qId] = { comment: d.notes, justification: next[qId]?.justification ?? '' }
         }
         return next
-      }).catch(() => { if (active) setError('Unable to load the response register. Please reconnect and reload.') })
-    })
+      })
+    }).catch(() => { if (active) setError('Unable to load the response register. Please reconnect and reload.') })
     return () => {
       active = false
     }
-  }, [currentUser, isDemo])
+  }, [orgId, isDemo, questions])
 
 
   // ---- summary metrics -----------------------------------------------------
@@ -174,9 +179,10 @@ export function TrustDeltaPage() {
 
   const saveConsensus = async (idx: number, negotiated: number, comment: string, justification: string) => {
     const row = rows[idx]
+    if (readOnly) return
     if (currentUser && !isDemo) {
       try {
-        await api.saveResponseDetail(currentUser.orgId, row.qId,
+        await api.saveResponseDetail(orgId!, row.qId,
           { negotiatedScore: negotiated, assessorScore: row.assessorScore, notes: comment }, currentUser.email)
       } catch {
         setError('Consensus was not saved. Please reconnect and retry.')
@@ -187,6 +193,7 @@ export function TrustDeltaPage() {
       prev.map((r, i) => (i === idx ? { ...r, negotiatedScore: negotiated } : r)),
     )
     setConsensus(prev => ({ ...prev, [row.qId]: { comment, justification } }))
+    setJustifications(prev => ({ ...prev, [row.qId]: justification }))
     // Persist the negotiated outcome to the audit register for live sessions.
     // The mandatory consensus comment is stored as the response note; the
     // assessor's proposed score is captured for the Trust Delta record.
@@ -199,6 +206,7 @@ export function TrustDeltaPage() {
   return (
     <div className="space-y-6">
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+      <LegacySaveStatus status={justificationStatus} />
       {/* Header --------------------------------------------------------------*/}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -438,6 +446,7 @@ export function TrustDeltaPage() {
                           <Button
                             variant={r.negotiatedScore != null ? 'outline' : 'primary'}
                             size="sm"
+                            disabled={readOnly}
                             onClick={() => setSelectedRow(i)}
                           >
                             <Gavel className="h-3.5 w-3.5" />
@@ -469,9 +478,10 @@ export function TrustDeltaPage() {
       {/* Facilitated Debrief modal ------------------------------------------*/}
       {selectedRow != null && rows[selectedRow] && (
         <DebriefModal
+          isDemo={isDemo}
           row={rows[selectedRow]}
           initialComment={consensus[rows[selectedRow].qId]?.comment ?? ''}
-          initialJustification={consensus[rows[selectedRow].qId]?.justification ?? ''}
+          initialJustification={justifications[rows[selectedRow].qId] ?? consensus[rows[selectedRow].qId]?.justification ?? ''}
           onClose={() => setSelectedRow(null)}
           onSave={(negotiated, comment, justification) =>
             saveConsensus(selectedRow, negotiated, comment, justification)
@@ -486,12 +496,14 @@ export function TrustDeltaPage() {
 // Facilitated Debrief modal - split-screen consensus workspace.
 // ---------------------------------------------------------------------------
 function DebriefModal({
+  isDemo,
   row,
   initialComment,
   initialJustification,
   onClose,
   onSave,
 }: {
+  isDemo: boolean
   row: TrustDeltaRow
   initialComment: string
   initialJustification: string
@@ -508,8 +520,8 @@ function DebriefModal({
   const negValid =
     negotiatedRaw.trim() !== '' &&
     Number.isFinite(negotiatedNum) &&
-    negotiatedNum >= 0 &&
-    negotiatedNum <= 5
+    negotiatedNum >= (row.scale === 'omt-1-4' || row.scale === 'oca-1-4' ? 1 : 0) &&
+    negotiatedNum <= scaleMax(row.scale ?? 'fiduciary-0-5')
   const commentValid = comment.trim().length > 0
   const canSave = negValid && commentValid
 
@@ -584,7 +596,7 @@ function DebriefModal({
               </p>
               <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">
                 <FileText className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-                <span>{PR_EVIDENCE[row.qId] ?? 'No supporting narrative supplied by the PR.'}</span>
+                <span>{isDemo ? PR_EVIDENCE[row.qId] ?? 'No supporting narrative supplied by the PR.' : 'Review the actual documents in the secure workspace Evidence registry.'}</span>
               </div>
             </div>
 
@@ -601,7 +613,7 @@ function DebriefModal({
               </p>
               <div className="mb-3 flex items-start gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-                <span>{ASSESSOR_NOTE[row.qId] ?? 'Assessor justification pending.'}</span>
+                <span>{isDemo ? ASSESSOR_NOTE[row.qId] ?? 'Assessor justification pending.' : 'Record the independent rationale below. No illustrative assessor note applies to this record.'}</span>
               </div>
               <textarea
                 value={justification}

@@ -64,7 +64,8 @@ export default async () => {
         sql`${wsAuditLog.details}->>'scheduleId' = ${String(schedule.id)}`,
         sql`${wsAuditLog.details}->>'occurrence' = ${occurrence}`,
       )).limit(1)
-      if (delivery?.details?.deliveryAttempted && !delivery.details.emailDelivered) {
+      const deliveryDetails = (delivery?.details ?? {}) as Record<string, unknown>
+      if (deliveryDetails.deliveryAttempted && !deliveryDetails.emailDelivered) {
         logger.warn('weekly-reports', `schedule ${schedule.id} requires provider reconciliation before retry`)
         return
       }
@@ -93,11 +94,11 @@ export default async () => {
           reportType: schedule.reportType, organizationName: organization?.name ?? 'Organization',
           dataAsOfDate: report.dataAsOfDate, generatedAt: report.generatedAt, snapshot,
         })
-        await getStore('reports').set(`reports/${schedule.orgId}/${workspaceId}/${report.id}/v1.pdf`, pdfBytes, {
+        await getStore('reports').set(`reports/${schedule.orgId}/${workspaceId}/${report.id}/v1.pdf`, new Uint8Array(pdfBytes).buffer, {
           metadata: { contentType: 'application/pdf' },
         })
       }
-      let delivered = delivery.details?.emailDelivered === true
+      let delivered = deliveryDetails.emailDelivered === true
       if (!delivered && process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL) {
         const attachments = []
         if (schedule.format !== 'pdf') attachments.push({
@@ -111,7 +112,7 @@ export default async () => {
         try {
           // Persist send intent first. SendGrid has no idempotent send endpoint;
           // an interrupted/ambiguous send must be reconciled, not blindly retried.
-          await db.update(wsAuditLog).set({ details: { ...delivery.details, deliveryAttempted: true } }).where(eq(wsAuditLog.id, delivery.id))
+          await db.update(wsAuditLog).set({ details: { ...deliveryDetails, scheduled: true, scheduleId: schedule.id, occurrence, deliveryAttempted: true } }).where(eq(wsAuditLog.id, delivery.id))
           const sent = await fetch('https://api.sendgrid.com/v3/mail/send', {
             method: 'POST',
             signal: AbortSignal.timeout(15_000),
@@ -126,7 +127,8 @@ export default async () => {
           })
           delivered = sent.ok
           await db.update(wsAuditLog).set({ details: {
-            ...delivery.details, deliveryAttempted: delivered || sent.status >= 500, emailDelivered: delivered,
+            ...deliveryDetails, scheduled: true, scheduleId: schedule.id, occurrence,
+            deliveryAttempted: delivered || sent.status >= 500, emailDelivered: delivered,
             providerStatus: sent.status,
           } }).where(eq(wsAuditLog.id, delivery.id))
           if (!delivered) logger.warn('weekly-reports', `email delivery failed for schedule ${schedule.id}`)
