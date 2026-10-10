@@ -2,20 +2,15 @@ import posthog from 'posthog-js/dist/module.no-external'
 
 type Category = 'bug' | 'feature' | 'question'
 type SupportEvent =
-  | { event: 'support_chat_message_sent'; classification: Category; topic_keywords: string[] }
+  | { event: 'support_chat_message_sent'; classification: Category }
   | { event: 'support_issue_created'; category: Category; privacy_level: 'public' }
   | { event: 'support_escalated'; reason: 'private_report' | 'unresolved_question' | 'human_requested'; recipient_type: 'confidential' | 'support_queue' }
 
-const TOPICS = ['setup', 'authentication', 'assessment', 'export', 'deployment', 'compliance', 'features'] as const
 let consent = false
 let initialized = false
 
 function sensitiveRoute() {
   return window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/assessment')
-}
-
-export function supportTopicKeywords(message: string): string[] {
-  return TOPICS.filter(topic => new RegExp(`\\b${topic}\\b`, 'i').test(message))
 }
 
 export function setSupportAnalyticsConsent(enabled: boolean, key?: string) {
@@ -40,7 +35,7 @@ export function setSupportAnalyticsConsent(enabled: boolean, key?: string) {
       opt_out_capturing_by_default: true,
       before_send: event => {
         if (!event || !consent || sensitiveRoute() || !['support_chat_message_sent', 'support_issue_created', 'support_escalated'].includes(event.event)) return null
-        const allowed = ['token', 'distinct_id', 'classification', 'topic_keywords', 'category', 'privacy_level', 'reason', 'recipient_type']
+        const allowed = ['token', 'distinct_id', 'classification', 'category', 'privacy_level', 'reason', 'recipient_type']
         event.properties = Object.fromEntries(Object.entries(event.properties).filter(([key]) => allowed.includes(key)))
         event.properties.$process_person_profile = false
         return event
