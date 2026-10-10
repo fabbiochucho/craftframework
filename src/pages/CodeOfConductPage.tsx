@@ -25,6 +25,17 @@ export function CodeOfConductPage() {
       </section>
 
       <section className="mx-auto max-w-4xl px-6 py-16">
+        <p className="mb-6 leading-relaxed text-slate-600">
+          This page is a summary. Read the{' '}
+          <a
+            href="https://github.com/fabbiochucho/craftframework/blob/main/CODE_OF_CONDUCT.md"
+            className="font-semibold text-emerald-700 underline underline-offset-2"
+          >
+            full Code of Conduct and enforcement policy
+          </a>
+          {' '}for the governing standards, scope, private reporting, confidentiality limits,
+          protective measures, fair investigation, and appeals within 30 calendar days.
+        </p>
         <Reveal>
           <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -36,9 +47,10 @@ export function CodeOfConductPage() {
                 In the interest of fostering an open and welcoming environment, we as contributors
                 and maintainers of the {BRAND.framework} framework pledge to make participation in
                 our project and community a harassment-free experience for everyone, regardless of
-                age, body size, disability, ethnicity, gender identity and expression, level of
-                experience, nationality, personal appearance, race, religion, or sexual identity and
-                orientation.
+                age, body size, visible or invisible disability, ethnicity, sex characteristics,
+                gender identity and expression, level of experience, education, socio-economic status,
+                nationality, personal appearance, race, caste, color, religion, or sexual identity
+                and orientation.
               </p>
             </div>
           </div>
@@ -72,7 +84,7 @@ export function CodeOfConductPage() {
             <div>
               <h2 className="font-display text-2xl font-bold text-emerald-900">Our Responsibilities</h2>
               <p className="mt-3 leading-relaxed text-slate-600">
-                Project maintainers at the {BRAND.institute} are responsible for clarifying the
+                Project maintainers are responsible for clarifying the
                 standards of acceptable behavior and are expected to take appropriate and fair
                 corrective action in response to any instances of unacceptable behavior.
               </p>
@@ -96,7 +108,15 @@ export function CodeOfConductPage() {
                 >
                   {BRAND.contactEmail}
                 </a>
-                . All complaints will be reviewed and investigated promptly and fairly.
+                . Do not use public issues or the support chatbot for conduct, security, or
+                confidential concerns. You may omit your name or use a pseudonym, but ordinary
+                email cannot guarantee anonymity.
+              </p>
+              <p className="mt-3 leading-relaxed text-emerald-100">
+                Reports are handled on a need-to-know basis; absolute confidentiality cannot be
+                guaranteed. Retaliation is prohibited. Maintainers aim to acknowledge reports within
+                5 business days and provide a decision or update within 30 calendar days, subject
+                to capacity. This mailbox is not continuously monitored or an emergency service.
               </p>
             </div>
           </div>
