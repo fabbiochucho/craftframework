@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import {
   buildScorecard, canAssignRole, capCloseBlockers, csvEscape, effectiveCapStatus, evidenceExpiryState,
-  hasMinRole, isRateLimitedCount, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore,
+  hasMinRole, isRateLimitedCount, isVerificationEvidence, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore,
 } from './workspace.ts'
 
 assert.ok(hasMinRole('owner', 'admin'))
@@ -64,6 +64,14 @@ assert.equal(evidenceExpiryState('2026-10-01', now), 'expired')
 assert.equal(evidenceExpiryState('2026-10-25', now), 'expiring')
 assert.equal(evidenceExpiryState('2027-01-01', now), 'valid')
 assert.equal(evidenceExpiryState(null, now), 'none')
+assert.ok(isVerificationEvidence({ status: 'approved', archivedAt: null, expiryDate: null }, now))
+assert.ok(isVerificationEvidence({ status: 'approved', archivedAt: null, expiryDate: '2026-10-10' }, now))
+for (const evidence of [
+  { status: 'pending_review', archivedAt: null, expiryDate: null },
+  { status: 'rejected', archivedAt: null, expiryDate: null },
+  { status: 'approved', archivedAt: now, expiryDate: null },
+  { status: 'approved', archivedAt: null, expiryDate: '2026-10-09' },
+]) assert.ok(!isVerificationEvidence(evidence, now))
 
 assert.equal(csvEscape('=cmd()'), "'=cmd()")
 assert.equal(csvEscape('a,b'), '"a,b"')

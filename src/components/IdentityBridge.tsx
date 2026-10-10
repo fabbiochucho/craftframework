@@ -1,19 +1,36 @@
-import { useEffect, useRef } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   getUser,
   onAuthChange,
   handleAuthCallback,
+  recoverPassword,
+  login as identityLogin,
+  logout as identityLogout,
   type User,
 } from '@netlify/identity'
 import { useAuthCtx, SELF_ORG_ID } from '../lib/context'
 import { isSuperAdminEmail, effectiveViewLevel, type ViewLevel } from '../lib/data'
 import { fetchUserByEmail, recordSignIn } from '../lib/api'
+import { completePasswordRecovery, discardRecoverySession, readRecoveryHash, RECOVERY_ERROR } from '../lib/identityRecovery'
 
 // The view levels a visitor may self-register as (Super Admin is excluded — it
 // is only ever granted from the allowlist / admin portal). Mirrors the choices
 // offered on the registration form.
 const VALID_SELF_ROLES = new Set<ViewLevel>(['assessor', 'independent', 'portfolio'])
+
+type RecoveryState = 'loading' | 'none' | 'ready' | 'invalid'
+const RecoveryContext = createContext<{
+  state: RecoveryState
+  resetPassword: (password: string) => Promise<void>
+  dismiss: () => void
+} | null>(null)
+
+export function useIdentityRecovery() {
+  const context = useContext(RecoveryContext)
+  if (!context) throw new Error('IdentityBridge is required')
+  return context
+}
 
 // A confirmed Netlify Identity user is a real, signed-in institution. We map
 // them onto their own isolated, initially-empty live workspace - never the
@@ -35,12 +52,43 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
   // Tracks which identity is currently reflected in app context so we only
   // hydrate/clear on genuine transitions (not on every token refresh).
   const syncedEmail = useRef<string | null>(null)
+  const recoveryToken = useRef<string | null>(null)
+  const recoveryBlocked = useRef(false)
+  const syncUser = useRef<(user: User | null) => void>(() => {})
+  const initialization = useRef<Promise<void> | null>(null)
+  const [recoveryState, setRecoveryState] = useState<RecoveryState>('loading')
+
+  async function resetPassword(password: string) {
+    const token = recoveryToken.current
+    if (!token || !recoveryBlocked.current) throw new Error(RECOVERY_ERROR)
+    try {
+      const signedIn = await completePasswordRecovery(token, password, {
+        recoverPassword, login: identityLogin, logout: identityLogout,
+      })
+      recoveryToken.current = null
+      recoveryBlocked.current = false
+      setRecoveryState('none')
+      syncUser.current(signedIn)
+    } catch {
+      recoveryToken.current = null
+      setRecoveryState('invalid')
+      throw new Error(RECOVERY_ERROR)
+    }
+  }
+
+  async function dismissRecovery() {
+    recoveryToken.current = null
+    // Do not revive a pre-existing session after an abandoned reset.
+    await discardRecoverySession(identityLogout).catch(() => {})
+    recoveryBlocked.current = false
+    setRecoveryState('none')
+  }
 
   useEffect(() => {
     let active = true
 
     function sync(user: User | null) {
-      if (!active) return
+      if (!active || recoveryBlocked.current) return
       if (user?.email) {
         if (syncedEmail.current === user.email) return
         syncedEmail.current = user.email
@@ -94,38 +142,50 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
               login(user.email, row.orgId, role, orgName)
             }
           }
-        })
+        }).catch(() => {})
       } else {
         if (syncedEmail.current === null) return
         syncedEmail.current = null
         logout()
       }
     }
+    syncUser.current = sync
 
-    // 1) Handle a confirmation / recovery / OAuth token landing in the URL hash.
-    //    When a freshly confirmed user clicks the email link they arrive here,
-    //    get signed in, and are taken straight into the secure workspace.
-    handleAuthCallback()
-      .then(result => {
-        if (result?.user) {
-          sync(result.user)
-          navigate({ to: '/dashboard' })
+    async function initialize() {
+      const callback = readRecoveryHash(window.location.hash)
+      if (callback.recovery) {
+        recoveryBlocked.current = true
+        recoveryToken.current = callback.token
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        logout()
+        syncedEmail.current = null
+        setRecoveryState(callback.token ? 'ready' : 'invalid')
+        void navigate({ to: '/auth', replace: true })
+      } else {
+        try {
+          const result = await handleAuthCallback()
+          if (result?.user) {
+            syncUser.current(result.user)
+            // AuthPage chooses onboarding vs dashboard after hydration.
+            void navigate({ to: '/auth', replace: true })
+          }
+        } catch {
+          recoveryBlocked.current = true
+          logout()
+          syncedEmail.current = null
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
+          setRecoveryState('invalid')
+          void navigate({ to: '/auth', replace: true })
         }
-      })
-      .catch(() => {
-        // Malformed or expired hash - ignore and fall through to normal load.
-      })
-
-    // 2) Hydrate from any existing session and stay in sync with future changes
-    //    (login, logout, cross-tab changes, token refresh). Once this initial
-    //    read settles — whether it finds a session or not — the auth gate opens
-    //    so route guards can act on a known state instead of a transient null.
-    getUser()
-      .then(sync)
-      .catch(() => {})
-      .finally(() => {
-        if (active) setAuthReady(true)
-      })
+        setRecoveryState(state => state === 'invalid' ? state : 'none')
+      }
+      if (!recoveryBlocked.current) await getUser().then(user => syncUser.current(user)).catch(() => {})
+    }
+    // A single callback redemption also covers StrictMode's effect replay.
+    initialization.current ??= initialize()
+    void initialization.current.finally(() => {
+      if (active) setAuthReady(true)
+    })
     const unsubscribe = onAuthChange((_event, user) => sync(user ?? null))
 
     return () => {
@@ -134,5 +194,9 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
     }
   }, [login, logout, navigate, setAuthReady])
 
-  return <>{children}</>
+  return (
+    <RecoveryContext.Provider value={{ state: recoveryState, resetPassword, dismiss: dismissRecovery }}>
+      {children}
+    </RecoveryContext.Provider>
+  )
 }

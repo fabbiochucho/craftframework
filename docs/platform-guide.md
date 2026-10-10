@@ -1,6 +1,7 @@
 # CRAFT Workspace Platform Guide
 
 ## Architecture
+- **Hosting decision** — stabilize Netlify first, preserve existing legacy routes and data, then consolidate incrementally. `/app/*` integer organization IDs and legacy string tenant IDs remain distinct; no implicit data migration or DNS cutover is authorized by a frontend preview.
 - **Schema** — `db/schema.ts` (tables prefixed `ws_`/domain names; every workspace table has `org_id`). Migrations: `netlify/database/migrations`.
 - **API** — one route table in `netlify/functions/workspace-api.mts` serving `/api/orgs`, `/api/workspaces/*`, `/api/support-bot/*`, and `/api/privacy/*`. Pure rules (RBAC, scoring, CAP, evidence, fixed-window calculations) live in `netlify/lib/workspace.ts`; org authorization in `netlify/lib/orgAccess.ts`.
 - **UI** — `/app/*` routes in `src/routes/app.*.tsx`, pages in `src/pages/workspace/`.
@@ -56,23 +57,67 @@ The climate extension adds four additional labels outside this 20-domain base se
 Both suites need a throwaway Postgres whose database name contains `test` (the harness drops and recreates its `public` schema, then applies `netlify/database/migrations`). Locally: `docker compose -f docker-compose.test.yml up -d --wait`, then `export TEST_DATABASE_URL=postgres://craft@localhost:54329/craft_test`. CI uses a `services: postgres` container (`.github/workflows/validate.yml`).
 
 - `npm run test:integration` runs the real, unmodified `workspace-api.mts` handler (and the `weekly-reports` scheduled function) in Node against Postgres by building `Request` objects. Test-only Node module hooks in `tests/integration/` swap `db/index`, `@netlify/identity` (verified caller supplied by the test) and `@netlify/blobs` (in-memory); outbound `fetch` is blocked/mocked, so SendGrid is never contacted. The hooks refuse to load if `NODE_ENV=production`, `NETLIFY` or `CONTEXT` is set and nothing in production code references them. Encryption keys are generated at runtime. Covered: authentication, 404-not-403 and cross-org id probing, role matrix, owner-promotion guard, segregation of duties, CAP closure and assessment locks, evidence limits/soft delete/audit rows, ciphertext at rest and hash lookup, DB-backed rate limit across handler instances, PDF reports and schedule CRUD, the 503 email response, GDPR export/erasure.
-- `npm run test:e2e` (Playwright, Chromium) runs one smoke path through the real UI: create org and workspace, governance assessment, finding, CAP, evidence upload, report generation and PDF download (`%PDF` header). Playwright starts `vite dev` and a test-only API server (`tests/e2e/apiServer.ts`) that serves the real handler over HTTP against Postgres. Traces and screenshots are kept on failure and uploaded by CI.
+- `npm run test:e2e` (Playwright, Chromium) includes the workspace smoke path, conduct summary, private escalation and support-analytics consent tests. The workspace path creates an org and workspace, governance assessment, finding, CAP, evidence upload, report and PDF download (`%PDF` header). Playwright starts the app and a test-only API server (`tests/e2e/apiServer.ts`) that serves the real handler against Postgres. Traces and screenshots are kept on failure and uploaded by CI.
 
 ### Known limitations of the test setup
 
-- E2E sign-in is not Netlify Identity. A genuine Identity login needs a live Netlify site, so the browser gets an unsigned, runtime-generated session and the test-only server trusts its `nf_jwt` cookie. That trust exists only in the test server; the production function still verifies Identity sessions and no backdoor was added. Netlify Identity itself, `netlify dev` and the edge/CDN layer are therefore not exercised.
-- `.mts` files (including `workspace-api.mts`) are not covered by `tsc --noEmit` (`tsconfig` includes `**/*.ts` only).
+- E2E sign-in is not production Netlify Identity. The browser gets a runtime-generated test session and the test-only API server trusts its cookie; that trust exists only in the test server. Production functions still verify Identity sessions. Local Netlify adapter/edge startup checks do not establish production Identity or CDN operation.
+- Typechecking includes `.mts` production handlers as well as `.ts` and `.tsx`.
 - SendGrid delivery is only tested with a mocked `fetch`; no real email has been sent.
-- The E2E suite covers one happy path; role and error paths are covered by the integration suite only.
+- Browser coverage is not comprehensive: most role/error paths are exercised by integration tests rather than real Identity/CDN sessions.
 
-### Behaviour the tests pin down (not changed)
+### Behaviour the tests pin down
 
-- CAP action `verify` requires evidence to be linked, not that the evidence is in `approved` status.
+- CAP action `verify` requires linked evidence that is approved, not archived, and not expired.
 - Erasure approval is per organisation: the global `users` row, legacy `audit_logs` and `gdpr_requests.requested_by` are retained, and all already-archived evidence in the org is purged, not only the subject's.
 - Findings lock only when an assessment is `approved`; scores lock once it leaves `draft`.
 
 ## Remaining limits
 
 - Erasure requests anonymise the requesting member's identity in workspace actor/assignment fields, remove their membership, and purge already soft-deleted evidence files. Other business records and active evidence remain where required for organisational accountability; the request record and anonymised audit trail are retained.
-- Scheduled reports are polled daily. If email is not configured, the report is still generated and the delivery failure is logged; configure `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, and `SUPPORT_EMAIL` in Netlify.
+- Scheduled reports are polled daily. Configure `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, and `SUPPORT_EMAIL` in Netlify. A missing configuration or failed provider request must not be reported as delivery; ambiguous provider outcomes require operator reconciliation before retry.
 - Field-encryption deployment requires key provisioning and running the documented backfill in a trusted environment; do not put key material in repository files or migration SQL.
+- Legacy and `/app` workspace IDs are deliberately separate. Evidence links from legacy pages are navigation into the real registry, not an automatic tenant mapping, attachment migration, or retrospective verification of legacy scores. Keep both routes and datasets until an explicit mapping and tested non-destructive migration are approved.
+- Legacy framework edits use encrypted tenant-state persistence while connected. A failed save is shown explicitly; these framework editors do not yet provide durable offline draft/replay support. Do not close a page with unsaved changes. The separately queued assessment/file workflows retain failed writes for retry.
+- Framework calculators use their existing rubrics; framework labels and report output are not regulatory filings or independent certification.
+- Offline encryption reduces accidental local exposure but is not protection against malicious same-origin JavaScript or access to an unlocked browser profile. Failed and unowned historical pending records must not be silently discarded or submitted as another user.
+
+## Provider operations checklist
+
+These steps require an authorized operator or provider access. Repository changes
+cannot rotate credentials, verify sender domains, apply production migrations,
+or change DNS by themselves.
+
+1. **Credential incident review:** a historical commit tracked `.env.local`.
+   Removing it from the current tree does not remove it from Git history.
+   Privately inspect the affected commit in an authorized environment; revoke
+   and rotate every real credential exposed, review provider access logs, and
+   update Netlify secrets before redeploying. Never paste values into issues,
+   logs, PRs, or repository files. History cleanup, if required, is a separate
+   coordinated operation and does not substitute for rotation.
+2. **Sender domains:** verify the configured domains in Resend and SendGrid,
+   install the exact provider-issued DNS records, and verify sender addresses.
+   Use `INVITE_FROM_EMAIL`, `COMPLIANCE_FROM_EMAIL`, and
+   `SENDGRID_FROM_EMAIL` for their respective workflows. Record provider
+   acceptance separately from delivered/bounced results; confirm delivery using
+   provider event logs and a controlled recipient.
+3. **Netlify services:** confirm production Identity and enabled OAuth providers,
+   Database, Blobs, Forms, function routes, and scheduled jobs. Provision the
+   variables in `.env.example` through Netlify secrets. Browser PostHog
+   configuration requires a rebuild; do not expose server keys as `VITE_*`.
+4. **Production migrations:** take and verify a restorable backup, review pending
+   additive migrations against the actual deployed schema, test an in-place
+   upgrade on an isolated copy, then apply through the supported Netlify
+   deployment mechanism. Configure encryption keys and run the documented
+   trusted backfill. Keep a rollback/restore procedure and record migration
+   receipts. The integration harness drops `public` and must never target a
+   production or preview database.
+5. **Operational checks:** verify real login/confirmation/recovery, cross-tenant
+   denial, uploads/downloads, report generation, scheduled execution and email
+   events. A green mocked integration test or Ready Vercel preview is not this
+   verification.
+6. **DNS:** retain the current Netlify DNS target during stabilization. Any later
+   host migration requires equivalent backend/auth/storage/jobs, data preservation
+   and session cutover tests before an explicitly approved DNS change. Obtain
+   current DNS records from the provider, prepare rollback, and verify TLS and
+   canonical redirects after any change.

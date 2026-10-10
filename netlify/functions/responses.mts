@@ -37,7 +37,7 @@ export default async (req: Request) => {
         return Response.json({ scoresByOrg })
       }
       if (!orgId) return Response.json({ error: 'orgId required' }, { status: 400 })
-      if (!(await canAccessOrg(caller, orgId))) return forbidden()
+      if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
       const rows = await db.select().from(responses).where(eq(responses.orgId, orgId))
       const scores: Record<string, number> = {}
       // `details` surfaces the Trust Delta columns (assessor / negotiated scores,

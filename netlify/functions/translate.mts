@@ -111,7 +111,7 @@ export default async (req: Request) => {
     const keys = await Promise.all(texts.map(async t => `${PROMPT_VERSION}/${lang}/${await hash(t)}`))
     const cached = await Promise.all(keys.map(k => store.get(k, { type: 'text' }).catch(() => null)))
 
-    const missing = texts.map((t, i) => (cached[i] == null ? i : -1)).filter(i => i >= 0)
+    const missing = texts.map((_, i) => (cached[i] == null ? i : -1)).filter(i => i >= 0)
     const result = cached.slice() as (string | null)[]
 
     if (missing.length > 0) {

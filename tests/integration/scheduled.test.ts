@@ -58,7 +58,12 @@ describe('scheduled report processing', () => {
     assert.equal(Buffer.from(dl.raw).subarray(0, 5).toString(), '%PDF-')
     const [next] = await rows('SELECT next_run_at > now() AS future FROM report_schedules WHERE id = $1', [id])
     assert.equal(next.future, true, 'schedule moved into the future')
-    assert.equal((await rows("SELECT count(*)::int AS n FROM ws_audit_log WHERE actor_id = 'system' AND details->>'scheduled' = 'true'"))[0].n, 1)
+    const events = await rows("SELECT action, details FROM ws_audit_log WHERE actor_id = 'system' AND details->>'scheduled' = 'true' ORDER BY id")
+    assert.equal(events.length, 3)
+    assert.equal(events[0].action, 'create')
+    assert.equal(events[0].details.deliveryAttempted, false, 'creation event remains unchanged')
+    assert.equal(events[1].details.deliveryAttempted, true)
+    assert.equal(events[2].details.emailDelivered, true)
 
     await runScheduled() // nothing is due any more
     assert.equal((await rows('SELECT count(*)::int AS n FROM reports'))[0].n, 1)
@@ -83,5 +88,42 @@ describe('scheduled report processing', () => {
     }), 201)
     await runScheduled()
     assert.equal((await rows('SELECT count(*)::int AS n FROM reports'))[0].n, 0)
+  })
+
+  it('claims overlapping invocations atomically and reuses the generated occurrence on safe retries', async () => {
+    process.env.SENDGRID_API_KEY = placeholderKey
+    process.env.SENDGRID_FROM_EMAIL = 'reports@acme.example'
+    const id = await schedule()
+    let rejected = true
+    const mock = installFetchMock(() => new Response('', { status: rejected ? 429 : 202 }))
+    try {
+      await Promise.all([runScheduled(), runScheduled()])
+      assert.equal(mock.calls.length, 1)
+      assert.equal((await rows('SELECT count(*)::int AS n FROM reports'))[0].n, 1)
+      assert.equal((await rows('SELECT next_run_at < now() AS due FROM report_schedules WHERE id=$1', [id]))[0].due, true)
+      rejected = false
+      await runScheduled()
+      assert.equal(mock.calls.length, 2)
+      assert.equal((await rows('SELECT count(*)::int AS n FROM reports'))[0].n, 1)
+      assert.equal((await rows('SELECT count(*)::int AS n FROM report_versions'))[0].n, 1)
+      assert.equal((await rows('SELECT next_run_at > now() AS future FROM report_schedules WHERE id=$1', [id]))[0].future, true)
+    } finally { mock.restore() }
+  })
+
+  it('does not duplicate ambiguous SendGrid failures and leaves the occurrence due for reconciliation', async () => {
+    process.env.SENDGRID_API_KEY = placeholderKey
+    process.env.SENDGRID_FROM_EMAIL = 'reports@acme.example'
+    const id = await schedule()
+    const mock = installFetchMock(() => new Response('', { status: 503 }))
+    try {
+      await runScheduled()
+      await runScheduled()
+      assert.equal(mock.calls.length, 1)
+      assert.equal((await rows('SELECT count(*)::int AS n FROM reports'))[0].n, 1)
+      assert.equal((await rows('SELECT next_run_at < now() AS due FROM report_schedules WHERE id=$1', [id]))[0].due, true)
+      const [version] = await rows('SELECT sent_at, email_sent_to FROM report_versions')
+      assert.equal(version.sent_at, null)
+      assert.equal(version.email_sent_to, null)
+    } finally { mock.restore() }
   })
 })

@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
 import { useNavigate, Link } from '@tanstack/react-router'
 import {
   Building2, Target, Users, UploadCloud, Wand2, ArrowRight, ArrowLeft,
@@ -17,7 +19,7 @@ const STEPS = ['Workspace', 'Donor Alignment', 'Team & Import']
 export function OnboardingPage() {
   const { currentUser, completeOnboarding } = useAuthCtx()
   const { inviteTeamMember } = useTeamCtx()
-  const { setEntityProfile } = useEntityProfileCtx()
+  const { setEntityProfile, profileSaveStatus } = useEntityProfileCtx()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
 
@@ -30,7 +32,7 @@ export function OnboardingPage() {
   const [sector, setSector] = useState('')
   const [subsector, setSubsector] = useState('')
   // Step 2
-  const [frameworks, setFrameworks] = useState<string[]>(['usaid'])
+  const [frameworks, setFrameworks, alignmentStatus] = useLegacyAssessment<string[]>('donor-alignment', ['usaid'])
   // Step 3
   const [invites, setInvites] = useState<string[]>([''])
   const [path, setPath] = useState<'web' | 'excel' | null>(null)
@@ -54,9 +56,10 @@ export function OnboardingPage() {
   }
 
   function finish(destination: '/assessment' | '/dashboard') {
+    if (profileSaveStatus === 'loading' || profileSaveStatus === 'error' || profileSaveStatus === 'read-only') return
     // Commit the entity profile so the wizard filters to this archetype and the
     // Data Room generates the right country/sector/subsector checklist.
-    setEntityProfile({ archetype, country, sector, subsector })
+    setEntityProfile({ archetype, country, sector, subsector, onboardingComplete: true })
     // Register any co-assessors entered during onboarding as invited team
     // members, scoped to this institution as Organization Assessors.
     const scopeLabel = orgName || currentUser?.orgName || 'Your institution'
@@ -86,6 +89,8 @@ export function OnboardingPage() {
       </header>
 
       <main className="flex-1">
+        <LegacySaveStatus status={alignmentStatus} />
+        <LegacySaveStatus status={profileSaveStatus} />
         <div className="mx-auto max-w-3xl px-6 py-10">
           <Stepper steps={STEPS} current={step} />
 

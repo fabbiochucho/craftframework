@@ -29,7 +29,7 @@ If you are planning a substantial change, open an issue first so we can discuss 
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22 (use the version supported by the validation workflow)
 - npm
 - Git
 

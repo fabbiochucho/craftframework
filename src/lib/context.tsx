@@ -25,6 +25,8 @@ import * as api from './api'
 import { offlineDB } from './offline/db'
 import { queueAndSync } from './offline/sync-engine'
 import type { JurisdictionId, SectorArchetype } from './regulatory-context'
+import { usePersistedTenantState, type SaveStatus } from './legacy-state'
+import { clearOfflineSession } from './offline/session'
 
 // ============================================================================
 // This used to be a single AppContext exposing 40+ values through one object,
@@ -92,6 +94,7 @@ export interface CreatePortfolioInput {
 // subsector it operates in. A live workspace starts blank and the user picks
 // these; the demo seeds an illustrative Nigerian digital-lending fintech.
 export interface EntityProfile {
+  onboardingComplete?: boolean
   archetype: Archetype | ''
   country: string
   sector: string
@@ -174,6 +177,7 @@ interface ScoresContextType {
   getAssessorScore: (orgId: string, qId: string) => number
   scoreAttribution: Record<string, Record<string, string>>
   implementationEvidence: number
+  refreshScores: () => Promise<void>
 }
 
 interface QuestionsContextType {
@@ -202,11 +206,14 @@ interface LensContextType {
   setLensActive: (id: LensId, on: boolean) => void
   mandatoryLenses: Record<LensId, boolean>
   setMandatoryLens: (id: LensId, on: boolean) => void
+  lensSaveStatus: SaveStatus
+  mandateSaveStatus: SaveStatus
 }
 
 interface EntityProfileContextType {
   entityProfile: EntityProfile
   setEntityProfile: (patch: Partial<EntityProfile>) => void
+  profileSaveStatus: SaveStatus
 }
 
 interface TeamContextType {
@@ -329,15 +336,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([])
   const auditSeq = useRef(0)
   // Active thematic lenses (Core Foundation is always on, tracked implicitly).
-  const [activeLenses, setActiveLenses] = useState<Record<LensId, boolean>>(defaultActiveLenses)
+  const [activeLenses, setActiveLenses, lensSaveStatus] = usePersistedTenantState<Record<LensId, boolean>>(activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'active-lenses', defaultActiveLenses, !!activeClientOrgId)
   // Portfolio-mandated lenses - forced on for every institution in the portfolio.
-  const [mandatoryLenses, setMandatoryLenses] = useState<Record<LensId, boolean>>({
+  const [mandatoryLenses, setMandatoryLenses, mandateSaveStatus] = usePersistedTenantState<Record<LensId, boolean>>(activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'mandatory-lenses', {
     climate: false, emergency: false, research: false,
-  })
+  }, !!activeClientOrgId)
   // Entity profile - blank in a live workspace until the user selects it.
-  const [entityProfile, setEntityProfileState] = useState<EntityProfile>({
-    archetype: '', country: '', sector: '', subsector: '', jurisdictions: [], regSector: '',
-  })
+  const [entityProfile, setEntityProfileState, profileSaveStatus] = usePersistedTenantState<EntityProfile>(activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
+    archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
+  }, !!activeClientOrgId)
+  useEffect(() => {
+    if (!currentUser || currentUser.isDemo || activeClientOrgId) return
+    if (profileSaveStatus === 'ready' || profileSaveStatus === 'saved') {
+      setOnboardingComplete(entityProfile.onboardingComplete === true && !!entityProfile.archetype)
+    }
+  }, [currentUser, activeClientOrgId, profileSaveStatus, entityProfile])
 
   // A reviewer drilled into a client's workspace views it strictly read-only in
   // this phase (write-back depends on the access-grant write level, deferred).
@@ -541,7 +554,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // stable per-tenant id so each institution is isolated in the database.
       const tenantId = orgId === SELF_ORG_ID ? api.tenantOrgId(email) : orgId
       setCurrentUser({ id: `user-${email}`, email, orgId: tenantId, role, orgName, isDemo: false })
-      setOnboardingComplete(true)
+      setOnboardingComplete(false)
       setScores(prev => (prev[tenantId] ? prev : { ...prev, [tenantId]: {} }))
       setTeamMembers([])
       appendAudit(email, 'Signed in', 'Secure Workspace', 'Auth')
@@ -574,7 +587,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPortfolios(MOCK_PORTFOLIOS)
     setOnboardingComplete(true)
     // Showcase the dynamic engines with an illustrative Nigerian fintech.
-    setEntityProfileState({ archetype: 'Private', country: 'NG', sector: 'Fintech', subsector: 'Digital Lending & Credit', jurisdictions: ['NG', 'EU'], regSector: 'bank_dfi' })
     setCurrentUser({
       id: 'demo-user',
       email: 'demo@craft.dibadili',
@@ -590,6 +602,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const setEntityProfile = useCallback(
     (patch: Partial<EntityProfile>) => {
+      if (readOnlyRef.current) return
       setEntityProfileState(prev => {
         const next = { ...prev, ...patch }
         // Changing archetype invalidates the previously selected sector and
@@ -612,6 +625,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   )
 
   const logout = useCallback(() => {
+    void clearOfflineSession().catch(error => console.warn('[session] local cleanup failed', error))
     setCurrentUser(null)
     setOnboardingComplete(true)
     // Drop all session state so the next sign-in starts from a clean vault.
@@ -630,7 +644,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     pfSeq.current = 0
     setAuditLog([])
     auditSeq.current = 0
-    setEntityProfileState({ archetype: '', country: '', sector: '', subsector: '', jurisdictions: [], regSector: '' })
   }, [])
 
   const setRole = useCallback((role: UserRole) => {
@@ -735,6 +748,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (orgId: string, qId: string) => scores[orgId]?.[qId] ?? 0,
     [scores],
   )
+  const refreshScores = useCallback(async () => {
+    if (!currentUser || currentUser.isDemo) return
+    const sessionOrg = hydratedOrg.current
+    const ids = [...new Set([currentUser.orgId, ...organizations.map(org => org.id)])]
+    const records = await Promise.all(ids.map(async id => [id, await api.fetchResponseRecords(id)] as const))
+    if (hydratedOrg.current !== sessionOrg) return
+    setScores(prev => {
+      const next = { ...prev }
+      for (const [id, record] of records) next[id] = record.scores
+      return next
+    })
+  }, [currentUser, organizations])
 
   const updateCIPStatus = useCallback((riskId: string, status: RiskStatus) => {
     if (readOnlyRef.current) return
@@ -747,6 +772,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // A portfolio-mandated lens can never be switched off by the institution.
   const setLensActive = useCallback(
     (id: LensId, on: boolean) => {
+      if (readOnlyRef.current) return
       setActiveLenses(prev => ({ ...prev, [id]: mandatoryLenses[id] ? true : on }))
       if (currentUser && !currentUser.isDemo) {
         appendAudit(currentUser.email, on ? 'Activated lens' : 'Deactivated lens', id, 'Config')
@@ -757,6 +783,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const toggleLens = useCallback(
     (id: LensId) => {
+      if (readOnlyRef.current) return
       setActiveLenses(prev => {
         const next = mandatoryLenses[id] ? true : !prev[id]
         return { ...prev, [id]: next }
@@ -768,6 +795,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Mandating a lens forces it on across the workspace immediately.
   const setMandatoryLens = useCallback(
     (id: LensId, on: boolean) => {
+      if (readOnlyRef.current) return
       setMandatoryLenses(prev => ({ ...prev, [id]: on }))
       if (on) setActiveLenses(prev => ({ ...prev, [id]: true }))
       appendAudit(
@@ -1217,9 +1245,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     () => ({
       scores, updateScore, getScore, bulkImportScores,
       assessorScores, updateAssessorScore, getAssessorScore, scoreAttribution,
-      implementationEvidence,
+      implementationEvidence, refreshScores,
     }),
-    [scores, updateScore, getScore, bulkImportScores, assessorScores, updateAssessorScore, getAssessorScore, scoreAttribution, implementationEvidence],
+    [scores, updateScore, getScore, bulkImportScores, assessorScores, updateAssessorScore, getAssessorScore, scoreAttribution, implementationEvidence, refreshScores],
   )
 
   const questionsValue = useMemo<QuestionsContextType>(() => ({ questions }), [questions])
@@ -1238,13 +1266,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   )
 
   const lensValue = useMemo<LensContextType>(
-    () => ({ activeLenses, toggleLens, setLensActive, mandatoryLenses, setMandatoryLens }),
-    [activeLenses, toggleLens, setLensActive, mandatoryLenses, setMandatoryLens],
+    () => ({ activeLenses, toggleLens, setLensActive, mandatoryLenses, setMandatoryLens, lensSaveStatus, mandateSaveStatus }),
+    [activeLenses, toggleLens, setLensActive, mandatoryLenses, setMandatoryLens, lensSaveStatus, mandateSaveStatus],
   )
 
   const entityProfileValue = useMemo<EntityProfileContextType>(
-    () => ({ entityProfile, setEntityProfile }),
-    [entityProfile, setEntityProfile],
+    () => ({ entityProfile, setEntityProfile, profileSaveStatus }),
+    [entityProfile, setEntityProfile, profileSaveStatus],
   )
 
   const teamValue = useMemo<TeamContextType>(

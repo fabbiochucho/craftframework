@@ -1,4 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { LegacySaveStatus } from '../lib/legacy-state'
+import { useAuthCtx } from '../lib/context'
 import {
   ResponsiveContainer,
   BarChart,
@@ -53,21 +56,22 @@ const DIMENSION_LEVEL: Record<number, { label: string; cls: string }> = {
 }
 
 export function G7AiEngine() {
+  const { isDemo } = useAuthCtx()
   const framework = getFramework('g7-ai-public-sector')
   const authority = framework?.authority ?? 'G7 / OECD · AI Governance Framework'
 
   // Section 1 - 5-dimension scores (0..4), keyed by dimension key.
-  const [dimensionScores, setDimensionScores] = useState<Record<string, number>>(
-    () => Object.fromEntries(AI_DIMENSIONS.map(d => [d.key, 2])),
+  const [dimensionScores, setDimensionScores, saveStatus] = useLegacyAssessment<Record<string, number>>('g7:dimensions',
+    () => Object.fromEntries(AI_DIMENSIONS.map(d => [d.key, isDemo ? 2 : 0])),
   )
 
   // Section 2 - editable evaluation-matrix values, prefilled with benchmarks.
-  const [metricValues, setMetricValues] = useState<Record<string, number>>(
-    () => Object.fromEntries(AI_EVAL_MATRIX.map(m => [m.key, m.benchmark])),
+  const [metricValues, setMetricValues, metricStatus] = useLegacyAssessment<Record<string, number>>('g7:metrics',
+    () => Object.fromEntries(AI_EVAL_MATRIX.map(m => [m.key, isDemo ? m.benchmark : 0])),
   )
 
   // Section 4 - EIA checklist gate.
-  const [eiaChecks, setEiaChecks] = useState<Record<string, boolean>>(
+  const [eiaChecks, setEiaChecks, checkStatus] = useLegacyAssessment<Record<string, boolean>>('g7:checks',
     () => Object.fromEntries(EIA_CHECKLIST.map(c => [c.key, false])),
   )
 
@@ -96,6 +100,9 @@ export function G7AiEngine() {
 
   return (
     <div className="space-y-6">
+      <LegacySaveStatus status={saveStatus} />
+      <LegacySaveStatus status={metricStatus} />
+      <LegacySaveStatus status={checkStatus} />
       {/* Header */}
       <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-white p-6">
         <div className="flex items-start gap-4">

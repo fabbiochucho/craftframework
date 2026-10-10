@@ -1,27 +1,48 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { api, STATUS_STYLE } from '../../lib/workspaceApi'
-import { Badge } from '../../components/ui'
+import { Badge, Button, Input, Select } from '../../components/ui'
 
 // Load JSON from the API on mount (and on `reload`). Browser-only.
-export function useApi<T = any>(path: string | null) {
-  const [data, setData] = useState<T | null>(null)
-  const [error, setError] = useState<string | null>(null)
+export function useApi<T = any>(path: string | null, scope = '') {
+  const key = `${scope}|${path ?? ''}`
+  const [result, setResult] = useState<{ key: string; data: T | null; error: string | null }>({ key, data: null, error: null })
   const [loading, setLoading] = useState(!!path)
+  const request = useRef(0)
   const reload = useCallback(async () => {
-    if (!path) return
+    const id = ++request.current
+    if (!path) { setResult({ key, data: null, error: null }); setLoading(false); return }
     setLoading(true)
     try {
-      setData(await api<T>(path))
-      setError(null)
+      const data = await api<T>(path)
+      if (id === request.current) setResult({ key, data, error: null })
     } catch (e) {
-      setError((e as Error).message)
+      if (id === request.current) setResult({ key, data: null, error: (e as Error).message })
     } finally {
-      setLoading(false)
+      if (id === request.current) setLoading(false)
     }
-  }, [path])
-  useEffect(() => { void reload() }, [reload])
-  return { data, error, loading, reload }
+  }, [path, key])
+  useEffect(() => { void reload(); return () => { ++request.current } }, [reload])
+  return { data: result.key === key ? result.data : null, error: result.key === key ? result.error : null, loading: !!path && (result.key !== key || loading), reload }
+}
+
+export function EditFields({ initial, fields, save, disabled = false }: {
+  initial: Record<string, any>; fields: { name: string; label: string; type?: string; options?: string[] }[];
+  save: (body: Record<string, unknown>) => Promise<unknown>; disabled?: boolean
+}) {
+  const [draft, setDraft] = useState<Record<string, string>>({})
+  const { run, error, busy } = useAction(() => setDraft({}))
+  const submit = () => run(() => save(Object.fromEntries(Object.entries(draft).map(([key, value]) => {
+    const type = fields.find(f => f.name === key)?.type
+    return [key, type === 'date' ? value || null : type === 'number' ? Number(value) : value]
+  }))))
+  return <div className="space-y-3">
+    {fields.map(f => { const value = draft[f.name] ?? String(initial[f.name] ?? ''); return f.options
+      ? <fieldset key={f.name} disabled={disabled || busy}><Select label={f.label} value={value} onChange={v => { if (!disabled && !busy) setDraft({ ...draft, [f.name]: v }) }} options={f.options.map(v => ({ value: v, label: v.replace(/_/g, ' ') }))} /></fieldset>
+      : <Input key={f.name} label={f.label} type={f.type ?? 'text'} disabled={disabled || busy} value={value} onChange={e => setDraft({ ...draft, [f.name]: e.target.value })} /> })}
+    <ErrorLine error={error} />
+    <Button disabled={disabled || busy || !Object.keys(draft).length} onClick={submit}>Save changes</Button>
+  </div>
 }
 
 export function Header({ title, subtitle, back }: { title: string; subtitle?: string; back?: { to: string; params?: Record<string, string>; label: string } }) {

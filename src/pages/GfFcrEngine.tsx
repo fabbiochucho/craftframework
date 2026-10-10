@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from 'react'
+import { Link } from '@tanstack/react-router'
+import { useAuthCtx } from '../lib/context'
 import {
   Banknote,
   AlertTriangle,
@@ -86,6 +88,7 @@ function VarianceCell({ pct }: { pct: number }) {
 }
 
 export function GfFcrEngine() {
+  const { isDemo } = useAuthCtx()
   const framework = getFramework('gf-pr-fcr')
   const authority = framework?.authority ?? 'The Global Fund · PR Reporting Handbook'
 
@@ -96,6 +99,11 @@ export function GfFcrEngine() {
   const tri = triangulate(CASH_RECON_ROWS, BANK_STATEMENT_BALANCE)
   const cashClosing = fcrTotal(CASH_RECON_ROWS.find(r => r.item === '5.1')!)
   const disbursementNeed = FORECAST_TOTAL - cashClosing
+  if (!isDemo) return <Card className="space-y-3 p-6">
+    <h1 className="font-display text-2xl font-bold">Financial Compliance Report</h1>
+    <p className="text-sm text-slate-600">The illustrative FCR tables are available in demo mode only. Record and persist actual figures in Financial Triangulation; the legacy sample report does not import pasted spreadsheets.</p>
+    <Link to="/finance-triangulation" className="font-semibold text-emerald-700 underline">Open Financial Triangulation</Link>
+  </Card>
 
   const renderTab = () => {
     switch (active) {

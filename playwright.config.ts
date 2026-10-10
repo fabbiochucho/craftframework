@@ -35,7 +35,7 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
-      command: `npm run dev`,
+      command: 'npm run dev -- --strictPort',
       env: { VITE_POSTHOG_KEY: 'e2e-public-project' },
       url: `http://localhost:${WEB_PORT}/`,
       reuseExistingServer: !process.env.CI,

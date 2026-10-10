@@ -1,5 +1,12 @@
 # Netlify → Vercel Migration Implementation Plan
 
+**Deferred during stabilization:** Netlify remains the supported host. Preserve
+existing routes and data and consolidate incrementally before reconsidering this
+migration. The historical SPA description and component counts below are stale:
+the current app uses TanStack Start SSR. Do not execute a production migration or
+DNS cutover from this historical plan without an updated design, verified
+provider access, backups, and explicit operator approval.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Move the CRAFT app off Netlify entirely (build, functions, edge functions, scheduled functions, database, identity, blob storage) onto Vercel + Supabase Auth + Neon, then point `craftframework.becomechange.institute` at the new host and retire the Netlify site.

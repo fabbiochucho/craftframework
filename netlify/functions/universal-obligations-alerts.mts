@@ -97,23 +97,25 @@ function nextOccurrence(ob: RegulatoryObligation, today: Date): string | null {
   return null // event-driven — no fixed date
 }
 
-async function sendResendEmail(ob: RegulatoryObligation, dueISO: string, tier: Tier): Promise<void> {
+async function sendResendEmail(ob: RegulatoryObligation, dueISO: string, tier: Tier): Promise<'accepted' | 'failed' | 'not_configured'> {
   const apiKey = process.env.RESEND_API_KEY
+  const from = process.env.REMINDER_FROM_EMAIL || process.env.INVITE_FROM_EMAIL
   const cco = process.env.CCO_EMAIL || 'compliance@becomechange.institute'
   const cfo = process.env.CFO_EMAIL || 'finance@becomechange.institute'
   const subjectTier = tier === 'overdue' ? 'OVERDUE' : tier === '30-day' ? 'Urgent (30 days)' : 'Upcoming (90 days)'
   const subject = `[${subjectTier}] ${ob.authority} — ${ob.title} due ${dueISO}`
 
-  if (!apiKey) {
+  if (!apiKey || !from || /@resend\.dev\b/i.test(from)) {
     console.log(`[universal-obligations-alerts] would email ${cco}, ${cfo} — ${subject}`)
-    return
+    return 'not_configured'
   }
 
-  await fetch('https://api.resend.com/emails', {
+  const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
+    signal: AbortSignal.timeout(10_000),
     headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
     body: JSON.stringify({
-      from: 'CRAFT Regulatory <compliance@becomechange.institute>',
+      from,
       to: [cco, cfo],
       subject,
       text:
@@ -124,12 +126,16 @@ async function sendResendEmail(ob: RegulatoryObligation, dueISO: string, tier: T
         `\nAction the filing through your CRAFT secure workspace.`,
     }),
   }).catch(err => logger.error("universal-obligations-alerts", "Resend error", err))
+  if (!response?.ok) logger.warn('universal-obligations-alerts', `Provider rejected reminder (${response?.status ?? 'network error'})`)
+  return response?.ok ? 'accepted' : 'failed'
 }
 
 export default async (req: Request) => {
   const next_run = await req.json().then((b: { next_run?: string }) => b?.next_run).catch(() => undefined)
   const today = new Date()
   let sent = 0
+  let failed = 0
+  let notConfigured = 0
   let evaluated = 0
 
   for (const ob of REGULATORY_CALENDAR) {
@@ -140,13 +146,16 @@ export default async (req: Request) => {
     const daysUntil = Math.floor((Date.parse(dueISO) - today.getTime()) / MS_DAY)
     const tier = tierFor(daysUntil)
     if (tier) {
-      await sendResendEmail(ob, dueISO, tier)
-      sent += 1
+      const result = await sendResendEmail(ob, dueISO, tier)
+      if (result === 'accepted') sent += 1
+      else if (result === 'failed') failed += 1
+      else notConfigured += 1
     }
   }
 
   console.log(`[universal-obligations-alerts] evaluated ${evaluated} obligations, sent ${sent} alerts. Next run: ${next_run ?? 'n/a'}`)
-  return new Response(JSON.stringify({ evaluated, sent }), {
+  return new Response(JSON.stringify({ evaluated, sent, failed, notConfigured }), {
+    status: failed ? 502 : 200,
     headers: { 'content-type': 'application/json' },
   })
 }

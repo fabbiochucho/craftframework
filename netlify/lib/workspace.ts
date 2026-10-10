@@ -165,6 +165,13 @@ export function evidenceExpiryState(
   return expiryDate <= limit ? 'expiring' : 'valid'
 }
 
+export function isVerificationEvidence(
+  evidence: { status: string; archivedAt: Date | null; expiryDate: string | null },
+  now = new Date(),
+): boolean {
+  return evidence.status === 'approved' && !evidence.archivedAt && evidenceExpiryState(evidence.expiryDate, now) !== 'expired'
+}
+
 // --- Misc ------------------------------------------------------------------------------
 // The API persists these fixed-window counters in Postgres; keep only the
 // deterministic windowing and threshold rules here for unit tests.

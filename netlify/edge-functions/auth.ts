@@ -4,8 +4,8 @@ import type { Context, Config } from '@netlify/edge-functions'
 // CRAFT v4.0 — Edge auth & multi-tenant isolation
 // ----------------------------------------------------------------------------
 // Runs at the network edge ahead of the origin for the secure workspace routes.
-// It decodes the Netlify GoTrue JWT (when present) to extract the caller's
-// organization_id and role, rewrites isolation headers the origin can trust,
+// It decodes the Netlify GoTrue JWT (when present) for advisory route gating,
+// strips unverified isolation headers,
 // and gates the independent-assurance surface (/verify/*) to assessors only.
 //
 // Design note: CRAFT is a client-rendered SPA with a public demo mode, so this
@@ -69,13 +69,8 @@ function roleOf(claims: JwtClaims): string | undefined {
   return (
     claims.app_metadata?.role ||
     claims.app_metadata?.roles?.[0] ||
-    claims.user_metadata?.role ||
     undefined
   )
-}
-
-function orgOf(claims: JwtClaims): string | undefined {
-  return claims.app_metadata?.organization_id || claims.user_metadata?.organization_id
 }
 
 export default async (req: Request, context: Context) => {
@@ -84,14 +79,12 @@ export default async (req: Request, context: Context) => {
   const claims = token ? decodeJwt(token) : null
 
   const role = claims ? roleOf(claims) : undefined
-  const organizationId = claims ? orgOf(claims) : undefined
-
   // Specialized ecosystem roles (regulators / auditors / investors): enforce
   // the time-bound + read-only guarantees before letting them reach the origin.
   if (role && SPECIALIZED_READONLY_ROLES.has(role)) {
     const expiresAt = claims?.app_metadata?.access_expires_at
     const nowSec = Math.floor(Date.now() / 1000)
-    if (typeof expiresAt === 'number' && nowSec > expiresAt) {
+    if (typeof expiresAt !== 'number' || !Number.isFinite(expiresAt) || nowSec >= expiresAt) {
       return new Response('Forbidden: time-bound access grant has expired.', {
         status: 403,
         headers: { 'content-type': 'text/plain' },
@@ -115,11 +108,11 @@ export default async (req: Request, context: Context) => {
     })
   }
 
-  // Continue down the chain, attaching trusted isolation headers the origin can
-  // use to scope every read to a single tenant.
+  // The origin resolves verified identity and current grants from the database.
   const res = await context.next()
-  if (organizationId) res.headers.set('x-craft-org', organizationId)
-  if (role) res.headers.set('x-craft-role', role)
+  // Unverified JWT claims must not be presented as trusted isolation headers.
+  res.headers.delete('x-craft-org')
+  res.headers.delete('x-craft-role')
   return res
 }
 
