@@ -9,236 +9,71 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as ArchitectureRouteImport } from './routes/architecture'
-import { Route as AssessmentRouteImport } from './routes/assessment'
-import { Route as AuditLogRouteImport } from './routes/audit-log'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as CipRouteImport } from './routes/cip'
-import { Route as CodeOfConductRouteImport } from './routes/code-of-conduct'
-import { Route as ComplianceRouteImport } from './routes/compliance'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as DataRoomRouteImport } from './routes/data-room'
-import { Route as DemoRouteImport } from './routes/demo'
-import { Route as EvidenceRouteImport } from './routes/evidence'
-import { Route as FinanceTriangulationRouteImport } from './routes/finance-triangulation'
-import { Route as FindingsRouteImport } from './routes/findings'
-import { Route as FrameworksRouteImport } from './routes/frameworks'
-import { Route as GuideRouteImport } from './routes/guide'
-import { Route as HelpRouteImport } from './routes/help'
-import { Route as InformalEconomyRouteImport } from './routes/informal-economy'
-import { Route as InstituteRouteImport } from './routes/institute'
-import { Route as IssbDisclosuresRouteImport } from './routes/issb-disclosures'
-import { Route as LaunchRouteImport } from './routes/launch'
-import { Route as MethodologyRouteImport } from './routes/methodology'
-import { Route as ObligationsRouteImport } from './routes/obligations'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as OpenSourceRouteImport } from './routes/open-source'
-import { Route as PreAssessmentRouteImport } from './routes/pre-assessment'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as RegulatoryComplianceRouteImport } from './routes/regulatory-compliance'
-import { Route as ReportsRouteImport } from './routes/reports'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as VaultsRouteImport } from './routes/vaults'
-import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WallboardRouteImport } from './routes/wallboard'
-import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
-import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
-import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
+import { Route as VerifyRouteImport } from './routes/verify'
+import { Route as VaultsRouteImport } from './routes/vaults'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as RegulatoryComplianceRouteImport } from './routes/regulatory-compliance'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PreAssessmentRouteImport } from './routes/pre-assessment'
+import { Route as OpenSourceRouteImport } from './routes/open-source'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as ObligationsRouteImport } from './routes/obligations'
+import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as LaunchRouteImport } from './routes/launch'
+import { Route as IssbDisclosuresRouteImport } from './routes/issb-disclosures'
+import { Route as InstituteRouteImport } from './routes/institute'
+import { Route as InformalEconomyRouteImport } from './routes/informal-economy'
+import { Route as HelpRouteImport } from './routes/help'
+import { Route as GuideRouteImport } from './routes/guide'
+import { Route as FrameworksRouteImport } from './routes/frameworks'
+import { Route as FindingsRouteImport } from './routes/findings'
+import { Route as FinanceTriangulationRouteImport } from './routes/finance-triangulation'
+import { Route as EvidenceRouteImport } from './routes/evidence'
+import { Route as DemoRouteImport } from './routes/demo'
+import { Route as DataRoomRouteImport } from './routes/data-room'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ComplianceRouteImport } from './routes/compliance'
+import { Route as CodeOfConductRouteImport } from './routes/code-of-conduct'
+import { Route as CipRouteImport } from './routes/cip'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuditLogRouteImport } from './routes/audit-log'
+import { Route as AssessmentRouteImport } from './routes/assessment'
+import { Route as ArchitectureRouteImport } from './routes/architecture'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
-import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
-import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
-import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
+import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
+import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
+import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
 import { Route as AppWorkspacesIndexRouteImport } from './routes/app.workspaces.index'
-import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
-import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
-import { Route as AppWorkspacesWorkspaceIdSupportBotRouteImport } from './routes/app.workspaces.$workspaceId.support-bot'
+import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
+import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
+import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
 import { Route as AppWorkspacesWorkspaceIdSupportIssuesRouteImport } from './routes/app.workspaces.$workspaceId.support-issues'
-import { Route as AppWorkspacesWorkspaceIdActionsIndexRouteImport } from './routes/app.workspaces.$workspaceId.actions.index'
-import { Route as AppWorkspacesWorkspaceIdActionsCapIdRouteImport } from './routes/app.workspaces.$workspaceId.actions.$capId'
-import { Route as AppWorkspacesWorkspaceIdEsgFrameworksRouteImport } from './routes/app.workspaces.$workspaceId.esg.frameworks'
-import { Route as AppWorkspacesWorkspaceIdEsgRequirementsRouteImport } from './routes/app.workspaces.$workspaceId.esg.requirements'
-import { Route as AppWorkspacesWorkspaceIdEsgRoadmapRouteImport } from './routes/app.workspaces.$workspaceId.esg.roadmap'
-import { Route as AppWorkspacesWorkspaceIdEvidenceIndexRouteImport } from './routes/app.workspaces.$workspaceId.evidence.index'
-import { Route as AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport } from './routes/app.workspaces.$workspaceId.evidence.$evidenceId'
+import { Route as AppWorkspacesWorkspaceIdSupportBotRouteImport } from './routes/app.workspaces.$workspaceId.support-bot'
+import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
+import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
 import { Route as AppWorkspacesWorkspaceIdReportsIndexRouteImport } from './routes/app.workspaces.$workspaceId.reports.index'
+import { Route as AppWorkspacesWorkspaceIdEvidenceIndexRouteImport } from './routes/app.workspaces.$workspaceId.evidence.index'
+import { Route as AppWorkspacesWorkspaceIdActionsIndexRouteImport } from './routes/app.workspaces.$workspaceId.actions.index'
 import { Route as AppWorkspacesWorkspaceIdReportsReportIdRouteImport } from './routes/app.workspaces.$workspaceId.reports.$reportId'
-import { Route as AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport } from './routes/app.workspaces.$workspaceId.esg.implementation.$requirementId'
+import { Route as AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport } from './routes/app.workspaces.$workspaceId.evidence.$evidenceId'
+import { Route as AppWorkspacesWorkspaceIdEsgRoadmapRouteImport } from './routes/app.workspaces.$workspaceId.esg.roadmap'
+import { Route as AppWorkspacesWorkspaceIdEsgRequirementsRouteImport } from './routes/app.workspaces.$workspaceId.esg.requirements'
+import { Route as AppWorkspacesWorkspaceIdEsgFrameworksRouteImport } from './routes/app.workspaces.$workspaceId.esg.frameworks'
+import { Route as AppWorkspacesWorkspaceIdActionsCapIdRouteImport } from './routes/app.workspaces.$workspaceId.actions.$capId'
 import { Route as AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRouteImport } from './routes/app.workspaces.$workspaceId.governance.assessments.index'
+import { Route as AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport } from './routes/app.workspaces.$workspaceId.esg.implementation.$requirementId'
 import { Route as AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRouteImport } from './routes/app.workspaces.$workspaceId.governance.assessments.$assessmentId.index'
 import { Route as AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRouteImport } from './routes/app.workspaces.$workspaceId.governance.assessments.$assessmentId.review'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ArchitectureRoute = ArchitectureRouteImport.update({
-  id: '/architecture',
-  path: '/architecture',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AssessmentRoute = AssessmentRouteImport.update({
-  id: '/assessment',
-  path: '/assessment',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuditLogRoute = AuditLogRouteImport.update({
-  id: '/audit-log',
-  path: '/audit-log',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CipRoute = CipRouteImport.update({
-  id: '/cip',
-  path: '/cip',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CodeOfConductRoute = CodeOfConductRouteImport.update({
-  id: '/code-of-conduct',
-  path: '/code-of-conduct',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ComplianceRoute = ComplianceRouteImport.update({
-  id: '/compliance',
-  path: '/compliance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DataRoomRoute = DataRoomRouteImport.update({
-  id: '/data-room',
-  path: '/data-room',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoRoute = DemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EvidenceRoute = EvidenceRouteImport.update({
-  id: '/evidence',
-  path: '/evidence',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FinanceTriangulationRoute = FinanceTriangulationRouteImport.update({
-  id: '/finance-triangulation',
-  path: '/finance-triangulation',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FindingsRoute = FindingsRouteImport.update({
-  id: '/findings',
-  path: '/findings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FrameworksRoute = FrameworksRouteImport.update({
-  id: '/frameworks',
-  path: '/frameworks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuideRoute = GuideRouteImport.update({
-  id: '/guide',
-  path: '/guide',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HelpRoute = HelpRouteImport.update({
-  id: '/help',
-  path: '/help',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InformalEconomyRoute = InformalEconomyRouteImport.update({
-  id: '/informal-economy',
-  path: '/informal-economy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InstituteRoute = InstituteRouteImport.update({
-  id: '/institute',
-  path: '/institute',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IssbDisclosuresRoute = IssbDisclosuresRouteImport.update({
-  id: '/issb-disclosures',
-  path: '/issb-disclosures',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LaunchRoute = LaunchRouteImport.update({
-  id: '/launch',
-  path: '/launch',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MethodologyRoute = MethodologyRouteImport.update({
-  id: '/methodology',
-  path: '/methodology',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ObligationsRoute = ObligationsRouteImport.update({
-  id: '/obligations',
-  path: '/obligations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OpenSourceRoute = OpenSourceRouteImport.update({
-  id: '/open-source',
-  path: '/open-source',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PreAssessmentRoute = PreAssessmentRouteImport.update({
-  id: '/pre-assessment',
-  path: '/pre-assessment',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegulatoryComplianceRoute = RegulatoryComplianceRouteImport.update({
-  id: '/regulatory-compliance',
-  path: '/regulatory-compliance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportsRoute = ReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const VaultsRoute = VaultsRouteImport.update({
-  id: '/vaults',
-  path: '/vaults',
+const WallboardRoute = WallboardRouteImport.update({
+  id: '/wallboard',
+  path: '/wallboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyRoute = VerifyRouteImport.update({
@@ -246,19 +81,179 @@ const VerifyRoute = VerifyRouteImport.update({
   path: '/verify',
   getParentRoute: () => rootRouteImport,
 } as any)
-const WallboardRoute = WallboardRouteImport.update({
-  id: '/wallboard',
-  path: '/wallboard',
+const VaultsRoute = VaultsRouteImport.update({
+  id: '/vaults',
+  path: '/vaults',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AcceptTokenRoute = AcceptTokenRouteImport.update({
-  id: '/accept/$token',
-  path: '/accept/$token',
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
-  id: '/admin_/portfolio',
-  path: '/admin/portfolio',
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegulatoryComplianceRoute = RegulatoryComplianceRouteImport.update({
+  id: '/regulatory-compliance',
+  path: '/regulatory-compliance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreAssessmentRoute = PreAssessmentRouteImport.update({
+  id: '/pre-assessment',
+  path: '/pre-assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpenSourceRoute = OpenSourceRouteImport.update({
+  id: '/open-source',
+  path: '/open-source',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObligationsRoute = ObligationsRouteImport.update({
+  id: '/obligations',
+  path: '/obligations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MethodologyRoute = MethodologyRouteImport.update({
+  id: '/methodology',
+  path: '/methodology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LaunchRoute = LaunchRouteImport.update({
+  id: '/launch',
+  path: '/launch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IssbDisclosuresRoute = IssbDisclosuresRouteImport.update({
+  id: '/issb-disclosures',
+  path: '/issb-disclosures',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InstituteRoute = InstituteRouteImport.update({
+  id: '/institute',
+  path: '/institute',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InformalEconomyRoute = InformalEconomyRouteImport.update({
+  id: '/informal-economy',
+  path: '/informal-economy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuideRoute = GuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FrameworksRoute = FrameworksRouteImport.update({
+  id: '/frameworks',
+  path: '/frameworks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FindingsRoute = FindingsRouteImport.update({
+  id: '/findings',
+  path: '/findings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FinanceTriangulationRoute = FinanceTriangulationRouteImport.update({
+  id: '/finance-triangulation',
+  path: '/finance-triangulation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvidenceRoute = EvidenceRouteImport.update({
+  id: '/evidence',
+  path: '/evidence',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DataRoomRoute = DataRoomRouteImport.update({
+  id: '/data-room',
+  path: '/data-room',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ComplianceRoute = ComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CodeOfConductRoute = CodeOfConductRouteImport.update({
+  id: '/code-of-conduct',
+  path: '/code-of-conduct',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CipRoute = CipRouteImport.update({
+  id: '/cip',
+  path: '/cip',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditLogRoute = AuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssessmentRoute = AssessmentRouteImport.update({
+  id: '/assessment',
+  path: '/assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArchitectureRoute = ArchitectureRouteImport.update({
+  id: '/architecture',
+  path: '/architecture',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardTrustDeltaRoute = DashboardTrustDeltaRouteImport.update({
+  id: '/dashboard_/trust-delta',
+  path: '/dashboard/trust-delta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentFrameworkIdRoute = AssessmentFrameworkIdRouteImport.update({
@@ -266,24 +261,14 @@ const AssessmentFrameworkIdRoute = AssessmentFrameworkIdRouteImport.update({
   path: '/$frameworkId',
   getParentRoute: () => AssessmentRoute,
 } as any)
-const DashboardTrustDeltaRoute = DashboardTrustDeltaRouteImport.update({
-  id: '/dashboard_/trust-delta',
-  path: '/dashboard/trust-delta',
+const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
+  id: '/admin_/portfolio',
+  path: '/admin/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppOrgAuditLogRoute = AppOrgAuditLogRouteImport.update({
-  id: '/app/org/audit-log',
-  path: '/app/org/audit-log',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppOrgMembersRoute = AppOrgMembersRouteImport.update({
-  id: '/app/org/members',
-  path: '/app/org/members',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppOrgSettingsRoute = AppOrgSettingsRouteImport.update({
-  id: '/app/org/settings',
-  path: '/app/org/settings',
+const AcceptTokenRoute = AcceptTokenRouteImport.update({
+  id: '/accept/$token',
+  path: '/accept/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWorkspacesIndexRoute = AppWorkspacesIndexRouteImport.update({
@@ -291,16 +276,25 @@ const AppWorkspacesIndexRoute = AppWorkspacesIndexRouteImport.update({
   path: '/app/workspaces/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppWorkspacesWorkspaceIdComplianceDashboardRoute =
-  AppWorkspacesWorkspaceIdComplianceDashboardRouteImport.update({
-    id: '/app/workspaces/$workspaceId/compliance-dashboard',
-    path: '/app/workspaces/$workspaceId/compliance-dashboard',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppWorkspacesWorkspaceIdDashboardRoute =
-  AppWorkspacesWorkspaceIdDashboardRouteImport.update({
-    id: '/app/workspaces/$workspaceId/dashboard',
-    path: '/app/workspaces/$workspaceId/dashboard',
+const AppOrgSettingsRoute = AppOrgSettingsRouteImport.update({
+  id: '/app/org/settings',
+  path: '/app/org/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgMembersRoute = AppOrgMembersRouteImport.update({
+  id: '/app/org/members',
+  path: '/app/org/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgAuditLogRoute = AppOrgAuditLogRouteImport.update({
+  id: '/app/org/audit-log',
+  path: '/app/org/audit-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppWorkspacesWorkspaceIdSupportIssuesRoute =
+  AppWorkspacesWorkspaceIdSupportIssuesRouteImport.update({
+    id: '/app/workspaces/$workspaceId/support-issues',
+    path: '/app/workspaces/$workspaceId/support-issues',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AppWorkspacesWorkspaceIdSupportBotRoute =
@@ -309,52 +303,16 @@ const AppWorkspacesWorkspaceIdSupportBotRoute =
     path: '/app/workspaces/$workspaceId/support-bot',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AppWorkspacesWorkspaceIdSupportIssuesRoute =
-  AppWorkspacesWorkspaceIdSupportIssuesRouteImport.update({
-    id: '/app/workspaces/$workspaceId/support-issues',
-    path: '/app/workspaces/$workspaceId/support-issues',
+const AppWorkspacesWorkspaceIdDashboardRoute =
+  AppWorkspacesWorkspaceIdDashboardRouteImport.update({
+    id: '/app/workspaces/$workspaceId/dashboard',
+    path: '/app/workspaces/$workspaceId/dashboard',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AppWorkspacesWorkspaceIdActionsIndexRoute =
-  AppWorkspacesWorkspaceIdActionsIndexRouteImport.update({
-    id: '/app/workspaces/$workspaceId/actions/',
-    path: '/app/workspaces/$workspaceId/actions/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppWorkspacesWorkspaceIdActionsCapIdRoute =
-  AppWorkspacesWorkspaceIdActionsCapIdRouteImport.update({
-    id: '/app/workspaces/$workspaceId/actions/$capId',
-    path: '/app/workspaces/$workspaceId/actions/$capId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppWorkspacesWorkspaceIdEsgFrameworksRoute =
-  AppWorkspacesWorkspaceIdEsgFrameworksRouteImport.update({
-    id: '/app/workspaces/$workspaceId/esg/frameworks',
-    path: '/app/workspaces/$workspaceId/esg/frameworks',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppWorkspacesWorkspaceIdEsgRequirementsRoute =
-  AppWorkspacesWorkspaceIdEsgRequirementsRouteImport.update({
-    id: '/app/workspaces/$workspaceId/esg/requirements',
-    path: '/app/workspaces/$workspaceId/esg/requirements',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppWorkspacesWorkspaceIdEsgRoadmapRoute =
-  AppWorkspacesWorkspaceIdEsgRoadmapRouteImport.update({
-    id: '/app/workspaces/$workspaceId/esg/roadmap',
-    path: '/app/workspaces/$workspaceId/esg/roadmap',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppWorkspacesWorkspaceIdEvidenceIndexRoute =
-  AppWorkspacesWorkspaceIdEvidenceIndexRouteImport.update({
-    id: '/app/workspaces/$workspaceId/evidence/',
-    path: '/app/workspaces/$workspaceId/evidence/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute =
-  AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport.update({
-    id: '/app/workspaces/$workspaceId/evidence/$evidenceId',
-    path: '/app/workspaces/$workspaceId/evidence/$evidenceId',
+const AppWorkspacesWorkspaceIdComplianceDashboardRoute =
+  AppWorkspacesWorkspaceIdComplianceDashboardRouteImport.update({
+    id: '/app/workspaces/$workspaceId/compliance-dashboard',
+    path: '/app/workspaces/$workspaceId/compliance-dashboard',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AppWorkspacesWorkspaceIdReportsIndexRoute =
@@ -363,22 +321,64 @@ const AppWorkspacesWorkspaceIdReportsIndexRoute =
     path: '/app/workspaces/$workspaceId/reports/',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppWorkspacesWorkspaceIdEvidenceIndexRoute =
+  AppWorkspacesWorkspaceIdEvidenceIndexRouteImport.update({
+    id: '/app/workspaces/$workspaceId/evidence/',
+    path: '/app/workspaces/$workspaceId/evidence/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdActionsIndexRoute =
+  AppWorkspacesWorkspaceIdActionsIndexRouteImport.update({
+    id: '/app/workspaces/$workspaceId/actions/',
+    path: '/app/workspaces/$workspaceId/actions/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppWorkspacesWorkspaceIdReportsReportIdRoute =
   AppWorkspacesWorkspaceIdReportsReportIdRouteImport.update({
     id: '/app/workspaces/$workspaceId/reports/$reportId',
     path: '/app/workspaces/$workspaceId/reports/$reportId',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute =
-  AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport.update({
-    id: '/app/workspaces/$workspaceId/esg/implementation/$requirementId',
-    path: '/app/workspaces/$workspaceId/esg/implementation/$requirementId',
+const AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute =
+  AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/evidence/$evidenceId',
+    path: '/app/workspaces/$workspaceId/evidence/$evidenceId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgRoadmapRoute =
+  AppWorkspacesWorkspaceIdEsgRoadmapRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/roadmap',
+    path: '/app/workspaces/$workspaceId/esg/roadmap',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgRequirementsRoute =
+  AppWorkspacesWorkspaceIdEsgRequirementsRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/requirements',
+    path: '/app/workspaces/$workspaceId/esg/requirements',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgFrameworksRoute =
+  AppWorkspacesWorkspaceIdEsgFrameworksRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/frameworks',
+    path: '/app/workspaces/$workspaceId/esg/frameworks',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdActionsCapIdRoute =
+  AppWorkspacesWorkspaceIdActionsCapIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/actions/$capId',
+    path: '/app/workspaces/$workspaceId/actions/$capId',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute =
   AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRouteImport.update({
     id: '/app/workspaces/$workspaceId/governance/assessments/',
     path: '/app/workspaces/$workspaceId/governance/assessments/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute =
+  AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/implementation/$requirementId',
+    path: '/app/workspaces/$workspaceId/esg/implementation/$requirementId',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute =
@@ -845,242 +845,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/architecture': {
-      id: '/architecture'
-      path: '/architecture'
-      fullPath: '/architecture'
-      preLoaderRoute: typeof ArchitectureRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/assessment': {
-      id: '/assessment'
-      path: '/assessment'
-      fullPath: '/assessment'
-      preLoaderRoute: typeof AssessmentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/audit-log': {
-      id: '/audit-log'
-      path: '/audit-log'
-      fullPath: '/audit-log'
-      preLoaderRoute: typeof AuditLogRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cip': {
-      id: '/cip'
-      path: '/cip'
-      fullPath: '/cip'
-      preLoaderRoute: typeof CipRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/code-of-conduct': {
-      id: '/code-of-conduct'
-      path: '/code-of-conduct'
-      fullPath: '/code-of-conduct'
-      preLoaderRoute: typeof CodeOfConductRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/compliance': {
-      id: '/compliance'
-      path: '/compliance'
-      fullPath: '/compliance'
-      preLoaderRoute: typeof ComplianceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/data-room': {
-      id: '/data-room'
-      path: '/data-room'
-      fullPath: '/data-room'
-      preLoaderRoute: typeof DataRoomRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo': {
-      id: '/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof DemoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/evidence': {
-      id: '/evidence'
-      path: '/evidence'
-      fullPath: '/evidence'
-      preLoaderRoute: typeof EvidenceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/finance-triangulation': {
-      id: '/finance-triangulation'
-      path: '/finance-triangulation'
-      fullPath: '/finance-triangulation'
-      preLoaderRoute: typeof FinanceTriangulationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/findings': {
-      id: '/findings'
-      path: '/findings'
-      fullPath: '/findings'
-      preLoaderRoute: typeof FindingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/frameworks': {
-      id: '/frameworks'
-      path: '/frameworks'
-      fullPath: '/frameworks'
-      preLoaderRoute: typeof FrameworksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guide': {
-      id: '/guide'
-      path: '/guide'
-      fullPath: '/guide'
-      preLoaderRoute: typeof GuideRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/help': {
-      id: '/help'
-      path: '/help'
-      fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/informal-economy': {
-      id: '/informal-economy'
-      path: '/informal-economy'
-      fullPath: '/informal-economy'
-      preLoaderRoute: typeof InformalEconomyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/institute': {
-      id: '/institute'
-      path: '/institute'
-      fullPath: '/institute'
-      preLoaderRoute: typeof InstituteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/issb-disclosures': {
-      id: '/issb-disclosures'
-      path: '/issb-disclosures'
-      fullPath: '/issb-disclosures'
-      preLoaderRoute: typeof IssbDisclosuresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/launch': {
-      id: '/launch'
-      path: '/launch'
-      fullPath: '/launch'
-      preLoaderRoute: typeof LaunchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/methodology': {
-      id: '/methodology'
-      path: '/methodology'
-      fullPath: '/methodology'
-      preLoaderRoute: typeof MethodologyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/obligations': {
-      id: '/obligations'
-      path: '/obligations'
-      fullPath: '/obligations'
-      preLoaderRoute: typeof ObligationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/open-source': {
-      id: '/open-source'
-      path: '/open-source'
-      fullPath: '/open-source'
-      preLoaderRoute: typeof OpenSourceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pre-assessment': {
-      id: '/pre-assessment'
-      path: '/pre-assessment'
-      fullPath: '/pre-assessment'
-      preLoaderRoute: typeof PreAssessmentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/regulatory-compliance': {
-      id: '/regulatory-compliance'
-      path: '/regulatory-compliance'
-      fullPath: '/regulatory-compliance'
-      preLoaderRoute: typeof RegulatoryComplianceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reports': {
-      id: '/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/vaults': {
-      id: '/vaults'
-      path: '/vaults'
-      fullPath: '/vaults'
-      preLoaderRoute: typeof VaultsRouteImport
+    '/wallboard': {
+      id: '/wallboard'
+      path: '/wallboard'
+      fullPath: '/wallboard'
+      preLoaderRoute: typeof WallboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify': {
@@ -1090,25 +859,249 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/wallboard': {
-      id: '/wallboard'
-      path: '/wallboard'
-      fullPath: '/wallboard'
-      preLoaderRoute: typeof WallboardRouteImport
+    '/vaults': {
+      id: '/vaults'
+      path: '/vaults'
+      fullPath: '/vaults'
+      preLoaderRoute: typeof VaultsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/accept/$token': {
-      id: '/accept/$token'
-      path: '/accept/$token'
-      fullPath: '/accept/$token'
-      preLoaderRoute: typeof AcceptTokenRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin_/portfolio': {
-      id: '/admin_/portfolio'
-      path: '/admin/portfolio'
-      fullPath: '/admin/portfolio'
-      preLoaderRoute: typeof AdminPortfolioRouteImport
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/regulatory-compliance': {
+      id: '/regulatory-compliance'
+      path: '/regulatory-compliance'
+      fullPath: '/regulatory-compliance'
+      preLoaderRoute: typeof RegulatoryComplianceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pre-assessment': {
+      id: '/pre-assessment'
+      path: '/pre-assessment'
+      fullPath: '/pre-assessment'
+      preLoaderRoute: typeof PreAssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/open-source': {
+      id: '/open-source'
+      path: '/open-source'
+      fullPath: '/open-source'
+      preLoaderRoute: typeof OpenSourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/obligations': {
+      id: '/obligations'
+      path: '/obligations'
+      fullPath: '/obligations'
+      preLoaderRoute: typeof ObligationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/methodology': {
+      id: '/methodology'
+      path: '/methodology'
+      fullPath: '/methodology'
+      preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/launch': {
+      id: '/launch'
+      path: '/launch'
+      fullPath: '/launch'
+      preLoaderRoute: typeof LaunchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/issb-disclosures': {
+      id: '/issb-disclosures'
+      path: '/issb-disclosures'
+      fullPath: '/issb-disclosures'
+      preLoaderRoute: typeof IssbDisclosuresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/institute': {
+      id: '/institute'
+      path: '/institute'
+      fullPath: '/institute'
+      preLoaderRoute: typeof InstituteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/informal-economy': {
+      id: '/informal-economy'
+      path: '/informal-economy'
+      fullPath: '/informal-economy'
+      preLoaderRoute: typeof InformalEconomyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guide': {
+      id: '/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof GuideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/frameworks': {
+      id: '/frameworks'
+      path: '/frameworks'
+      fullPath: '/frameworks'
+      preLoaderRoute: typeof FrameworksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/findings': {
+      id: '/findings'
+      path: '/findings'
+      fullPath: '/findings'
+      preLoaderRoute: typeof FindingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/finance-triangulation': {
+      id: '/finance-triangulation'
+      path: '/finance-triangulation'
+      fullPath: '/finance-triangulation'
+      preLoaderRoute: typeof FinanceTriangulationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/evidence': {
+      id: '/evidence'
+      path: '/evidence'
+      fullPath: '/evidence'
+      preLoaderRoute: typeof EvidenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/data-room': {
+      id: '/data-room'
+      path: '/data-room'
+      fullPath: '/data-room'
+      preLoaderRoute: typeof DataRoomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/compliance': {
+      id: '/compliance'
+      path: '/compliance'
+      fullPath: '/compliance'
+      preLoaderRoute: typeof ComplianceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/code-of-conduct': {
+      id: '/code-of-conduct'
+      path: '/code-of-conduct'
+      fullPath: '/code-of-conduct'
+      preLoaderRoute: typeof CodeOfConductRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cip': {
+      id: '/cip'
+      path: '/cip'
+      fullPath: '/cip'
+      preLoaderRoute: typeof CipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/audit-log': {
+      id: '/audit-log'
+      path: '/audit-log'
+      fullPath: '/audit-log'
+      preLoaderRoute: typeof AuditLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assessment': {
+      id: '/assessment'
+      path: '/assessment'
+      fullPath: '/assessment'
+      preLoaderRoute: typeof AssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/architecture': {
+      id: '/architecture'
+      path: '/architecture'
+      fullPath: '/architecture'
+      preLoaderRoute: typeof ArchitectureRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard_/trust-delta': {
+      id: '/dashboard_/trust-delta'
+      path: '/dashboard/trust-delta'
+      fullPath: '/dashboard/trust-delta'
+      preLoaderRoute: typeof DashboardTrustDeltaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessment/$frameworkId': {
@@ -1118,32 +1111,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AssessmentFrameworkIdRouteImport
       parentRoute: typeof AssessmentRoute
     }
-    '/dashboard_/trust-delta': {
-      id: '/dashboard_/trust-delta'
-      path: '/dashboard/trust-delta'
-      fullPath: '/dashboard/trust-delta'
-      preLoaderRoute: typeof DashboardTrustDeltaRouteImport
+    '/admin_/portfolio': {
+      id: '/admin_/portfolio'
+      path: '/admin/portfolio'
+      fullPath: '/admin/portfolio'
+      preLoaderRoute: typeof AdminPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/org/audit-log': {
-      id: '/app/org/audit-log'
-      path: '/app/org/audit-log'
-      fullPath: '/app/org/audit-log'
-      preLoaderRoute: typeof AppOrgAuditLogRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/org/members': {
-      id: '/app/org/members'
-      path: '/app/org/members'
-      fullPath: '/app/org/members'
-      preLoaderRoute: typeof AppOrgMembersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/org/settings': {
-      id: '/app/org/settings'
-      path: '/app/org/settings'
-      fullPath: '/app/org/settings'
-      preLoaderRoute: typeof AppOrgSettingsRouteImport
+    '/accept/$token': {
+      id: '/accept/$token'
+      path: '/accept/$token'
+      fullPath: '/accept/$token'
+      preLoaderRoute: typeof AcceptTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/workspaces/': {
@@ -1153,25 +1132,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/workspaces/$workspaceId/compliance-dashboard': {
-      id: '/app/workspaces/$workspaceId/compliance-dashboard'
-      path: '/app/workspaces/$workspaceId/compliance-dashboard'
-      fullPath: '/app/workspaces/$workspaceId/compliance-dashboard'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRouteImport
+    '/app/org/settings': {
+      id: '/app/org/settings'
+      path: '/app/org/settings'
+      fullPath: '/app/org/settings'
+      preLoaderRoute: typeof AppOrgSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/workspaces/$workspaceId/dashboard': {
-      id: '/app/workspaces/$workspaceId/dashboard'
-      path: '/app/workspaces/$workspaceId/dashboard'
-      fullPath: '/app/workspaces/$workspaceId/dashboard'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdDashboardRouteImport
+    '/app/org/members': {
+      id: '/app/org/members'
+      path: '/app/org/members'
+      fullPath: '/app/org/members'
+      preLoaderRoute: typeof AppOrgMembersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/workspaces/$workspaceId/support-bot': {
-      id: '/app/workspaces/$workspaceId/support-bot'
-      path: '/app/workspaces/$workspaceId/support-bot'
-      fullPath: '/app/workspaces/$workspaceId/support-bot'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdSupportBotRouteImport
+    '/app/org/audit-log': {
+      id: '/app/org/audit-log'
+      path: '/app/org/audit-log'
+      fullPath: '/app/org/audit-log'
+      preLoaderRoute: typeof AppOrgAuditLogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/workspaces/$workspaceId/support-issues': {
@@ -1181,53 +1160,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/workspaces/$workspaceId/actions/': {
-      id: '/app/workspaces/$workspaceId/actions/'
-      path: '/app/workspaces/$workspaceId/actions'
-      fullPath: '/app/workspaces/$workspaceId/actions/'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdActionsIndexRouteImport
+    '/app/workspaces/$workspaceId/support-bot': {
+      id: '/app/workspaces/$workspaceId/support-bot'
+      path: '/app/workspaces/$workspaceId/support-bot'
+      fullPath: '/app/workspaces/$workspaceId/support-bot'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdSupportBotRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/workspaces/$workspaceId/actions/$capId': {
-      id: '/app/workspaces/$workspaceId/actions/$capId'
-      path: '/app/workspaces/$workspaceId/actions/$capId'
-      fullPath: '/app/workspaces/$workspaceId/actions/$capId'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdActionsCapIdRouteImport
+    '/app/workspaces/$workspaceId/dashboard': {
+      id: '/app/workspaces/$workspaceId/dashboard'
+      path: '/app/workspaces/$workspaceId/dashboard'
+      fullPath: '/app/workspaces/$workspaceId/dashboard'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/workspaces/$workspaceId/esg/frameworks': {
-      id: '/app/workspaces/$workspaceId/esg/frameworks'
-      path: '/app/workspaces/$workspaceId/esg/frameworks'
-      fullPath: '/app/workspaces/$workspaceId/esg/frameworks'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgFrameworksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/workspaces/$workspaceId/esg/requirements': {
-      id: '/app/workspaces/$workspaceId/esg/requirements'
-      path: '/app/workspaces/$workspaceId/esg/requirements'
-      fullPath: '/app/workspaces/$workspaceId/esg/requirements'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgRequirementsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/workspaces/$workspaceId/esg/roadmap': {
-      id: '/app/workspaces/$workspaceId/esg/roadmap'
-      path: '/app/workspaces/$workspaceId/esg/roadmap'
-      fullPath: '/app/workspaces/$workspaceId/esg/roadmap'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgRoadmapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/workspaces/$workspaceId/evidence/': {
-      id: '/app/workspaces/$workspaceId/evidence/'
-      path: '/app/workspaces/$workspaceId/evidence'
-      fullPath: '/app/workspaces/$workspaceId/evidence/'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEvidenceIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/workspaces/$workspaceId/evidence/$evidenceId': {
-      id: '/app/workspaces/$workspaceId/evidence/$evidenceId'
-      path: '/app/workspaces/$workspaceId/evidence/$evidenceId'
-      fullPath: '/app/workspaces/$workspaceId/evidence/$evidenceId'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport
+    '/app/workspaces/$workspaceId/compliance-dashboard': {
+      id: '/app/workspaces/$workspaceId/compliance-dashboard'
+      path: '/app/workspaces/$workspaceId/compliance-dashboard'
+      fullPath: '/app/workspaces/$workspaceId/compliance-dashboard'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/workspaces/$workspaceId/reports/': {
@@ -1237,6 +1188,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdReportsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/workspaces/$workspaceId/evidence/': {
+      id: '/app/workspaces/$workspaceId/evidence/'
+      path: '/app/workspaces/$workspaceId/evidence'
+      fullPath: '/app/workspaces/$workspaceId/evidence/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEvidenceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/actions/': {
+      id: '/app/workspaces/$workspaceId/actions/'
+      path: '/app/workspaces/$workspaceId/actions'
+      fullPath: '/app/workspaces/$workspaceId/actions/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdActionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/workspaces/$workspaceId/reports/$reportId': {
       id: '/app/workspaces/$workspaceId/reports/$reportId'
       path: '/app/workspaces/$workspaceId/reports/$reportId'
@@ -1244,11 +1209,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdReportsReportIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/workspaces/$workspaceId/esg/implementation/$requirementId': {
-      id: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
-      path: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
-      fullPath: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
-      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport
+    '/app/workspaces/$workspaceId/evidence/$evidenceId': {
+      id: '/app/workspaces/$workspaceId/evidence/$evidenceId'
+      path: '/app/workspaces/$workspaceId/evidence/$evidenceId'
+      fullPath: '/app/workspaces/$workspaceId/evidence/$evidenceId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/roadmap': {
+      id: '/app/workspaces/$workspaceId/esg/roadmap'
+      path: '/app/workspaces/$workspaceId/esg/roadmap'
+      fullPath: '/app/workspaces/$workspaceId/esg/roadmap'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgRoadmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/requirements': {
+      id: '/app/workspaces/$workspaceId/esg/requirements'
+      path: '/app/workspaces/$workspaceId/esg/requirements'
+      fullPath: '/app/workspaces/$workspaceId/esg/requirements'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgRequirementsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/frameworks': {
+      id: '/app/workspaces/$workspaceId/esg/frameworks'
+      path: '/app/workspaces/$workspaceId/esg/frameworks'
+      fullPath: '/app/workspaces/$workspaceId/esg/frameworks'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgFrameworksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/actions/$capId': {
+      id: '/app/workspaces/$workspaceId/actions/$capId'
+      path: '/app/workspaces/$workspaceId/actions/$capId'
+      fullPath: '/app/workspaces/$workspaceId/actions/$capId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdActionsCapIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/workspaces/$workspaceId/governance/assessments/': {
@@ -1256,6 +1249,13 @@ declare module '@tanstack/react-router' {
       path: '/app/workspaces/$workspaceId/governance/assessments'
       fullPath: '/app/workspaces/$workspaceId/governance/assessments/'
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/implementation/$requirementId': {
+      id: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+      path: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+      fullPath: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/': {
