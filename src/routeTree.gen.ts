@@ -49,6 +49,27 @@ import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.tru
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
 import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
 import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
+import { Route as AppWorkspacesIndexRouteImport } from './routes/app.workspaces.index'
+import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
+import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
+import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
+import { Route as AppWorkspacesWorkspaceIdSupportIssuesRouteImport } from './routes/app.workspaces.$workspaceId.support-issues'
+import { Route as AppWorkspacesWorkspaceIdSupportBotRouteImport } from './routes/app.workspaces.$workspaceId.support-bot'
+import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
+import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
+import { Route as AppWorkspacesWorkspaceIdReportsIndexRouteImport } from './routes/app.workspaces.$workspaceId.reports.index'
+import { Route as AppWorkspacesWorkspaceIdEvidenceIndexRouteImport } from './routes/app.workspaces.$workspaceId.evidence.index'
+import { Route as AppWorkspacesWorkspaceIdActionsIndexRouteImport } from './routes/app.workspaces.$workspaceId.actions.index'
+import { Route as AppWorkspacesWorkspaceIdReportsReportIdRouteImport } from './routes/app.workspaces.$workspaceId.reports.$reportId'
+import { Route as AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport } from './routes/app.workspaces.$workspaceId.evidence.$evidenceId'
+import { Route as AppWorkspacesWorkspaceIdEsgRoadmapRouteImport } from './routes/app.workspaces.$workspaceId.esg.roadmap'
+import { Route as AppWorkspacesWorkspaceIdEsgRequirementsRouteImport } from './routes/app.workspaces.$workspaceId.esg.requirements'
+import { Route as AppWorkspacesWorkspaceIdEsgFrameworksRouteImport } from './routes/app.workspaces.$workspaceId.esg.frameworks'
+import { Route as AppWorkspacesWorkspaceIdActionsCapIdRouteImport } from './routes/app.workspaces.$workspaceId.actions.$capId'
+import { Route as AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRouteImport } from './routes/app.workspaces.$workspaceId.governance.assessments.index'
+import { Route as AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport } from './routes/app.workspaces.$workspaceId.esg.implementation.$requirementId'
+import { Route as AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRouteImport } from './routes/app.workspaces.$workspaceId.governance.assessments.$assessmentId.index'
+import { Route as AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRouteImport } from './routes/app.workspaces.$workspaceId.governance.assessments.$assessmentId.review'
 
 const WallboardRoute = WallboardRouteImport.update({
   id: '/wallboard',
@@ -250,6 +271,132 @@ const AcceptTokenRoute = AcceptTokenRouteImport.update({
   path: '/accept/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppWorkspacesIndexRoute = AppWorkspacesIndexRouteImport.update({
+  id: '/app/workspaces/',
+  path: '/app/workspaces/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgSettingsRoute = AppOrgSettingsRouteImport.update({
+  id: '/app/org/settings',
+  path: '/app/org/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgMembersRoute = AppOrgMembersRouteImport.update({
+  id: '/app/org/members',
+  path: '/app/org/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppOrgAuditLogRoute = AppOrgAuditLogRouteImport.update({
+  id: '/app/org/audit-log',
+  path: '/app/org/audit-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppWorkspacesWorkspaceIdSupportIssuesRoute =
+  AppWorkspacesWorkspaceIdSupportIssuesRouteImport.update({
+    id: '/app/workspaces/$workspaceId/support-issues',
+    path: '/app/workspaces/$workspaceId/support-issues',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdSupportBotRoute =
+  AppWorkspacesWorkspaceIdSupportBotRouteImport.update({
+    id: '/app/workspaces/$workspaceId/support-bot',
+    path: '/app/workspaces/$workspaceId/support-bot',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdDashboardRoute =
+  AppWorkspacesWorkspaceIdDashboardRouteImport.update({
+    id: '/app/workspaces/$workspaceId/dashboard',
+    path: '/app/workspaces/$workspaceId/dashboard',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdComplianceDashboardRoute =
+  AppWorkspacesWorkspaceIdComplianceDashboardRouteImport.update({
+    id: '/app/workspaces/$workspaceId/compliance-dashboard',
+    path: '/app/workspaces/$workspaceId/compliance-dashboard',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdReportsIndexRoute =
+  AppWorkspacesWorkspaceIdReportsIndexRouteImport.update({
+    id: '/app/workspaces/$workspaceId/reports/',
+    path: '/app/workspaces/$workspaceId/reports/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEvidenceIndexRoute =
+  AppWorkspacesWorkspaceIdEvidenceIndexRouteImport.update({
+    id: '/app/workspaces/$workspaceId/evidence/',
+    path: '/app/workspaces/$workspaceId/evidence/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdActionsIndexRoute =
+  AppWorkspacesWorkspaceIdActionsIndexRouteImport.update({
+    id: '/app/workspaces/$workspaceId/actions/',
+    path: '/app/workspaces/$workspaceId/actions/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdReportsReportIdRoute =
+  AppWorkspacesWorkspaceIdReportsReportIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/reports/$reportId',
+    path: '/app/workspaces/$workspaceId/reports/$reportId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute =
+  AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/evidence/$evidenceId',
+    path: '/app/workspaces/$workspaceId/evidence/$evidenceId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgRoadmapRoute =
+  AppWorkspacesWorkspaceIdEsgRoadmapRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/roadmap',
+    path: '/app/workspaces/$workspaceId/esg/roadmap',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgRequirementsRoute =
+  AppWorkspacesWorkspaceIdEsgRequirementsRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/requirements',
+    path: '/app/workspaces/$workspaceId/esg/requirements',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgFrameworksRoute =
+  AppWorkspacesWorkspaceIdEsgFrameworksRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/frameworks',
+    path: '/app/workspaces/$workspaceId/esg/frameworks',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdActionsCapIdRoute =
+  AppWorkspacesWorkspaceIdActionsCapIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/actions/$capId',
+    path: '/app/workspaces/$workspaceId/actions/$capId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute =
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRouteImport.update({
+    id: '/app/workspaces/$workspaceId/governance/assessments/',
+    path: '/app/workspaces/$workspaceId/governance/assessments/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute =
+  AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/esg/implementation/$requirementId',
+    path: '/app/workspaces/$workspaceId/esg/implementation/$requirementId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute =
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRouteImport.update(
+    {
+      id: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/',
+      path: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/',
+      getParentRoute: () => rootRouteImport,
+    } as any,
+  )
+const AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute =
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRouteImport.update(
+    {
+      id: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review',
+      path: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review',
+      getParentRoute: () => rootRouteImport,
+    } as any,
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -292,6 +439,27 @@ export interface FileRoutesByFullPath {
   '/admin/portfolio': typeof AdminPortfolioRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
+  '/app/org/audit-log': typeof AppOrgAuditLogRoute
+  '/app/org/members': typeof AppOrgMembersRoute
+  '/app/org/settings': typeof AppOrgSettingsRoute
+  '/app/workspaces/': typeof AppWorkspacesIndexRoute
+  '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
+  '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
+  '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
+  '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
+  '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
+  '/app/workspaces/$workspaceId/esg/requirements': typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
+  '/app/workspaces/$workspaceId/esg/roadmap': typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
+  '/app/workspaces/$workspaceId/evidence/$evidenceId': typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  '/app/workspaces/$workspaceId/reports/$reportId': typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
+  '/app/workspaces/$workspaceId/actions/': typeof AppWorkspacesWorkspaceIdActionsIndexRoute
+  '/app/workspaces/$workspaceId/evidence/': typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  '/app/workspaces/$workspaceId/reports/': typeof AppWorkspacesWorkspaceIdReportsIndexRoute
+  '/app/workspaces/$workspaceId/esg/implementation/$requirementId': typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
+  '/app/workspaces/$workspaceId/governance/assessments/': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute
+  '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute
+  '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -334,6 +502,27 @@ export interface FileRoutesByTo {
   '/admin/portfolio': typeof AdminPortfolioRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
+  '/app/org/audit-log': typeof AppOrgAuditLogRoute
+  '/app/org/members': typeof AppOrgMembersRoute
+  '/app/org/settings': typeof AppOrgSettingsRoute
+  '/app/workspaces': typeof AppWorkspacesIndexRoute
+  '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
+  '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
+  '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
+  '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
+  '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
+  '/app/workspaces/$workspaceId/esg/requirements': typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
+  '/app/workspaces/$workspaceId/esg/roadmap': typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
+  '/app/workspaces/$workspaceId/evidence/$evidenceId': typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  '/app/workspaces/$workspaceId/reports/$reportId': typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
+  '/app/workspaces/$workspaceId/actions': typeof AppWorkspacesWorkspaceIdActionsIndexRoute
+  '/app/workspaces/$workspaceId/evidence': typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  '/app/workspaces/$workspaceId/reports': typeof AppWorkspacesWorkspaceIdReportsIndexRoute
+  '/app/workspaces/$workspaceId/esg/implementation/$requirementId': typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
+  '/app/workspaces/$workspaceId/governance/assessments': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute
+  '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute
+  '/app/workspaces/$workspaceId/governance/assessments/$assessmentId': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -377,6 +566,27 @@ export interface FileRoutesById {
   '/admin_/portfolio': typeof AdminPortfolioRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
+  '/app/org/audit-log': typeof AppOrgAuditLogRoute
+  '/app/org/members': typeof AppOrgMembersRoute
+  '/app/org/settings': typeof AppOrgSettingsRoute
+  '/app/workspaces/': typeof AppWorkspacesIndexRoute
+  '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
+  '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
+  '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
+  '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
+  '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
+  '/app/workspaces/$workspaceId/esg/requirements': typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
+  '/app/workspaces/$workspaceId/esg/roadmap': typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
+  '/app/workspaces/$workspaceId/evidence/$evidenceId': typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  '/app/workspaces/$workspaceId/reports/$reportId': typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
+  '/app/workspaces/$workspaceId/actions/': typeof AppWorkspacesWorkspaceIdActionsIndexRoute
+  '/app/workspaces/$workspaceId/evidence/': typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  '/app/workspaces/$workspaceId/reports/': typeof AppWorkspacesWorkspaceIdReportsIndexRoute
+  '/app/workspaces/$workspaceId/esg/implementation/$requirementId': typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
+  '/app/workspaces/$workspaceId/governance/assessments/': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute
+  '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute
+  '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/': typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -421,6 +631,27 @@ export interface FileRouteTypes {
     | '/admin/portfolio'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
+    | '/app/org/audit-log'
+    | '/app/org/members'
+    | '/app/org/settings'
+    | '/app/workspaces/'
+    | '/app/workspaces/$workspaceId/compliance-dashboard'
+    | '/app/workspaces/$workspaceId/dashboard'
+    | '/app/workspaces/$workspaceId/support-bot'
+    | '/app/workspaces/$workspaceId/support-issues'
+    | '/app/workspaces/$workspaceId/actions/$capId'
+    | '/app/workspaces/$workspaceId/esg/frameworks'
+    | '/app/workspaces/$workspaceId/esg/requirements'
+    | '/app/workspaces/$workspaceId/esg/roadmap'
+    | '/app/workspaces/$workspaceId/evidence/$evidenceId'
+    | '/app/workspaces/$workspaceId/reports/$reportId'
+    | '/app/workspaces/$workspaceId/actions/'
+    | '/app/workspaces/$workspaceId/evidence/'
+    | '/app/workspaces/$workspaceId/reports/'
+    | '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+    | '/app/workspaces/$workspaceId/governance/assessments/'
+    | '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review'
+    | '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -463,6 +694,27 @@ export interface FileRouteTypes {
     | '/admin/portfolio'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
+    | '/app/org/audit-log'
+    | '/app/org/members'
+    | '/app/org/settings'
+    | '/app/workspaces'
+    | '/app/workspaces/$workspaceId/compliance-dashboard'
+    | '/app/workspaces/$workspaceId/dashboard'
+    | '/app/workspaces/$workspaceId/support-bot'
+    | '/app/workspaces/$workspaceId/support-issues'
+    | '/app/workspaces/$workspaceId/actions/$capId'
+    | '/app/workspaces/$workspaceId/esg/frameworks'
+    | '/app/workspaces/$workspaceId/esg/requirements'
+    | '/app/workspaces/$workspaceId/esg/roadmap'
+    | '/app/workspaces/$workspaceId/evidence/$evidenceId'
+    | '/app/workspaces/$workspaceId/reports/$reportId'
+    | '/app/workspaces/$workspaceId/actions'
+    | '/app/workspaces/$workspaceId/evidence'
+    | '/app/workspaces/$workspaceId/reports'
+    | '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+    | '/app/workspaces/$workspaceId/governance/assessments'
+    | '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review'
+    | '/app/workspaces/$workspaceId/governance/assessments/$assessmentId'
   id:
     | '__root__'
     | '/'
@@ -505,6 +757,27 @@ export interface FileRouteTypes {
     | '/admin_/portfolio'
     | '/assessment/$frameworkId'
     | '/dashboard_/trust-delta'
+    | '/app/org/audit-log'
+    | '/app/org/members'
+    | '/app/org/settings'
+    | '/app/workspaces/'
+    | '/app/workspaces/$workspaceId/compliance-dashboard'
+    | '/app/workspaces/$workspaceId/dashboard'
+    | '/app/workspaces/$workspaceId/support-bot'
+    | '/app/workspaces/$workspaceId/support-issues'
+    | '/app/workspaces/$workspaceId/actions/$capId'
+    | '/app/workspaces/$workspaceId/esg/frameworks'
+    | '/app/workspaces/$workspaceId/esg/requirements'
+    | '/app/workspaces/$workspaceId/esg/roadmap'
+    | '/app/workspaces/$workspaceId/evidence/$evidenceId'
+    | '/app/workspaces/$workspaceId/reports/$reportId'
+    | '/app/workspaces/$workspaceId/actions/'
+    | '/app/workspaces/$workspaceId/evidence/'
+    | '/app/workspaces/$workspaceId/reports/'
+    | '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+    | '/app/workspaces/$workspaceId/governance/assessments/'
+    | '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review'
+    | '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -547,6 +820,27 @@ export interface RootRouteChildren {
   AcceptTokenRoute: typeof AcceptTokenRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
+  AppOrgAuditLogRoute: typeof AppOrgAuditLogRoute
+  AppOrgMembersRoute: typeof AppOrgMembersRoute
+  AppOrgSettingsRoute: typeof AppOrgSettingsRoute
+  AppWorkspacesIndexRoute: typeof AppWorkspacesIndexRoute
+  AppWorkspacesWorkspaceIdComplianceDashboardRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
+  AppWorkspacesWorkspaceIdDashboardRoute: typeof AppWorkspacesWorkspaceIdDashboardRoute
+  AppWorkspacesWorkspaceIdSupportBotRoute: typeof AppWorkspacesWorkspaceIdSupportBotRoute
+  AppWorkspacesWorkspaceIdSupportIssuesRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  AppWorkspacesWorkspaceIdActionsCapIdRoute: typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
+  AppWorkspacesWorkspaceIdEsgFrameworksRoute: typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
+  AppWorkspacesWorkspaceIdEsgRequirementsRoute: typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
+  AppWorkspacesWorkspaceIdEsgRoadmapRoute: typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
+  AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute: typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  AppWorkspacesWorkspaceIdReportsReportIdRoute: typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
+  AppWorkspacesWorkspaceIdActionsIndexRoute: typeof AppWorkspacesWorkspaceIdActionsIndexRoute
+  AppWorkspacesWorkspaceIdEvidenceIndexRoute: typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  AppWorkspacesWorkspaceIdReportsIndexRoute: typeof AppWorkspacesWorkspaceIdReportsIndexRoute
+  AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute: typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute: typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute: typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute: typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -831,6 +1125,153 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/workspaces/': {
+      id: '/app/workspaces/'
+      path: '/app/workspaces'
+      fullPath: '/app/workspaces/'
+      preLoaderRoute: typeof AppWorkspacesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/org/settings': {
+      id: '/app/org/settings'
+      path: '/app/org/settings'
+      fullPath: '/app/org/settings'
+      preLoaderRoute: typeof AppOrgSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/org/members': {
+      id: '/app/org/members'
+      path: '/app/org/members'
+      fullPath: '/app/org/members'
+      preLoaderRoute: typeof AppOrgMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/org/audit-log': {
+      id: '/app/org/audit-log'
+      path: '/app/org/audit-log'
+      fullPath: '/app/org/audit-log'
+      preLoaderRoute: typeof AppOrgAuditLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/support-issues': {
+      id: '/app/workspaces/$workspaceId/support-issues'
+      path: '/app/workspaces/$workspaceId/support-issues'
+      fullPath: '/app/workspaces/$workspaceId/support-issues'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/support-bot': {
+      id: '/app/workspaces/$workspaceId/support-bot'
+      path: '/app/workspaces/$workspaceId/support-bot'
+      fullPath: '/app/workspaces/$workspaceId/support-bot'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdSupportBotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/dashboard': {
+      id: '/app/workspaces/$workspaceId/dashboard'
+      path: '/app/workspaces/$workspaceId/dashboard'
+      fullPath: '/app/workspaces/$workspaceId/dashboard'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/compliance-dashboard': {
+      id: '/app/workspaces/$workspaceId/compliance-dashboard'
+      path: '/app/workspaces/$workspaceId/compliance-dashboard'
+      fullPath: '/app/workspaces/$workspaceId/compliance-dashboard'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/reports/': {
+      id: '/app/workspaces/$workspaceId/reports/'
+      path: '/app/workspaces/$workspaceId/reports'
+      fullPath: '/app/workspaces/$workspaceId/reports/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdReportsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/evidence/': {
+      id: '/app/workspaces/$workspaceId/evidence/'
+      path: '/app/workspaces/$workspaceId/evidence'
+      fullPath: '/app/workspaces/$workspaceId/evidence/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEvidenceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/actions/': {
+      id: '/app/workspaces/$workspaceId/actions/'
+      path: '/app/workspaces/$workspaceId/actions'
+      fullPath: '/app/workspaces/$workspaceId/actions/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdActionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/reports/$reportId': {
+      id: '/app/workspaces/$workspaceId/reports/$reportId'
+      path: '/app/workspaces/$workspaceId/reports/$reportId'
+      fullPath: '/app/workspaces/$workspaceId/reports/$reportId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdReportsReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/evidence/$evidenceId': {
+      id: '/app/workspaces/$workspaceId/evidence/$evidenceId'
+      path: '/app/workspaces/$workspaceId/evidence/$evidenceId'
+      fullPath: '/app/workspaces/$workspaceId/evidence/$evidenceId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/roadmap': {
+      id: '/app/workspaces/$workspaceId/esg/roadmap'
+      path: '/app/workspaces/$workspaceId/esg/roadmap'
+      fullPath: '/app/workspaces/$workspaceId/esg/roadmap'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgRoadmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/requirements': {
+      id: '/app/workspaces/$workspaceId/esg/requirements'
+      path: '/app/workspaces/$workspaceId/esg/requirements'
+      fullPath: '/app/workspaces/$workspaceId/esg/requirements'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgRequirementsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/frameworks': {
+      id: '/app/workspaces/$workspaceId/esg/frameworks'
+      path: '/app/workspaces/$workspaceId/esg/frameworks'
+      fullPath: '/app/workspaces/$workspaceId/esg/frameworks'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgFrameworksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/actions/$capId': {
+      id: '/app/workspaces/$workspaceId/actions/$capId'
+      path: '/app/workspaces/$workspaceId/actions/$capId'
+      fullPath: '/app/workspaces/$workspaceId/actions/$capId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdActionsCapIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/governance/assessments/': {
+      id: '/app/workspaces/$workspaceId/governance/assessments/'
+      path: '/app/workspaces/$workspaceId/governance/assessments'
+      fullPath: '/app/workspaces/$workspaceId/governance/assessments/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/esg/implementation/$requirementId': {
+      id: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+      path: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+      fullPath: '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/': {
+      id: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/'
+      path: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId'
+      fullPath: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review': {
+      id: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review'
+      path: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review'
+      fullPath: '/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -886,6 +1327,44 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptTokenRoute: AcceptTokenRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
+  AppOrgAuditLogRoute: AppOrgAuditLogRoute,
+  AppOrgMembersRoute: AppOrgMembersRoute,
+  AppOrgSettingsRoute: AppOrgSettingsRoute,
+  AppWorkspacesIndexRoute: AppWorkspacesIndexRoute,
+  AppWorkspacesWorkspaceIdComplianceDashboardRoute:
+    AppWorkspacesWorkspaceIdComplianceDashboardRoute,
+  AppWorkspacesWorkspaceIdDashboardRoute:
+    AppWorkspacesWorkspaceIdDashboardRoute,
+  AppWorkspacesWorkspaceIdSupportBotRoute:
+    AppWorkspacesWorkspaceIdSupportBotRoute,
+  AppWorkspacesWorkspaceIdSupportIssuesRoute:
+    AppWorkspacesWorkspaceIdSupportIssuesRoute,
+  AppWorkspacesWorkspaceIdActionsCapIdRoute:
+    AppWorkspacesWorkspaceIdActionsCapIdRoute,
+  AppWorkspacesWorkspaceIdEsgFrameworksRoute:
+    AppWorkspacesWorkspaceIdEsgFrameworksRoute,
+  AppWorkspacesWorkspaceIdEsgRequirementsRoute:
+    AppWorkspacesWorkspaceIdEsgRequirementsRoute,
+  AppWorkspacesWorkspaceIdEsgRoadmapRoute:
+    AppWorkspacesWorkspaceIdEsgRoadmapRoute,
+  AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute:
+    AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute,
+  AppWorkspacesWorkspaceIdReportsReportIdRoute:
+    AppWorkspacesWorkspaceIdReportsReportIdRoute,
+  AppWorkspacesWorkspaceIdActionsIndexRoute:
+    AppWorkspacesWorkspaceIdActionsIndexRoute,
+  AppWorkspacesWorkspaceIdEvidenceIndexRoute:
+    AppWorkspacesWorkspaceIdEvidenceIndexRoute,
+  AppWorkspacesWorkspaceIdReportsIndexRoute:
+    AppWorkspacesWorkspaceIdReportsIndexRoute,
+  AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute:
+    AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute,
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute:
+    AppWorkspacesWorkspaceIdGovernanceAssessmentsIndexRoute,
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute:
+    AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute,
+  AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute:
+    AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

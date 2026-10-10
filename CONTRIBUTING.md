@@ -42,6 +42,13 @@ npm run dev
 
 If the project uses a Netlify-specific local workflow, check the project README for the exact development command before proceeding.
 
+## Workspace Platform Development
+
+- Schema changes go in `db/schema.ts`; generate a migration with `npx drizzle-kit generate --name <change>` (output lands in `netlify/database/migrations`, applied automatically on deploy).
+- API routes live in the route table of `netlify/functions/workspace-api.mts`. Declare the minimum role for each route and filter every query by the org id returned from `requireOrgAccess`/`requireWorkspaceAccess`.
+- Put pure business rules in `netlify/lib/workspace.ts` and cover them in `netlify/lib/workspace.test.ts` (`npm test`).
+- See `docs/platform-guide.md` and `docs/api/openapi.yaml`.
+
 ## Coding Guidelines
 
 - Follow the project's existing code style and patterns

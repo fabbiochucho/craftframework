@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3000",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "node db/schema.test.ts && node netlify/lib/workspace.test.ts && node netlify/lib/logger.test.ts && node netlify/lib/stripImageMetadata.test.ts"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",
