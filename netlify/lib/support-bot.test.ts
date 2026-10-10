@@ -19,6 +19,8 @@ describe('support bot classification and FAQ ranking', () => {
   it('routes conduct and security reports privately and redacts common PII and secrets', () => {
     assert.equal(isPrivateReport('I need to report harassment'), true)
     assert.equal(isPrivateReport('I need to report a conduct issue'), true)
+    assert.equal(isPrivateReport('I need to report a security vulnerability'), true)
+    assert.equal(isPrivateReport('This report is confidential'), true)
     assert.equal(isPrivateReport('The installation fails'), false)
     const redacted = redactSupportMessage('Email me at person@example.com; api_key=abc123 and https://private.example/data')
     assert.ok(!redacted.includes('person@example.com'))

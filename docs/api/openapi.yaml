@@ -161,6 +161,28 @@ paths:
         '403': { description: Forbidden }
         '404': { description: Not found }
         '429': { description: Too many requests }
+  /support-bot/chat:
+    post:
+      x-min-role: public
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /support-bot/escalate:
+    post:
+      x-min-role: public
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
   /support-bot/github-issue:
     post:
       x-min-role: public
