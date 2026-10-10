@@ -47,13 +47,32 @@ The climate extension adds four additional labels outside this 20-domain base se
 - **Extend the model**: edit `db/schema.ts`, run `npx drizzle-kit generate --name <change>`, commit the migration.
 - **Add an endpoint**: add an entry to `routes` in `workspace-api.mts` with `access` (minimum role) and `scope`; always filter by `orgId` from the handler args.
 - **Add an ESG framework**: add to `ESG_CATALOGUE` (seeded lazily per workspace).
-- **Tests**: `npm test` (schema and pure-logic self-checks with `node:assert`); `npm run typecheck`; `npm run docs:api` to regenerate OpenAPI from the route table.
+- **Tests**: `npm test` (schema and pure-logic self-checks with `node:assert`); `npm run test:integration` and `npm run test:e2e` (see *Integration and E2E tests*); `npm run typecheck`; `npm run docs:api` to regenerate OpenAPI from the route table.
 - **Encrypted fields**: `FIELD_ENCRYPTION_KEY` is a base64-encoded 32-byte AES key, required in production. AES-256-GCM protects member email identifiers (indexed by a keyed lookup hash), organization contact email/phone, governance/evidence reviewer notes, evidence approval comments, support contact email, report recipients, delivery recipients, and findings explicitly marked sensitive. Set `FIELD_ENCRYPTION_KEY_VERSION`; during rotation configure old keys in `FIELD_ENCRYPTION_PREVIOUS_KEYS`, then run `npm run crypto:backfill -- --rotate` in a trusted environment. For initial deployment, run `npm run crypto:backfill` after setting the key. The backfill is idempotent; plaintext rows remain readable during migration.
 - **Durable rate limits**: atomic fixed-window counts are stored in the shared `rate_limits` Postgres table, keyed by a SHA-256 digest of the authenticated user (or Netlify client IP) and minute. If Postgres rate-limit operations fail, requests fail open and the error is logged so a limiter outage does not take down the platform.
 
-## Operational notes and remaining limits
+## Integration and E2E tests
+
+Both suites need a throwaway Postgres whose database name contains `test` (the harness drops and recreates its `public` schema, then applies `netlify/database/migrations`). Locally: `docker compose -f docker-compose.test.yml up -d --wait`, then `export TEST_DATABASE_URL=postgres://craft@localhost:54329/craft_test`. CI uses a `services: postgres` container (`.github/workflows/validate.yml`).
+
+- `npm run test:integration` runs the real, unmodified `workspace-api.mts` handler (and the `weekly-reports` scheduled function) in Node against Postgres by building `Request` objects. Test-only Node module hooks in `tests/integration/` swap `db/index`, `@netlify/identity` (verified caller supplied by the test) and `@netlify/blobs` (in-memory); outbound `fetch` is blocked/mocked, so SendGrid is never contacted. The hooks refuse to load if `NODE_ENV=production`, `NETLIFY` or `CONTEXT` is set and nothing in production code references them. Encryption keys are generated at runtime. Covered: authentication, 404-not-403 and cross-org id probing, role matrix, owner-promotion guard, segregation of duties, CAP closure and assessment locks, evidence limits/soft delete/audit rows, ciphertext at rest and hash lookup, DB-backed rate limit across handler instances, PDF reports and schedule CRUD, the 503 email response, GDPR export/erasure.
+- `npm run test:e2e` (Playwright, Chromium) runs one smoke path through the real UI: create org and workspace, governance assessment, finding, CAP, evidence upload, report generation and PDF download (`%PDF` header). Playwright starts `vite dev` and a test-only API server (`tests/e2e/apiServer.ts`) that serves the real handler over HTTP against Postgres. Traces and screenshots are kept on failure and uploaded by CI.
+
+### Known limitations of the test setup
+
+- E2E sign-in is not Netlify Identity. A genuine Identity login needs a live Netlify site, so the browser gets an unsigned, runtime-generated session and the test-only server trusts its `nf_jwt` cookie. That trust exists only in the test server; the production function still verifies Identity sessions and no backdoor was added. Netlify Identity itself, `netlify dev` and the edge/CDN layer are therefore not exercised.
+- `.mts` files (including `workspace-api.mts`) are not covered by `tsc --noEmit` (`tsconfig` includes `**/*.ts` only).
+- SendGrid delivery is only tested with a mocked `fetch`; no real email has been sent.
+- The E2E suite covers one happy path; role and error paths are covered by the integration suite only.
+
+### Behaviour the tests pin down (not changed)
+
+- CAP action `verify` requires evidence to be linked, not that the evidence is in `approved` status.
+- Erasure approval is per organisation: the global `users` row, legacy `audit_logs` and `gdpr_requests.requested_by` are retained, and all already-archived evidence in the org is purged, not only the subject's.
+- Findings lock only when an assessment is `approved`; scores lock once it leaves `draft`.
+
+## Remaining limits
 
 - Erasure requests anonymise the requesting member's identity in workspace actor/assignment fields, remove their membership, and purge already soft-deleted evidence files. Other business records and active evidence remain where required for organisational accountability; the request record and anonymised audit trail are retained.
 - Scheduled reports are polled daily. If email is not configured, the report is still generated and the delivery failure is logged; configure `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, and `SUPPORT_EMAIL` in Netlify.
 - Field-encryption deployment requires key provisioning and running the documented backfill in a trusted environment; do not put key material in repository files or migration SQL.
-- The checked-in automated suite does not yet exercise the full Netlify API against a provisioned Postgres service or run browser E2E flows.
