@@ -357,7 +357,7 @@ export function FinanceTriangulationPage() {
           </div>
           <h1 className="mt-1 font-display text-3xl font-bold text-slate-900">Universal Donor Reconciliation</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-600">
-            Select a donor context, record cash flow and reconcile variance. Workflow role selections and verification status are self-reported; they are not independent audit certification.
+            Select a donor context, record cash flow and reconcile variance. Live workflow permissions use your assigned account role. A recorded verification status is not external audit certification.
           </p>
         </div>
         {baselineQuery.isError && <p role="alert" className="text-sm text-rose-700">Unable to load the saved reconciliation. Editing is disabled to protect existing data.</p>}

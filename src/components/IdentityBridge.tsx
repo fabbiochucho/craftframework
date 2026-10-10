@@ -12,7 +12,7 @@ import {
 import { useAuthCtx, SELF_ORG_ID } from '../lib/context'
 import { isSuperAdminEmail, effectiveViewLevel, type ViewLevel } from '../lib/data'
 import { fetchUserByEmail, recordSignIn } from '../lib/api'
-import { completePasswordRecovery, readRecoveryHash, RECOVERY_ERROR } from '../lib/identityRecovery'
+import { completePasswordRecovery, discardRecoverySession, readRecoveryHash, RECOVERY_ERROR } from '../lib/identityRecovery'
 
 // The view levels a visitor may self-register as (Super Admin is excluded — it
 // is only ever granted from the allowlist / admin portal). Mirrors the choices
@@ -79,7 +79,7 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
   async function dismissRecovery() {
     recoveryToken.current = null
     // Do not revive a pre-existing session after an abandoned reset.
-    await identityLogout().catch(() => {})
+    await discardRecoverySession(identityLogout).catch(() => {})
     recoveryBlocked.current = false
     setRecoveryState('none')
   }
@@ -152,30 +152,33 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
     syncUser.current = sync
 
     async function initialize() {
-        const callback = readRecoveryHash(window.location.hash)
-        if (callback.recovery) {
-          recoveryBlocked.current = true
-          recoveryToken.current = callback.token
-          window.history.replaceState(null, '', window.location.pathname + window.location.search)
-          logout()
-          syncedEmail.current = null
-          setRecoveryState(callback.token ? 'ready' : 'invalid')
-          void navigate({ to: '/auth', replace: true })
-        } else {
-          try {
-            const result = await handleAuthCallback()
-            if (result?.user) {
-              syncUser.current(result.user)
-              // AuthPage chooses onboarding vs dashboard after hydration.
-              void navigate({ to: '/auth', replace: true })
-            }
-          } catch {
-            window.history.replaceState(null, '', window.location.pathname + window.location.search)
-            setRecoveryState('invalid')
+      const callback = readRecoveryHash(window.location.hash)
+      if (callback.recovery) {
+        recoveryBlocked.current = true
+        recoveryToken.current = callback.token
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        logout()
+        syncedEmail.current = null
+        setRecoveryState(callback.token ? 'ready' : 'invalid')
+        void navigate({ to: '/auth', replace: true })
+      } else {
+        try {
+          const result = await handleAuthCallback()
+          if (result?.user) {
+            syncUser.current(result.user)
+            // AuthPage chooses onboarding vs dashboard after hydration.
             void navigate({ to: '/auth', replace: true })
           }
-          setRecoveryState(state => state === 'invalid' ? state : 'none')
+        } catch {
+          recoveryBlocked.current = true
+          logout()
+          syncedEmail.current = null
+          window.history.replaceState(null, '', window.location.pathname + window.location.search)
+          setRecoveryState('invalid')
+          void navigate({ to: '/auth', replace: true })
         }
+        setRecoveryState(state => state === 'invalid' ? state : 'none')
+      }
       if (!recoveryBlocked.current) await getUser().then(user => syncUser.current(user)).catch(() => {})
     }
     // A single callback redemption also covers StrictMode's effect replay.

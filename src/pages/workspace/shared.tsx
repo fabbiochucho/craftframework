@@ -4,25 +4,26 @@ import { api, STATUS_STYLE } from '../../lib/workspaceApi'
 import { Badge, Button, Input, Select } from '../../components/ui'
 
 // Load JSON from the API on mount (and on `reload`). Browser-only.
-export function useApi<T = any>(path: string | null) {
-  const [result, setResult] = useState<{ path: string | null; data: T | null; error: string | null }>({ path, data: null, error: null })
+export function useApi<T = any>(path: string | null, scope = '') {
+  const key = `${scope}|${path ?? ''}`
+  const [result, setResult] = useState<{ key: string; data: T | null; error: string | null }>({ key, data: null, error: null })
   const [loading, setLoading] = useState(!!path)
   const request = useRef(0)
   const reload = useCallback(async () => {
     const id = ++request.current
-    if (!path) { setResult({ path, data: null, error: null }); setLoading(false); return }
+    if (!path) { setResult({ key, data: null, error: null }); setLoading(false); return }
     setLoading(true)
     try {
       const data = await api<T>(path)
-      if (id === request.current) setResult({ path, data, error: null })
+      if (id === request.current) setResult({ key, data, error: null })
     } catch (e) {
-      if (id === request.current) setResult({ path, data: null, error: (e as Error).message })
+      if (id === request.current) setResult({ key, data: null, error: (e as Error).message })
     } finally {
       if (id === request.current) setLoading(false)
     }
-  }, [path])
+  }, [path, key])
   useEffect(() => { void reload(); return () => { ++request.current } }, [reload])
-  return { data: result.path === path ? result.data : null, error: result.path === path ? result.error : null, loading: !!path && (result.path !== path || loading), reload }
+  return { data: result.key === key ? result.data : null, error: result.key === key ? result.error : null, loading: !!path && (result.key !== key || loading), reload }
 }
 
 export function EditFields({ initial, fields, save, disabled = false }: {

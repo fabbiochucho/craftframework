@@ -14,7 +14,7 @@ import { Button, Input } from '../components/ui'
 import { Footer } from '../components/Footer'
 import { Logo } from '../components/Logo'
 import { useIdentityRecovery } from '../components/IdentityBridge'
-import { useAuthCtx } from '../lib/context'
+import { useAuthCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
 
 type Status = 'idle' | 'submitting'
@@ -47,6 +47,7 @@ export function AuthPage() {
   // than fired the instant login() resolves — otherwise the redirect can race
   // ahead of session hydration and the route guard bounces straight back here.
   const { currentUser, authReady, onboardingComplete } = useAuthCtx()
+  const { entityProfile, profileSaveStatus } = useEntityProfileCtx()
   const recovery = useIdentityRecovery()
   const [mode, setMode] = useState<'login' | 'register' | 'recover'>('login')
   const [email, setEmail] = useState('')
@@ -119,10 +120,12 @@ export function AuthPage() {
   // into the secure vault. Waiting for currentUser guarantees the session is
   // hydrated before we leave /auth, so the destination never bounces back.
   useEffect(() => {
-    if (authReady && recovery.state === 'none' && mode !== 'recover' && currentUser && !currentUser.isDemo) {
-      navigate({ to: onboardingComplete ? '/dashboard' : '/onboarding' })
+    if (authReady && recovery.state === 'none' && mode !== 'recover' && currentUser && !currentUser.isDemo &&
+        profileSaveStatus !== 'loading') {
+      const configured = onboardingComplete && !!(entityProfile.archetype && entityProfile.country && entityProfile.sector)
+      navigate({ to: configured ? '/dashboard' : '/onboarding' })
     }
-  }, [currentUser, authReady, onboardingComplete, navigate, recovery.state, mode])
+  }, [currentUser, authReady, onboardingComplete, navigate, recovery.state, mode, entityProfile, profileSaveStatus])
 
   function switchMode(m: 'login' | 'register' | 'recover') {
     setMode(m)
