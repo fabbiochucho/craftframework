@@ -1,0 +1,41 @@
+name: Question
+description: Ask a question about using or contributing to craftframework
+title: ""
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask about setup, behavior, contribution guidance, or project usage.
+
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      description: Brief description of your question.
+      placeholder: e.g. How do I configure local authentication?
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Provide context, what you tried, and what you are trying to achieve.
+      placeholder: Tell us what you're trying to do and where you are stuck.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include relevant project or deployment details.
+      placeholder: |
+        - Browser:
+        - OS:
+        - Deployment type:
+        - Current project version:
+    validations:
+      required: false

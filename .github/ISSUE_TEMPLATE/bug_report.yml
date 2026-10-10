@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible problem in craftframework
+title: ""
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Short summary
+      description: One-sentence summary of the bug.
+      placeholder: e.g. Assessment wizard crashes when saving an incomplete response
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Describe how to reproduce the problem.
+      placeholder: |
+        1. Open the application
+        2. Log in as an assessor
+        3. Navigate to the assessment page
+        4. Click Save
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include browser, OS, device, and relevant version information.
+      placeholder: |
+        - OS:
+        - Browser:
+        - Version:
+        - Node/npm version:
+        - Deployment environment:
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Add screenshots, console logs, or stack traces if available.
+      placeholder: Paste logs or attach screenshots here.
+    validations:
+      required: false
