@@ -63,4 +63,23 @@ describe('database-backed rate limiting', () => {
     assert.ok(Number(res.headers.get('retry-after')) >= 1)
     expectStatus(await as('another@acme.example').get('/orgs', { instance: 'rl-user-2' }), 200)
   })
+
+  it('applies a tighter atomic public-chat limit across function instances', async () => {
+    const ip = '198.51.100.31'
+    for (let i = 1; i <= 21; i++) {
+      const res = await call(null, 'POST', '/support-bot/chat', {
+        json: { message: `How do I get started ${i}?`, publicIssueDisclosure: true },
+        ip,
+        instance: `chat-rl-${i % 2}`,
+      })
+      assert.equal(res.status, i === 1 ? 201 : i <= 20 ? 200 : 429, `chat request ${i}`)
+    }
+    const limited = await call(null, 'POST', '/support-bot/chat', {
+      json: { message: 'How do I get started?', publicIssueDisclosure: true },
+      ip,
+      instance: 'chat-rl-cold',
+    })
+    assert.equal(limited.status, 429)
+    assert.ok(Number(limited.headers.get('retry-after')) >= 1)
+  })
 })
