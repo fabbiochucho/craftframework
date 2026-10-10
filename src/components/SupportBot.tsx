@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { MessageCircle, Send, X } from 'lucide-react'
+import { setSupportAnalyticsConsent, supportTopicKeywords, trackSupportEvent } from '../lib/analytics'
 
 interface Message {
   id: string
   type: 'user' | 'bot'
   content: string
   issueUrl?: string
+  escalation?: { message: string; classification: 'bug' | 'feature' | 'question'; reason: 'private_report' | 'unresolved_question' }
 }
 
 function safeLink(target: string): boolean {
@@ -90,6 +92,7 @@ function SafeMarkdown({ content }: { content: string }) {
 }
 
 export function SupportBot() {
+  const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([{
     id: 'welcome',
@@ -99,8 +102,13 @@ export function SupportBot() {
   const [input, setInput] = useState('')
   const [disclosureAccepted, setDisclosureAccepted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [contactEmail, setContactEmail] = useState('')
+  const [escalationConsent, setEscalationConsent] = useState(false)
+  const [analyticsConsent, setAnalyticsConsent] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -132,12 +140,20 @@ export function SupportBot() {
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Unable to submit your message')
+      trackSupportEvent({
+        event: 'support_chat_message_sent', classification: data.classification,
+        topic_keywords: data.type === 'private_report' ? [] : supportTopicKeywords(message),
+      })
+      if (data.issueCreated && !data.deduplicated) {
+        trackSupportEvent({ event: 'support_issue_created', category: data.classification, privacy_level: 'public' })
+      }
       const content = [data.answer, data.message].filter(Boolean).join('\n\n')
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-bot`,
         type: 'bot',
         content: content || 'Thanks for your message.',
         issueUrl: data.issueUrl,
+        escalation: data.escalationReason ? { message, classification: data.classification, reason: data.escalationReason } : undefined,
       }])
     } catch {
       setMessages((previous) => [...previous, {
@@ -150,10 +166,41 @@ export function SupportBot() {
     }
   }
 
+  const handleEscalate = async (entry: Message) => {
+    if (!entry.escalation || !escalationConsent || !contactEmail.trim() || isLoading) return
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/support-bot/escalate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...entry.escalation, contactEmail, escalationConsent }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error('Escalation failed')
+      if (data.status === 'accepted' && !data.deduplicated) {
+        trackSupportEvent({ event: 'support_escalated', reason: data.reason, recipient_type: data.recipientType })
+      }
+      setMessages(previous => [...previous, {
+        id: `${Date.now()}-escalated`, type: 'bot',
+        content: data.status === 'accepted'
+          ? 'Your escalation was accepted by the email provider (delivery is not guaranteed).'
+          : 'Your escalation is queued, but email is not configured. Please retry later or contact craftframework@becomechange.institute.',
+      }])
+    } catch {
+      setMessages(previous => [...previous, {
+        id: `${Date.now()}-escalation-error`, type: 'bot',
+        content: 'Email escalation failed. Please retry or contact craftframework@becomechange.institute privately.',
+      }])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <>
       <button
         type="button"
+        disabled={!mounted}
         onClick={() => setIsOpen((open) => !open)}
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
         aria-label={isOpen ? 'Close support chat' : 'Open support chat'}
@@ -193,6 +240,13 @@ export function SupportBot() {
                       View public GitHub issue
                     </a>
                   )}
+                  {message.escalation && (
+                    <button type="button" onClick={() => handleEscalate(message)}
+                      disabled={isLoading || !escalationConsent || !contactEmail.trim()}
+                      className="mt-2 text-sm text-blue-700 underline disabled:text-gray-400">
+                      Escalate privately by email
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -201,6 +255,23 @@ export function SupportBot() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3 border-t border-gray-200 bg-white p-4">
+            <label className="block text-xs text-gray-700" htmlFor="support-contact-email">Contact email for escalation (optional)</label>
+            <input id="support-contact-email" type="email" maxLength={254} value={contactEmail}
+              onChange={event => setContactEmail(event.target.value)}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm" />
+            <label className="flex items-start gap-2 text-xs text-gray-700">
+              <input type="checkbox" checked={escalationConsent} onChange={event => setEscalationConsent(event.target.checked)} />
+              <span>I consent to sharing my redacted message and contact email privately with support when I click Escalate.</span>
+            </label>
+            {import.meta.env.VITE_POSTHOG_KEY && (
+              <label className="flex items-start gap-2 text-xs text-gray-700">
+                <input type="checkbox" checked={analyticsConsent} onChange={event => {
+                  setAnalyticsConsent(event.target.checked)
+                  setSupportAnalyticsConsent(event.target.checked, import.meta.env.VITE_POSTHOG_KEY)
+                }} />
+                <span>Allow anonymous support analytics (no message or email content).</span>
+              </label>
+            )}
             <label className="flex items-start gap-2 text-xs text-gray-700">
               <input
                 type="checkbox"

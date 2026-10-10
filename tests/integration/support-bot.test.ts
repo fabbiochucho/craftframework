@@ -11,8 +11,80 @@ describe('public support chat intake', () => {
   })
 
   afterEach(() => {
+    delete process.env.RESEND_API_KEY
     if (originalToken === undefined) delete process.env.GITHUB_TOKEN
     else process.env.GITHUB_TOKEN = originalToken
+  })
+
+  it('queues encrypted confidential reports and sends only redacted text to the fixed Resend recipient', async () => {
+    process.env.RESEND_API_KEY = 'test-provider'
+    const mock = installFetchMock()
+    try {
+      const body = {
+        message: 'Security issue: ' + ['password', 'hidden'].join('=') + ' person@example.com',
+        classification: 'question', contactEmail: 'reporter@example.com',
+        escalationConsent: true,
+      }
+      const response = expectStatus(await as(null).post('/support-bot/escalate', body), 200)
+      assert.equal(response.body.status, 'accepted')
+      assert.equal(response.body.recipientType, 'confidential')
+      const email = JSON.parse(String(mock.calls[0].init?.body))
+      assert.equal(mock.calls[0].url, 'https://api.resend.com/emails')
+      assert.deepEqual(email.to, ['craftframework@becomechange.institute'])
+      assert.equal(email.reply_to, 'reporter@example.com')
+      assert.match(email.subject, /PRIVATE \/ CONFIDENTIAL/)
+      assert.ok(!email.text.includes('hidden'))
+      assert.ok(!email.text.includes('person@example.com'))
+      const [entry] = await rows('SELECT * FROM support_escalations')
+      assert.match(entry.message, /^enc:/)
+      assert.match(entry.contact_email, /^enc:/)
+      assert.equal((await rows('SELECT count(*)::int AS n FROM support_issues'))[0].n, 0)
+      const retries = await Promise.all([as(null).post('/support-bot/escalate', body), as(null).post('/support-bot/escalate', body)])
+      assert.ok(retries.every(r => r.body.deduplicated))
+      assert.equal(mock.calls.length, 1)
+    } finally {
+      mock.restore()
+    }
+  })
+
+  it('distinguishes absent and failed providers and retries the durable queue with the same provider key', async () => {
+    const body = {
+      message: 'Something completely unrelated', classification: 'question',
+      contactEmail: 'reporter@example.com', escalationConsent: true, reason: 'unresolved_question',
+    }
+    assert.equal(expectStatus(await as(null).post('/support-bot/escalate', body), 200).body.status, 'not_configured')
+    process.env.RESEND_API_KEY = 'test-provider'
+    let fail = true
+    const mock = installFetchMock(() => new Response('{}', { status: fail ? 503 : 200 }))
+    try {
+      assert.equal(expectStatus(await as(null).post('/support-bot/escalate', body), 502).body.status, 'failed')
+      fail = false
+      assert.equal(expectStatus(await as(null).post('/support-bot/escalate', body), 200).body.status, 'accepted')
+      assert.equal(new Headers(mock.calls[0].init?.headers).get('Idempotency-Key'), new Headers(mock.calls[1].init?.headers).get('Idempotency-Key'))
+      assert.equal((await rows('SELECT count(*)::int AS n FROM support_escalations'))[0].n, 1)
+    } finally {
+      mock.restore()
+    }
+  })
+
+  it('rejects invalid contact, classification, consent and FAQ-resolved escalation', async () => {
+    const body = {
+      message: 'How do I install?', classification: 'question',
+      contactEmail: 'reporter@example.com', escalationConsent: true, reason: 'unresolved_question',
+    }
+    for (const changes of [{}, { contactEmail: 'a@example.com\r\nBcc: victim@example.com' }, { classification: 'bug' }, { escalationConsent: false }, { message: '   ' }]) {
+      expectStatus(await as(null).post('/support-bot/escalate', { ...body, ...changes }), 400)
+    }
+    expectStatus(await as(null).post('/support-bot/escalate', body, { headers: { origin: 'https://evil.example' } }), 403)
+    assert.equal((await rows('SELECT count(*)::int AS n FROM support_escalations'))[0].n, 0)
+  })
+
+  it('keeps private reports from legacy workspace and GitHub intake out of public issues', async () => {
+    const body = { description: 'A harassment report', category: 'bug', contactEmail: 'reporter@example.com', escalationConsent: true }
+    expectStatus(await as(null).post('/support-bot/submit-issue', body), 200)
+    expectStatus(await as(null).post('/support-bot/github-issue', body), 200)
+    assert.equal((await rows('SELECT count(*)::int AS n FROM support_issues'))[0].n, 0)
+    assert.equal((await rows('SELECT count(*)::int AS n FROM support_escalations'))[0].n, 1)
   })
 
   it('requires disclosure and routes conduct/security reports without creating a public issue', async () => {
