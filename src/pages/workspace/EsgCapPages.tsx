@@ -75,7 +75,6 @@ export function EsgPlanPage({ workspaceId, requirementId }: { workspaceId: strin
   const roadmap = useApi<any>(wsPath(workspaceId, '/esg-roadmap'))
   const { run, error } = useAction(async () => { await rm.reload(); await roadmap.reload() })
   const req = rm.data?.find((r: any) => String(r.id) === requirementId)
-  const [owner, setOwner] = useState<string | null>(null)
   if (!req) return <State loading={rm.loading} error={rm.error ?? (rm.data ? 'Requirement not found' : null)} />
   const plan = req.plan
   if (!plan) return <p className="text-sm text-slate-500">No plan yet — create one from the requirements list.</p>
@@ -85,8 +84,8 @@ export function EsgPlanPage({ workspaceId, requirementId }: { workspaceId: strin
       <Header title={`${req.requirementId} implementation`} subtitle={req.requirementText} back={{ to: '/app/workspaces/$workspaceId/esg/requirements', params: { workspaceId }, label: 'Requirements' }} />
       <ErrorLine error={error} />
       <Select label="Status" value={plan.status} onChange={status => update({ status })} options={['not_started', 'in_progress', 'completed'].map(v => ({ value: v, label: v.replace('_', ' ') }))} />
-      <Input label="Owner" value={owner ?? plan.owner ?? ''} onChange={e => setOwner(e.target.value)} onBlur={() => owner !== null && update({ owner })} />
       <EditFields key={plan.id} initial={plan} fields={[
+        { name: 'owner', label: 'Owner' },
         { name: 'timelineStart', label: 'Timeline start', type: 'date' }, { name: 'timelineEnd', label: 'Timeline end', type: 'date' },
         { name: 'evidenceCount', label: 'Evidence count (manual inventory)', type: 'number' },
       ]} save={async body => { await api(wsPath(workspaceId, `/esg-plans/${plan.id}`), { method: 'PUT', body }); await rm.reload(); await roadmap.reload() }} />
@@ -146,6 +145,8 @@ export function CapHubPage({ workspaceId }: { workspaceId: string }) {
 
 export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; capId: string }) {
   const cap = useApi<any>(wsPath(workspaceId, `/cap/${capId}`))
+  const evidence = useApi<any[]>(wsPath(workspaceId, '/evidence'))
+  const [linkedEvidence, setLinkedEvidence] = useState('')
   const [a, setA] = useState({ actionDescription: '', owner: '', targetDate: '' })
   const { run, error } = useAction(cap.reload)
   if (!cap.data) return <State loading={cap.loading} error={cap.error} />
@@ -157,6 +158,9 @@ export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; cap
       <Header title={c.findingDescription} back={{ to: '/app/workspaces/$workspaceId/actions', params: { workspaceId }, label: 'Corrective actions' }} />
       <p className="flex items-center gap-2 text-sm"><StatusPill value={c.status} /><Badge className={SEVERITY_STYLE[c.severity]}>{c.severity}</Badge> due {c.dueDate ?? '—'} · owner {c.assignedTo ?? 'unassigned'}</p>
       <ErrorLine error={error} />
+      <p className="text-sm text-slate-600">Verification requires approved, nonarchived evidence that has not expired. Closure rechecks the current evidence.</p>
+      <Select label="Evidence to link to an action" value={linkedEvidence} onChange={setLinkedEvidence} options={(evidence.data ?? []).map(e => ({ value: String(e.id), label: `${e.documentName} (${e.status})` }))} />
+      <State loading={evidence.loading} error={evidence.error} />
       <Accordion title="Source">{<p className="p-3 text-sm">{c.sourceType.replace('_', ' ')} {c.sourceId ?? ''}</p>}</Accordion>
       <Accordion title={`Action plan (${c.actions.length})`}>
         <div className="space-y-2 p-3">
@@ -165,7 +169,7 @@ export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; cap
               <span className="flex-1">{x.sequenceNum}. {x.actionDescription} <span className="text-slate-400">({x.owner ?? 'no owner'}, {x.targetDate ?? 'no date'})</span></span>
               <StatusPill value={x.status} />{x.verifiedBy && <Badge className="bg-emerald-100 text-emerald-700">verified</Badge>}
               {!closed && <><Button size="sm" variant="outline" onClick={() => put(x.id, { status: 'completed' })}>Mark complete</Button>
-                <Button size="sm" variant="ghost" onClick={() => { const id = prompt('Evidence ID to link'); if (id && Number.isInteger(Number(id))) void put(x.id, { evidenceId: Number(id) }) }}>Link evidence</Button>
+                <Button size="sm" variant="ghost" disabled={!linkedEvidence} onClick={() => put(x.id, { evidenceId: Number(linkedEvidence) })}>Link selected evidence</Button>
                 <Button size="sm" variant="ghost" onClick={() => put(x.id, { verify: true })}>Verify</Button></>}
             </div>))}
           {!closed && (

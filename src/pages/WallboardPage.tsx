@@ -41,9 +41,30 @@ function scoreTone(v: number): { text: string; bar: string } {
 }
 
 export function WallboardPage() {
-  const { currentUser, enterDemo } = useAuthCtx()
+  const { currentUser, enterDemo, authReady } = useAuthCtx()
   const { currentOrg, organizations } = useWorkspace()
-  const { scores } = useScoresCtx()
+  const { scores, refreshScores } = useScoresCtx()
+  const [refreshState, setRefreshState] = useState('Waiting for authenticated data')
+  useEffect(() => {
+    if (!authReady || !currentUser || currentUser.isDemo) return
+    let active = true
+    let pending = false
+    const refresh = async () => {
+      if (pending) return
+      pending = true
+      try {
+        await refreshScores()
+        if (active) setRefreshState(`Updated ${new Date().toLocaleTimeString()}`)
+      } catch {
+        if (active) setRefreshState('Refresh failed — displaying last known scores')
+      } finally { pending = false }
+    }
+    void refresh()
+    const interval = setInterval(() => { void refresh() }, 15_000)
+    const onFocus = () => { void refresh() }
+    window.addEventListener('focus', onFocus)
+    return () => { active = false; clearInterval(interval); window.removeEventListener('focus', onFocus) }
+  }, [authReady, currentUser, refreshScores])
   const navigate = useNavigate()
   const rootRef = useRef<HTMLDivElement>(null)
   const [isFull, setIsFull] = useState(false)
@@ -52,14 +73,14 @@ export function WallboardPage() {
   // Route protection mirrors AppLayout: allow a `?demo=<role>` link to bootstrap
   // a seeded session in a new tab, otherwise bounce to the sign-in gateway.
   useEffect(() => {
-    if (currentUser) return
+    if (!authReady || currentUser) return
     const demo =
       typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search).get('demo')
         : null
     if (demo === 'assessor' || demo === 'portfolio') enterDemo(demo)
     else navigate({ to: '/auth' })
-  }, [currentUser, enterDemo, navigate])
+  }, [authReady, currentUser, enterDemo, navigate])
 
   // Keep the fullscreen toggle in sync with the browser (Esc, F11, etc.).
   useEffect(() => {
@@ -151,6 +172,7 @@ export function WallboardPage() {
             </p>
             <p className="text-xs text-slate-400">
               {isAggregate ? 'Portfolio readiness broadcast' : currentUser.orgName}
+              {' · '}{currentUser.isDemo ? 'Illustrative demo' : refreshState}
             </p>
           </div>
         </div>
@@ -200,12 +222,12 @@ export function WallboardPage() {
               <KpiTile icon={Building2} label="Institutions live" value={aggregate.count} tone="text-emerald-400" />
               <KpiTile icon={Activity} label="Mean composite" value={`${aggregate.mean}%`} tone={scoreTone(aggregate.mean).text} />
               <KpiTile icon={AlertOctagon} label="Open critical risks" value={aggregate.totalCriticals} tone="text-rose-400" />
-              <KpiTile icon={ShieldCheck} label="Below evidence threshold" value={aggregate.belowThreshold} tone="text-amber-400" />
+              <KpiTile icon={ShieldCheck} label="Below self-score threshold" value={aggregate.belowThreshold} tone="text-amber-400" />
             </>
           ) : (
             <>
               <KpiTile icon={Activity} label="Composite score" value={`${solo.composite}%`} tone={scoreTone(solo.composite).text} />
-              <KpiTile icon={ShieldCheck} label="Implementation evidence" value={`${solo.evidence}%`} tone={scoreTone(solo.evidence).text} />
+              <KpiTile icon={ShieldCheck} label="Implementation self-score proxy" value={`${solo.evidence}%`} tone={scoreTone(solo.evidence).text} />
               <KpiTile icon={AlertOctagon} label="Open critical risks" value={solo.criticals.length} tone="text-rose-400" />
               <KpiTile icon={Building2} label="Composite indices" value={solo.indices.length} tone="text-emerald-400" />
             </>

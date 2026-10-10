@@ -4,8 +4,8 @@ import type { Context, Config } from '@netlify/edge-functions'
 // CRAFT v4.0 — Edge auth & multi-tenant isolation
 // ----------------------------------------------------------------------------
 // Runs at the network edge ahead of the origin for the secure workspace routes.
-// It decodes the Netlify GoTrue JWT (when present) to extract the caller's
-// organization_id and role, rewrites isolation headers the origin can trust,
+// It decodes the Netlify GoTrue JWT (when present) for advisory route gating,
+// strips unverified isolation headers,
 // and gates the independent-assurance surface (/verify/*) to assessors only.
 //
 // Design note: CRAFT is a client-rendered SPA with a public demo mode, so this
@@ -108,8 +108,7 @@ export default async (req: Request, context: Context) => {
     })
   }
 
-  // Continue down the chain, attaching trusted isolation headers the origin can
-  // use to scope every read to a single tenant.
+  // The origin resolves verified identity and current grants from the database.
   const res = await context.next()
   // Unverified JWT claims must not be presented as trusted isolation headers.
   res.headers.delete('x-craft-org')

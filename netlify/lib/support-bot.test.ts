@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import { classifySupportMessage, isPrivateReport, rankSupportFaq, redactSupportMessage, supportDeduplicationKey } from './support-bot.ts'
 import { grantAllows } from './access-policy.ts'
 import { financeMutationError } from './finance-policy.ts'
+import { sendReminderEmail } from './reminder-email.ts'
 
 describe('support bot classification and FAQ ranking', () => {
   it('classifies bug, feature, and question messages deterministically', () => {
@@ -52,6 +53,40 @@ describe('legacy access and finance boundary policies', () => {
     assert.equal(grantAllows({ ...grant, status: 'revoked' }, 'read', now), false)
     assert.equal(grantAllows({ ...grant, role: 'cbn_examiner' }, 'read', now), false)
     assert.equal(grantAllows({ ...grant, level: 'write', role: 'cbn_examiner', expiresAt: new Date('2027-01-01') }, 'write', now), false)
+  })
+
+  describe('reminder provider acceptance', () => {
+    it('requires an operator-configured production sender and does not count rejected or failed requests as sent', async () => {
+      const savedKey = process.env.RESEND_API_KEY
+      const savedFrom = process.env.REMINDER_FROM_EMAIL
+      const savedInvite = process.env.INVITE_FROM_EMAIL
+      const originalFetch = globalThis.fetch
+      let calls = 0
+      let status = 403
+      globalThis.fetch = async () => { calls++; return new Response('{}', { status }) }
+      try {
+        process.env.RESEND_API_KEY = 'test-provider'
+        delete process.env.REMINDER_FROM_EMAIL
+        delete process.env.INVITE_FROM_EMAIL
+        const email = { to: 'recipient@example.com', subject: 'Reminder', text: 'Reminder' }
+        assert.equal(await sendReminderEmail(email), 'not_configured')
+        process.env.REMINDER_FROM_EMAIL = 'CRAFT <onboarding@resend.dev>'
+        assert.equal(await sendReminderEmail(email), 'not_configured')
+        assert.equal(calls, 0)
+        process.env.REMINDER_FROM_EMAIL = 'CRAFT <notifications@example.com>'
+        assert.equal(await sendReminderEmail(email), 'failed')
+        status = 200
+        assert.equal(await sendReminderEmail(email), 'accepted')
+        globalThis.fetch = async () => { throw new Error('network unavailable') }
+        assert.equal(await sendReminderEmail(email), 'failed')
+      } finally {
+        globalThis.fetch = originalFetch
+        for (const [key, value] of [['RESEND_API_KEY', savedKey], ['REMINDER_FROM_EMAIL', savedFrom], ['INVITE_FROM_EMAIL', savedInvite]] as const) {
+          if (value === undefined) delete process.env[key]
+          else process.env[key] = value
+        }
+      }
+    })
   })
 
   it('allows only server-assigned workflow roles and sequential transitions', () => {

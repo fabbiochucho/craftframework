@@ -69,7 +69,7 @@ export function ReportsPage() {
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
               <FileText className="h-5 w-5" />
             </div>
-            <h3 className="mt-4 font-display text-lg font-bold text-emerald-900">Executive Summary (PDF)</h3>
+            <h3 className="mt-4 font-display text-lg font-bold text-emerald-900">Executive Summary (print / PDF)</h3>
             <p className="mt-1 text-sm text-slate-500">
               Board-ready brief: accreditation level, composite score, and your top critical risks.
             </p>
@@ -78,7 +78,7 @@ export function ReportsPage() {
               disabled={answered === 0}
               onClick={() => { logActivity('Exported report', 'Executive Summary (PDF)', 'Export'); window.print(); setToast('🔒 Executive Summary prepared (print to PDF).') }}
             >
-              <Printer className="h-4 w-4" /> Generate PDF
+              <Printer className="h-4 w-4" /> Print / Save as PDF
             </Button>
           </CardContent>
         </Card>
@@ -88,7 +88,7 @@ export function ReportsPage() {
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
               <FileSpreadsheet className="h-5 w-5" />
             </div>
-            <h3 className="mt-4 font-display text-lg font-bold text-emerald-900">Capacity Plan (Excel)</h3>
+            <h3 className="mt-4 font-display text-lg font-bold text-emerald-900">Capacity Plan (CSV)</h3>
             <p className="mt-1 text-sm text-slate-500">
               Full 24-month plan with owners, due dates, and mitigation statuses ({plan.length} actions).
             </p>
@@ -96,9 +96,9 @@ export function ReportsPage() {
               className="mt-4"
               variant="outline"
               disabled={plan.length === 0}
-              onClick={() => { exportCsv(plan, statusOf, currentUser?.orgName ?? 'Workspace'); logActivity('Exported report', 'Capacity Plan (Excel/CSV)', 'Export'); setToast('✅ Capacity Plan exported (CSV/Excel).') }}
+              onClick={() => { exportCsv(plan, statusOf, currentUser?.orgName ?? 'Workspace'); logActivity('Exported report', 'Capacity Plan (CSV)', 'Export'); setToast('✅ Capacity Plan exported as CSV.') }}
             >
-              <Download className="h-4 w-4" /> Export Excel
+              <Download className="h-4 w-4" /> Export CSV
             </Button>
           </CardContent>
         </Card>
@@ -121,7 +121,7 @@ export function ReportsPage() {
               <p className="text-2xl font-bold text-emerald-900">{composite}%</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4">
-              <p className="text-xs uppercase text-slate-400">Implementation Evidence</p>
+              <p className="text-xs uppercase text-slate-400">High-score execution proxy (not verified evidence)</p>
               <p className="text-2xl font-bold text-emerald-900">{implementationEvidence}%</p>
             </div>
           </div>

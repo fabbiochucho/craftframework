@@ -12,13 +12,13 @@ import {
 import { useAuthCtx, SELF_ORG_ID } from '../lib/context'
 import { isSuperAdminEmail, effectiveViewLevel, type ViewLevel } from '../lib/data'
 import { fetchUserByEmail, recordSignIn } from '../lib/api'
+import { completePasswordRecovery, readRecoveryHash, RECOVERY_ERROR } from '../lib/identityRecovery'
 
 // The view levels a visitor may self-register as (Super Admin is excluded — it
 // is only ever granted from the allowlist / admin portal). Mirrors the choices
 // offered on the registration form.
 const VALID_SELF_ROLES = new Set<ViewLevel>(['assessor', 'independent', 'portfolio'])
 
-const RECOVERY_ERROR = 'This password reset link is invalid or has expired. Request a new link and try again.'
 type RecoveryState = 'loading' | 'none' | 'ready' | 'invalid'
 const RecoveryContext = createContext<{
   state: RecoveryState
@@ -55,17 +55,16 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
   const recoveryToken = useRef<string | null>(null)
   const recoveryBlocked = useRef(false)
   const syncUser = useRef<(user: User | null) => void>(() => {})
-  const initialized = useRef(false)
+  const initialization = useRef<Promise<void> | null>(null)
   const [recoveryState, setRecoveryState] = useState<RecoveryState>('loading')
 
   async function resetPassword(password: string) {
     const token = recoveryToken.current
     if (!token || !recoveryBlocked.current) throw new Error(RECOVERY_ERROR)
     try {
-      const user = await recoverPassword(token, password)
-      // recoverPassword emits login but does not set browser auth cookies in
-      // SDK 1.2.0. A normal login establishes the verified, changed session.
-      const signedIn = await identityLogin(user.email, password)
+      const signedIn = await completePasswordRecovery(token, password, {
+        recoverPassword, login: identityLogin, logout: identityLogout,
+      })
       recoveryToken.current = null
       recoveryBlocked.current = false
       setRecoveryState('none')
@@ -73,8 +72,6 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
     } catch {
       recoveryToken.current = null
       setRecoveryState('invalid')
-      // Redemption can create a session before the password update fails.
-      await identityLogout().catch(() => {})
       throw new Error(RECOVERY_ERROR)
     }
   }
@@ -151,27 +148,18 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
         syncedEmail.current = null
         logout()
       }
-      syncUser.current = sync
     }
+    syncUser.current = sync
 
-    // 1) Handle a confirmation / recovery / OAuth token landing in the URL hash.
-    //    When a freshly confirmed user clicks the email link they arrive here,
-    //    get signed in, and are taken straight into the secure workspace.
     async function initialize() {
-      if (!initialized.current) {
-        initialized.current = true
-        const params = new URLSearchParams(window.location.hash.slice(1))
-        if (params.has('recovery_token') || params.get('type') === 'recovery') {
+        const callback = readRecoveryHash(window.location.hash)
+        if (callback.recovery) {
           recoveryBlocked.current = true
-          const token = params.get('recovery_token')
-          const valid = params.getAll('recovery_token').length === 1 &&
-            !!token && token.length <= 4096 && !/[\s\x00-\x1f]/.test(token) &&
-            !params.has('access_token') && !params.has('confirmation_token') && !params.has('error')
-          recoveryToken.current = valid ? token : null
+          recoveryToken.current = callback.token
           window.history.replaceState(null, '', window.location.pathname + window.location.search)
           logout()
           syncedEmail.current = null
-          setRecoveryState(valid ? 'ready' : 'invalid')
+          setRecoveryState(callback.token ? 'ready' : 'invalid')
           void navigate({ to: '/auth', replace: true })
         } else {
           try {
@@ -188,13 +176,13 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
           }
           setRecoveryState(state => state === 'invalid' ? state : 'none')
         }
-      }
       if (!recoveryBlocked.current) await getUser().then(user => syncUser.current(user)).catch(() => {})
-      if (active) setAuthReady(true)
     }
-    void initialize().finally(() => {
-        if (active) setAuthReady(true)
-      })
+    // A single callback redemption also covers StrictMode's effect replay.
+    initialization.current ??= initialize()
+    void initialization.current.finally(() => {
+      if (active) setAuthReady(true)
+    })
     const unsubscribe = onAuthChange((_event, user) => sync(user ?? null))
 
     return () => {

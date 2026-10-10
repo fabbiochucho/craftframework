@@ -31,12 +31,13 @@ async function stampIdentityMetadata(grantee: string, role: string, expiresAtSec
   const adminToken = process.env.NETLIFY_IDENTITY_ADMIN_TOKEN
   const identityUrl = process.env.NETLIFY_IDENTITY_URL // e.g. https://<site>.netlify.app/.netlify/identity
   if (!adminToken || !identityUrl) {
-    console.log(`[issue-access-grant] would stamp Identity for ${grantee}: role=${role}, access_expires_at=${expiresAtSec}`)
+    logger.warn('issue-access-grant', 'Identity admin stamping is not configured')
     return false
   }
   try {
     // Look up the user by email, then patch app_metadata.
     const listRes = await fetch(`${identityUrl}/admin/users?email=${encodeURIComponent(grantee)}`, {
+      signal: AbortSignal.timeout(10_000),
       headers: { authorization: `Bearer ${adminToken}` },
     })
     if (!listRes.ok) return false
@@ -48,6 +49,7 @@ async function stampIdentityMetadata(grantee: string, role: string, expiresAtSec
     }
     const updateRes = await fetch(`${identityUrl}/admin/users/${user.id}`, {
       method: 'PUT',
+      signal: AbortSignal.timeout(10_000),
       headers: { authorization: `Bearer ${adminToken}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         app_metadata: { ...(user.app_metadata ?? {}), role, access_expires_at: expiresAtSec },
@@ -74,7 +76,7 @@ export default async (req: Request) => {
     const days = Number.isFinite(Number(body.days)) && Number(body.days) > 0 ? Number(body.days) : 30
     if (days > 365) return Response.json({ error: 'Access window must not exceed 365 days' }, { status: 400 })
 
-    if (!orgId || !grantee || !role) {
+    if (!orgId || !grantee || !role || !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(grantee)) {
       return Response.json({ error: 'orgId, grantee and role required' }, { status: 400 })
     }
     // Only someone with access to the org can grant an outsider a window into it.
@@ -102,7 +104,7 @@ export default async (req: Request) => {
       })
       .onConflictDoUpdate({
         target: [accessGrants.orgId, accessGrants.grantee],
-        set: { role, level: 'read', status: 'active', expiresAt, respondedAt: now },
+        set: { role, level: 'read', status: 'active', expiresAt, respondedAt: now, grantedBy: caller.email },
       })
       .returning()
 

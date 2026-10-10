@@ -9,6 +9,7 @@ import {
   Card, CardContent, Badge, Button, Input, Tabs, Select,
 } from '../components/ui'
 import { useAuthCtx } from '../lib/context'
+import { LegacyEvidenceBridge } from '../components/LegacyEvidenceBridge'
 
 // ---------------------------------------------------------------------------
 // Local sample data - vaults, sub-folders and their seeded verification states
@@ -172,6 +173,7 @@ export function DataRoomVaultsPage() {
   // Section 11 (the regulator/auditor vault) is DB-backed, not demo-seeded: load
   // its persisted verification state so it survives reloads.
   useEffect(() => {
+    if (isDemo) return
     if (vault !== 'section11' || !orgId || typeof window === 'undefined') return
     let cancelled = false
     fetch(`/api/section11?orgId=${encodeURIComponent(orgId)}`)
@@ -186,7 +188,7 @@ export function DataRoomVaultsPage() {
       })
       .catch(() => { /* offline / not yet provisioned — keep local state */ })
     return () => { cancelled = true }
-  }, [vault, orgId])
+  }, [vault, orgId, isDemo])
 
   const active = VAULTS.find(v => v.id === vault)!
   const folders = SUBFOLDERS[vault]
@@ -211,9 +213,11 @@ export function DataRoomVaultsPage() {
     () => folders.filter(f => (statuses[f.key] ?? 'Pending') === 'Assessor Verified').length,
     [folders, statuses],
   )
+  if (!isDemo) return <LegacyEvidenceBridge />
 
   return (
     <div className="space-y-6">
+      {!isDemo ? <LegacyEvidenceBridge /> : null}
       {/* Header */}
       <div>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">

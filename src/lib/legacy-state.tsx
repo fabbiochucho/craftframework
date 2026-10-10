@@ -12,6 +12,8 @@ export function usePersistedTenantState<T>(
     ? (initialRef.current as () => T)() : initialRef.current, [])
   const [value, setValue] = useState<T>(fresh)
   const [status, setStatus] = useState<SaveStatus>('loading')
+  const statusRef = useRef(status)
+  statusRef.current = status
   const current = useRef(value)
   const generation = useRef(0)
   const edited = useRef(false)
@@ -34,7 +36,7 @@ export function usePersistedTenantState<T>(
   const update: Dispatch<SetStateAction<T>> = useCallback(action => {
     if (readOnly || (!demo && !orgId)) return
     // Never replace unknown server state after a failed/incomplete initial read.
-    if (!demo && !edited.current && status !== 'ready' && status !== 'saved') return
+    if (!demo && !edited.current && statusRef.current !== 'ready' && statusRef.current !== 'saved') return
     const next = typeof action === 'function' ? (action as (prev: T) => T)(current.current) : action
     current.current = next
     edited.current = true
@@ -43,7 +45,10 @@ export function usePersistedTenantState<T>(
     const gen = generation.current
     setStatus('saving')
     writes.current = writes.current.catch(() => {}).then(async () => {
-      if (generation.current !== gen) return
+      if (typeof window !== 'undefined' && !navigator.onLine) {
+        if (generation.current === gen) setStatus('error')
+        return
+      }
       try {
         await saveLegacyState(orgId, key, next)
         if (generation.current === gen && current.current === next) setStatus('saved')
@@ -51,7 +56,7 @@ export function usePersistedTenantState<T>(
         if (generation.current === gen) setStatus('error')
       }
     })
-  }, [orgId, demo, key, readOnly, status])
+  }, [orgId, demo, key, readOnly])
   return [value, update, status]
 }
 

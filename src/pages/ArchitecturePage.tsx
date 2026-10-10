@@ -173,6 +173,8 @@ export function ArchitecturePage() {
             module numbers. <span className="font-medium">Live</span> means a CRAFT framework fully covers that
             question today; <span className="font-medium">Partial</span> means one indicator or pillar touches
             it; <span className="font-medium">Planned</span> means no framework covers it yet.
+            These labels describe framework coverage, not verified production deployment,
+            regulatory approval, or independent accreditation.
           </p>
         </div>
       </section>

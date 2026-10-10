@@ -82,7 +82,12 @@ export function AutoTranslate() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return
-    if (!allowed) return
+    if (!allowed) {
+      try {
+        for (const key of Object.keys(localStorage)) if (key.startsWith(CACHE_PREFIX)) localStorage.removeItem(key)
+      } catch { /* unavailable storage */ }
+      return
+    }
     const texts = textNodes.current
     const attrs = attrNodes.current
 
@@ -100,6 +105,7 @@ export function AutoTranslate() {
     const stillPublic = () => !cancelled && PUBLIC_COPY_ROUTES.has(window.location.pathname) && !document.querySelector('[data-sensitive-workspace]')
     const clearSensitive = () => { cancelled = true; controller.abort(); cache.clear() }
     window.addEventListener('craft:clear-sensitive', clearSensitive)
+    window.addEventListener('craft:session', clearSensitive)
 
     const needs = (s: string) => translatable(s) && !native.has(s.trim())
 
@@ -288,6 +294,7 @@ export function AutoTranslate() {
       cancelled = true
       controller.abort()
       window.removeEventListener('craft:clear-sensitive', clearSensitive)
+      window.removeEventListener('craft:session', clearSensitive)
       observer.disconnect()
       titleObserver.disconnect()
       clearTimeout(timer)
