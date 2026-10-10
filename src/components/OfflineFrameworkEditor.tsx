@@ -35,7 +35,7 @@ export function OfflineFrameworkEditor({ workspaceId }: { workspaceId: string })
         scope = result.state.scope; setState(result.state); setRole(result.role); setError(null)
         await drain()
       } catch (cause) {
-        if (active && started === generation.current) setError((cause as Error).message)
+        if (active && started === generation.current) { lock(); setError((cause as Error).message) }
       }
     }
     const refresh = async () => {
