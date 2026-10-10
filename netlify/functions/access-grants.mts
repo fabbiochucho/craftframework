@@ -27,7 +27,7 @@ export default async (req: Request) => {
         if (target !== caller.email && caller.role !== 'super_admin') return forbidden()
         rows = await db.select().from(accessGrants).where(eq(accessGrants.grantee, target))
       } else if (orgId) {
-        if (!(await canAccessOrg(caller, orgId))) return forbidden()
+        if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
         rows = await db.select().from(accessGrants).where(eq(accessGrants.orgId, orgId))
       } else {
         if (caller.role !== 'super_admin') return forbidden()

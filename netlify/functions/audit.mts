@@ -22,7 +22,7 @@ export default async (req: Request) => {
 
     if (req.method === 'GET') {
       const orgId = new URL(req.url).searchParams.get('orgId')
-      if (orgId && !(await canAccessOrg(caller, orgId))) return forbidden()
+      if (orgId && !(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
       if (!orgId && caller.role !== 'super_admin') return forbidden()
       const rows = orgId
         ? await db.select().from(auditLogs).where(eq(auditLogs.orgId, orgId)).orderBy(desc(auditLogs.id))

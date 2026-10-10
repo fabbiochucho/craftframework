@@ -5,7 +5,7 @@ export async function sendReminderEmail(
   idempotencyKey?: string,
 ): Promise<EmailAcceptance> {
   const apiKey = process.env.RESEND_API_KEY
-  const from = process.env.REMINDER_FROM_EMAIL || process.env.INVITE_FROM_EMAIL
+  const from = process.env.COMPLIANCE_FROM_EMAIL || process.env.REMINDER_FROM_EMAIL || process.env.INVITE_FROM_EMAIL
   // Production domains must be verified with the provider by the operator.
   // Never silently substitute Resend's development-only sender.
   if (!apiKey || !from || /@resend\.dev\b/i.test(from)) return 'not_configured'

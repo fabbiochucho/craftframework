@@ -5,6 +5,37 @@ import { installFetchMock, rows, truncateAll } from './harness.ts'
 const auth = await import(new URL('../../netlify/lib/auth.ts', import.meta.url).href)
 const finance = (await import(new URL('../../netlify/functions/financial-triangulation.mts', import.meta.url).href)).default
 const issueGrant = (await import(new URL('../../netlify/functions/issue-access-grant.mts', import.meta.url).href)).default
+const compliance = (await import(new URL('../../netlify/functions/compliance.mts', import.meta.url).href)).default
+
+describe('legacy route authorization regressions', () => {
+  beforeEach(async () => { await truncateAll() })
+
+  it('permits read grants at GET handlers without permitting writes', async () => {
+    ;(globalThis as any).__craftTestIdentity = { email: 'reader@example.com' }
+    await rows("INSERT INTO access_grants(id,org_id,grantee,level,status) VALUES('read','external','reader@example.com','read','active')")
+    for (const endpoint of ['responses', 'capacity-actions', 'section11', 'compliance', 'audit', 'access-grants']) {
+      const handler = (await import(new URL(`../../netlify/functions/${endpoint}.mts`, import.meta.url).href)).default
+      assert.equal((await handler(new Request(`http://localhost/api/${endpoint}?orgId=external`))).status, 200, endpoint)
+    }
+    assert.equal((await compliance(new Request('http://localhost/api/compliance', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ orgId: 'external', name: 'Denied', nextDueDate: '2026-12-01' }),
+    }))).status, 403)
+  })
+
+  it('rejects a writable tenant claiming another tenant obligation ID', async () => {
+    ;(globalThis as any).__craftTestIdentity = { email: 'writer@example.com' }
+    await rows("INSERT INTO users(id,email,org_id,role) VALUES('writer','writer@example.com','own','assessor')")
+    await rows("INSERT INTO compliance_items(id,org_id,name,next_due_date) VALUES('victim','external','Existing','2026-12-01')")
+    const response = await compliance(new Request('http://localhost/api/compliance', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: 'victim', orgId: 'own', name: 'Attack', nextDueDate: '2027-01-01', status: 'completed' }),
+    }))
+    assert.equal(response.status, 403)
+    const [item] = await rows("SELECT next_due_date::text AS due FROM compliance_items WHERE id='victim'")
+    assert.equal(item.due, '2026-12-01')
+  })
+})
 
 describe('legacy API authorization and finance workflow', () => {
   beforeEach(async () => { await truncateAll() })

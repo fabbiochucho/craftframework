@@ -94,6 +94,7 @@ export interface CreatePortfolioInput {
 // subsector it operates in. A live workspace starts blank and the user picks
 // these; the demo seeds an illustrative Nigerian digital-lending fintech.
 export interface EntityProfile {
+  onboardingComplete?: boolean
   archetype: Archetype | ''
   country: string
   sector: string
@@ -344,6 +345,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [entityProfile, setEntityProfileState, profileSaveStatus] = usePersistedTenantState<EntityProfile>(activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
     archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
   }, !!activeClientOrgId)
+  useEffect(() => {
+    if (!currentUser || currentUser.isDemo || activeClientOrgId) return
+    if (profileSaveStatus === 'ready' || profileSaveStatus === 'saved') {
+      setOnboardingComplete(entityProfile.onboardingComplete === true && !!entityProfile.archetype)
+    }
+  }, [currentUser, activeClientOrgId, profileSaveStatus, entityProfile])
 
   // A reviewer drilled into a client's workspace views it strictly read-only in
   // this phase (write-back depends on the access-grant write level, deferred).
@@ -547,7 +554,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // stable per-tenant id so each institution is isolated in the database.
       const tenantId = orgId === SELF_ORG_ID ? api.tenantOrgId(email) : orgId
       setCurrentUser({ id: `user-${email}`, email, orgId: tenantId, role, orgName, isDemo: false })
-      setOnboardingComplete(true)
+      setOnboardingComplete(false)
       setScores(prev => (prev[tenantId] ? prev : { ...prev, [tenantId]: {} }))
       setTeamMembers([])
       appendAudit(email, 'Signed in', 'Secure Workspace', 'Auth')
