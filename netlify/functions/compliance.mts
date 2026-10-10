@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions'
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { complianceItems } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
@@ -16,7 +16,7 @@ export default async (req: Request) => {
     if (req.method === 'GET') {
       const orgId = new URL(req.url).searchParams.get('orgId')
       if (!orgId) return Response.json({ error: 'orgId required' }, { status: 400 })
-      if (!(await canAccessOrg(caller, orgId))) return forbidden()
+      if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
       const rows = await db
         .select()
         .from(complianceItems)
@@ -29,7 +29,7 @@ export default async (req: Request) => {
     if (req.method === 'POST') {
       const body = await req.json()
       const incoming = Array.isArray(body?.items) ? body.items : [body]
-      const values = incoming
+      const values: (typeof complianceItems.$inferInsert)[] = incoming
         .filter((o: any) => o && o.orgId && o.name && o.nextDueDate)
         .map((o: any) => ({
           id: o.id || `ob_${crypto.randomUUID()}`,
@@ -52,14 +52,23 @@ export default async (req: Request) => {
       for (const id of orgIds) {
         if (!(await canAccessOrg(caller, id))) return forbidden()
       }
-      const rows = await db
-        .insert(complianceItems)
-        .values(values)
-        .onConflictDoUpdate({
-          target: complianceItems.id,
-          set: { status: values[0].status, nextDueDate: values[0].nextDueDate },
-        })
-        .returning()
+      const existingItems = await db.select({ id: complianceItems.id, orgId: complianceItems.orgId })
+        .from(complianceItems).where(inArray(complianceItems.id, values.map(value => value.id!)))
+      if (existingItems.some(existing => values.some(value => value.id === existing.id && value.orgId !== existing.orgId))) {
+        return forbidden()
+      }
+      const rows = await db.transaction(async tx => {
+        const saved: (typeof complianceItems.$inferSelect)[] = []
+        for (const value of values) {
+          const result = await tx.insert(complianceItems).values(value).onConflictDoUpdate({
+            target: complianceItems.id,
+            set: { status: value.status, nextDueDate: value.nextDueDate },
+            setWhere: and(eq(complianceItems.orgId, value.orgId), inArray(complianceItems.orgId, orgIds)),
+          }).returning()
+          saved.push(...result)
+        }
+        return saved
+      })
       return Response.json(rows, { status: 201 })
     }
 
