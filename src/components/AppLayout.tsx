@@ -36,9 +36,11 @@ const workspaceNav = [
   { to: '/issb-disclosures', label: 'ISSB & CSRD Disclosures', icon: Leaf },
   { to: '/informal-economy', label: 'Informal Economy Track', icon: Smartphone },
   { to: '/reports', label: 'Reports', icon: FileBarChart },
+  { to: '/app/workspaces', label: 'Org Workspaces', icon: Building2 },
 ]
 const orgNav = [
   { to: '/settings', label: 'Settings & Team', icon: Settings },
+  { to: '/app/org/members', label: 'Org Members & RBAC', icon: Users },
   { to: '/audit-log', label: 'Audit Log', icon: ScrollText },
   { to: '/help', label: 'Help & Glossary', icon: HelpCircle },
   { to: '/guide', label: 'User Guide', icon: BookOpen },

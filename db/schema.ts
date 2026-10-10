@@ -20,6 +20,8 @@ import {
   jsonb,
   unique,
   index,
+  boolean,
+  date,
 } from 'drizzle-orm/pg-core'
 
 // --- organizations ----------------------------------------------------------
@@ -482,3 +484,378 @@ export const section11Disclosures = pgTable(
 )
 
 export type Section11DisclosureRow = typeof section11Disclosures.$inferSelect
+
+// ============================================================================
+// Workspace platform (governance, ESG, CAP, evidence, reports, audit)
+// ----------------------------------------------------------------------------
+// Every workspace-scoped table carries `org_id` so tenant isolation (row-level
+// security) can be enforced uniformly: each query is filtered by the org id
+// resolved from the verified session — never trusted from the request.
+// Tables are prefixed `ws_` to avoid clashing with the legacy tables above.
+// ============================================================================
+
+export const wsOrganizations = pgTable('ws_organizations', {
+  id: serial('id').primaryKey(),
+  name: text('name').notNull(),
+  // 'government' | 'ngo' | 'private'
+  type: text('type').notNull().default('private'),
+  country: text('country').notNull().default(''),
+  region: text('region').notNull().default(''),
+  contactEmail: text('contact_email').notNull().default(''),
+  contactPhone: text('contact_phone').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export const wsOrgMembers = pgTable(
+  'ws_org_members',
+  {
+    id: serial('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    orgId: integer('org_id').notNull(),
+    // 'owner' | 'admin' | 'assessor' | 'viewer'
+    role: text('role').notNull().default('viewer'),
+    permissions: integer('permissions').notNull().default(0),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique('ws_org_members_user_org_uq').on(t.userId, t.orgId), index('ws_org_members_org_idx').on(t.orgId)],
+)
+
+export const workspaces = pgTable(
+  'workspaces',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceName: text('workspace_name').notNull(),
+    description: text('description').notNull().default(''),
+    // 'active' | 'archived'
+    status: text('status').notNull().default('active'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('workspaces_org_idx').on(t.orgId)],
+)
+
+// --- governance -------------------------------------------------------------
+export const governanceAssessments = pgTable(
+  'governance_assessments',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    // 'G2G' | 'ISO' | 'COSO'
+    assessmentType: text('assessment_type').notNull().default('G2G'),
+    version: integer('version').notNull().default(1),
+    // 'draft' | 'in_review' | 'approved'
+    status: text('status').notNull().default('draft'),
+    createdBy: text('created_by').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).defaultNow().notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    findingsCount: integer('findings_count').notNull().default(0),
+  },
+  (t) => [index('governance_assessments_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const governanceScores = pgTable(
+  'governance_scores',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    assessmentId: integer('assessment_id').notNull(),
+    pillar: text('pillar').notNull(),
+    domain: text('domain').notNull(),
+    // Tier 1-5 derived from the 0-5 slider score
+    tierLevel: integer('tier_level').notNull().default(1),
+    evidenceUploaded: boolean('evidence_uploaded').notNull().default(false),
+    reviewerNotes: text('reviewer_notes').notNull().default(''),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  },
+  (t) => [unique('governance_scores_uq').on(t.assessmentId, t.pillar, t.domain)],
+)
+
+export const governanceFindings = pgTable(
+  'governance_findings',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    assessmentId: integer('assessment_id').notNull(),
+    domain: text('domain').notNull(),
+    // 'critical' | 'high' | 'medium' | 'low'
+    severity: text('severity').notNull().default('medium'),
+    description: text('description').notNull(),
+    recommendation: text('recommendation').notNull().default(''),
+    evidenceLink: text('evidence_link'),
+    ownerAssignment: text('owner_assignment'),
+    dueDate: date('due_date'),
+    // 'open' | 'in_progress' | 'resolved'
+    status: text('status').notNull().default('open'),
+  },
+  (t) => [index('governance_findings_assessment_idx').on(t.orgId, t.assessmentId)],
+)
+
+// --- ESG --------------------------------------------------------------------
+export const esgFrameworks = pgTable(
+  'esg_frameworks',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    // 'ESRS' | 'ISSB' | 'GRI' | custom
+    frameworkName: text('framework_name').notNull(),
+    jurisdiction: text('jurisdiction').notNull().default('global'),
+    // 'all' | 'sector_specific'
+    applicability: text('applicability').notNull().default('all'),
+    // 'available' | 'adopted'
+    adoptionStatus: text('adoption_status').notNull().default('available'),
+  },
+  (t) => [index('esg_frameworks_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const esgRequirements = pgTable(
+  'esg_requirements',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    frameworkId: integer('framework_id').notNull(),
+    requirementId: text('requirement_id').notNull(),
+    requirementText: text('requirement_text').notNull(),
+    // 'environmental' | 'social' | 'governance'
+    category: text('category').notNull().default('governance'),
+    priority: text('priority').notNull().default('medium'),
+    implementationDeadline: date('implementation_deadline'),
+  },
+  (t) => [index('esg_requirements_framework_idx').on(t.orgId, t.frameworkId)],
+)
+
+export const esgImplementationPlans = pgTable(
+  'esg_implementation_plans',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    requirementId: integer('requirement_id').notNull(),
+    owner: text('owner'),
+    // 'not_started' | 'in_progress' | 'completed'
+    status: text('status').notNull().default('not_started'),
+    timelineStart: date('timeline_start'),
+    timelineEnd: date('timeline_end'),
+    milestone1: text('milestone_1'),
+    milestone2: text('milestone_2'),
+    milestone3: text('milestone_3'),
+    evidenceCount: integer('evidence_count').notNull().default(0),
+  },
+  (t) => [index('esg_plans_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const esgMilestones = pgTable(
+  'esg_milestones',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    planId: integer('plan_id').notNull(),
+    milestoneNum: integer('milestone_num').notNull(),
+    description: text('description').notNull().default(''),
+    targetDate: date('target_date'),
+    status: text('status').notNull().default('not_started'),
+    completionEvidenceLink: text('completion_evidence_link'),
+  },
+  (t) => [index('esg_milestones_plan_idx').on(t.orgId, t.planId)],
+)
+
+// --- Corrective Action Plans -------------------------------------------------
+export const capRecords = pgTable(
+  'cap_records',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    // 'governance_finding' | 'esg_requirement' | 'disclosure_finding' | 'manual'
+    sourceType: text('source_type').notNull().default('manual'),
+    sourceId: integer('source_id'),
+    findingDescription: text('finding_description').notNull(),
+    severity: text('severity').notNull().default('medium'),
+    correctiveAction: text('corrective_action').notNull().default(''),
+    assignedTo: text('assigned_to'),
+    dueDate: date('due_date'),
+    // 'open' | 'in_progress' | 'completed' | 'overdue'
+    status: text('status').notNull().default('open'),
+    completionDate: timestamp('completion_date', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('cap_records_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const actionItems = pgTable(
+  'action_items',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    capId: integer('cap_id').notNull(),
+    sequenceNum: integer('sequence_num').notNull().default(1),
+    actionDescription: text('action_description').notNull(),
+    owner: text('owner'),
+    targetDate: date('target_date'),
+    status: text('status').notNull().default('open'),
+    evidenceUploadedAt: timestamp('evidence_uploaded_at', { withTimezone: true }),
+    verifiedBy: text('verified_by'),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+  },
+  (t) => [index('action_items_cap_idx').on(t.orgId, t.capId)],
+)
+
+export const actionLogs = pgTable(
+  'action_logs',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    actionId: integer('action_id').notNull(),
+    timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+    actorId: text('actor_id').notNull(),
+    // 'created' | 'updated' | 'assigned' | 'completed'
+    event: text('event').notNull(),
+    oldValue: text('old_value'),
+    newValue: text('new_value'),
+  },
+  (t) => [index('action_logs_action_idx').on(t.orgId, t.actionId)],
+)
+
+// --- Evidence registry --------------------------------------------------------
+export const evidenceRegistry = pgTable(
+  'evidence_registry',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    documentName: text('document_name').notNull(),
+    // 'assessment' | 'policy' | 'evidence' | 'certification'
+    documentType: text('document_type').notNull().default('evidence'),
+    uploadedBy: text('uploaded_by').notNull(),
+    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
+    // Netlify Blobs key (or S3 path)
+    filePath: text('file_path').notNull(),
+    fileSizeKb: integer('file_size_kb').notNull().default(0),
+    mimeType: text('mime_type').notNull().default('application/octet-stream'),
+    expiryDate: date('expiry_date'),
+    // 'pending_review' | 'approved' | 'rejected' | 'expired'
+    status: text('status').notNull().default('pending_review'),
+    // Soft delete
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+  },
+  (t) => [index('evidence_registry_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const evidenceLinks = pgTable(
+  'evidence_links',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    evidenceId: integer('evidence_id').notNull(),
+    // Polymorphic target: 'cap' | 'assessment' | 'requirement'
+    targetType: text('target_type').notNull(),
+    targetId: integer('target_id').notNull(),
+    // 'supports' | 'verifies'
+    linkType: text('link_type').notNull().default('supports'),
+    reviewerNotes: text('reviewer_notes').notNull().default(''),
+    approvedBy: text('approved_by'),
+    approvalDate: timestamp('approval_date', { withTimezone: true }),
+  },
+  (t) => [index('evidence_links_evidence_idx').on(t.orgId, t.evidenceId), index('evidence_links_target_idx').on(t.targetType, t.targetId)],
+)
+
+export const documentApprovals = pgTable(
+  'document_approvals',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    evidenceId: integer('evidence_id').notNull(),
+    reviewerId: text('reviewer_id').notNull(),
+    reviewDate: timestamp('review_date', { withTimezone: true }).defaultNow().notNull(),
+    // 'approved' | 'rejected'
+    status: text('status').notNull(),
+    comments: text('comments').notNull().default(''),
+  },
+  (t) => [index('document_approvals_evidence_idx').on(t.orgId, t.evidenceId)],
+)
+
+// --- Reports ----------------------------------------------------------------------
+export const reports = pgTable(
+  'reports',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    // 'governance_scorecard' | 'esg_status' | 'cap_summary' | 'compliance_dashboard' | 'audit_trail'
+    reportType: text('report_type').notNull(),
+    generatedBy: text('generated_by').notNull(),
+    generatedAt: timestamp('generated_at', { withTimezone: true }).defaultNow().notNull(),
+    dataAsOfDate: date('data_as_of_date').notNull(),
+    // { open_findings_by_severity, cap_progress, compliance_percent, expiry_alerts }
+    statusSnapshot: jsonb('status_snapshot').notNull().default({}),
+  },
+  (t) => [index('reports_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const reportVersions = pgTable(
+  'report_versions',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    reportId: integer('report_id').notNull(),
+    versionNum: integer('version_num').notNull().default(1),
+    pdfUrl: text('pdf_url'),
+    jsonExportUrl: text('json_export_url'),
+    emailSentTo: text('email_sent_to'),
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    viewedAt: timestamp('viewed_at', { withTimezone: true }),
+  },
+  (t) => [index('report_versions_report_idx').on(t.orgId, t.reportId)],
+)
+
+// --- Audit & support ------------------------------------------------------------------
+export const wsAuditLog = pgTable(
+  'ws_audit_log',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id'),
+    actorId: text('actor_id').notNull(),
+    // 'assessment' | 'cap' | 'evidence' | 'org' | ...
+    resourceType: text('resource_type').notNull(),
+    resourceId: text('resource_id'),
+    // 'create' | 'read' | 'update' | 'delete'
+    action: text('action').notNull(),
+    timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    details: jsonb('details').notNull().default({}),
+  },
+  (t) => [index('ws_audit_log_org_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const supportIssues = pgTable(
+  'support_issues',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id'),
+    workspaceId: integer('workspace_id'),
+    // 'bug' | 'feature' | 'question' | 'documentation'
+    category: text('category').notNull().default('question'),
+    description: text('description').notNull(),
+    contactEmail: text('contact_email').notNull().default(''),
+    githubIssueUrl: text('github_issue_url'),
+    capId: integer('cap_id'),
+    status: text('status').notNull().default('open'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+)
+
+export const supportIssueResponses = pgTable(
+  'support_issue_responses',
+  {
+    id: serial('id').primaryKey(),
+    issueId: integer('issue_id').notNull(),
+    responder: text('responder').notNull(),
+    message: text('message').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('support_issue_responses_issue_idx').on(t.issueId)],
+)
