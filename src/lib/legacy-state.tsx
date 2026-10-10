@@ -18,7 +18,10 @@ export function usePersistedTenantState<T>(
   const generation = useRef(0)
   const edited = useRef(false)
   const writes = useRef(Promise.resolve())
+  const scope = `${orgId ?? ''}|${demo}|${key}|${readOnly}`
+  const loadedScope = useRef(scope)
   useEffect(() => {
+    loadedScope.current = scope
     const gen = ++generation.current
     edited.current = false
     current.current = fresh()
@@ -31,7 +34,7 @@ export function usePersistedTenantState<T>(
       setStatus(readOnly ? 'read-only' : 'ready')
     }).catch(() => { if (generation.current === gen) setStatus('error') })
     return () => { ++generation.current }
-  }, [orgId, demo, key, readOnly, fresh])
+  }, [orgId, demo, key, readOnly, fresh, scope])
 
   const update: Dispatch<SetStateAction<T>> = useCallback(action => {
     if (readOnly || (!demo && !orgId)) return
@@ -57,7 +60,7 @@ export function usePersistedTenantState<T>(
       }
     })
   }, [orgId, demo, key, readOnly])
-  return [value, update, status]
+  return loadedScope.current === scope ? [value, update, status] : [fresh(), update, 'loading']
 }
 
 export function LegacySaveStatus({ status }: { status: SaveStatus }) {

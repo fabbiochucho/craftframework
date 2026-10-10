@@ -59,7 +59,7 @@ export function OnboardingPage() {
     if (profileSaveStatus === 'loading' || profileSaveStatus === 'error' || profileSaveStatus === 'read-only') return
     // Commit the entity profile so the wizard filters to this archetype and the
     // Data Room generates the right country/sector/subsector checklist.
-    setEntityProfile({ archetype, country, sector, subsector })
+    setEntityProfile({ archetype, country, sector, subsector, onboardingComplete: true })
     // Register any co-assessors entered during onboarding as invited team
     // members, scoped to this institution as Organization Assessors.
     const scopeLabel = orgName || currentUser?.orgName || 'Your institution'
