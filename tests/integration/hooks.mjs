@@ -29,7 +29,7 @@ export async function resolve(specifier, context, nextResolve) {
     const parent = fileURLToPath(context.parentURL)
     if (parent.startsWith(repoRoot) && !parent.includes('node_modules')) {
       let target = path.resolve(path.dirname(parent), specifier)
-      if (/db[\\/]index\.js$/.test(target) && target.startsWith(path.join(repoRoot, 'db'))) {
+      if (/db[\\/]index(\.[jt]s)?$/.test(target) && target.startsWith(path.join(repoRoot, 'db'))) {
         return { url: pathToFileURL(path.join(here, 'testDb.ts')).href, shortCircuit: true }
       }
       if (target.endsWith('.js') && !existsSync(target)) {
