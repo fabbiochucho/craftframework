@@ -37,7 +37,7 @@ test('org/workspace -> assessment -> finding -> CAP -> evidence -> report PDF', 
 
   // Corrective action plan
   await page.goto(dashboardUrl)
-  await page.getByRole('main').getByRole('link', { name: 'Corrective actions' }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Corrective Action & Evidence Hub' }).click()
   await page.getByText('New manual CAP').click()
   await page.getByLabel('Finding', { exact: true }).fill('Retain board minutes')
   await page.getByRole('button', { name: 'Create', exact: true }).click()
