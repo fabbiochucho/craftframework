@@ -64,7 +64,7 @@ export function DashboardPage() {
             <h2 className="mt-4 font-display text-2xl font-bold text-emerald-900">Your dashboard is ready for data</h2>
             <p className="mt-2 max-w-lg text-sm text-slate-500">
               This workspace reflects only your own assessment. Start the 5-tier Assessment Wizard, and your
-              composite score, accreditation level, findings, and 24-month capacity plan will build
+              composite score, accreditation level, findings, and capacity plan will build
               automatically from your answers.
             </p>
             <Link to="/assessment" className="mt-6">
