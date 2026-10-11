@@ -54,7 +54,7 @@ export function Footer() {
               aria-label="DiBadili Institute"
             >
               <img
-                src="https://becomechange.institute/logo.png"
+                src="https://www.becomechange.institute/dibadili-logo.png"
                 alt="DiBadili Institute"
                 className="h-8 w-auto"
               />
