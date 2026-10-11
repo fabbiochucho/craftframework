@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { consolidatedEvidenceKey, evidenceManifestSchema, legacyEvidenceStore } from './evidence-consolidation.ts'
 import {
   buildScorecard, canAssignRole, capCloseBlockers, csvEscape, effectiveCapStatus, evidenceExpiryState,
-  hasMinRole, isRateLimitedCount, isVerificationEvidence, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore,
+  capLifecycle, hasMinRole, isRateLimitedCount, isVerificationEvidence, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore,
 } from './workspace.ts'
 
 const migrationEntry = {
@@ -99,5 +99,26 @@ assert.equal(nextReportRun('weekly', new Date('2026-10-10T12:00:00Z')).toISOStri
 assert.equal(nextReportRun('monthly', new Date('2026-01-31T12:00:00Z')).toISOString(), '2026-02-28T12:00:00.000Z')
 assert.equal(nextReportRun('monthly', new Date('2026-02-28T12:00:00Z'), 31).toISOString(), '2026-03-31T12:00:00.000Z')
 assert.equal(nextReportRun('quarterly', new Date('2026-10-10T12:00:00Z')).toISOString(), '2027-01-10T12:00:00.000Z')
+
+// Corrective Action & Evidence Hub lifecycle: closure with/without an effectiveness check,
+// a failed review reopens, and nothing can be reviewed or reopened while still open.
+const open = { status: 'in_progress', effectivenessStatus: 'not_required', reopenedCount: 0 }
+assert.deepEqual(capLifecycle(open, { type: 'close', effectivenessRequired: false }), { patch: { status: 'completed', effectivenessStatus: 'not_required', reopenedCount: 0, reopened: false } })
+const pending = { status: 'completed', effectivenessStatus: 'pending', reopenedCount: 0 }
+assert.deepEqual(capLifecycle(open, { type: 'close', effectivenessRequired: true }), { patch: { ...pending, reopened: false } })
+assert.deepEqual(capLifecycle(pending, { type: 'review', result: 'effective' }), { patch: { status: 'completed', effectivenessStatus: 'effective', reopenedCount: 0, reopened: false } })
+assert.deepEqual(capLifecycle(pending, { type: 'review', result: 'not_effective' }), { patch: { status: 'in_progress', effectivenessStatus: 'not_effective', reopenedCount: 1, reopened: true } })
+assert.ok('error' in capLifecycle({ ...pending, effectivenessStatus: 'effective' }, { type: 'review', result: 'effective' }))
+assert.ok('error' in capLifecycle(open, { type: 'review', result: 'effective' }))
+assert.ok('error' in capLifecycle(open, { type: 'reopen' }))
+assert.ok('error' in capLifecycle(pending, { type: 'close', effectivenessRequired: false }))
+assert.equal((capLifecycle({ ...pending, reopenedCount: 2 }, { type: 'reopen' }) as any).patch.reopenedCount, 3)
+const hub = summarizeCaps([
+  { status: 'completed', severity: 'high', dueDate: null, createdAt: new Date(), completionDate: new Date(), effectivenessStatus: 'pending', reopenedCount: 0 },
+  { status: 'in_progress', severity: 'high', dueDate: null, createdAt: new Date(), completionDate: null, effectivenessStatus: 'not_effective', reopenedCount: 1 },
+])
+assert.equal(hub.effectivenessPending, 1)
+assert.equal(hub.notEffective, 1)
+assert.equal(hub.reopened, 1)
 
 console.log('workspace.test.ts: all assertions passed')

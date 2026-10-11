@@ -10,18 +10,28 @@ import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
-  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs,
+  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
 import {
   ALLOWED_EVIDENCE_MIME, MAX_EVIDENCE_BYTES, SEVERITIES, buildScorecard, canAssignRole, capCloseBlockers,
-  corsHeaders, csvEscape, effectiveCapStatus, evidenceExpiryState, hasMinRole, isRateLimitedCount,
+  capLifecycle, corsHeaders, csvEscape, effectiveCapStatus, evidenceExpiryState, hasMinRole, isRateLimitedCount,
   isVerificationEvidence, isVerifiedOrgEmailDomain, nextReportRun, rateLimitWindowStart, severityFromTier, summarizeCaps, tierFromScore, type OrgRole,
 } from '../lib/workspace.js'
 import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
 import { logger } from '../lib/logger.js'
+import { craftScorecard, criterionById, GOVERNANCE_CRITERIA, GOVERNANCE_PILLARS } from '../../src/lib/craft-governance.js'
+import {
+  applicableChecks, CHECKLIST_VERSION, CHECKS, checkWeight, CLASS_LABELS, JURISDICTIONS, jurisdictionByCode, LEGACY_CHECKS_STATUS, PACK_LABELS, scoreChecklist, STATUS_LABELS,
+  type CheckInstance, type CheckStatus, type EvidenceState, type QaProfile,
+} from '../../src/lib/esg-checklist.js'
+import { qaCsv, renderQaDoc, type QaView } from '../lib/qa-report.js'
+import {
+  catalogueMeta, defaultFirstReportingYear, ESG_CATALOGUE, generateSecPlan, planCsv, renderPlanDoc, SEC_NG_FRAMEWORK,
+  type EntityType, type Horizon, type PlanRow, type PlanSettings, type Readiness,
+} from '../lib/esg-planner.js'
 import {
   classifySupportMessage, isPrivateReport, rankSupportFaq, redactSupportMessage, supportDeduplicationKey,
 } from '../lib/support-bot.js'
@@ -426,37 +436,128 @@ async function refreshFindingsCount(orgId: number, assessmentId: number) {
     .where(and(eq(governanceAssessments.id, assessmentId), eq(governanceAssessments.orgId, orgId)))
 }
 
-// --- ESG starter catalogue (seeded lazily per workspace) -------------------------------------
-const ESG_CATALOGUE = [
-  { name: 'ESRS', jurisdiction: 'EU', applicability: 'all', reqs: [
-    ['ESRS E1-1', 'Transition plan for climate change mitigation', 'environmental', 'high'],
-    ['ESRS S1-1', 'Policies related to own workforce', 'social', 'medium'],
-    ['ESRS G1-1', 'Business conduct policies and corporate culture', 'governance', 'high'],
-  ] },
-  { name: 'ISSB', jurisdiction: 'global', applicability: 'all', reqs: [
-    ['IFRS S1-GOV', 'Governance of sustainability-related risks and opportunities', 'governance', 'high'],
-    ['IFRS S2-MET', 'Climate-related metrics and targets (GHG emissions)', 'environmental', 'high'],
-  ] },
-  { name: 'GRI', jurisdiction: 'global', applicability: 'sector_specific', reqs: [
-    ['GRI 2-9', 'Governance structure and composition', 'governance', 'medium'],
-    ['GRI 305-1', 'Direct (Scope 1) GHG emissions', 'environmental', 'medium'],
-    ['GRI 403-1', 'Occupational health and safety management system', 'social', 'medium'],
-  ] },
-] as const
-
+// --- ESG catalogue (netlify/lib/esg-planner.ts), seeded lazily per workspace -----------------
+// Idempotent per framework name and requirement id, so workspaces seeded before a framework
+// was added still receive it, and edits to existing rows are never overwritten.
 async function ensureEsgCatalogue(orgId: number, wsId: number) {
-  const existing = await db.select({ id: esgFrameworks.id }).from(esgFrameworks)
-    .where(and(eq(esgFrameworks.orgId, orgId), eq(esgFrameworks.workspaceId, wsId))).limit(1)
-  if (existing.length) return
+  const existing = await db.select().from(esgFrameworks).where(and(eq(esgFrameworks.orgId, orgId), eq(esgFrameworks.workspaceId, wsId)))
+  const byName = new Map(existing.map((f) => [f.frameworkName, f]))
+  const ids = existing.map((f) => f.id)
+  const have = ids.length ? await db.select({ fw: esgRequirements.frameworkId, rid: esgRequirements.requirementId }).from(esgRequirements)
+    .where(and(eq(esgRequirements.orgId, orgId), inArray(esgRequirements.frameworkId, ids))) : []
+  const haveKey = new Set(have.map((r) => `${r.fw}|${r.rid}`))
   const deadline = `${new Date().getUTCFullYear() + 1}-12-31`
   for (const f of ESG_CATALOGUE) {
-    const [row] = await db.insert(esgFrameworks).values({
-      orgId, workspaceId: wsId, frameworkName: f.name, jurisdiction: f.jurisdiction, applicability: f.applicability,
-    }).returning()
-    await db.insert(esgRequirements).values(f.reqs.map(([requirementId, requirementText, category, priority]) => ({
-      orgId, frameworkId: row.id, requirementId, requirementText, category, priority, implementationDeadline: deadline,
+    let row = byName.get(f.name)
+    if (!row) [row] = await db.insert(esgFrameworks).values({ orgId, workspaceId: wsId, frameworkName: f.name, jurisdiction: f.jurisdiction, applicability: f.applicability }).returning()
+    const missing = f.reqs.filter(([rid]) => !haveKey.has(`${row!.id}|${rid}`))
+    if (missing.length) await db.insert(esgRequirements).values(missing.map(([requirementId, requirementText, category, priority]) => ({
+      orgId, frameworkId: row!.id, requirementId, requirementText, category, priority, implementationDeadline: deadline,
     })))
   }
+}
+
+function craftResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean }[]) {
+  return scores.map((s) => ({ criterionId: s.domain, score: s.notApplicable ? null : s.tierLevel, evidence: s.evidenceUploaded, notApplicable: s.notApplicable }))
+}
+
+// --- ESG Report Quality Checklist helpers ------------------------------------------------------
+function qaProfile(v: any): QaProfile {
+  if (!v || typeof v !== 'object') throw bad('profile required')
+  const j = jurisdictionByCode(String(v.jurisdiction ?? ''))
+  if (!j) throw bad('unknown jurisdiction')
+  if (!j.categories.some((x) => x.id === v.category)) throw bad('unknown entity category for this jurisdiction')
+  const flag = (k: string) => v[k] === true
+  return {
+    jurisdiction: j.code, category: String(v.category), adoptingVoluntarily: flag('adoptingVoluntarily'), financialActivities: flag('financialActivities'),
+    secScope: j.code === 'NG' && flag('secScope'), mofiScope: j.code === 'NG' && flag('mofiScope'), mofiOverlay: j.code === 'NG' && flag('mofiOverlay'),
+  }
+}
+
+async function loadQaPeriod(orgId: number, wsId: number, id: number) {
+  const [p] = await db.select().from(qaPeriods).where(and(eq(qaPeriods.id, id), eq(qaPeriods.orgId, orgId), eq(qaPeriods.workspaceId, wsId)))
+  if (!p) throw new HttpError(404, 'Not found')
+  return p
+}
+
+const qaApplicable = (p: { profile: unknown; periodStart: string }) => applicableChecks(p.profile as QaProfile, p.periodStart).checks
+
+async function qaEvidenceState(orgId: number, wsId: number, evidenceId: number | null): Promise<EvidenceState> {
+  if (!evidenceId) return 'none'
+  const [e] = await db.select().from(evidenceRegistry).where(and(eq(evidenceRegistry.id, evidenceId), eq(evidenceRegistry.orgId, orgId), eq(evidenceRegistry.workspaceId, wsId)))
+  if (!e || e.archivedAt) return 'none'
+  if (isVerificationEvidence(e)) return 'accepted'
+  return e.status === 'rejected' || evidenceExpiryState(e.expiryDate) === 'expired' ? 'rejected' : 'pending'
+}
+
+async function buildQaView(orgId: number, wsId: number, p: typeof qaPeriods.$inferSelect, signedOff = false): Promise<QaView & { checks: unknown[]; legacy: typeof LEGACY_CHECKS_STATUS; actions: Record<string, number | null>; revisionOf: number | null; revisionReason: string }> {
+  const profile = p.profile as unknown as QaProfile
+  const { applicability, checks } = applicableChecks(profile, p.periodStart)
+  const items = await db.select().from(qaCheckInstances).where(and(eq(qaCheckInstances.orgId, orgId), eq(qaCheckInstances.periodId, p.id)))
+  const byId = new Map(items.map((i) => [i.checkId, i]))
+  const [org] = await db.select().from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+  const evidence = new Map<number, EvidenceState>()
+  for (const i of items) if (i.evidenceId && !evidence.has(i.evidenceId)) evidence.set(i.evidenceId, await qaEvidenceState(orgId, wsId, i.evidenceId))
+  const instances: CheckInstance[] = checks.map(({ check }) => {
+    const i = byId.get(check.id)
+    return { checkId: check.id, status: (i?.status ?? 'not_started') as CheckStatus, evidence: i?.evidenceId ? evidence.get(i.evidenceId)! : 'none', naApproved: !!i?.naApprovedBy }
+  })
+  const summary = scoreChecklist(checks, instances, signedOff)
+  const j = jurisdictionByCode(profile.jurisdiction)!
+  // Corrective actions raised from this period's checks.
+  const instIds = items.map((i) => i.id)
+  const caps = instIds.length ? await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId), eq(capRecords.sourceType, 'qa_check'), inArray(capRecords.sourceId, instIds))) : []
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : null)
+  const openCaps = caps.filter((x) => x.status !== 'completed')
+  const doneCaps = caps.filter((x) => x.status === 'completed')
+  const reviewed = caps.filter((x) => x.effectivenessStatus === 'effective' || x.effectivenessStatus === 'not_effective')
+  const actions = {
+    total: caps.length,
+    open: openCaps.length,
+    overdueRate: pct(openCaps.filter((x) => effectiveCapStatus(x.status, x.dueDate) === 'overdue').length, openCaps.length),
+    onTimeCompletion: pct(doneCaps.filter((x) => !x.dueDate || (x.completionDate && x.completionDate.toISOString().slice(0, 10) <= x.dueDate)).length, doneCaps.length),
+    effectivenessPassRate: pct(reviewed.filter((x) => x.effectivenessStatus === 'effective').length, reviewed.length),
+  }
+  const rows = checks.map(({ check, mandatory, label, reason }, n) => {
+    const i = byId.get(check.id)
+    return {
+      id: check.id, pack: check.pack, title: check.title, label, severity: check.severity, mandatory, reason, acceptance: check.acceptance, evidenceExamples: check.evidence,
+      provisional: !!check.provisional, weight: checkWeight(check),
+      status: instances[n].status, evidenceState: instances[n].evidence, evidenceId: i?.evidenceId ?? null, owner: i?.owner ?? null, reviewer: i?.reviewer ?? null,
+      dueDate: i?.dueDate ?? null, naReason: i?.naReason ?? '', naApprovedBy: i?.naApprovedBy ?? null, blocker: i?.blocker ?? '', notes: i?.notes ?? '',
+    }
+  })
+  return {
+    period: { label: p.label, periodStart: p.periodStart, periodEnd: p.periodEnd, status: p.status, approvedBy: p.approvedBy, approvedAt: p.approvedAt?.toISOString() ?? null, preparedBy: p.preparedBy },
+    organisation: org?.name ?? '', applicability, jurisdiction: { name: j.name, sourceTitle: j.sourceTitle }, summary, rows,
+    checks: rows, legacy: LEGACY_CHECKS_STATUS, actions, revisionOf: p.revisionOf, revisionReason: p.revisionReason,
+  }
+}
+
+// Root cause, expected outcome, resources, dependencies and residual risk on a CAP.
+function capDetailFields(body: Record<string, any>) {
+  const out: Record<string, string> = {}
+  for (const k of ['rootCause', 'expectedOutcome', 'resources', 'dependencies', 'residualRisk'] as const) {
+    if (body[k] !== undefined) out[k] = str(body[k], k, 4000, false)
+  }
+  return out
+}
+
+async function loadSecPlan(orgId: number, wsId: number) {
+  await ensureEsgCatalogue(orgId, wsId)
+  const [fw] = await db.select().from(esgFrameworks).where(and(eq(esgFrameworks.orgId, orgId), eq(esgFrameworks.workspaceId, wsId), eq(esgFrameworks.frameworkName, SEC_NG_FRAMEWORK)))
+  const reqs = await db.select().from(esgRequirements).where(and(eq(esgRequirements.orgId, orgId), eq(esgRequirements.frameworkId, fw.id))).orderBy(asc(esgRequirements.requirementId))
+  const plans = reqs.length ? await db.select().from(esgImplementationPlans).where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId), inArray(esgImplementationPlans.requirementId, reqs.map((r) => r.id)))) : []
+  const ms = plans.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, plans.map((p) => p.id)))).orderBy(asc(esgMilestones.milestoneNum)) : []
+  const rows: (PlanRow & { requirementDbId: number; planId: number | null })[] = reqs.map((r) => {
+    const p = plans.find((x) => x.requirementId === r.id)
+    return {
+      requirementDbId: r.id, planId: p?.id ?? null, requirementId: r.requirementId, requirementText: r.requirementText,
+      owner: p?.owner ?? null, status: p?.status ?? 'not_started', timelineStart: p?.timelineStart ?? null, timelineEnd: p?.timelineEnd ?? null,
+      milestones: p ? ms.filter((m) => m.planId === p.id).map((m) => ({ milestoneNum: m.milestoneNum, description: m.description, targetDate: m.targetDate, status: m.status, completionEvidenceLink: m.completionEvidenceLink })) : [],
+    }
+  })
+  return { fw, rows, settings: fw.settings as Partial<PlanSettings> }
 }
 
 // --- report snapshot --------------------------------------------------------------------------------
@@ -639,10 +740,13 @@ const routes: Route[] = [
   { method: 'GET', pattern: `${W}/assessments`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
     json(await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId))).orderBy(desc(governanceAssessments.id))) },
   { method: 'POST', pattern: `${W}/assessments`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
-    const assessmentType = oneOf(c.body.assessmentType, 'assessmentType', ['G2G', 'ISO', 'COSO'] as const, 'G2G')
+    const assessmentType = oneOf(c.body.assessmentType, 'assessmentType', ['G2G', 'ISO', 'COSO', 'CRAFT'] as const, 'G2G')
+    const reportingPeriod = str(c.body.reportingPeriod, 'reportingPeriod', 50, false)
+    if (c.body.innovationSupport !== undefined && typeof c.body.innovationSupport !== 'boolean') throw bad('innovationSupport must be boolean')
+    const innovationSupport = assessmentType === 'CRAFT' && c.body.innovationSupport === true
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(governanceAssessments)
       .where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId), eq(governanceAssessments.assessmentType, assessmentType)))
-    const [a] = await db.insert(governanceAssessments).values({ orgId, workspaceId: wsId, assessmentType, version: n + 1, createdBy: caller.email }).returning()
+    const [a] = await db.insert(governanceAssessments).values({ orgId, workspaceId: wsId, assessmentType, reportingPeriod, innovationSupport, version: n + 1, createdBy: caller.email }).returning()
     await audit(c, orgId, wsId, 'assessment', a.id, 'create', { assessmentType })
     return json(a, 201)
   } },
@@ -661,13 +765,22 @@ const routes: Route[] = [
   { method: 'PUT', pattern: `${A}/scores/:pillar/:domain`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
     if (a.status !== 'draft') throw new HttpError(409, 'Assessment is locked for review')
-    const score = Number(c.body.score)
-    if (!Number.isFinite(score) || score < 0 || score > 5) throw bad('score must be 0-5')
     const pillar = str(decodeURIComponent(c.p[2]), 'pillar', 100)
     const domain = str(decodeURIComponent(c.p[3]), 'domain', 100)
+    const notApplicable = c.body.notApplicable === true
+    let score = Number(c.body.score)
+    if (a.assessmentType === 'CRAFT') {
+      // CRAFT Governance Scorecard: pillar/criterion must exist; N/A needs a reason; otherwise a 1–5 rubric score.
+      const crit = criterionById(domain)
+      if (crit?.pillarId !== pillar) throw bad('unknown CRAFT pillar/criterion')
+      if (crit.appliesTo === 'innovation_support' && !a.innovationSupport) throw bad('founder-protection criteria apply only to assessments of institutions that fund or support innovation')
+      if (notApplicable) score = 1
+      else if (!Number.isInteger(score) || score < 1 || score > 5) throw bad('score must be an integer 1-5')
+    } else if (!Number.isFinite(score) || score < 0 || score > 5) throw bad('score must be 0-5')
+    const naReason = notApplicable ? str(c.body.naReason, 'naReason', 1000) : ''
     const values = {
-      tierLevel: tierFromScore(score), evidenceUploaded: !!c.body.evidenceUploaded,
-      reviewerNotes: encryptField(str(c.body.reviewerNotes, 'reviewerNotes', 2000, false)),
+      tierLevel: tierFromScore(score), evidenceUploaded: !notApplicable && !!c.body.evidenceUploaded,
+      reviewerNotes: encryptField(str(c.body.reviewerNotes, 'reviewerNotes', 2000, false)), notApplicable, naReason,
     }
     const [row] = await db.insert(governanceScores).values({ orgId, assessmentId: a.id, pillar, domain, ...values })
       .onConflictDoUpdate({ target: [governanceScores.assessmentId, governanceScores.pillar, governanceScores.domain], set: values }).returning()
@@ -731,7 +844,23 @@ const routes: Route[] = [
       db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
       db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
     ])
+    if (a.assessmentType === 'CRAFT') {
+      const { findingsBySeverity } = buildScorecard([], findings)
+      return json({ assessment: a, findingsBySeverity, ...craftScorecard(craftResponses(scores), undefined, { innovationSupport: a.innovationSupport }) })
+    }
     return json({ assessment: a, ...buildScorecard(scores, findings) })
+  } },
+  { method: 'GET', pattern: `${W}/craft-scorecard/catalogue`, access: 'viewer', scope: 'workspace', handler: async () =>
+    json({ pillars: Object.values(GOVERNANCE_PILLARS), criteria: GOVERNANCE_CRITERIA }) },
+  { method: 'GET', pattern: `${W}/craft-scorecard/history`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    // Every CRAFT assessment version with its own score: earlier results are never recalculated away.
+    const list = await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId), eq(governanceAssessments.assessmentType, 'CRAFT'))).orderBy(asc(governanceAssessments.version))
+    const ids = list.map((x) => x.id)
+    const scores = ids.length ? await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), inArray(governanceScores.assessmentId, ids))) : []
+    return json(list.map((x) => {
+      const r = craftScorecard(craftResponses(scores.filter((s) => s.assessmentId === x.id)), undefined, { innovationSupport: x.innovationSupport })
+      return { id: x.id, version: x.version, reportingPeriod: x.reportingPeriod, innovationSupport: x.innovationSupport, status: x.status, startedAt: x.startedAt, overall: r.overall, rating: r.rating?.level ?? null, completeness: r.completeness, pillars: r.pillars.map((p) => ({ id: p.id, score: p.score })) }
+    }))
   } },
   { method: 'POST', pattern: `${A}/submit`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
@@ -762,7 +891,8 @@ const routes: Route[] = [
     await ensureEsgCatalogue(orgId, wsId)
     const jurisdiction = c.url.searchParams.get('jurisdiction')
     const rows = await db.select().from(esgFrameworks).where(and(eq(esgFrameworks.orgId, orgId), eq(esgFrameworks.workspaceId, wsId)))
-    return json(jurisdiction ? rows.filter((r) => r.jurisdiction.toLowerCase() === jurisdiction.toLowerCase()) : rows)
+    const withMeta = rows.map((r) => ({ ...r, meta: catalogueMeta(r.frameworkName) }))
+    return json(jurisdiction ? withMeta.filter((r) => r.jurisdiction.toLowerCase() === jurisdiction.toLowerCase()) : withMeta)
   } },
   { method: 'POST', pattern: `${W}/esg-frameworks/:id/adopt`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const [f] = await db.update(esgFrameworks).set({ adoptionStatus: 'adopted' })
@@ -856,6 +986,215 @@ const routes: Route[] = [
     return json({ items, byCategory })
   } },
 
+  // ---------------------------- 2.3b SEC Nigeria IFRS S1/S2 plan generator ----------------------------
+  { method: 'GET', pattern: `${W}/esg-planner/sec-ng`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const { fw, rows, settings } = await loadSecPlan(orgId, wsId)
+    return json({ framework: { ...fw, meta: catalogueMeta(fw.frameworkName) }, settings, rows })
+  } },
+  { method: 'POST', pattern: `${W}/esg-planner/sec-ng`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const entityType = oneOf(c.body.entityType, 'entityType', ['public_company', 'spicmo', 'sme', 'other'] as const) as EntityType
+    const readiness = oneOf(c.body.readiness, 'readiness', ['early', 'developing', 'advanced'] as const) as Readiness
+    const horizon = oneOf(c.body.horizon, 'horizon', ['90d', '12m', '24m'] as const) as Horizon
+    const startDate = dateOrNull(c.body.startDate, 'startDate') ?? today()
+    let firstReportingYear: number | null = defaultFirstReportingYear(entityType)
+    if (c.body.firstReportingYear != null && c.body.firstReportingYear !== '') {
+      const y = Number(c.body.firstReportingYear)
+      if (!Number.isInteger(y) || y < 2024 || y > 2040) throw bad('firstReportingYear must be a year between 2024 and 2040')
+      firstReportingYear = y
+    }
+    const settings: PlanSettings = { organisationName: str(c.body.organisationName, 'organisationName', 200), entityType, readiness, horizon, startDate, firstReportingYear }
+    const regenerate = c.body.regenerate === true
+    const { fw, rows } = await loadSecPlan(orgId, wsId)
+    await db.update(esgFrameworks).set({ adoptionStatus: 'adopted', settings: { ...settings } }).where(eq(esgFrameworks.id, fw.id))
+    const gen = new Map(generateSecPlan(startDate, horizon).map((g) => [g.requirementId, g]))
+    let created = 0, updated = 0
+    for (const r of rows) {
+      const g = gen.get(r.requirementId)
+      if (!g) continue
+      if (r.planId && !regenerate) continue // never overwrite an organisation's edits silently
+      if (r.planId) {
+        await db.update(esgImplementationPlans).set({ owner: g.owner, timelineStart: g.timelineStart, timelineEnd: g.timelineEnd }).where(eq(esgImplementationPlans.id, r.planId))
+        for (const m of g.milestones) await db.update(esgMilestones).set({ description: m.description, targetDate: m.targetDate })
+          .where(and(eq(esgMilestones.orgId, orgId), eq(esgMilestones.planId, r.planId), eq(esgMilestones.milestoneNum, m.milestoneNum)))
+        updated++
+      } else {
+        const [plan] = await db.insert(esgImplementationPlans).values({
+          orgId, workspaceId: wsId, requirementId: r.requirementDbId, owner: g.owner, timelineStart: g.timelineStart, timelineEnd: g.timelineEnd,
+          milestone1: g.milestones[0].description, milestone2: g.milestones[1].description, milestone3: g.milestones[2].description,
+        }).returning()
+        await db.insert(esgMilestones).values(g.milestones.map((m) => ({ orgId, planId: plan.id, milestoneNum: m.milestoneNum, description: m.description, targetDate: m.targetDate })))
+        created++
+      }
+    }
+    await audit(c, orgId, wsId, 'org', fw.id, 'update', { secPlan: { entityType, readiness, horizon, startDate, firstReportingYear, created, updated } })
+    const fresh = await loadSecPlan(orgId, wsId)
+    return json({ created, updated, settings: fresh.settings, rows: fresh.rows }, created ? 201 : 200)
+  } },
+  { method: 'GET', pattern: `${W}/esg-planner/sec-ng/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const { rows, settings } = await loadSecPlan(orgId, wsId)
+    if (!settings.entityType) throw new HttpError(409, 'Generate the plan before exporting it')
+    await audit(c, orgId, wsId, 'org', wsId, 'read', { secPlanExport: c.url.searchParams.get('format') ?? 'doc' })
+    if (c.url.searchParams.get('format') === 'csv') {
+      return new Response(planCsv(rows, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="ifrs-s1-s2-implementation-plan.csv"' } })
+    }
+    const doc = renderPlanDoc(settings as PlanSettings, rows, today())
+    return new Response(doc, { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': 'attachment; filename="ifrs-s1-s2-implementation-plan.doc"' } })
+  } },
+
+  // ---------------------------- 2.3c ESG Report Quality Checklist ----------------------------
+  { method: 'GET', pattern: `${W}/qa/catalogue`, access: 'viewer', scope: 'workspace', handler: async () => json({
+    version: CHECKLIST_VERSION, legacy: LEGACY_CHECKS_STATUS, classLabels: CLASS_LABELS, packLabels: PACK_LABELS, statusLabels: STATUS_LABELS,
+    jurisdictions: JURISDICTIONS,
+    checks: CHECKS.map(({ condition: _c, ...rest }) => rest),
+  }) },
+  { method: 'GET', pattern: `${W}/qa/periods`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const list = await db.select().from(qaPeriods).where(and(eq(qaPeriods.orgId, orgId), eq(qaPeriods.workspaceId, wsId))).orderBy(desc(qaPeriods.periodStart))
+    const out = []
+    for (const [n, p] of list.entries()) {
+      const v = p.status === 'final' && p.snapshot ? (p.snapshot as unknown as QaView) : await buildQaView(orgId, wsId, p)
+      // Compare with the previous (older) period only when the basis is the same.
+      const prev = list[n + 1]
+      const prof = p.profile as any, pprof = prev?.profile as any
+      const comparabilityWarning = !prev ? null
+        : prof.jurisdiction !== pprof.jurisdiction || prof.category !== pprof.category ? `Entity basis differs from ${prev.label}; scores are not comparable.`
+        : p.checklistVersion !== prev.checklistVersion ? `Checklist version differs from ${prev.label} (${prev.checklistVersion}); compare with care.` : null
+      out.push({ id: p.id, label: p.label, periodStart: p.periodStart, periodEnd: p.periodEnd, status: p.status, jurisdiction: prof.jurisdiction, score: v.summary.score, band: v.summary.band, readyForApproval: v.summary.readyForApproval, revisionOf: p.revisionOf, comparabilityWarning })
+    }
+    return json(out)
+  } },
+  { method: 'POST', pattern: `${W}/qa/periods`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const label = str(c.body.label, 'label', 120)
+    const periodStart = dateOrNull(c.body.periodStart, 'periodStart')
+    const periodEnd = dateOrNull(c.body.periodEnd, 'periodEnd')
+    if (!periodStart || !periodEnd || periodEnd <= periodStart) throw bad('periodStart and periodEnd are required, with the end after the start')
+    const profile = qaProfile(c.body.profile)
+    const [p] = await db.insert(qaPeriods).values({ orgId, workspaceId: wsId, label, periodStart, periodEnd, profile: { ...profile }, checklistVersion: CHECKLIST_VERSION, preparedBy: caller.email }).returning()
+    // Carry-forward copies owners, reviewers and notes as suggestions only: statuses restart and evidence must be reconfirmed.
+    if (c.body.copyFrom != null) {
+      const prev = await loadQaPeriod(orgId, wsId, intParam(String(c.body.copyFrom)))
+      const items = await db.select().from(qaCheckInstances).where(and(eq(qaCheckInstances.orgId, orgId), eq(qaCheckInstances.periodId, prev.id)))
+      if (items.length) await db.insert(qaCheckInstances).values(items.map((i) => ({
+        orgId, periodId: p.id, checkId: i.checkId, owner: i.owner, reviewer: i.reviewer,
+        notes: i.notes ? `Carried forward from ${prev.label} — reconfirm: ${i.notes}`.slice(0, 4000) : '', updatedBy: caller.email,
+      })))
+    }
+    await audit(c, orgId, wsId, 'org', p.id, 'create', { qaPeriod: label, jurisdiction: profile.jurisdiction, copyFrom: c.body.copyFrom ?? null })
+    return json(p, 201)
+  } },
+  { method: 'GET', pattern: `${W}/qa/periods/:id`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const p = await loadQaPeriod(orgId, wsId, intParam(c.p[1]))
+    // Finalised periods never silently recalculate: serve the frozen snapshot.
+    return json(p.status === 'final' && p.snapshot ? { ...(p.snapshot as object), frozen: true, periodId: p.id } : { ...(await buildQaView(orgId, wsId, p)), frozen: false, periodId: p.id })
+  } },
+  { method: 'PUT', pattern: `${W}/qa/periods/:id/checks/:checkId`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller, role }) => {
+    const p = await loadQaPeriod(orgId, wsId, intParam(c.p[1]))
+    if (p.status === 'final') throw new HttpError(409, 'Period is finalised; create a revised period to change it')
+    const checkId = decodeURIComponent(c.p[2])
+    const ac = qaApplicable(p).find((x) => x.check.id === checkId)
+    if (!ac) throw bad('check is not applicable to this period')
+    const [existing] = await db.select().from(qaCheckInstances).where(and(eq(qaCheckInstances.orgId, orgId), eq(qaCheckInstances.periodId, p.id), eq(qaCheckInstances.checkId, checkId)))
+    const set: Record<string, unknown> = { updatedBy: caller.email, updatedAt: new Date() }
+    for (const k of ['owner', 'reviewer'] as const) if (c.body[k] !== undefined) set[k] = str(c.body[k], k, 200, false) || null
+    if (c.body.dueDate !== undefined) set.dueDate = dateOrNull(c.body.dueDate, 'dueDate')
+    for (const k of ['notes', 'blocker'] as const) if (c.body[k] !== undefined) set[k] = str(c.body[k], k, 4000, false)
+    if (c.body.evidenceId !== undefined) {
+      if (c.body.evidenceId === null) set.evidenceId = null
+      else set.evidenceId = (await loadEvidence(orgId, wsId, intParam(String(c.body.evidenceId)))).id
+    }
+    const merged = { status: existing?.status ?? 'not_started', notes: existing?.notes ?? '', blocker: existing?.blocker ?? '', evidenceId: existing?.evidenceId ?? null, ...set } as { status: string; notes: string; blocker: string; evidenceId: number | null }
+    if (c.body.status !== undefined) {
+      const status = oneOf(c.body.status, 'status', ['not_started', 'in_progress', 'met', 'partially_met', 'not_met', 'blocked', 'not_applicable', 'pending_review', 'returned', 'exception_approved'] as const)
+      set.status = merged.status = status
+      if (status === 'met' && await qaEvidenceState(orgId, wsId, merged.evidenceId) !== 'accepted') throw new HttpError(409, 'Met requires linked evidence accepted by an authorised reviewer')
+      if (status === 'partially_met' && !merged.notes.trim()) throw bad('Partially met requires the unmet criteria in notes')
+      if (status === 'not_met' && !merged.notes.trim()) throw bad('Not met requires the gap in notes')
+      if (status === 'returned' && !merged.notes.trim()) throw bad('Returned requires what evidence is missing in notes')
+      if (status === 'pending_review' && !merged.evidenceId) throw bad('Pending review requires linked evidence')
+      if (status === 'exception_approved') {
+        if (!hasMinRole(role, 'admin')) throw new HttpError(403, 'Only an admin can approve an exception')
+        if (ac.mandatory) throw new HttpError(409, 'Exceptions can never waive a mandatory requirement')
+        if (!merged.notes.trim()) throw bad('An exception requires its authorisation and reason in notes')
+      }
+      if (status === 'blocked' && !merged.blocker.trim()) throw bad('Blocked requires the blocker, its owner and the escalation date')
+      if (status === 'not_applicable') {
+        set.naReason = str(c.body.naReason, 'naReason', 2000)
+        set.naSetBy = caller.email
+        set.naApprovedBy = null
+        set.naApprovedAt = null
+      } else Object.assign(set, { naReason: '', naSetBy: null, naApprovedBy: null, naApprovedAt: null })
+    }
+    const [row] = existing
+      ? await db.update(qaCheckInstances).set(set).where(eq(qaCheckInstances.id, existing.id)).returning()
+      : await db.insert(qaCheckInstances).values({ orgId, periodId: p.id, checkId, ...set }).returning()
+    await audit(c, orgId, wsId, 'org', p.id, 'update', { qaCheck: checkId, before: existing ? { status: existing.status, evidenceId: existing.evidenceId } : null, after: { status: row.status, evidenceId: row.evidenceId } })
+    return json(row)
+  } },
+  { method: 'POST', pattern: `${W}/qa/periods/:id/checks/:checkId/approve-na`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const p = await loadQaPeriod(orgId, wsId, intParam(c.p[1]))
+    if (p.status === 'final') throw new HttpError(409, 'Period is finalised')
+    const checkId = decodeURIComponent(c.p[2])
+    const [i] = await db.select().from(qaCheckInstances).where(and(eq(qaCheckInstances.orgId, orgId), eq(qaCheckInstances.periodId, p.id), eq(qaCheckInstances.checkId, checkId)))
+    if (!i || i.status !== 'not_applicable') throw new HttpError(409, 'Only a check marked not applicable can be approved as such')
+    if (i.naSetBy === caller.email && caller.role !== 'super_admin') throw new HttpError(403, 'Segregation of duties: the person who marked it not applicable cannot approve it')
+    const [u] = await db.update(qaCheckInstances).set({ naApprovedBy: caller.email, naApprovedAt: new Date() }).where(eq(qaCheckInstances.id, i.id)).returning()
+    await audit(c, orgId, wsId, 'org', p.id, 'update', { qaNaApproved: checkId, reason: i.naReason })
+    return json(u)
+  } },
+  { method: 'POST', pattern: `${W}/qa/periods/:id/checks/:checkId/cap`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const p = await loadQaPeriod(orgId, wsId, intParam(c.p[1]))
+    const checkId = decodeURIComponent(c.p[2])
+    const ac = qaApplicable(p).find((x) => x.check.id === checkId)
+    if (!ac) throw bad('check is not applicable to this period')
+    let [i] = await db.select().from(qaCheckInstances).where(and(eq(qaCheckInstances.orgId, orgId), eq(qaCheckInstances.periodId, p.id), eq(qaCheckInstances.checkId, checkId)))
+    if (!i) [i] = await db.insert(qaCheckInstances).values({ orgId, periodId: p.id, checkId, updatedBy: caller.email }).returning()
+    const severity = ac.check.severity === 'critical' ? 'critical' : ac.check.severity
+    const [cap] = await db.insert(capRecords).values({
+      orgId, workspaceId: wsId, sourceType: 'qa_check', sourceId: i.id,
+      findingDescription: str(c.body.findingDescription ?? `${p.label} · ${ac.check.id} ${ac.check.title}: ${ac.check.acceptance}`, 'findingDescription', 4000),
+      severity, correctiveAction: str(c.body.correctiveAction, 'correctiveAction', 4000, false),
+      assignedTo: str(c.body.assignedTo ?? i.owner, 'assignedTo', 200, false) || null, dueDate: dateOrNull(c.body.dueDate ?? i.dueDate, 'dueDate'),
+      ...capDetailFields(c.body),
+    }).returning()
+    await audit(c, orgId, wsId, 'cap', cap.id, 'create', { sourceType: 'qa_check', qaPeriod: p.id, check: checkId })
+    return json(cap, 201)
+  } },
+  { method: 'POST', pattern: `${W}/qa/periods/:id/finalise`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const p = await loadQaPeriod(orgId, wsId, intParam(c.p[1]))
+    if (p.status === 'final') throw new HttpError(409, 'Period already finalised')
+    if (p.preparedBy === caller.email && caller.role !== 'super_admin') throw new HttpError(403, 'Segregation of duties: the preparer cannot give final approval')
+    const view = await buildQaView(orgId, wsId, p, true)
+    if (!view.summary.readyForApproval) return json({ error: 'Approval blocked', blockers: view.summary.blockers }, 409)
+    const approvedAt = new Date()
+    const snapshot = { ...view, period: { ...view.period, status: 'final', approvedBy: caller.email, approvedAt: approvedAt.toISOString() } }
+    const [u] = await db.update(qaPeriods).set({ status: 'final', approvedBy: caller.email, approvedAt, snapshot: snapshot as unknown as Record<string, unknown> }).where(eq(qaPeriods.id, p.id)).returning()
+    await audit(c, orgId, wsId, 'org', p.id, 'update', { qaFinalised: p.label, score: view.summary.score })
+    return json(u)
+  } },
+  { method: 'POST', pattern: `${W}/qa/periods/:id/revise`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const p = await loadQaPeriod(orgId, wsId, intParam(c.p[1]))
+    if (p.status !== 'final') throw new HttpError(409, 'Only a finalised period can be revised')
+    const reason = str(c.body.reason, 'reason', 2000)
+    const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(qaPeriods).where(and(eq(qaPeriods.orgId, orgId), eq(qaPeriods.revisionOf, p.id)))
+    const base = p.label.replace(/ \(revision \d+\)$/, '')
+    const [r] = await db.insert(qaPeriods).values({
+      orgId, workspaceId: wsId, label: `${base} (revision ${n + 1})`, periodStart: p.periodStart, periodEnd: p.periodEnd, profile: p.profile,
+      checklistVersion: CHECKLIST_VERSION, preparedBy: caller.email, revisionOf: p.id, revisionReason: reason,
+    }).returning()
+    const items = await db.select().from(qaCheckInstances).where(and(eq(qaCheckInstances.orgId, orgId), eq(qaCheckInstances.periodId, p.id)))
+    if (items.length) await db.insert(qaCheckInstances).values(items.map(({ id: _id, periodId: _p, ...i }) => ({ ...i, periodId: r.id, updatedBy: caller.email, updatedAt: new Date() })))
+    await audit(c, orgId, wsId, 'org', r.id, 'create', { qaRevisionOf: p.id, reason })
+    return json(r, 201)
+  } },
+  { method: 'GET', pattern: `${W}/qa/periods/:id/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const p = await loadQaPeriod(orgId, wsId, intParam(c.p[1]))
+    const view = p.status === 'final' && p.snapshot ? (p.snapshot as unknown as QaView) : await buildQaView(orgId, wsId, p)
+    const format = c.url.searchParams.get('format') === 'csv' ? 'csv' : 'doc'
+    await audit(c, orgId, wsId, 'org', p.id, 'read', { qaExport: format, frozen: p.status === 'final' })
+    const name = `esg-report-qa-${p.label.replace(/[^\w.-]+/g, '_')}`
+    if (format === 'csv') return new Response(qaCsv(view, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.csv"` } })
+    return new Response(renderQaDoc(view, today(), { reportId: `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email }), { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })
+  } },
+
   // ---------------------------- 2.4 CAP ----------------------------
   { method: 'GET', pattern: `${W}/cap/summary`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
     json(summarizeCaps(await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId))))) },
@@ -887,8 +1226,13 @@ const routes: Route[] = [
         .innerJoin(governanceAssessments, eq(governanceAssessments.id, governanceFindings.assessmentId))
         .where(and(eq(governanceFindings.id, sourceId), eq(governanceFindings.orgId, orgId), eq(governanceAssessments.workspaceId, wsId)))
       if (!f) throw bad('sourceId not found in this workspace')
-      description ??= f.f.description
+      // A sensitive finding stays encrypted in its assessment; the CAP only references it.
+      description ??= f.f.sensitive ? `Sensitive governance finding #${f.f.id} (${f.f.domain}) — see the assessment for details` : f.f.description
       severity ??= f.f.severity
+      // Inherit the finding's context so the action keeps its provenance.
+      c.body.correctiveAction ??= f.f.recommendation
+      c.body.assignedTo ??= f.f.ownerAssignment
+      c.body.dueDate ??= f.f.dueDate
     } else if (sourceType === 'esg_requirement') {
       sourceId = Number(c.body.sourceId)
       const r = await loadRequirement(orgId, wsId, sourceId)
@@ -899,6 +1243,7 @@ const routes: Route[] = [
       orgId, workspaceId: wsId, sourceType, sourceId, findingDescription: str(description, 'findingDescription', 4000),
       severity: oneOf(severity, 'severity', SEVERITIES, 'medium'), correctiveAction: str(c.body.correctiveAction, 'correctiveAction', 4000, false),
       assignedTo: str(c.body.assignedTo, 'assignedTo', 200, false) || null, dueDate: dateOrNull(c.body.dueDate, 'dueDate'),
+      ...capDetailFields(c.body),
     }).returning()
     await audit(c, orgId, wsId, 'cap', cap.id, 'create', { sourceType, sourceId })
     return json(cap, 201)
@@ -922,6 +1267,7 @@ const routes: Route[] = [
     if (c.body.severity !== undefined) set.severity = oneOf(c.body.severity, 'severity', SEVERITIES)
     if (c.body.correctiveAction !== undefined) set.correctiveAction = str(c.body.correctiveAction, 'correctiveAction', 4000, false)
     if (c.body.status !== undefined) set.status = oneOf(c.body.status, 'status', ['open', 'in_progress'] as const) // closing goes through /close
+    Object.assign(set, capDetailFields(c.body))
     const comment = str(c.body.comment, 'comment', 2000, false)
     if (!Object.keys(set).length && !comment) throw bad('nothing to update')
     const [u] = Object.keys(set).length ? await db.update(capRecords).set(set).where(eq(capRecords.id, cap.id)).returning() : [cap]
@@ -991,8 +1337,43 @@ const routes: Route[] = [
     if (blockers.length) return json({ error: 'Evidence verification required', blockers }, 409)
     const invalid = await Promise.all(actions.map(async (a, i) => await actionHasValidEvidence(orgId, wsId, cap.id, a.id) ? null : `Action ${i + 1} needs approved, nonarchived, unexpired evidence`))
     if (invalid.some(Boolean)) return json({ error: 'Evidence verification required', blockers: invalid.filter(Boolean) }, 409)
-    const [u] = await db.update(capRecords).set({ status: 'completed', completionDate: new Date() }).where(eq(capRecords.id, cap.id)).returning()
-    await audit(c, orgId, wsId, 'cap', cap.id, 'update', { status: 'completed', by: caller.email })
+    const effectivenessRequired = c.body.effectivenessRequired === true
+    const life = capLifecycle(cap, { type: 'close', effectivenessRequired })
+    if ('error' in life) throw new HttpError(409, life.error)
+    const [u] = await db.update(capRecords).set({
+      status: life.patch.status, completionDate: new Date(), effectivenessStatus: life.patch.effectivenessStatus,
+      effectivenessDue: effectivenessRequired ? dateOrNull(c.body.effectivenessDue, 'effectivenessDue') : null,
+      ...(c.body.residualRisk !== undefined ? { residualRisk: str(c.body.residualRisk, 'residualRisk', 4000, false) } : {}),
+    }).where(eq(capRecords.id, cap.id)).returning()
+    // Closing deliberately leaves the source finding and every score untouched: reassess the criterion.
+    await audit(c, orgId, wsId, 'cap', cap.id, 'update', { status: 'completed', effectivenessRequired, by: caller.email })
+    return json(u)
+  } },
+  { method: 'POST', pattern: `${W}/cap/:id/effectiveness`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (cap.assignedTo && cap.assignedTo.toLowerCase() === caller.email.toLowerCase() && caller.role !== 'super_admin') {
+      throw new HttpError(403, 'Segregation of duties: the accountable owner cannot review the effectiveness of their own action')
+    }
+    const result = oneOf(c.body.result, 'result', ['effective', 'not_effective'] as const)
+    const life = capLifecycle(cap, { type: 'review', result })
+    if ('error' in life) throw new HttpError(409, life.error)
+    const [u] = await db.update(capRecords).set({
+      status: life.patch.status, effectivenessStatus: life.patch.effectivenessStatus, reopenedCount: life.patch.reopenedCount,
+      effectivenessNotes: str(c.body.notes, 'notes', 4000), effectivenessReviewedBy: caller.email, effectivenessReviewedAt: new Date(),
+      ...(life.patch.reopened ? { completionDate: null } : {}),
+      ...(c.body.residualRisk !== undefined ? { residualRisk: str(c.body.residualRisk, 'residualRisk', 4000, false) } : {}),
+    }).where(eq(capRecords.id, cap.id)).returning()
+    await audit(c, orgId, wsId, 'cap', cap.id, 'update', { effectiveness: result, reopened: life.patch.reopened, by: caller.email })
+    return json(u)
+  } },
+  { method: 'POST', pattern: `${W}/cap/:id/reopen`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    const reason = str(c.body.reason, 'reason', 2000)
+    const life = capLifecycle(cap, { type: 'reopen' })
+    if ('error' in life) throw new HttpError(409, life.error)
+    const [u] = await db.update(capRecords).set({ status: life.patch.status, reopenedCount: life.patch.reopenedCount, completionDate: null })
+      .where(eq(capRecords.id, cap.id)).returning()
+    await audit(c, orgId, wsId, 'cap', cap.id, 'update', { reopened: true, reason, by: caller.email })
     return json(u)
   } },
 

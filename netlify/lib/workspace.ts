@@ -113,13 +113,39 @@ export function capCloseBlockers(
   return out
 }
 
+// Corrective Action & Evidence Hub lifecycle after closure. Closing never touches scores or
+// findings: the source criterion must be reassessed on its own. A failed effectiveness review
+// reopens the CAP so the underlying cause is worked again.
+export type EffectivenessStatus = 'not_required' | 'pending' | 'effective' | 'not_effective'
+export function capLifecycle(
+  cap: { status: string; effectivenessStatus: string; reopenedCount: number },
+  event: { type: 'close'; effectivenessRequired: boolean } | { type: 'review'; result: 'effective' | 'not_effective' } | { type: 'reopen' },
+): { error: string } | { patch: { status: string; effectivenessStatus: EffectivenessStatus; reopenedCount: number; reopened: boolean } } {
+  const closed = cap.status === 'completed'
+  if (event.type === 'close') {
+    if (closed) return { error: 'CAP already closed' }
+    return { patch: { status: 'completed', effectivenessStatus: event.effectivenessRequired ? 'pending' : 'not_required', reopenedCount: cap.reopenedCount, reopened: false } }
+  }
+  if (!closed) return { error: 'Only a closed CAP can be reviewed or reopened' }
+  if (event.type === 'review') {
+    if (cap.effectivenessStatus !== 'pending') return { error: 'No effectiveness review is pending for this CAP' }
+    return event.result === 'effective'
+      ? { patch: { status: 'completed', effectivenessStatus: 'effective', reopenedCount: cap.reopenedCount, reopened: false } }
+      : { patch: { status: 'in_progress', effectivenessStatus: 'not_effective', reopenedCount: cap.reopenedCount + 1, reopened: true } }
+  }
+  return { patch: { status: 'in_progress', effectivenessStatus: cap.effectivenessStatus as EffectivenessStatus, reopenedCount: cap.reopenedCount + 1, reopened: true } }
+}
+
 export function summarizeCaps(
-  caps: { status: string; severity: string; dueDate: string | null; createdAt: Date; completionDate: Date | null }[],
+  caps: { status: string; severity: string; dueDate: string | null; createdAt: Date; completionDate: Date | null; effectivenessStatus?: string; reopenedCount?: number }[],
   now: Date = new Date(),
 ) {
   const bySeverity: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 }
-  let open = 0, overdue = 0, completed = 0, closeDays = 0
+  let open = 0, overdue = 0, completed = 0, closeDays = 0, effectivenessPending = 0, notEffective = 0, reopened = 0
   for (const c of caps) {
+    if (c.effectivenessStatus === 'pending') effectivenessPending++
+    if (c.effectivenessStatus === 'not_effective') notEffective++
+    if ((c.reopenedCount ?? 0) > 0) reopened++
     const st = effectiveCapStatus(c.status, c.dueDate, now)
     if (st === 'completed') {
       completed++
@@ -136,6 +162,9 @@ export function summarizeCaps(
     overdue,
     completed,
     bySeverity,
+    effectivenessPending,
+    notEffective,
+    reopened,
     percentComplete: caps.length ? Math.round((completed / caps.length) * 100) : 0,
     avgDaysToClose: completed ? Math.round((closeDays / completed) * 10) / 10 : 0,
   }
