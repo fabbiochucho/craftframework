@@ -582,7 +582,79 @@ paths:
         '403': { description: Forbidden }
         '404': { description: Not found }
         '429': { description: Too many requests }
+  /workspaces/{workspace_id}/cap/{id}/effectiveness:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/cap/{id}/reopen:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
   /workspaces/{workspace_id}/cap/summary:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/craft-scorecard/catalogue:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/craft-scorecard/history:
     parameters:
       - name: workspace_id
         in: path
@@ -626,6 +698,48 @@ paths:
         schema: { type: string }
     post:
       x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/esg-planner/sec-ng:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/esg-planner/sec-ng/export:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
       responses:
         '200': { description: OK }
         '201': { description: Created }
@@ -853,6 +967,200 @@ paths:
   /workspaces/{workspace_id}/offline-frameworks/mutations:
     parameters:
       - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/catalogue:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods/{id}:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods/{id}/checks/{check}Id:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: check
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods/{id}/checks/{check}Id/approve-na:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: check
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods/{id}/checks/{check}Id/cap:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: check
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods/{id}/export:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods/{id}/finalise:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/qa/periods/{id}/revise:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
         in: path
         required: true
         schema: { type: string }
