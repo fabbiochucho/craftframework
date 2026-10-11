@@ -21,7 +21,7 @@ describe('ESG framework catalogue', () => {
     for (const n of ['CDP', 'ESRS', 'GHG Protocol', 'GRI', 'IR', 'ISSB', 'SASB', 'SEC-NG-IFRS', 'TNFD']) assert.ok(names.includes(n), n)
     const sec = first.find((f: any) => f.frameworkName === 'SEC-NG-IFRS')
     assert.equal(sec.meta.obligation, 'mandatory')
-    assert.match(sec.meta.sourceUrl, /sec\.gov\.ng/)
+    assert.equal(new URL(sec.meta.sourceUrl).hostname, 'www.sec.gov.ng')
     assert.equal(first.find((f: any) => f.frameworkName === 'TNFD').meta.requiresVerification, true)
 
     // A workspace seeded before the new frameworks existed receives them without duplicates.
