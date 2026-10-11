@@ -10,7 +10,7 @@ function csvCell(v: string | number) {
   return `"${String(v).replace(/"/g, '""')}"`
 }
 
-function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, orgName: string) {
+function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, orgName: string, planMonths: number) {
   const header = 'ID,Topic,Domain,Tier,Severity,Score,Owner,Due,Status,Mitigation Action'
   const rows = plan.map(r =>
     [
@@ -18,7 +18,7 @@ function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, org
       csvCell(r.owner), csvCell(r.dueDate), csvCell(statusOf(r.id)), csvCell(r.mitigation),
     ].join(','),
   )
-  const meta = `CRAFT 24-Month Capacity Plan,${csvCell(orgName)}`
+  const meta = `CRAFT ${planMonths}-Month Capacity Plan,${csvCell(orgName)}`
   const blob = new Blob([[meta, '', header, ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -32,12 +32,12 @@ export function ReportsPage() {
   const { currentUser } = useAuthCtx()
   const { currentOrg } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
-  const { cipStatuses } = useCIPCtx()
+  const { cipStatuses, planMonths } = useCIPCtx()
   const { logActivity } = useAuditCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
   const composite = computeOrgScore(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
-  const plan = useMemo(() => deriveFindings(orgScores), [orgScores])
+  const plan = useMemo(() => deriveFindings(orgScores, 2, planMonths), [orgScores, planMonths])
   const criticals = plan.filter(p => p.severity === 'Critical')
   const answered = answeredCount(orgScores)
   const [toast, setToast] = useState<string | null>(null)
@@ -90,13 +90,13 @@ export function ReportsPage() {
             </div>
             <h3 className="mt-4 font-display text-lg font-bold text-emerald-900">Capacity Plan (CSV)</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Full 24-month plan with owners, due dates, and mitigation statuses ({plan.length} actions).
+              Full {planMonths}-month plan with owners, due dates, and mitigation statuses ({plan.length} actions).
             </p>
             <Button
               className="mt-4"
               variant="outline"
               disabled={plan.length === 0}
-              onClick={() => { exportCsv(plan, statusOf, currentUser?.orgName ?? 'Workspace'); logActivity('Exported report', 'Capacity Plan (CSV)', 'Export'); setToast('✅ Capacity Plan exported as CSV.') }}
+              onClick={() => { exportCsv(plan, statusOf, currentUser?.orgName ?? 'Workspace', planMonths); logActivity('Exported report', 'Capacity Plan (CSV)', 'Export'); setToast('✅ Capacity Plan exported as CSV.') }}
             >
               <Download className="h-4 w-4" /> Export CSV
             </Button>

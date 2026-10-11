@@ -2261,20 +2261,56 @@ function quarterLabel(month: number): string {
   return `Q${Math.ceil(month / 3)}, Month ${month}`
 }
 
-// Schedule each gap into the 24-month window: the more critical the gap, the
-// earlier it is due. Critical → months 2–6, High → 7–14, Moderate → 15–24.
-function dueMonthFor(severity: DerivedFinding['severity'], index: number): number {
-  if (severity === 'Critical') return 2 + (index % 5)
-  if (severity === 'High') return 7 + (index % 8)
-  return 15 + (index % 10)
+// --- Capacity Development Plan length (self-determinable, see CIPPage) -----
+// The plan used to be a fixed 24-month window. It's now the user's own call,
+// within a sane range - a 1-month turnaround plan and a 20-year plan are both
+// nonsensical to schedule against.
+export const CIP_PLAN_MONTHS_MIN = 1
+export const CIP_PLAN_MONTHS_MAX = 60
+export const CIP_PLAN_MONTHS_DEFAULT = 24
+export const CIP_PLAN_MONTHS_PRESETS = [6, 12, 18, 24, 36] as const
+
+export function clampPlanMonths(months: number): number {
+  if (Number.isNaN(months)) return CIP_PLAN_MONTHS_DEFAULT
+  return Math.min(CIP_PLAN_MONTHS_MAX, Math.max(CIP_PLAN_MONTHS_MIN, Math.round(months)))
+}
+
+// Splits a plan of any length into three proportional severity bands, keeping
+// the same ~22% / ~35% / ~43% split the original fixed 24-month plan used
+// (Critical 2–6, High 7–14, Moderate 15–24 out of 24), collapsing gracefully
+// toward month 1 for very short plans so every band still gets at least one
+// month and nothing is ever scheduled past the plan's own end.
+function planBands(planMonths: number): Record<DerivedFinding['severity'], [number, number]> {
+  const n = clampPlanMonths(planMonths)
+  const criticalEnd = Math.min(n, Math.max(1, Math.round(n * 0.25)))
+  const highStart = Math.min(n, criticalEnd + 1)
+  const highEnd = Math.max(highStart, Math.min(n, Math.round(n * 0.58)))
+  const moderateStart = Math.min(n, highEnd + 1)
+  return {
+    Critical: [1, criticalEnd],
+    High: [highStart, highEnd],
+    Moderate: [moderateStart, n],
+  }
+}
+
+// Schedule each gap into the plan window: the more critical the gap, the
+// earlier it is due, spread across its band so items don't all land on the
+// same month.
+function dueMonthFor(severity: DerivedFinding['severity'], index: number, planMonths: number): number {
+  const [start, end] = planBands(planMonths)[severity]
+  const width = end - start + 1
+  return start + (index % width)
 }
 
 // Build the findings register from the answers provided. Only questions that
 // have actually been answered (a key exists in `orgScores`) and scored at or
 // below `threshold` (default 2) are surfaced as gaps requiring action.
+// `planMonths` is the user-chosen plan length (default 24, see
+// CIP_PLAN_MONTHS_DEFAULT) - every due date is scheduled to fit inside it.
 export function deriveFindings(
   orgScores: Record<string, number>,
   threshold = 2,
+  planMonths: number = CIP_PLAN_MONTHS_DEFAULT,
 ): DerivedFinding[] {
   const sevOrder: Record<DerivedFinding['severity'], number> = { Critical: 0, High: 1, Moderate: 2 }
   const findings: DerivedFinding[] = []
@@ -2284,7 +2320,7 @@ export function deriveFindings(
     const score = orgScores[q.id]
     if (score > threshold) continue
     const severity = severityFromScore(score)
-    const dueMonth = dueMonthFor(severity, i)
+    const dueMonth = dueMonthFor(severity, i, planMonths)
     findings.push({
       id: q.id,
       qId: q.id,

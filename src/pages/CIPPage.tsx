@@ -1,24 +1,39 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TrendingUp, CalendarRange, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useWorkspace, useScoresCtx, useCIPCtx } from '../lib/context'
 import {
   deriveFindings, RISK_STATUSES, RiskStatus, STATUS_STYLES, severityStyle,
+  CIP_PLAN_MONTHS_MIN, CIP_PLAN_MONTHS_MAX, CIP_PLAN_MONTHS_PRESETS,
 } from '../lib/data'
 import {
-  Card, CardContent, CardHeader, CardTitle, Select, StatusBadge, Button,
+  Card, CardContent, CardHeader, CardTitle, Select, Input, StatusBadge, Button,
   Table, Thead, Tbody, Th, Td,
 } from '../components/ui'
+import { cn } from '../lib/utils'
 
 const DEFAULT_STATUS: RiskStatus = 'To-be-Initiated'
 
 export function CIPPage() {
   const { currentOrg } = useWorkspace()
   const { scores } = useScoresCtx()
-  const { cipStatuses, updateCIPStatus } = useCIPCtx()
+  const { cipStatuses, updateCIPStatus, planMonths, setPlanMonths } = useCIPCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
 
-  const plan = useMemo(() => deriveFindings(orgScores), [orgScores])
+  // Local draft so typing a custom value doesn't re-derive (and re-save) the
+  // whole plan on every keystroke - only once it's a valid, settled number.
+  const [monthsDraft, setMonthsDraft] = useState(String(planMonths))
+  // planMonths loads asynchronously from the saved per-org value (it starts
+  // at the default and is replaced once the real value arrives) - keep the
+  // draft in sync with whatever it resolves to.
+  useEffect(() => setMonthsDraft(String(planMonths)), [planMonths])
+  const monthsDraftValid = /^\d+$/.test(monthsDraft) && Number(monthsDraft) >= CIP_PLAN_MONTHS_MIN && Number(monthsDraft) <= CIP_PLAN_MONTHS_MAX
+  const commitMonthsDraft = () => {
+    if (monthsDraftValid) setPlanMonths(Number(monthsDraft))
+    else setMonthsDraft(String(planMonths))
+  }
+
+  const plan = useMemo(() => deriveFindings(orgScores, 2, planMonths), [orgScores, planMonths])
 
   const summary = useMemo(() => {
     const counts: Record<RiskStatus, number> = {
@@ -31,14 +46,60 @@ export function CIPPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">
-          <TrendingUp className="h-4 w-4 text-emerald-600" /> Capacity Development Plan
-        </p>
-        <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">24-Month Strengthening Plan</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Every gap from your assessment, converted into an owned, scheduled mitigation action.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">
+            <TrendingUp className="h-4 w-4 text-emerald-600" /> Capacity Development Plan
+          </p>
+          <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">{planMonths}-Month Strengthening Plan</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Every gap from your assessment, converted into an owned, scheduled mitigation action.
+          </p>
+        </div>
+
+        <Card className="w-full max-w-xs p-4 sm:w-auto">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plan length</p>
+          <p className="mt-0.5 text-xs text-slate-400">Choose any length - due dates rescale to fit.</p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {CIP_PLAN_MONTHS_PRESETS.map(m => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setPlanMonths(m)}
+                aria-pressed={planMonths === m}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors',
+                  planMonths === m
+                    ? 'border-emerald-500 bg-emerald-100 text-emerald-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50',
+                )}
+              >
+                {m}mo
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Input
+              type="number"
+              min={CIP_PLAN_MONTHS_MIN}
+              max={CIP_PLAN_MONTHS_MAX}
+              value={monthsDraft}
+              onChange={e => setMonthsDraft(e.target.value)}
+              onBlur={commitMonthsDraft}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              className="w-20"
+              aria-label="Custom plan length in months"
+            />
+            <span className="text-xs text-slate-500">
+              custom months ({CIP_PLAN_MONTHS_MIN}–{CIP_PLAN_MONTHS_MAX})
+            </span>
+          </div>
+          {!monthsDraftValid && (
+            <p className="mt-1.5 text-xs text-rose-600">
+              Enter {CIP_PLAN_MONTHS_MIN}–{CIP_PLAN_MONTHS_MAX}.
+            </p>
+          )}
+        </Card>
       </div>
 
       {plan.length === 0 ? (
