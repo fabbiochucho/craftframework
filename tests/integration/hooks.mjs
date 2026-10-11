@@ -36,6 +36,11 @@ export async function resolve(specifier, context, nextResolve) {
         const ts = target.slice(0, -3) + '.ts'
         if (existsSync(ts)) return { url: pathToFileURL(ts).href, shortCircuit: true }
       }
+      // src/ uses bundler-style extensionless imports (e.g. '../src/lib/data').
+      if (!path.extname(target) && !existsSync(target)) {
+        const found = ['.ts', '.tsx'].map(ext => target + ext).find(existsSync)
+        if (found) return { url: pathToFileURL(found).href, shortCircuit: true }
+      }
     }
   }
   return nextResolve(specifier, context)

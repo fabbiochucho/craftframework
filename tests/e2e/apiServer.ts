@@ -33,7 +33,10 @@ await applyMigrations()
 const handler = await loadHandler('e2e')
 const als = (globalThis as any).__craftTestIdentityAls
 const legacyHandlers = new Map<string, (request: Request) => Promise<Response>>()
-for (const name of ['legacy-state', 'organizations', 'responses', 'response-notes', 'presigned-url', 'data-room-upload']) {
+for (const name of [
+  'legacy-state', 'organizations', 'responses', 'response-notes', 'presigned-url', 'data-room-upload',
+  'users', 'questions', 'compliance', 'audit', 'capacity-actions', 'access-grants',
+]) {
   const module = await import(new URL(`../../netlify/functions/${name}.mts`, import.meta.url).href)
   legacyHandlers.set(`/api/${name}`, module.default)
 }
