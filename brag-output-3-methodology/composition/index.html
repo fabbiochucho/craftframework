@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      html, body {
+        margin: 0;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      #root > div[data-composition-src] {
+        position: absolute;
+        inset: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="root"
+      data-width="1920"
+      data-height="1080"
+      data-duration="176.5"
+    >
+      <div id="el-hook" data-composition-id="scene-hook" data-composition-src="compositions/scene-hook.html" data-start="0" data-duration="6" data-track-index="1"></div>
+      <div id="el-whatis" data-composition-id="scene-whatis" data-composition-src="compositions/scene-whatis.html" data-start="6" data-duration="8" data-track-index="1"></div>
+      <div id="el-methodology" data-composition-id="scene-methodology" data-composition-src="compositions/scene-methodology.html" data-start="14" data-duration="10" data-track-index="1"></div>
+      <div id="el-core" data-composition-id="scene-core" data-composition-src="compositions/scene-core.html" data-start="24" data-duration="12" data-track-index="1"></div>
+      <div id="el-ladder" data-composition-id="scene-ladder" data-composition-src="compositions/scene-ladder.html" data-start="36" data-duration="11.5" data-track-index="1"></div>
+      <div id="el-indices" data-composition-id="scene-indices" data-composition-src="compositions/scene-indices.html" data-start="47.5" data-duration="13.5" data-track-index="1"></div>
+      <div id="el-penalty" data-composition-id="scene-penalty" data-composition-src="compositions/scene-penalty.html" data-start="61" data-duration="13.5" data-track-index="1"></div>
+      <div id="el-public" data-composition-id="scene-public" data-composition-src="compositions/scene-public.html" data-start="74.5" data-duration="11.5" data-track-index="1"></div>
+      <div id="el-civil" data-composition-id="scene-civil" data-composition-src="compositions/scene-civil.html" data-start="86" data-duration="11.5" data-track-index="1"></div>
+      <div id="el-private" data-composition-id="scene-private" data-composition-src="compositions/scene-private.html" data-start="97.5" data-duration="10.5" data-track-index="1"></div>
+      <div id="el-quickfull" data-composition-id="scene-quickfull" data-composition-src="compositions/scene-quickfull.html" data-start="108" data-duration="12" data-track-index="1"></div>
+      <div id="el-frameworks" data-composition-id="scene-frameworks" data-composition-src="compositions/scene-frameworks.html" data-start="120" data-duration="19.5" data-track-index="1"></div>
+      <div id="el-actionplan" data-composition-id="scene-actionplan" data-composition-src="compositions/scene-actionplan.html" data-start="139.5" data-duration="10.5" data-track-index="1"></div>
+      <div id="el-trustdelta" data-composition-id="scene-trustdelta" data-composition-src="compositions/scene-trustdelta.html" data-start="150" data-duration="10.5" data-track-index="1"></div>
+      <div id="el-outro" data-composition-id="scene-outro" data-composition-src="compositions/scene-outro.html" data-start="160.5" data-duration="16" data-track-index="1"></div>
+
+      <audio
+        id="bg-music-a"
+        src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"
+        data-start="0"
+        data-duration="163.96"
+        data-track-index="10"
+        data-volume="0.14"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[
+          {"t":0,"v":0},
+          {"t":0.3,"v":0.14},
+          {"t":162.5,"v":0.14},
+          {"t":163.5,"v":0.05},
+          {"t":163.96,"v":0}
+        ]}]}'
+      ></audio>
+      <audio
+        id="bg-music-b"
+        src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"
+        data-start="163.96"
+        data-duration="12.54"
+        data-track-index="10"
+        data-volume="0.14"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[
+          {"t":0,"v":0.05},
+          {"t":0.3,"v":0.14},
+          {"t":9.2,"v":0.14},
+          {"t":10.3,"v":0.5},
+          {"t":12,"v":0.5},
+          {"t":12.54,"v":0}
+        ]}]}'
+      ></audio>
+    </div>
+
+    <script>
+      window.__timelines["root"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

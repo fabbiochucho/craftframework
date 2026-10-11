@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 120px;
+        }
+        #esg-radar-shape { opacity: 0; }
+        #esg-right {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 36px;
+        }
+        #esg-badge {
+          width: 200px;
+          height: 110px;
+          border-radius: 20px;
+          background: #d1fae5;
+          border: 6px solid #10b981;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: serif;
+          font-weight: 700;
+          font-size: 64px;
+          color: #064e3b;
+          opacity: 0;
+        }
+        #esg-stats {
+          display: flex;
+          gap: 40px;
+          opacity: 0;
+        }
+        .esg-stat {
+          font-family: monospace;
+          font-size: 26px;
+          color: #334155;
+          background: #f1f5f9;
+          padding: 16px 22px;
+          border-radius: 10px;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-esg" data-width="1920" data-height="1080">
+        <svg viewBox="0 0 520 520" width="520" height="520">
+          <polygon points="260,30 460,145 460,375 260,490 60,375 60,145" fill="none" stroke="#cbd5e1" stroke-width="2" />
+          <polygon id="esg-radar-shape" points="260,160 360,210 350,330 260,380 170,330 165,210" fill="rgba(251,191,36,0.2)" stroke="#f59e0b" stroke-width="5" />
+          <text x="260" y="60" text-anchor="middle" font-size="26" fill="#475569" font-family="monospace">E</text>
+          <text x="470" y="150" text-anchor="middle" font-size="26" fill="#475569" font-family="monospace">S</text>
+          <text x="470" y="390" text-anchor="middle" font-size="26" fill="#475569" font-family="monospace">G</text>
+        </svg>
+        <div id="esg-right">
+          <div id="esg-badge">BBB</div>
+          <div id="esg-stats">
+            <div class="esg-stat">Response: 82%</div>
+            <div class="esg-stat">Verified Score: 71%</div>
+            <div class="esg-stat">Confidence: High</div>
+          </div>
+        </div>
+
+        <audio id="esg-sfx-tick-1" src="../assets/sfx/interface/click_001.ogg" data-start="4" data-duration="0.3" data-track-index="5" data-volume="0.8"></audio>
+        <audio id="esg-sfx-tick-2" src="../assets/sfx/interface/click_002.ogg" data-start="4.2" data-duration="0.3" data-track-index="5" data-volume="0.8"></audio>
+        <audio id="esg-sfx-tick-3" src="../assets/sfx/interface/click_003.ogg" data-start="4.4" data-duration="0.3" data-track-index="5" data-volume="0.8"></audio>
+        <audio id="esg-sfx-land" src="../assets/sfx/impact/impactSoft_medium_001.ogg" data-start="4.7" data-duration="1" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#esg-radar-shape", { opacity: 0, scale: 0.15 }, { opacity: 1, scale: 1, duration: 3.2, ease: "power2.out", transformOrigin: "260px 260px" }, 0.3);
+        tl.fromTo("#esg-badge", { opacity: 0, scale: 1.15 }, { opacity: 1, scale: 1, duration: 0.2, ease: "power4.out" }, 4.7);
+        tl.fromTo("#esg-stats", { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 5.4);
+        window.__timelines["scene-esg"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

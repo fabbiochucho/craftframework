@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 50% 40%, #0c4a39 0%, #052e23 55%, #03201a 100%);
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 26px;
+        }
+        #hk-eyebrow {
+          font-family: monospace;
+          font-size: 30px;
+          letter-spacing: 6px;
+          text-transform: uppercase;
+          color: #a9d4c2;
+          opacity: 0;
+        }
+        #hk-main {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 118px;
+          color: #fbbf24;
+          text-align: center;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-hook" data-width="1920" data-height="1080">
+        <div id="hk-eyebrow">The DiBadili Institute</div>
+        <div id="hk-main">BECOME CHANGE.</div>
+
+        <audio id="hk-narration" src="../assets/voice/l01.wav" data-start="0.4" data-track-index="5" data-volume="1"></audio>
+        <audio id="hk-sfx-whoosh" src="../assets/sfx/interface/switch_001.ogg" data-start="0.1" data-duration="1" data-track-index="6" data-volume="0.4"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#hk-eyebrow", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.3);
+        tl.fromTo("#hk-main", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 1.1);
+        window.__timelines["scene-hook"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

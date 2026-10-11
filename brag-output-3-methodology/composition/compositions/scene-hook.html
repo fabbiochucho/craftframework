@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 40px;
+        }
+        #hk-lockup {
+          display: flex;
+          align-items: center;
+          gap: 50px;
+        }
+        #hk-craft {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          opacity: 0;
+        }
+        #hk-craft img {
+          width: 110px;
+          height: 110px;
+        }
+        #hk-craft span {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 94px;
+          color: #064e3b;
+          letter-spacing: 1px;
+        }
+        #hk-divider {
+          width: 2px;
+          height: 90px;
+          background: #cbd5e1;
+          opacity: 0;
+        }
+        #hk-dibadili {
+          opacity: 0;
+        }
+        #hk-dibadili img {
+          height: 90px;
+          width: auto;
+        }
+        #hk-eyebrow {
+          font-family: monospace;
+          font-size: 24px;
+          letter-spacing: 3px;
+          text-transform: uppercase;
+          color: #92400e;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-hook" data-width="1920" data-height="1080">
+        <div id="hk-lockup">
+          <div id="hk-craft">
+            <img src="../assets/logos/craft-logo.svg" alt="CRAFT" />
+            <span>CRAFT</span>
+          </div>
+          <div id="hk-divider"></div>
+          <div id="hk-dibadili">
+            <img src="../assets/logos/dibadili-logo.png" alt="DiBadili Institute" />
+          </div>
+        </div>
+        <div id="hk-eyebrow">The CRAFT Framework</div>
+
+        <audio id="hk-narration" src="../assets/voice/l01.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+        <audio id="hk-sfx" src="../assets/sfx/interface/switch_001.ogg" data-start="0.1" data-duration="0.62" data-track-index="6" data-volume="0.4"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#hk-craft", { opacity: 0, x: -14 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.2);
+        tl.fromTo("#hk-divider", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.6);
+        tl.fromTo("#hk-dibadili", { opacity: 0, x: 14 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.7);
+        tl.fromTo("#hk-eyebrow", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 1.4);
+        window.__timelines["scene-hook"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

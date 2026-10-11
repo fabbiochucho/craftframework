@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 100px;
+        }
+        #sc-radar-shape { opacity: 0; }
+        #sc-right {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 16px;
+        }
+        #sc-right div {
+          font-family: monospace;
+          font-size: 34px;
+          color: #064e3b;
+          background: #f1f5f9;
+          padding: 14px 24px;
+          border-radius: 10px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-scoring" data-width="1920" data-height="1080">
+        <svg viewBox="0 0 560 560" width="560" height="560">
+          <polygon points="280,40 460,160 460,400 280,520 100,400 100,160" fill="none" stroke="#cbd5e1" stroke-width="2" />
+          <polygon id="sc-radar-shape" points="280,150 390,215 370,345 280,410 190,345 170,215" fill="rgba(16,185,129,0.22)" stroke="#10b981" stroke-width="5" />
+        </svg>
+        <div id="sc-right">
+          <div id="sc-l1">5 Tiers</div>
+          <div id="sc-l2">20 Domains</div>
+          <div id="sc-l3">0&ndash;5 Maturity Scale</div>
+        </div>
+
+        <audio id="sc-narration" src="../assets/voice/l06.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#sc-radar-shape", { opacity: 0, scale: 0.15 }, { opacity: 1, scale: 1, duration: 3.6, ease: "power2.out", transformOrigin: "280px 280px" }, 0.4);
+        tl.fromTo("#sc-l1", { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" }, 4.2);
+        tl.fromTo("#sc-l2", { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" }, 5.4);
+        tl.fromTo("#sc-l3", { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" }, 6.6);
+        window.__timelines["scene-scoring"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

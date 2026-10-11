@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 20px;
+        }
+        #wi-mark {
+          display: flex;
+          align-items: center;
+          gap: 24px;
+          opacity: 0;
+        }
+        #wi-mark img {
+          width: 130px;
+          height: 130px;
+        }
+        #wi-mark span {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 150px;
+          color: #064e3b;
+        }
+        #wi-full {
+          font-size: 36px;
+          color: #334155;
+          opacity: 0;
+        }
+        #wi-icarf {
+          font-family: monospace;
+          font-size: 26px;
+          color: #92400e;
+          background: #fef3c7;
+          padding: 10px 24px;
+          border-radius: 999px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-whatis" data-width="1920" data-height="1080">
+        <div id="wi-mark">
+          <img src="../assets/logos/craft-logo.svg" alt="CRAFT" />
+          <span>CRAFT</span>
+        </div>
+        <div id="wi-full">Capacity Readiness &amp; Fiduciary Assurance Toolkit</div>
+        <div id="wi-icarf">Built on ICARF v4.0</div>
+
+        <audio id="wi-narration" src="../assets/voice/l02.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#wi-mark", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 0.1);
+        tl.fromTo("#wi-full", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 1.6);
+        tl.fromTo("#wi-icarf", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 4.2);
+        window.__timelines["scene-whatis"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

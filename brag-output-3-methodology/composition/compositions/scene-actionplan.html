@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 30px;
+        }
+        #ap-flow {
+          display: flex;
+          align-items: center;
+          gap: 24px;
+          font-family: monospace;
+          font-size: 32px;
+          color: #064e3b;
+        }
+        #ap-gap {
+          background: #fee2e2;
+          border: 2px solid #f43f5e;
+          color: #9f1239;
+          border-radius: 14px;
+          padding: 16px 28px;
+          opacity: 0;
+        }
+        #ap-arrow {
+          font-size: 40px;
+          color: #94a3b8;
+          opacity: 0;
+        }
+        #ap-plan {
+          background: #d1fae5;
+          border: 2px solid #10b981;
+          color: #064e3b;
+          border-radius: 14px;
+          padding: 16px 28px;
+          opacity: 0;
+        }
+        #ap-tags {
+          display: flex;
+          gap: 16px;
+        }
+        .ap-tag {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 30px;
+          color: #92400e;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-actionplan" data-width="1920" data-height="1080">
+        <div id="ap-flow">
+          <div id="ap-gap">Every Gap</div>
+          <div id="ap-arrow">&rarr;</div>
+          <div id="ap-plan">Capacity Plan</div>
+        </div>
+        <div id="ap-tags">
+          <div class="ap-tag">Costed.</div>
+          <div class="ap-tag">Owned.</div>
+          <div class="ap-tag">Time-Bound.</div>
+        </div>
+
+        <audio id="ap-narration" src="../assets/voice/l13.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#ap-gap", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.4, ease: "power3.out" }, 0.3);
+        tl.fromTo("#ap-arrow", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 0.9);
+        tl.fromTo("#ap-plan", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.4, ease: "power3.out" }, 1.2);
+        const tags = [".ap-tag:nth-child(1)", ".ap-tag:nth-child(2)", ".ap-tag:nth-child(3)"];
+        tags.forEach((t, i) => {
+          tl.fromTo(t, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 4.8 + i * 1.0);
+        });
+        window.__timelines["scene-actionplan"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+        }
+        #co-center {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 420px;
+          height: 420px;
+          margin-left: -210px;
+          margin-top: -210px;
+          border-radius: 50%;
+          background: #064e3b;
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          font-family: serif;
+          font-weight: 700;
+          font-size: 34px;
+          padding: 20px;
+          box-sizing: border-box;
+          opacity: 0;
+        }
+        .co-arch {
+          position: absolute;
+          width: 320px;
+          height: 100px;
+          border-radius: 16px;
+          background: #f1f5f9;
+          border: 2px solid #cbd5e1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: monospace;
+          font-size: 24px;
+          color: #064e3b;
+          text-align: center;
+          opacity: 0;
+        }
+        #co-public { left: 120px; top: 150px; }
+        #co-civil { left: 120px; bottom: 150px; }
+        #co-private { right: 120px; top: 490px; }
+      </style>
+
+      <div id="root" data-composition-id="scene-core" data-width="1920" data-height="1080">
+        <div id="co-center">Universal<br />Fiduciary Core</div>
+        <div class="co-arch" id="co-public">Public Sector</div>
+        <div class="co-arch" id="co-civil">Civil Society</div>
+        <div class="co-arch" id="co-private">Private Sector</div>
+
+        <audio id="co-narration" src="../assets/voice/l04.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#co-center", { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 0.3);
+        tl.fromTo("#co-public", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 5.0);
+        tl.fromTo("#co-civil", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 6.0);
+        tl.fromTo("#co-private", { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 7.0);
+        window.__timelines["scene-core"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

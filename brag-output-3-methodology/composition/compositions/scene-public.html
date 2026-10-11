@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #064e3b;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 32px;
+        }
+        #pb-label {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 70px;
+          color: #ffffff;
+          opacity: 0;
+        }
+        #pb-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+          justify-content: center;
+          max-width: 1300px;
+        }
+        .pb-pill {
+          font-family: monospace;
+          font-size: 26px;
+          color: #064e3b;
+          background: #ffffff;
+          border-radius: 999px;
+          padding: 14px 28px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-public" data-width="1920" data-height="1080">
+        <div id="pb-label">Public Sector</div>
+        <div id="pb-pills">
+          <div class="pb-pill" id="pb-p1">Supreme Audit Oversight</div>
+          <div class="pb-pill" id="pb-p2">Public Finance Transparency</div>
+          <div class="pb-pill" id="pb-p3">G2G Funding Controls</div>
+        </div>
+
+        <audio id="pb-narration" src="../assets/voice/l08.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#pb-label", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 0.3);
+        const pills = ["#pb-p1", "#pb-p2", "#pb-p3"];
+        pills.forEach((p, i) => {
+          tl.fromTo(p, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.7)" }, 2.2 + i * 1.2);
+        });
+        window.__timelines["scene-public"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

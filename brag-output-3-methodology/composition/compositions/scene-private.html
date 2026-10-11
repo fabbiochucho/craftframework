@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #064e3b;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 32px;
+        }
+        #pr-label {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 70px;
+          color: #ffffff;
+          opacity: 0;
+        }
+        #pr-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+          justify-content: center;
+          max-width: 1300px;
+        }
+        .pr-pill {
+          font-family: monospace;
+          font-size: 25px;
+          color: #92400e;
+          background: #fde68a;
+          border-radius: 999px;
+          padding: 14px 26px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-private" data-width="1920" data-height="1080">
+        <div id="pr-label">Private Sector</div>
+        <div id="pr-pills">
+          <div class="pr-pill" id="pr-p1">Clean Cap Tables</div>
+          <div class="pr-pill" id="pr-p2">Verified Ownership</div>
+          <div class="pr-pill" id="pr-p3">Unit Economics</div>
+          <div class="pr-pill" id="pr-p4">Investment-Grade ESG</div>
+        </div>
+
+        <audio id="pr-narration" src="../assets/voice/l10.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#pr-label", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 0.3);
+        const pills = ["#pr-p1", "#pr-p2", "#pr-p3", "#pr-p4"];
+        pills.forEach((p, i) => {
+          tl.fromTo(p, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: "back.out(1.7)" }, 1.9 + i * 0.95);
+        });
+        window.__timelines["scene-private"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

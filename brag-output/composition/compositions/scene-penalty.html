@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #0b1220;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        #pen-block {
+          background: #111827;
+          border: 2px solid #1f2937;
+          border-radius: 18px;
+          padding: 56px 64px;
+          box-shadow: 0 0 60px rgba(16,185,129,0.15);
+        }
+        #pen-block .line {
+          font-family: monospace;
+          font-size: 42px;
+          color: #a7f3d0;
+          white-space: pre;
+          overflow: hidden;
+          width: 0;
+        }
+        #pen-block .l2 { color: #fbbf24; padding-left: 50px; }
+        #pen-caption {
+          margin-top: 48px;
+          font-size: 46px;
+          color: #ffffff;
+          font-family: serif;
+          font-weight: 700;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-penalty" data-width="1920" data-height="1080">
+        <div id="pen-block">
+          <div class="line l1">if (implementationEvidence &lt; 50%) {</div>
+          <div class="line l2">accreditationLevel = min(accreditationLevel, "C")</div>
+          <div class="line l3">}</div>
+        </div>
+        <div id="pen-caption">Paper doesn't count. Execution does.</div>
+
+        <audio id="pen-sfx-key-1" src="../assets/sfx/keyboard/keypress-001.wav" data-start="0.2" data-duration="0.4" data-track-index="5" data-volume="0.6"></audio>
+        <audio id="pen-sfx-key-2" src="../assets/sfx/keyboard/keypress-005.wav" data-start="0.8" data-duration="0.4" data-track-index="5" data-volume="0.6"></audio>
+        <audio id="pen-sfx-key-3" src="../assets/sfx/keyboard/keypress-010.wav" data-start="1.4" data-duration="0.4" data-track-index="5" data-volume="0.6"></audio>
+        <audio id="pen-sfx-key-4" src="../assets/sfx/keyboard/keypress-015.wav" data-start="2" data-duration="0.4" data-track-index="5" data-volume="0.6"></audio>
+        <audio id="pen-sfx-key-5" src="../assets/sfx/keyboard/keypress-020.wav" data-start="2.6" data-duration="0.4" data-track-index="5" data-volume="0.6"></audio>
+        <audio id="pen-sfx-sting" src="../assets/sfx/impact/impactBell_heavy_003.ogg" data-start="4.3" data-duration="1" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.to(".line.l1", { width: "auto", duration: 1.1, ease: "none" }, 0.2);
+        tl.to(".line.l2", { width: "auto", duration: 1.5, ease: "none" }, 1.3);
+        tl.to(".line.l3", { width: "auto", duration: 0.3, ease: "none" }, 2.9);
+        tl.fromTo("#pen-caption", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 4.3);
+        window.__timelines["scene-penalty"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

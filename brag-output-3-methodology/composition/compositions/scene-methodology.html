@@ -1,0 +1,78 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 28px;
+          padding: 0 100px;
+          box-sizing: border-box;
+        }
+        #me-stat {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 64px;
+          color: #064e3b;
+          opacity: 0;
+        }
+        #me-tiers {
+          display: flex;
+          gap: 14px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        .me-tier {
+          font-family: monospace;
+          font-size: 22px;
+          color: #064e3b;
+          background: #d1fae5;
+          border-radius: 999px;
+          padding: 10px 20px;
+          opacity: 0;
+        }
+        #me-loop {
+          margin-top: 10px;
+          font-size: 32px;
+          color: #92400e;
+          font-weight: 700;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-methodology" data-width="1920" data-height="1080">
+        <div id="me-stat">5 Tiers &middot; 20 Domains</div>
+        <div id="me-tiers">
+          <div class="me-tier" id="me-t1">Organizational Maturity</div>
+          <div class="me-tier" id="me-t2">Fiduciary Assurance</div>
+          <div class="me-tier" id="me-t3">Grant Management</div>
+          <div class="me-tier" id="me-t4">Donor &amp; USG Readiness</div>
+          <div class="me-tier" id="me-t5">Digital &amp; Operational Readiness</div>
+        </div>
+        <div id="me-loop">Accreditation &rarr; Strengthening &rarr; Monitoring</div>
+
+        <audio id="me-narration" src="../assets/voice/l03.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#me-stat", { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 0.35, ease: "power4.out" }, 0.4);
+        const tiers = ["#me-t1", "#me-t2", "#me-t3", "#me-t4", "#me-t5"];
+        tiers.forEach((t, i) => {
+          tl.fromTo(t, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 1.3 + i * 0.3);
+        });
+        tl.fromTo("#me-loop", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 5.8);
+        window.__timelines["scene-methodology"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 24px;
+        }
+        #ld-title {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 40px;
+          color: #064e3b;
+          opacity: 0;
+        }
+        #ld-rungs {
+          display: flex;
+          flex-direction: column-reverse;
+          gap: 10px;
+        }
+        .ld-rung {
+          width: 620px;
+          height: 54px;
+          border-radius: 10px;
+          background: #f1f5f9;
+          border: 2px solid #cbd5e1;
+          display: flex;
+          align-items: center;
+          padding-left: 24px;
+          font-family: monospace;
+          font-size: 24px;
+          color: #64748b;
+          box-sizing: border-box;
+        }
+        .ld-rung.lit {
+          background: #d1fae5;
+          border-color: #10b981;
+          color: #064e3b;
+        }
+        .ld-rung.top {
+          background: #fde68a;
+          border-color: #fbbf24;
+          color: #92400e;
+          font-weight: 700;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-ladder" data-width="1920" data-height="1080">
+        <div id="ld-title">The Evidence Ladder</div>
+        <div id="ld-rungs">
+          <div class="ld-rung" id="ld-r1">1 &middot; No Evidence</div>
+          <div class="ld-rung" id="ld-r2">2 &middot; Drafted</div>
+          <div class="ld-rung" id="ld-r3">3 &middot; Approved</div>
+          <div class="ld-rung" id="ld-r4">4 &middot; Disseminated</div>
+          <div class="ld-rung" id="ld-r5">5 &middot; Partially Implemented</div>
+          <div class="ld-rung" id="ld-r6">6 &middot; Implemented</div>
+          <div class="ld-rung" id="ld-r7">7 &middot; System-Enforced</div>
+        </div>
+
+        <audio id="ld-narration" src="../assets/voice/l05.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#ld-title", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0.3);
+        const rungs = ["#ld-r1", "#ld-r2", "#ld-r3", "#ld-r4", "#ld-r5", "#ld-r6", "#ld-r7"];
+        rungs.forEach((r, i) => {
+          const t = 1.2 + i * 0.95;
+          const cls = i === rungs.length - 1 ? "top" : "lit";
+          tl.call(() => document.querySelector(r).classList.add(cls), null, t);
+          tl.fromTo(r, { scale: 1.04 }, { scale: 1, duration: 0.18, ease: "power3.out" }, t);
+        });
+        window.__timelines["scene-ladder"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

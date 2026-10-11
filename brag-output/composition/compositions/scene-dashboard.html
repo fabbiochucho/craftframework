@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 100px;
+          padding: 0 100px;
+          box-sizing: border-box;
+        }
+        #dash-left {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 40px;
+        }
+        #dash-score-label {
+          font-size: 32px;
+          color: #64748b;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+        }
+        #dash-score-value {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 150px;
+          color: #064e3b;
+        }
+        #dash-row {
+          display: flex;
+          align-items: center;
+          gap: 48px;
+        }
+        #dash-badge {
+          width: 160px;
+          height: 160px;
+          border-radius: 50%;
+          background: #fde68a;
+          border: 8px solid #fbbf24;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: serif;
+          font-weight: 700;
+          font-size: 90px;
+          color: #92400e;
+          opacity: 0;
+        }
+        #dash-risk {
+          font-size: 44px;
+          font-weight: 700;
+          color: #e11d48;
+          opacity: 0;
+        }
+        #dash-right {
+          width: 560px;
+          height: 560px;
+        }
+        #dash-radar-shape {
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-dashboard" data-width="1920" data-height="1080">
+        <div id="dash-left">
+          <div>
+            <div id="dash-score-label">Composite Score</div>
+            <div id="dash-score-value">0%</div>
+          </div>
+          <div id="dash-row">
+            <div id="dash-badge">D</div>
+            <div id="dash-risk">101 Open Critical Risks</div>
+          </div>
+        </div>
+        <div id="dash-right">
+          <svg viewBox="0 0 560 560" width="560" height="560">
+            <polygon points="280,40 460,160 460,400 280,520 100,400 100,160" fill="none" stroke="#cbd5e1" stroke-width="2" />
+            <polygon id="dash-radar-shape" points="280,160 380,220 360,340 280,400 200,340 190,220" fill="rgba(16,185,129,0.25)" stroke="#10b981" stroke-width="5" />
+          </svg>
+        </div>
+
+        <audio id="dash-sfx-score" src="../assets/sfx/interface/click_002.ogg" data-start="0.2" data-duration="2.6" data-track-index="5" data-volume="0.5"></audio>
+        <audio id="dash-sfx-badge" src="../assets/sfx/impact/impactMetal_heavy_000.ogg" data-start="4.2" data-duration="1" data-track-index="5" data-volume="0.9"></audio>
+        <audio id="dash-sfx-radar" src="../assets/sfx/interface/drop_002.ogg" data-start="6" data-duration="4" data-track-index="5" data-volume="0.5"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        const scoreEl = document.getElementById("dash-score-value");
+        const scoreObj = { val: 0 };
+        tl.to(scoreObj, {
+          val: 45,
+          duration: 2.6,
+          ease: "power1.out",
+          onUpdate: () => { scoreEl.textContent = Math.round(scoreObj.val) + "%"; },
+        }, 0.2);
+        tl.fromTo("#dash-badge", { opacity: 0, scale: 1.2 }, { opacity: 1, scale: 1, duration: 0.2, ease: "power4.out" }, 4.2);
+        tl.fromTo("#dash-risk", { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 5.2);
+        tl.fromTo("#dash-radar-shape", { opacity: 0, scale: 0.15 }, { opacity: 1, scale: 1, duration: 3.5, ease: "power2.out", transformOrigin: "280px 280px" }, 6.2);
+        window.__timelines["scene-dashboard"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

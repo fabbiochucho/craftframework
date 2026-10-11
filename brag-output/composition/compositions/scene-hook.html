@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #000;
+          overflow: hidden;
+          font-family: sans-serif;
+        }
+        #hook-stat {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        #hook-stat .inner {
+          color: #fff;
+          font-weight: 900;
+          font-size: 118px;
+          line-height: 1.02;
+          text-align: center;
+          max-width: 1500px;
+          letter-spacing: -2px;
+        }
+        #hook-wordmark {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        #hook-wordmark .inner {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 220px;
+          color: #34d399;
+          letter-spacing: 4px;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-hook" data-width="1920" data-height="1080">
+        <div id="hook-stat">
+          <div class="inner">101 OPEN<br />CRITICAL RISKS</div>
+        </div>
+        <div id="hook-wordmark" style="opacity: 0;">
+          <div class="inner">CRAFT</div>
+        </div>
+
+        <audio id="hook-sfx-1" src="../assets/sfx/impact/impactBell_heavy_000.ogg" data-start="0" data-duration="1" data-track-index="5" data-volume="1"></audio>
+        <audio id="hook-sfx-2" src="../assets/sfx/impact/impactPlate_heavy_000.ogg" data-start="1.6" data-duration="1" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#hook-stat .inner", { scale: 1.35, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.15, ease: "power4.out" }, 0);
+        tl.to("#hook-stat", { opacity: 0, duration: 0.12 }, 1.55);
+        tl.fromTo("#hook-wordmark", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 1.6);
+        tl.fromTo("#hook-wordmark .inner", { xPercent: 140, opacity: 0 }, { xPercent: 0, opacity: 1, duration: 0.35, ease: "power3.out" }, 1.6);
+        window.__timelines["scene-hook"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

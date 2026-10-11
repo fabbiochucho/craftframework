@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        #wiz-tier {
+          font-family: serif;
+          font-weight: 700;
+          color: #064e3b;
+          font-size: 56px;
+          margin-bottom: 56px;
+        }
+        #wiz-track-wrap {
+          width: 1200px;
+        }
+        #wiz-track {
+          position: relative;
+          width: 100%;
+          height: 28px;
+          background: #e2e8f0;
+          border-radius: 14px;
+        }
+        #wiz-fill {
+          position: absolute;
+          left: 0;
+          top: 0;
+          height: 100%;
+          width: 100%;
+          background: #10b981;
+          border-radius: 14px;
+          transform-origin: left center;
+        }
+        #wiz-cursor {
+          position: absolute;
+          top: -16px;
+          left: 0;
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: #fbbf24;
+          border: 6px solid #ffffff;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+        }
+        #wiz-scale {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 24px;
+          font-size: 30px;
+          color: #64748b;
+          font-family: monospace;
+        }
+        #wiz-label {
+          margin-top: 48px;
+          font-size: 30px;
+          color: #334155;
+          letter-spacing: 1px;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-wizard" data-width="1920" data-height="1080">
+        <div id="wiz-tier">Tier 1 of 5</div>
+        <div id="wiz-track-wrap">
+          <div id="wiz-track">
+            <div id="wiz-fill"></div>
+            <div id="wiz-cursor"></div>
+          </div>
+          <div id="wiz-scale"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+        </div>
+        <div id="wiz-label">5 Tiers &middot; 20 Domains &middot; 7-Point Evidence Matrix</div>
+
+        <audio id="wiz-sfx-sweep" src="../assets/sfx/interface/drop_001.ogg" data-start="0.3" data-duration="3.5" data-track-index="5" data-volume="0.6"></audio>
+        <audio id="wiz-sfx-tick" src="../assets/sfx/interface/click_001.ogg" data-start="4.6" data-duration="1" data-track-index="5" data-volume="0.9"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#wiz-fill", { scaleX: 0.2 }, { scaleX: 0.8, duration: 3.8, ease: "power2.inOut" }, 0.3);
+        tl.fromTo("#wiz-cursor", { x: 210 }, { x: 930, duration: 3.8, ease: "power2.inOut" }, 0.3);
+        tl.to("#wiz-tier", { opacity: 0, duration: 0.15 }, 4.5);
+        tl.call(() => { document.getElementById("wiz-tier").textContent = "Tier 2 of 5"; }, null, 4.65);
+        tl.to("#wiz-tier", { opacity: 1, duration: 0.15 }, 4.65);
+        tl.fromTo("#wiz-label", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 6);
+        window.__timelines["scene-wizard"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

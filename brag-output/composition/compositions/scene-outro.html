@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+        }
+        #outro-slot {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        #outro-slot .chip {
+          width: 280px;
+          height: 280px;
+          border-radius: 40px;
+          background: #fde68a;
+          border: 10px solid #fbbf24;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: serif;
+          font-weight: 700;
+          font-size: 150px;
+          color: #92400e;
+        }
+        #outro-final {
+          position: absolute;
+          inset: 0;
+          background: #064e3b;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 26px;
+          opacity: 0;
+        }
+        #outro-word {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 220px;
+          color: #ffffff;
+          letter-spacing: 4px;
+        }
+        #outro-tag {
+          font-size: 36px;
+          color: #d1fae5;
+          max-width: 1300px;
+          text-align: center;
+        }
+        #outro-cta {
+          margin-top: 20px;
+          font-size: 44px;
+          font-weight: 700;
+          color: #fbbf24;
+        }
+        #outro-url {
+          font-size: 28px;
+          color: #a7f3d0;
+          font-family: monospace;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-outro" data-width="1920" data-height="1080">
+        <div id="outro-slot">
+          <div class="chip" id="outro-chip">E</div>
+        </div>
+        <div id="outro-final">
+          <div id="outro-word">CRAFT</div>
+          <div id="outro-tag">Capacity Readiness &amp; Fiduciary Assurance Toolkit</div>
+          <div id="outro-cta">Register Your Institution &rarr;</div>
+          <div id="outro-url">craftframework.becomechange.institute</div>
+        </div>
+
+        <audio id="outro-sfx-tick-1" src="../assets/sfx/interface/click_001.ogg" data-start="0.15" data-duration="0.2" data-track-index="5" data-volume="0.8"></audio>
+        <audio id="outro-sfx-tick-2" src="../assets/sfx/interface/click_002.ogg" data-start="0.3" data-duration="0.2" data-track-index="5" data-volume="0.8"></audio>
+        <audio id="outro-sfx-tick-3" src="../assets/sfx/interface/click_003.ogg" data-start="0.45" data-duration="0.2" data-track-index="5" data-volume="0.8"></audio>
+        <audio id="outro-sfx-tick-4" src="../assets/sfx/interface/switch_001.ogg" data-start="0.62" data-duration="0.3" data-track-index="5" data-volume="0.85"></audio>
+        <audio id="outro-sfx-land" src="../assets/sfx/impact/impactBell_heavy_004.ogg" data-start="0.82" data-duration="1.2" data-track-index="5" data-volume="1"></audio>
+        <audio id="outro-sfx-cut" src="../assets/sfx/impact/impactMetal_heavy_000.ogg" data-start="3" data-duration="1" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        const chip = document.getElementById("outro-chip");
+        const letters = ["E", "D", "C", "B", "A"];
+        const letterTimes = [0, 0.15, 0.3, 0.45, 0.62];
+        letters.forEach((letter, i) => {
+          tl.call(() => { chip.textContent = letter; }, null, letterTimes[i]);
+        });
+        tl.fromTo("#outro-chip", { scale: 1.3 }, { scale: 1, duration: 0.3, ease: "elastic.out(1, 0.5)" }, 0.62);
+
+        tl.to("#outro-slot", { opacity: 0, duration: 0.1 }, 3);
+        tl.to("#outro-final", { opacity: 1, duration: 0.1 }, 3);
+        tl.fromTo("#outro-word", { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 3.1);
+        tl.fromTo("#outro-tag", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 3.6);
+        tl.fromTo(["#outro-cta", "#outro-url"], { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 4.1);
+
+        window.__timelines["scene-outro"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

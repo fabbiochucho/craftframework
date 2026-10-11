@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 30px;
+        }
+        .trust-badge {
+          font-size: 40px;
+          font-family: monospace;
+          color: #064e3b;
+          background: #f1f5f9;
+          border: 3px solid #cbd5e1;
+          border-radius: 16px;
+          padding: 22px 50px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-trust" data-width="1920" data-height="1080">
+        <div class="trust-badge" id="trust-1">Open-source &middot; GPL-3.0</div>
+        <div class="trust-badge" id="trust-2">Digital Public Good</div>
+        <div class="trust-badge" id="trust-3">Pan-African Perspective</div>
+
+        <audio id="trust-sfx-1" src="../assets/sfx/interface/drop_001.ogg" data-start="0.3" data-duration="1" data-track-index="5" data-volume="0.5"></audio>
+        <audio id="trust-sfx-2" src="../assets/sfx/interface/drop_002.ogg" data-start="2.3" data-duration="1" data-track-index="5" data-volume="0.5"></audio>
+        <audio id="trust-sfx-3" src="../assets/sfx/interface/switch_001.ogg" data-start="4.3" data-duration="1" data-track-index="5" data-volume="0.5"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#trust-1", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.3);
+        tl.fromTo("#trust-2", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 2.3);
+        tl.fromTo("#trust-3", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 4.3);
+        window.__timelines["scene-trust"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

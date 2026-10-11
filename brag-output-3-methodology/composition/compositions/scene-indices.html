@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 30px;
+        }
+        #ix-title {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 44px;
+          color: #064e3b;
+          opacity: 0;
+        }
+        #ix-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 18px;
+        }
+        .ix-chip {
+          width: 320px;
+          height: 90px;
+          border-radius: 14px;
+          background: #f1f5f9;
+          border: 2px solid #cbd5e1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          font-family: monospace;
+          font-size: 24px;
+          color: #064e3b;
+          padding: 0 16px;
+          box-sizing: border-box;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-indices" data-width="1920" data-height="1080">
+        <div id="ix-title">Composite Readiness Indices</div>
+        <div id="ix-grid">
+          <div class="ix-chip">Governance</div>
+          <div class="ix-chip">Fiduciary</div>
+          <div class="ix-chip">Grant Mgmt</div>
+          <div class="ix-chip">Program Delivery</div>
+          <div class="ix-chip">Digital</div>
+          <div class="ix-chip">Risk Mgmt</div>
+          <div class="ix-chip">Sustainability</div>
+          <div class="ix-chip">USG Compliance</div>
+        </div>
+
+        <audio id="ix-narration" src="../assets/voice/l06.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#ix-title", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0.4);
+        const chips = gsap.utils.toArray(".ix-chip");
+        chips.forEach((chip, i) => {
+          tl.fromTo(chip, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(1.6)" }, 1.4 + i * 0.45);
+        });
+        window.__timelines["scene-indices"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

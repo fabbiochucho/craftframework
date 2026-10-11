@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #064e3b;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        #fw-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
+        }
+        .fw-chip {
+          width: 420px;
+          height: 140px;
+          background: #ffffff;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 0 20px;
+          box-sizing: border-box;
+          font-family: monospace;
+          font-size: 28px;
+          color: #064e3b;
+          font-weight: 700;
+          opacity: 0;
+        }
+        #fw-wordmark {
+          position: absolute;
+          font-family: serif;
+          font-weight: 700;
+          font-size: 200px;
+          color: #34d399;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-frameworks" data-width="1920" data-height="1080">
+        <div id="fw-grid">
+          <div class="fw-chip">Pact OMT</div>
+          <div class="fw-chip">OCA / OPI</div>
+          <div class="fw-chip">Global Fund PR FCR</div>
+          <div class="fw-chip" data-layout-allow-overlap>G7 AI Governance</div>
+          <div class="fw-chip" data-layout-allow-overlap>OECD AI</div>
+          <div class="fw-chip">GFA Diagnostic</div>
+          <div class="fw-chip">ESG</div>
+          <div class="fw-chip">Capital Ladder</div>
+          <div class="fw-chip">+1</div>
+        </div>
+        <div id="fw-wordmark" data-layout-allow-overlap>CRAFT</div>
+
+        <audio id="fw-sfx-1" src="../assets/sfx/keyboard/keypress-001.wav" data-start="0.2" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-2" src="../assets/sfx/keyboard/keypress-005.wav" data-start="0.65" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-3" src="../assets/sfx/keyboard/keypress-010.wav" data-start="1.1" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-4" src="../assets/sfx/keyboard/keypress-015.wav" data-start="1.55" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-5" src="../assets/sfx/keyboard/keypress-020.wav" data-start="2" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-6" src="../assets/sfx/interface/click_001.ogg" data-start="2.45" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-7" src="../assets/sfx/interface/click_002.ogg" data-start="2.9" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-8" src="../assets/sfx/interface/click_003.ogg" data-start="3.35" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-9" src="../assets/sfx/interface/drop_001.ogg" data-start="3.8" data-duration="0.3" data-track-index="5" data-volume="0.7"></audio>
+        <audio id="fw-sfx-compress" src="../assets/sfx/impact/impactMetal_heavy_000.ogg" data-start="7.5" data-duration="1" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        const chips = gsap.utils.toArray(".fw-chip");
+        chips.forEach((chip, i) => {
+          const start = 0.2 + i * 0.45;
+          tl.fromTo(chip, { opacity: 0, scale: 1.1 }, { opacity: 1, scale: 1, duration: 0.14, ease: "power4.out" }, start);
+        });
+        tl.to("#fw-grid", { opacity: 0, scale: 0.85, duration: 0.5, ease: "power3.in" }, 7.5);
+        tl.fromTo("#fw-wordmark", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 7.6);
+        window.__timelines["scene-frameworks"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

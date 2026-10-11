@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      html, body {
+        margin: 0;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #000;
+      }
+      #root > div[data-composition-src] {
+        position: absolute;
+        inset: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="root"
+      data-width="1920"
+      data-height="1080"
+      data-duration="120"
+    >
+      <div id="el-hook" data-composition-id="scene-hook" data-composition-src="compositions/scene-hook.html" data-start="0" data-duration="4" data-track-index="1"></div>
+      <div id="el-blindspots" data-composition-id="scene-blindspots" data-composition-src="compositions/scene-blindspots.html" data-start="4" data-duration="10" data-track-index="1"></div>
+      <div id="el-turn" data-composition-id="scene-turn" data-composition-src="compositions/scene-turn.html" data-start="14" data-duration="6" data-track-index="1"></div>
+      <div id="el-wizard" data-composition-id="scene-wizard" data-composition-src="compositions/scene-wizard.html" data-start="20" data-duration="10" data-track-index="1"></div>
+      <div id="el-dashboard" data-composition-id="scene-dashboard" data-composition-src="compositions/scene-dashboard.html" data-start="30" data-duration="12" data-track-index="1"></div>
+      <div id="el-penalty" data-composition-id="scene-penalty" data-composition-src="compositions/scene-penalty.html" data-start="42" data-duration="8" data-track-index="1"></div>
+      <div id="el-capacity" data-composition-id="scene-capacity" data-composition-src="compositions/scene-capacity.html" data-start="50" data-duration="12" data-track-index="1"></div>
+      <div id="el-esg" data-composition-id="scene-esg" data-composition-src="compositions/scene-esg.html" data-start="62" data-duration="10" data-track-index="1"></div>
+      <div id="el-ladder" data-composition-id="scene-ladder" data-composition-src="compositions/scene-ladder.html" data-start="72" data-duration="10" data-track-index="1"></div>
+      <div id="el-frameworks" data-composition-id="scene-frameworks" data-composition-src="compositions/scene-frameworks.html" data-start="82" data-duration="10" data-track-index="1"></div>
+      <div id="el-trust" data-composition-id="scene-trust" data-composition-src="compositions/scene-trust.html" data-start="92" data-duration="8" data-track-index="1"></div>
+      <div id="el-outro" data-composition-id="scene-outro" data-composition-src="compositions/scene-outro.html" data-start="100" data-duration="20" data-track-index="1"></div>
+
+      <audio
+        id="bg-music"
+        src="assets/music/happy-beats-business-moves-vol-1-by-ende-dot-app.mp3"
+        data-start="0"
+        data-duration="120"
+        data-track-index="10"
+        data-volume="0.6"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[
+          {"t":0,"v":0},
+          {"t":1,"v":0.6},
+          {"t":41.5,"v":0.6},
+          {"t":42,"v":0.22},
+          {"t":49.5,"v":0.22},
+          {"t":50,"v":0.75},
+          {"t":82,"v":0.75},
+          {"t":82.5,"v":0.6},
+          {"t":99,"v":0.6},
+          {"t":100,"v":0.85},
+          {"t":118,"v":0.85},
+          {"t":119.5,"v":0}
+        ]}]}'
+      ></audio>
+    </div>
+
+    <script>
+      window.__timelines["root"] = gsap.timeline({ paused: true });
+    </script>
+  </body>
+</html>

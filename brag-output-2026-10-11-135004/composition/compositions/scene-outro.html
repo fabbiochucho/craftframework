@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #064e3b;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 24px;
+          padding: 0 100px;
+          box-sizing: border-box;
+          text-align: center;
+        }
+        #ou-word {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 160px;
+          color: #ffffff;
+          letter-spacing: 3px;
+          opacity: 0;
+        }
+        #ou-cta {
+          font-size: 40px;
+          font-weight: 700;
+          color: #fbbf24;
+          opacity: 0;
+        }
+        #ou-url {
+          font-size: 30px;
+          color: #a7f3d0;
+          font-family: monospace;
+          opacity: 0;
+        }
+        #ou-feedback {
+          margin-top: 18px;
+          font-size: 26px;
+          color: #d1fae5;
+          font-family: monospace;
+          opacity: 0;
+        }
+        #ou-tagline {
+          margin-top: 22px;
+          font-size: 30px;
+          color: #ecfdf5;
+          max-width: 1100px;
+          line-height: 1.5;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-outro" data-width="1920" data-height="1080">
+        <div id="ou-word">CRAFT</div>
+        <div id="ou-cta">Register Your Institution &rarr;</div>
+        <div id="ou-url">craftframework.becomechange.institute</div>
+        <div id="ou-feedback">Tell us what you think &middot; craftframework@becomechange.institute</div>
+        <div id="ou-tagline">Built in Africa, for the partnerships Africa deserves.</div>
+
+        <audio id="ou-narration" src="../assets/voice/l12.wav" data-start="0.4" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#ou-word", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 0.1);
+        tl.fromTo("#ou-cta", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 1.1);
+        tl.fromTo("#ou-url", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 3.4);
+        tl.fromTo("#ou-feedback", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 9.6);
+        tl.fromTo("#ou-tagline", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 14.6);
+        window.__timelines["scene-outro"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

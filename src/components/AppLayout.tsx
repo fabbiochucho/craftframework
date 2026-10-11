@@ -16,7 +16,7 @@ import {
   LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
-  Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone,
+  Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText,
 } from 'lucide-react'
 
 // ICARF v4.0 - a single, unified workspace. The core assessment process (v3
@@ -35,6 +35,7 @@ const workspaceNav = [
   { to: '/obligations', label: 'Obligations & Compliance', icon: CalendarClock },
   { to: '/regulatory-compliance', label: 'Global Regulatory', icon: Globe },
   { to: '/issb-disclosures', label: 'ISSB & CSRD Disclosures', icon: Leaf },
+  { to: '/narrative-report', label: 'Narrative Report Generator', icon: FileText },
   { to: '/informal-economy', label: 'Informal Economy Track', icon: Smartphone },
   { to: '/reports', label: 'Reports', icon: FileBarChart },
   { to: '/app/workspaces', label: 'Org Workspaces', icon: Building2 },

@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 36px;
+        }
+        #pl-heading {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 78px;
+          color: #064e3b;
+        }
+        #pl-rows {
+          display: flex;
+          gap: 36px;
+        }
+        .pl-row {
+          font-size: 28px;
+          color: #475569;
+          font-family: monospace;
+          background: #f1f5f9;
+          padding: 14px 24px;
+          border-radius: 10px;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-plan" data-width="1920" data-height="1080">
+        <div id="pl-heading">24-Month Strengthening Plan</div>
+        <div id="pl-rows">
+          <div class="pl-row" id="pl-row1">Due: Month 6</div>
+          <div class="pl-row" id="pl-row2">Due: Month 12</div>
+          <div class="pl-row" id="pl-row3">Due: Month 18</div>
+        </div>
+
+        <audio id="pl-narration" src="../assets/voice/l08.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+        <audio id="pl-sfx-snap" src="../assets/sfx/interface/switch_002.ogg" data-start="8.3" data-duration="0.6" data-track-index="6" data-volume="0.7"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        const rows = ["#pl-row1", "#pl-row2", "#pl-row3"];
+        tl.call(() => {
+          document.getElementById("pl-heading").textContent = "Any-Length Strengthening Plan";
+          document.getElementById("pl-row1").textContent = "Due: Month 4";
+          document.getElementById("pl-row2").textContent = "Due: Month 9";
+          document.getElementById("pl-row3").textContent = "Due: Month 14";
+        }, null, 8.3);
+        tl.fromTo("#pl-heading", { scale: 1.08 }, { scale: 1, duration: 0.2, ease: "power4.out" }, 8.3);
+        tl.fromTo(rows, { opacity: 0.2, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)", immediateRender: false }, 8.3);
+        window.__timelines["scene-plan"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

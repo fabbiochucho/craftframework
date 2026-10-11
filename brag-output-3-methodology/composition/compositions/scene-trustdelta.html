@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 26px;
+        }
+        #td-icon { opacity: 0; }
+        #td-title {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 54px;
+          color: #064e3b;
+          opacity: 0;
+        }
+        #td-sub {
+          font-size: 30px;
+          color: #475569;
+          max-width: 1100px;
+          text-align: center;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-trustdelta" data-width="1920" data-height="1080">
+        <svg id="td-icon" width="110" height="110" viewBox="0 0 90 90">
+          <path d="M45 8 L78 20 V44 C78 64 63 78 45 84 C27 78 12 64 12 44 V20 Z" fill="none" stroke="#fbbf24" stroke-width="5"/>
+          <path d="M30 46 L41 58 L62 32" fill="none" stroke="#fbbf24" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div id="td-title">Independent Trust Delta Verification</div>
+        <div id="td-sub">One shared, trustworthy picture for donors and auditors.</div>
+
+        <audio id="td-narration" src="../assets/voice/l14.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#td-icon", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 0.3);
+        tl.fromTo("#td-title", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 1.0);
+        tl.fromTo("#td-sub", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 4.5);
+        window.__timelines["scene-trustdelta"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

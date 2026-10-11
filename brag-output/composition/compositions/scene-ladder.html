@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 90px;
+        }
+        #ladder-rungs {
+          display: flex;
+          flex-direction: column-reverse;
+          gap: 16px;
+        }
+        .rung {
+          width: 640px;
+          height: 72px;
+          border-radius: 12px;
+          background: #f1f5f9;
+          border: 3px solid #cbd5e1;
+          display: flex;
+          align-items: center;
+          padding-left: 28px;
+          font-family: monospace;
+          font-size: 30px;
+          color: #64748b;
+          box-sizing: border-box;
+        }
+        .rung.lit {
+          background: #d1fae5;
+          border-color: #10b981;
+          color: #064e3b;
+        }
+        #ladder-badge {
+          font-family: serif;
+          font-weight: 700;
+          font-size: 56px;
+          color: #064e3b;
+          background: #fde68a;
+          border: 6px solid #fbbf24;
+          border-radius: 20px;
+          padding: 28px 44px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-ladder" data-width="1920" data-height="1080">
+        <div id="ladder-rungs">
+          <div class="rung" id="rung-1">1 &middot; Survival</div>
+          <div class="rung" id="rung-2">2 &middot; Credibility</div>
+          <div class="rung" id="rung-3">3 &middot; Resilience</div>
+          <div class="rung" id="rung-4">4 &middot; Stability</div>
+          <div class="rung" id="rung-5">5 &middot; Growth</div>
+          <div class="rung" id="rung-6">6 &middot; Leadership</div>
+          <div class="rung" id="rung-7">7 &middot; Capital Market Ready</div>
+        </div>
+        <div id="ladder-badge">Current Rung 3/7</div>
+
+        <audio id="ladder-sfx-1" src="../assets/sfx/interface/click_001.ogg" data-start="1" data-duration="0.5" data-track-index="5" data-volume="0.8"></audio>
+        <audio id="ladder-sfx-2" src="../assets/sfx/interface/click_002.ogg" data-start="2" data-duration="0.5" data-track-index="5" data-volume="0.85"></audio>
+        <audio id="ladder-sfx-3" src="../assets/sfx/impact/impactPlate_heavy_000.ogg" data-start="2.8" data-duration="1" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.call(() => document.getElementById("rung-1").classList.add("lit"), null, 1);
+        tl.fromTo("#rung-1", { scale: 1.06 }, { scale: 1, duration: 0.2, ease: "power3.out" }, 1);
+        tl.call(() => document.getElementById("rung-2").classList.add("lit"), null, 2);
+        tl.fromTo("#rung-2", { scale: 1.06 }, { scale: 1, duration: 0.18, ease: "power3.out" }, 2);
+        tl.call(() => document.getElementById("rung-3").classList.add("lit"), null, 2.8);
+        tl.fromTo("#rung-3", { scale: 1.08 }, { scale: 1, duration: 0.16, ease: "power3.out" }, 2.8);
+        tl.fromTo("#ladder-badge", { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }, 3.1);
+        window.__timelines["scene-ladder"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

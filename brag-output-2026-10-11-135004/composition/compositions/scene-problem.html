@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #0b1220;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 18px;
+          padding: 0 120px;
+          box-sizing: border-box;
+          text-align: center;
+        }
+        #pr-capable {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 86px;
+          color: #f1f5f9;
+          opacity: 0;
+        }
+        #pr-locked {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 100px;
+          color: #f43f5e;
+          opacity: 0;
+        }
+        #pr-sub1, #pr-sub2 {
+          font-size: 34px;
+          color: #94a3b8;
+          max-width: 1300px;
+          line-height: 1.5;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-problem" data-width="1920" data-height="1080">
+        <div id="pr-capable">CAPABLE INSTITUTIONS.</div>
+        <div id="pr-locked">LOCKED OUT.</div>
+        <div id="pr-sub1">...because they can't prove what they already do well,</div>
+        <div id="pr-sub2">while funders lean on manuals that never reach practice.</div>
+
+        <audio id="pr-narration" src="../assets/voice/l04.wav" data-start="0.4" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#pr-capable", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.4);
+        tl.fromTo("#pr-locked", { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power4.out" }, 2.6);
+        tl.fromTo("#pr-sub1", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 6.8);
+        tl.fromTo("#pr-sub2", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 10.2);
+        window.__timelines["scene-problem"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

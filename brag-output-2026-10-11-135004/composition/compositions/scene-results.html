@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 30px;
+        }
+        #rs-badge {
+          width: 220px;
+          height: 220px;
+          border-radius: 50%;
+          background: #d1fae5;
+          border: 8px solid #10b981;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: serif;
+          font-weight: 900;
+          font-size: 110px;
+          color: #064e3b;
+          opacity: 0;
+        }
+        #rs-line {
+          font-size: 36px;
+          color: #334155;
+          text-align: center;
+          max-width: 1200px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-results" data-width="1920" data-height="1080">
+        <div id="rs-badge">A&minus;</div>
+        <div id="rs-line">Ready for Direct G2G, DFI &amp; Donor Partnerships.</div>
+
+        <audio id="rs-narration" src="../assets/voice/l10.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+        <audio id="rs-sfx-land" src="../assets/sfx/impact/impactSoft_medium_000.ogg" data-start="2.8" data-duration="1" data-track-index="6" data-volume="0.6"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#rs-badge", { opacity: 0, scale: 1.2 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power4.out" }, 2.8);
+        tl.fromTo("#rs-line", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 4.4);
+        window.__timelines["scene-results"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

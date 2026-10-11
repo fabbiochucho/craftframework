@@ -1,0 +1,76 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 60px;
+        }
+        .qf-card {
+          width: 560px;
+          height: 480px;
+          border-radius: 24px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 18px;
+          padding: 0 40px;
+          box-sizing: border-box;
+          text-align: center;
+          opacity: 0;
+        }
+        #qf-quick {
+          background: #f1f5f9;
+          border: 2px solid #cbd5e1;
+        }
+        #qf-full {
+          background: #064e3b;
+          color: #ffffff;
+        }
+        .qf-card .qf-stat {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 56px;
+        }
+        #qf-quick .qf-stat { color: #064e3b; }
+        #qf-full .qf-stat { color: #fbbf24; }
+        .qf-card .qf-desc {
+          font-size: 24px;
+          line-height: 1.5;
+        }
+        #qf-quick .qf-desc { color: #475569; }
+        #qf-full .qf-desc { color: #d1fae5; }
+      </style>
+
+      <div id="root" data-composition-id="scene-quickfull" data-width="1920" data-height="1080">
+        <div class="qf-card" id="qf-quick">
+          <div class="qf-stat">2-Minute<br />Quick Check</div>
+          <div class="qf-desc">A snapshot of policy intent. No login required.</div>
+        </div>
+        <div class="qf-card" id="qf-full">
+          <div class="qf-stat">450-Question<br />Full Assessment</div>
+          <div class="qf-desc">Real, verified evidence across every domain.</div>
+        </div>
+
+        <audio id="qf-narration" src="../assets/voice/l11.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#qf-quick", { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.4);
+        tl.fromTo("#qf-full", { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 5.2);
+        window.__timelines["scene-quickfull"] = tl;
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+  <head></head>
+  <body>
+    <template>
+      <style>
+        #root {
+          position: absolute;
+          inset: 0;
+          background: #ffffff;
+          overflow: hidden;
+          font-family: sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        #rv-word {
+          font-family: serif;
+          font-weight: 900;
+          font-size: 230px;
+          color: #064e3b;
+          letter-spacing: 4px;
+          opacity: 0;
+        }
+      </style>
+
+      <div id="root" data-composition-id="scene-reveal" data-width="1920" data-height="1080">
+        <div id="rv-word">CRAFT</div>
+
+        <audio id="rv-narration" src="../assets/voice/l02.wav" data-start="0.3" data-track-index="5" data-volume="1"></audio>
+        <audio id="rv-sfx-hit" src="../assets/sfx/impact/impactPlate_heavy_000.ogg" data-start="0.05" data-duration="1" data-track-index="6" data-volume="0.9"></audio>
+      </div>
+
+      <script>
+        const tl = gsap.timeline({ paused: true });
+        tl.fromTo("#rv-word", { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1, duration: 0.22, ease: "power4.out" }, 0.1);
+        window.__timelines["scene-reveal"] = tl;
+      </script>
+    </template>
+  </body>
+</html>
