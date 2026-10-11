@@ -2180,7 +2180,7 @@ export const GLOSSARY = [
 export const LIFECYCLE = [
   { step: 1, name: 'Assessment', desc: 'Diagnose institutional readiness across 5 tiers and 20 domains using a 0–5 maturity scale backed by a 7-point evidence matrix.' },
   { step: 2, name: 'Accreditation', desc: 'Compute a Level A–E rating. The Paper Compliance Penalty Engine caps the level when implementation evidence is weak.' },
-  { step: 3, name: 'Strengthening', desc: 'Convert every gap into a costed, owned, and time-bound action within a 24-month Capacity Improvement Plan.' },
+  { step: 3, name: 'Strengthening', desc: 'Convert every gap into a costed, owned, and time-bound action within a Capacity Improvement Plan scheduled to your own chosen timeframe.' },
   { step: 4, name: 'Monitoring', desc: 'Track validated execution over time, re-scoring as evidence matures and donor frameworks evolve.' },
 ]
 
@@ -2505,7 +2505,7 @@ export const USER_GUIDE: GuideSection[] = [
     id: 'findings',
     icon: 'target',
     title: 'Findings & the Capacity Plan',
-    summary: 'Turn gaps into a costed, owned, time-bound 24-month plan.',
+    summary: 'Turn gaps into a costed, owned, time-bound plan on a timeframe you choose.',
     roles: ['assessor', 'independent', 'portfolio'],
     steps: [
       {
@@ -2514,9 +2514,9 @@ export const USER_GUIDE: GuideSection[] = [
           'Every question scored 2 or below becomes a finding, classified Critical (0–1) or High (2). Findings appear automatically in your Findings register as you score.',
       },
       {
-        heading: 'The 24-Month Capacity Plan',
+        heading: 'The Capacity Plan',
         detail:
-          'Each finding is converted into a costed, owned, time-bound action. Owners are assigned from the question’s domain and due dates are scheduled by severity, with critical gaps front-loaded into the first six months.',
+          'Each finding is converted into a costed, owned, time-bound action. Owners are assigned from the question’s domain and due dates are scheduled by severity - critical gaps front-loaded earliest - rescaled to fit whatever plan length you choose (default 24 months, adjustable from the Capacity Plan page).',
       },
       {
         heading: 'Track execution',
