@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { getUser, logout as identityLogout } from '@netlify/identity'
 import { clearOfflineSession, setOfflineSession } from '../lib/offline/session'
+import { api } from '../lib/workspaceApi'
 import { cn } from '../lib/utils'
 import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
 import { Badge, Button } from './ui'
@@ -108,9 +109,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         return
       }
       navigate({ to: '/auth' })
-    } else if (!onboardingComplete) {
-      navigate({ to: '/onboarding' })
+      return
     }
+    if (onboardingComplete) return
+    // The legacy onboarding flag (entityProfile.onboardingComplete + archetype)
+    // only tracks the old /onboarding wizard. A user who has instead set up an
+    // organization through the newer /app/workspaces platform has equally
+    // onboarded - without this check they'd be bounced back to the old wizard
+    // every time they open the new workspace system. Check rather than flip
+    // the legacy flag itself, since that state is also driven by its own
+    // effect elsewhere and a one-time imperative overwrite here could race it.
+    let cancelled = false
+    api<unknown[]>('/orgs')
+      .then(orgs => {
+        if (cancelled) return
+        if (!Array.isArray(orgs) || orgs.length === 0) navigate({ to: '/onboarding' })
+      })
+      .catch(() => {
+        if (!cancelled) navigate({ to: '/onboarding' })
+      })
+    return () => { cancelled = true }
   }, [authReady, currentUser, onboardingComplete, navigate, enterDemo])
 
   // Before Identity resolves (always true on first server paint - GoTrue is a
