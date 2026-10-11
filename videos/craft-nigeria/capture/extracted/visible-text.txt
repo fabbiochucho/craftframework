@@ -1,0 +1,98 @@
+[p] CRAFT
+[p] ICARF v4.0
+[p] DiBadili Institute
+[a] Readiness Check
+[a] Methodology
+[a] Architecture
+[a] The Institute
+[a] Open Source
+[button] Sign in
+[button] Register Your Institution
+[div] DiBadili Institute
+[div] · A Digital Public Good
+[h1] CRAFT
+[p] Capacity Readiness & Fiduciary Assurance Toolkit
+[p] The CRAFT Framework: Building Fiduciary Trust for Direct G2G, DFI and Donor Partnerships.
+[button] Register Your Institution
+[button] Explore the Methodology
+[p] CRAFT
+[p] ICARF v4.0
+[p] Universal Institutional Failures
+[h2] The blindspots CRAFT was built to expose.
+[p] Abstracted from fiduciary assessments across the globe, the same structural gaps recur regardless of geography or mandate.
+[h3] The Spreadsheet Trap
+[p] Legacy accounting systems unable to generate automated donor-specific trial balances.
+[h3] The Sub-National Blindspot
+[p] Centralized logistics systems with critically low facility-level reporting.
+[h3] The Paper Compliance Illusion
+[p] Institutions with perfect policy manuals but zero system-enforced implementation.
+[h3] The Anonymity Gap
+[p] Whistleblowing mechanisms requiring staff names, deterring fraud reporting.
+[p] One framework, three institutional realities
+[h2] Built for every institution in the trust chain.
+[p] A universal fiduciary core applies to all institutions. CRAFT then adapts the questions, evidence and Data Room to your organizational archetype - so you are measured against the standard that actually governs your funding.
+[h3] Public Sector
+[p] For G2G funding & public accountability
+[p] Ministries, agencies, regulators & sub-national entities
+[span] Ministry
+[span] Agency
+[span] National Public Health Institute (NPHI)
+[span] Regulatory Authority
+[span] Sub-National Entity
+[h3] Civil Society
+[p] For grant eligibility & donor trust
+[p] NGOs, foundations, cooperatives & member bodies
+[span] NGO
+[span] Cooperative
+[span] Foundation
+[span] Faith-Based
+[span] Research Institute
+[h3] Private Sector
+[p] For investment & contract readiness
+[p] SMEs, startups & corporates seeking capital or contracts
+[span] Fintech
+[span] Healthtech
+[span] Agritech
+[span] Manufacturing
+[span] Tech / SaaS
+[h2] A four-layer lifecycle, from intent to execution.
+[h3] Assessment
+[p] Diagnose institutional readiness across 5 tiers and 20 domains using a 0–5 maturity scale backed by a 7-point evidence matrix.
+[h3] Accreditation
+[p] Compute a Level A–E rating. The Paper Compliance Penalty Engine caps the level when implementation evidence is weak.
+[h3] Strengthening
+[p] Convert every gap into a costed, owned, and time-bound action within a Capacity Improvement Plan scheduled to your own chosen timeframe.
+[h3] Monitoring
+[p] Track validated execution over time, re-scoring as evidence matures and donor frameworks evolve.
+[h2] Pan-African excellence, institutional gravity.
+[p] CRAFT carries the
+[p] DiBadili Institute
+[p] 's commitment to integrity, sovereignty, and continuous development, engineered for the institutions shaping Africa's transformation.
+[span] Excellence in Institutional Quality
+[span] Pan-African Perspective
+[span] Integrity & Principled Leadership
+[span] Afro-Continuous Development Mindset
+[p] Multi-Tenant Isolation
+[p] Scoped strictly by organization_id.
+[p] Execution-First Scoring
+[p] Paper compliance never inflates a score.
+[p] Explore Before You Register
+[h2] See CRAFT with live sample data.
+[p] Open a fully populated, read-only demo in a new tab, with every screen pre-loaded with illustrative institutions. The demo is completely isolated and never touches a real workspace.
+[button] Demo: Assessor Workspace
+[button] Demo: Portfolio View
+[a] See demo
+[h2] Ready to choose to become it?
+[p] Register your institution and run your first readiness assessment in minutes.
+[button] Register Your Institution
+[a] Code of Conduct
+[a] Open Source
+[a] Methodology
+[a] Terms of Service
+[a] Privacy Policy
+[a] Press Kit
+[a] DiBadili Institute
+[p] . CRAFT (ICARF v4.0) is an open-source public good. Software GPL-3.0 | Framework CC BY-SA 4.0.
+[span] Powered by Netlify
+[p] Distributed under the
+[a] GNU General Public License v3

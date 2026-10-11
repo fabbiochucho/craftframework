@@ -1,0 +1,159 @@
+<template>
+<style>
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-ext-300-normal-CPgO9Ksf.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-300-normal-Dp1L8vcn.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-300-normal-BVlfKGgI.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-300-normal-i8F0SvXL.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-inter-latin-ext-400-normal-C1nco2VV.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-400-normal-77YHD8bZ.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:500;src:url("assets/fonts/captured-playfair-display-latin-ext-500-normal-DE-Iylxw.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-ext-500-normal-CFxFMdkY.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:500;src:url("assets/fonts/captured-playfair-display-latin-500-normal-DIxvyhka.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-500-normal-BScSeVwi.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:600;src:url("assets/fonts/captured-playfair-display-latin-ext-600-normal-CEjQclLc.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-ext-600-normal-BumBfC1v.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-Bc8Ftmh3.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-fXTG6kC5.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-400-normal-6-qcROiO.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:600;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-BfB_LPfz.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-DObL3zCW.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+/* shared latin faces (appended last so they win) */
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:400;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/inter-latin-500.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:600;src:url("assets/fonts/inter-latin-600.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:700;src:url("assets/fonts/inter-latin-700.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+</style>
+<style>
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: Inter, sans-serif; color: #1E293B; }
+  .s8-ground { position: absolute; inset: 0; background: #FFFFFF; }
+  .s8-stage { position: absolute; inset: 0; }
+  .s8-cam { position: absolute; inset: 0; transform-origin: 50% 45%; }
+  .s8-top { position: absolute; left: 96px; right: 96px; top: 64px; display: flex; justify-content: space-between; align-items: center; padding-bottom: 18px; border-bottom: 2px solid #00744D; font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 26px; letter-spacing: 0.18em; text-transform: uppercase; color: #00744D; }
+  .s8-mono { font-family: "JetBrains Mono", monospace; font-weight: 500; text-transform: uppercase; letter-spacing: 0.14em; font-size: 22px; }
+  .s8-tiles { position: absolute; left: 96px; right: 96px; top: 176px; height: 680px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  .s8-tile { position: relative; border: 2.5px solid #00744D; border-radius: 8px; padding: 34px 36px; display: flex; flex-direction: column; overflow: hidden; }
+  .s8-t1 { background: #FFFFFF; color: #00744D; }
+  .s8-t2 { background: #00744D; color: #FFFFFF; border-color: #00744D; }
+  .s8-t3 { background: #00BC7D; color: #004F3B; border-color: #00BC7D; }
+  .s8-ord { padding-bottom: 14px; border-bottom: 2px solid currentColor; }
+  .s8-title { font-weight: 500; font-size: 56px; line-height: 0.98; letter-spacing: -0.01em; margin-top: 22px; }
+  /* tile 1: gap -> action card */
+  .s8-morph { position: relative; height: 230px; margin-top: 28px; }
+  .s8-gap, .s8-card { position: absolute; left: 0; right: 0; top: 0; border-radius: 6px; }
+  .s8-gap { height: 92px; background: #ABFFE3; border: 2px solid #00744D; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 28px; color: #004F3B; }
+  .s8-gap b { font-weight: 500; }
+  .s8-card { height: 230px; background: #00744D; color: #FFFFFF; padding: 20px 24px; display: flex; flex-direction: column; justify-content: space-between; transform-origin: 50% 0; }
+  .s8-row { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 2px solid #00BC7D; }
+  .s8-row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .s8-row .s8-mono { color: #ABFFE3; font-size: 20px; }
+  .s8-row span:last-child { font-size: 30px; font-weight: 500; }
+  .s8-plan { margin-top: auto; }
+  .s8-plan-head { display: flex; justify-content: space-between; color: #00744D; }
+  .s8-slider { position: relative; height: 34px; margin-top: 14px; }
+  .s8-rail { position: absolute; left: 0; right: 0; top: 15px; height: 4px; background: #ABFFE3; border-radius: 2px; }
+  .s8-knob { position: absolute; top: 2px; left: 0; width: 30px; height: 30px; margin-left: -15px; border-radius: 50%; background: #00744D; }
+  .s8-track { position: relative; height: 22px; margin-top: 18px; border: 2px solid #00744D; border-radius: 3px; }
+  .s8-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #00BC7D; transform-origin: 0 50%; }
+  /* tile 2: report page */
+  .s8-page { position: relative; margin-top: 28px; flex: 1; background: #FFFFFF; border-radius: 6px; padding: 30px; color: #1E293B; display: flex; flex-direction: column; }
+  .s8-doc-title { font-weight: 500; font-size: 44px; line-height: 1; letter-spacing: -0.01em; color: #00744D; padding-bottom: 18px; border-bottom: 2px solid #00744D; }
+  .s8-line { height: 14px; background: #1E293B; border-radius: 3px; margin-top: 26px; transform-origin: 0 50%; }
+  .s8-line.s8-l2 { width: 92%; }
+  .s8-line.s8-l3 { width: 64%; }
+  .s8-foot { margin-top: auto; padding-top: 14px; border-top: 2px solid #00744D; color: #00744D; display: flex; justify-content: space-between; }
+  /* tile 3: offline */
+  .s8-off { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 44px; }
+  .s8-wifi { width: 220px; height: 180px; overflow: visible; }
+  .s8-pill { display: inline-flex; align-items: center; gap: 14px; background: #004F3B; color: #FFFFFF; border-radius: 999px; padding: 18px 28px; font-size: 22px; }
+  .s8-dot { width: 16px; height: 16px; border-radius: 50%; background: #ABFFE3; }
+</style>
+<div data-hf-id="hf-y0q9" id="root" data-composition-id="08-strengthen" data-width="1920" data-height="1080" data-start="0" data-duration="10.82">
+  <div data-hf-id="hf-zw0u" class="s8-ground clip" data-start="0" data-duration="10.82" data-track-index="0"></div>
+  <div data-hf-id="hf-nmzq" class="s8-stage clip" data-start="0" data-duration="10.82" data-track-index="1">
+    <div data-hf-id="hf-6n32" class="s8-cam" id="s8-cam">
+      <div data-hf-id="hf-j65u" class="s8-top" id="s8-top"><span data-hf-id="hf-c06r">Strengthen · Report · Work anywhere</span><span data-hf-id="hf-lna9">08</span></div>
+      <div data-hf-id="hf-dckt" class="s8-tiles">
+        <div data-hf-id="hf-sk8q" class="s8-tile s8-t1" id="s8-t1">
+          <div data-hf-id="hf-5gy4" class="s8-ord s8-mono">01 · Action</div>
+          <div data-hf-id="hf-2sb5" class="s8-title">Gap to action</div>
+          <div data-hf-id="hf-79k4" class="s8-morph">
+            <div data-hf-id="hf-4k2q" class="s8-gap" id="s8-gap"><b data-hf-id="hf-r27z">Internal Audit</b><span data-hf-id="hf-3sc8" class="s8-mono">Gap 2.0</span></div>
+            <div data-hf-id="hf-pxny" class="s8-card" id="s8-card">
+              <div data-hf-id="hf-wcsh" class="s8-row" id="s8-r1"><span data-hf-id="hf-ftcb" class="s8-mono">Owner</span><span data-hf-id="hf-49ct">CFO</span></div>
+              <div data-hf-id="hf-0awi" class="s8-row" id="s8-r2"><span data-hf-id="hf-nmip" class="s8-mono">Cost</span><span data-hf-id="hf-hidq">US$18,000</span></div>
+              <div data-hf-id="hf-490j" class="s8-row" id="s8-r3"><span data-hf-id="hf-m1qe" class="s8-mono">Due</span><span data-hf-id="hf-whjt">Q3</span></div>
+            </div>
+          </div>
+          <div data-hf-id="hf-erw4" class="s8-plan" id="s8-plan">
+            <div data-hf-id="hf-q8a1" class="s8-plan-head s8-mono"><span data-hf-id="hf-xu26">Plan length</span><span data-hf-id="hf-8qz6" id="s8-months">24 months</span></div>
+            <div data-hf-id="hf-1ht4" class="s8-slider" id="s8-slider"><div data-hf-id="hf-3ea2" class="s8-rail"></div><div data-hf-id="hf-na3m" class="s8-knob" id="s8-knob"></div></div>
+            <div data-hf-id="hf-4yx7" class="s8-track"><div data-hf-id="hf-vqwe" class="s8-bar" id="s8-bar"></div></div>
+          </div>
+        </div>
+        <div data-hf-id="hf-7ehk" class="s8-tile s8-t2" id="s8-t2">
+          <div data-hf-id="hf-e7vv" class="s8-ord s8-mono">02 · Report</div>
+          <div data-hf-id="hf-tg7k" class="s8-page" id="s8-page">
+            <div data-hf-id="hf-vqw3" class="s8-doc-title" id="s8-doctitle">Narrative Report</div>
+            <div data-hf-id="hf-t1yh" class="s8-line" id="s8-l1"></div>
+            <div data-hf-id="hf-gb6y" class="s8-line s8-l2" id="s8-l2"></div>
+            <div data-hf-id="hf-kogo" class="s8-line s8-l3" id="s8-l3"></div>
+            <div data-hf-id="hf-6qhj" class="s8-foot s8-mono" id="s8-foot"><span data-hf-id="hf-ova9">For funders</span><span data-hf-id="hf-ioko">Draft</span></div>
+          </div>
+        </div>
+        <div data-hf-id="hf-cani" class="s8-tile s8-t3" id="s8-t3">
+          <div data-hf-id="hf-zsib" class="s8-ord s8-mono">03 · Offline</div>
+          <div data-hf-id="hf-cykf" class="s8-title">Works anywhere</div>
+          <div data-hf-id="hf-m2od" class="s8-off">
+            <svg data-hf-id="hf-wxsu" class="s8-wifi" viewBox="0 0 220 180" fill="none" stroke="#004F3B" stroke-width="14" stroke-linecap="round">
+              <path data-hf-id="hf-8tke" id="s8-w3" d="M20 70 Q110 -10 200 70" />
+              <path data-hf-id="hf-eg4n" id="s8-w2" d="M50 102 Q110 50 170 102" />
+              <path data-hf-id="hf-w2pt" id="s8-w1" d="M80 134 Q110 110 140 134" />
+              <circle data-hf-id="hf-8mjq" id="s8-w0" cx="110" cy="164" r="10" fill="#004F3B" stroke="none" />
+              <path data-hf-id="hf-nsqz" id="s8-strike" d="M30 20 L190 170" stroke="#FFFFFF" stroke-width="14" />
+            </svg>
+            <div data-hf-id="hf-x77b" class="s8-pill s8-mono" id="s8-pill"><span data-hf-id="hf-61ne" class="s8-dot"></span>Offline · Changes saved</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  var tl = gsap.timeline({ paused: true });
+  var q = function (id) { return document.getElementById(id); };
+  var E = "power3.out";
+
+  // slow steady camera push-in under the whole shot
+  tl.fromTo(q("s8-cam"), { scale: 1 }, { scale: 1.025, duration: 10.42, ease: "none" }, 0);
+  tl.fromTo(q("s8-top"), { opacity: 0, y: -12 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 0.05);
+
+  // Scene 1: tile 1, gap row -> costed action card, then plan-length slider
+  tl.fromTo(q("s8-t1"), { opacity: 0, y: 40, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: E }, 0.25);
+  tl.fromTo(q("s8-gap"), { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.45, ease: E }, 0.45);
+  tl.fromTo(q("s8-gap"), { opacity: 1 }, { opacity: 0, duration: 0.25, immediateRender: false }, 1.35);
+  tl.fromTo(q("s8-card"), { opacity: 0, scaleY: 0.4 }, { opacity: 1, scaleY: 1, duration: 0.55, ease: "back.out(1.4)" }, 1.35);
+  tl.fromTo([q("s8-r1"), q("s8-r2"), q("s8-r3")], { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.35, stagger: 0.18, ease: E }, 1.6);
+  tl.fromTo(q("s8-plan"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4, ease: E }, 2.2);
+  // rail spans 6..36 months: 24 -> 0.6, 18 -> 0.4 of the rail width (tile inner width = 471px)
+  var railW = 471;
+  var st = { m: 24 };
+  tl.fromTo(q("s8-knob"), { x: railW * 0.6 }, { x: railW * 0.4, duration: 1.0, ease: "power2.inOut" }, 2.6);
+  tl.fromTo(st, { m: 24 }, { m: 18, duration: 1.0, ease: "power2.inOut", onUpdate: function () { q("s8-months").textContent = Math.round(st.m) + " months"; } }, 2.6);
+  // the action's 9-month span re-fits the shorter plan: 9/24 -> 9/18
+  tl.fromTo(q("s8-bar"), { scaleX: 0.375 }, { scaleX: 0.5, duration: 1.0, ease: "power2.inOut" }, 2.6);
+
+  // Scene 2: tile 2, Narrative Report page assembles
+  tl.fromTo(q("s8-t2"), { opacity: 0, y: 40, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: E }, 4.4);
+  tl.fromTo(q("s8-page"), { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 4.6);
+  tl.fromTo(q("s8-doctitle"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: E }, 4.85);
+  tl.fromTo(q("s8-l1"), { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "none" }, 5.25);
+  tl.fromTo(q("s8-l2"), { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "none" }, 5.7);
+  tl.fromTo(q("s8-l3"), { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "none" }, 6.15);
+  tl.fromTo(q("s8-foot"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: E }, 6.6);
+
+  // Scene 3: tile 3, wifi glyph strikes through, OFFLINE pill pops
+  tl.fromTo(q("s8-t3"), { opacity: 0, y: 40, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: E }, 7.95);
+  tl.fromTo([q("s8-w0"), q("s8-w1"), q("s8-w2"), q("s8-w3")], { opacity: 0 }, { opacity: 1, duration: 0.2, stagger: 0.08 }, 8.25);
+  tl.fromTo(q("s8-strike"), { strokeDasharray: 220, strokeDashoffset: 220 }, { strokeDashoffset: 0, duration: 0.35, ease: "power2.in" }, 8.6);
+  tl.fromTo(q("s8-pill"), { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2)" }, 9.0);
+
+  window.__timelines["08-strengthen"] = tl;
+})();
+</script>
+</template>

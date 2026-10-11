@@ -1,0 +1,136 @@
+<template>
+<style>
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-ext-300-normal-CPgO9Ksf.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-300-normal-Dp1L8vcn.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-300-normal-BVlfKGgI.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-300-normal-i8F0SvXL.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-inter-latin-ext-400-normal-C1nco2VV.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-400-normal-77YHD8bZ.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:500;src:url("assets/fonts/captured-playfair-display-latin-ext-500-normal-DE-Iylxw.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-ext-500-normal-CFxFMdkY.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:500;src:url("assets/fonts/captured-playfair-display-latin-500-normal-DIxvyhka.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-500-normal-BScSeVwi.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:600;src:url("assets/fonts/captured-playfair-display-latin-ext-600-normal-CEjQclLc.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-ext-600-normal-BumBfC1v.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-Bc8Ftmh3.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-fXTG6kC5.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-400-normal-6-qcROiO.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:600;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-BfB_LPfz.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-DObL3zCW.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+/* shared latin faces (appended last so they win) */
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:400;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/inter-latin-500.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:600;src:url("assets/fonts/inter-latin-600.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:700;src:url("assets/fonts/inter-latin-700.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+</style>
+<style>
+  #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; container-type: size; }
+  [id="02-delivered-ground"] { position: absolute; inset: 0; background: #F0FDF4; }
+  [id="02-delivered-stage"] { position: absolute; inset: 0; color: #1E293B; }
+
+  [id="02-delivered-topbar"] { position: absolute; left: 96px; right: 96px; top: 56px; height: 48px;
+    display: flex; justify-content: space-between; align-items: center;
+    font: 400 26px/1 "JetBrains Mono", monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #00744D; }
+  [id="02-delivered-toprule"] { position: absolute; left: 96px; right: 96px; top: 116px; height: 2px;
+    background: #00744D; transform-origin: left center; }
+
+  [id="02-delivered-year"] { position: absolute; left: 96px; top: 170px;
+    font: 400 26px/32px "JetBrains Mono", monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #004F3B; }
+
+  [id="02-delivered-figwrap"] { position: absolute; right: 96px; top: 150px; width: 900px; height: 300px;
+    display: flex; justify-content: flex-end; align-items: baseline; color: #004F3B; font-family: Inter, sans-serif; font-weight: 500; }
+  [id="02-delivered-num"] { display: inline-block; width: 640px; text-align: right; font-size: 300px; line-height: 0.92; letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums; transform-origin: right bottom; }
+  [id="02-delivered-pct"] { display: inline-block; font-size: 150px; line-height: 0.92; margin-left: 8px; }
+
+  [id="02-delivered-delivered"] { position: absolute; right: 96px; top: 462px;
+    font: 400 24px/1 "JetBrains Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #005B3D; }
+
+  [id="02-delivered-kpi"] { position: absolute; right: 96px; top: 512px; height: 64px; padding: 0 26px;
+    display: flex; align-items: center; gap: 16px; background: #00BC7D; border-radius: 6px;
+    font: 600 32px/1 "JetBrains Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #004F3B; }
+  [id="02-delivered-kpi"] svg { width: 26px; height: 32px; }
+
+  [id="02-delivered-promised"] { position: absolute; left: 96px; top: 642px;
+    font: 400 22px/1 "JetBrains Mono", monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #00744D; }
+  [id="02-delivered-track"] { position: absolute; left: 96px; right: 96px; top: 680px; height: 80px;
+    background: #FFFFFF; border-radius: 3px; }
+  [id="02-delivered-ghost"] { position: absolute; left: 0; top: 0; width: 25%; height: 100%;
+    box-sizing: border-box; border: 2px solid #00744D; border-radius: 3px; }
+  [id="02-delivered-sliver"] { position: absolute; left: 0; top: 0; width: 25%; height: 100%;
+    background: #00BC7D; border-radius: 3px; transform-origin: left center; }
+  [id="02-delivered-lost"] { position: absolute; left: 3.6%; top: 0; width: 1.6%; height: 100%;
+    box-sizing: border-box; border: 2px solid #004F3B; transform-origin: left center; }
+  [id="02-delivered-ticks"] { position: absolute; left: 96px; right: 96px; top: 774px; display: flex; justify-content: space-between;
+    font: 400 22px/1 "JetBrains Mono", monospace; letter-spacing: 0.14em; color: #005B3D; }
+
+  [id="02-delivered-srcrule"] { position: absolute; left: 96px; right: 96px; top: 830px; height: 2px;
+    background: #00744D; transform-origin: left center; }
+  [id="02-delivered-src"] { position: absolute; left: 96px; top: 850px;
+    font: 400 20px/24px "JetBrains Mono", monospace; letter-spacing: 0.12em; text-transform: uppercase; color: #005B3D; }
+</style>
+
+<div data-hf-id="hf-oi61" id="root" data-composition-id="02-delivered" data-width="1920" data-height="1080" data-duration="9">
+  <div data-hf-id="hf-g28s" id="02-delivered-ground" class="clip" data-start="0" data-duration="9" data-track-index="0"></div>
+  <div data-hf-id="hf-w5eg" id="02-delivered-stage" class="clip" data-start="0" data-duration="9" data-track-index="1">
+    <div data-hf-id="hf-syat" id="02-delivered-topbar"><span data-hf-id="hf-wzr9">02 · What arrived</span><span data-hf-id="hf-bwwp">Direct funding</span></div>
+    <div data-hf-id="hf-dey8" id="02-delivered-toprule"></div>
+
+    <div data-hf-id="hf-pzd6" id="02-delivered-year">2024</div>
+
+    <div data-hf-id="hf-fcm9" id="02-delivered-figwrap"><span data-hf-id="hf-p437" id="02-delivered-num">25.0</span><span data-hf-id="hf-uk3w" id="02-delivered-pct">%</span></div>
+    <div data-hf-id="hf-bmpv" id="02-delivered-delivered">Delivered directly · US$1.2bn</div>
+    <div data-hf-id="hf-xdhp" id="02-delivered-kpi">
+      <svg data-hf-id="hf-ort3" viewBox="0 0 26 32" aria-hidden="true"><path data-hf-id="hf-lb53" d="M13 2 V28 M3 18 L13 29 L23 18" fill="none" stroke="#004F3B" stroke-width="4" stroke-linecap="square" /></svg>
+      <span data-hf-id="hf-qp8k">−31% in one year</span>
+    </div>
+
+    <div data-hf-id="hf-3xby" id="02-delivered-promised">Promised · 25%</div>
+    <div data-hf-id="hf-k9yy" id="02-delivered-track">
+      <div data-hf-id="hf-f13a" id="02-delivered-ghost"></div>
+      <div data-hf-id="hf-4hnb" id="02-delivered-lost"></div>
+      <div data-hf-id="hf-olp0" id="02-delivered-sliver"></div>
+    </div>
+    <div data-hf-id="hf-eub9" id="02-delivered-ticks"><span data-hf-id="hf-tzpu">0%</span><span data-hf-id="hf-k7an">100%</span></div>
+
+    <div data-hf-id="hf-3dmv" id="02-delivered-srcrule"></div>
+    <div data-hf-id="hf-4y2u" id="02-delivered-src">Source · Global Humanitarian Assistance Report 2025, ALNAP</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+  (function () {
+    var $ = function (s) { return document.getElementById("02-delivered-" + s); };
+    var tl = gsap.timeline({ paused: true });
+
+    // Scene 1 (0-1.5): ghosted 25% promise bar carries over from frame 1; "2024" on "By 2024" @0.3
+    tl.fromTo($("topbar"), { opacity: 0, y: -12 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0);
+    tl.fromTo($("toprule"), { scaleX: 0 }, { scaleX: 1, duration: 0.8, ease: "power3.inOut" }, 0.1);
+    tl.fromTo([$("track"), $("ticks")], { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power1.out" }, 0);
+    tl.fromTo($("promised"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0.2);
+    tl.fromTo($("year"), { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 0.3);
+
+    // Scene 2 (1.5-4.6): count runs DOWN 25.0 -> 3.6 while the sliver grows to 3.6% inside the ghost (same ease)
+    var AT = 1.8, DUR = 1.8, EASE = "power3.out";
+    var num = $("num"), cnt = { v: 25 };
+    tl.fromTo($("figwrap"), { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, AT);
+    tl.fromTo(cnt, { v: 25 }, {
+      v: 3.6, duration: DUR, ease: EASE,
+      onUpdate: function () { num.textContent = cnt.v.toFixed(1); }
+    }, AT);
+    // counting down: weight drains, so scale settles DOWN to the static final size
+    tl.fromTo(num, { scale: 1.2 }, { scale: 1, duration: DUR, ease: EASE }, AT);
+    tl.fromTo($("pct"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.6)" }, AT + DUR);
+    tl.fromTo($("sliver"), { scaleX: 0 }, { scaleX: 3.6 / 25, duration: DUR, ease: EASE }, AT);
+    tl.fromTo($("delivered"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 3.0);
+
+    // Scene 3 (4.7-7.2): kpi tag drops in @5.0; the prior-year notch (3.6 / 0.69 = ~5.2%) outlines, then collapses
+    tl.fromTo($("kpi"), { opacity: 0, y: -40 }, { opacity: 1, y: 0, duration: 0.55, ease: "back.out(1.6)" }, 5.0);
+    tl.fromTo($("lost"), { opacity: 0, scaleX: 1 }, { opacity: 1, scaleX: 1, duration: 0.3, ease: "power1.out" }, 5.0);
+    tl.to($("lost"), { scaleX: 0, duration: 0.8, ease: "power3.inOut" }, 5.6);
+    tl.fromTo($("sliver"), { scaleY: 1 }, { scaleY: 0.86, duration: 0.8, ease: "power3.inOut" }, 5.6);
+
+    // Scene 4 (7.2-8.5): source line draws on, then hold
+    tl.fromTo($("srcrule"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.inOut" }, 7.2);
+    tl.fromTo($("src"), { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.8, ease: "power2.out" }, 7.4);
+
+    tl.set({}, {}, 8.5);
+    window.__timelines = window.__timelines || {};
+    window.__timelines["02-delivered"] = tl;
+  })();
+</script>
+</template>

@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "preferences": {
+    "destination": {
+      "value": "youtube-web",
+      "confirmed_in": [
+        "craft-end-to-end"
+      ],
+      "updated_at": "2026-10-11T16:25:41.207Z"
+    },
+    "aspect": {
+      "value": "1920x1080",
+      "confirmed_in": [
+        "craft-end-to-end"
+      ],
+      "updated_at": "2026-10-11T16:25:41.288Z"
+    },
+    "language": {
+      "value": "en",
+      "confirmed_in": [
+        "craft-end-to-end"
+      ],
+      "updated_at": "2026-10-11T16:25:41.377Z"
+    },
+    "flow": {
+      "value": "automation",
+      "confirmed_in": [
+        "craft-end-to-end"
+      ],
+      "updated_at": "2026-10-11T16:25:41.471Z"
+    },
+    "storyboard": {
+      "value": "yes",
+      "confirmed_in": [
+        "craft-end-to-end"
+      ],
+      "updated_at": "2026-10-11T16:25:41.569Z"
+    },
+    "style_preset.product-launch-video": {
+      "value": "editorial-forest",
+      "confirmed_in": [
+        "craft-end-to-end"
+      ],
+      "updated_at": "2026-10-11T16:48:46.886Z"
+    }
+  },
+  "sightings": {}
+}

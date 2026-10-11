@@ -1,0 +1,18 @@
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"browser","status":"started","remainingMs":null}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"browser","status":"completed","remainingMs":null}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"navigation","status":"started","remainingMs":null}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"navigation","status":"completed","remainingMs":null}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"core-extraction","status":"started","remainingMs":null}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"core-extraction","status":"completed","remainingMs":103818}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"fonts","status":"started","remainingMs":103817}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"fonts","status":"completed","remainingMs":95163}
+Font metadata extracted: Inter × 6, JetBrains Mono × 6, Playfair Display × 6
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"assets","status":"started","remainingMs":95108}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"assets","status":"completed","remainingMs":91528}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"vision","status":"started","remainingMs":91525}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"vision","status":"completed","remainingMs":91525}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"contact-sheets","status":"started","remainingMs":91512}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"contact-sheets","status":"completed","remainingMs":89554}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"scaffold","status":"started","remainingMs":89554}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"scaffold","status":"completed","remainingMs":89534}
+HYPERFRAMES_CAPTURE_PHASE {"schema":"hyperframes.capture.phase.v1","phase":"complete","status":"completed","remainingMs":89534}
