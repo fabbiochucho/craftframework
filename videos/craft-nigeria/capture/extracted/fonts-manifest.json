@@ -1,0 +1,278 @@
+{
+  "files": [
+    {
+      "file": "inter-latin-300-normal-BVlfKGgI.woff2",
+      "family": "Inter",
+      "rawFamily": "Inter Light",
+      "subfamily": "Regular",
+      "postscript": "Inter-Light",
+      "weight": 300,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "inter-latin-300-normal-i8F0SvXL.woff",
+      "family": "Inter",
+      "rawFamily": "Inter Light",
+      "subfamily": "Regular",
+      "postscript": "Inter-Light",
+      "weight": 300,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "inter-latin-ext-300-normal-CPgO9Ksf.woff2",
+      "family": "Inter",
+      "rawFamily": "Inter Light",
+      "subfamily": "Regular",
+      "postscript": "Inter-Light",
+      "weight": 300,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "inter-latin-ext-300-normal-Dp1L8vcn.woff",
+      "family": "Inter",
+      "rawFamily": "Inter Light",
+      "subfamily": "Regular",
+      "postscript": "Inter-Light",
+      "weight": 300,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "inter-latin-ext-400-normal-77YHD8bZ.woff",
+      "family": "Inter",
+      "rawFamily": "Inter",
+      "subfamily": "Regular",
+      "postscript": "Inter-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "inter-latin-ext-400-normal-C1nco2VV.woff2",
+      "family": "Inter",
+      "rawFamily": "Inter",
+      "subfamily": "Regular",
+      "postscript": "Inter-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "jetbrains-mono-latin-400-normal-6-qcROiO.woff",
+      "family": "JetBrains Mono",
+      "rawFamily": "JetBrains Mono",
+      "subfamily": "Regular",
+      "postscript": "JetBrainsMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "jetbrains-mono-latin-400-normal-V6pRDFza.woff2",
+      "family": "JetBrains Mono",
+      "rawFamily": "JetBrains Mono",
+      "subfamily": "Regular",
+      "postscript": "JetBrainsMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "jetbrains-mono-latin-ext-400-normal-Bc8Ftmh3.woff2",
+      "family": "JetBrains Mono",
+      "rawFamily": "JetBrains Mono",
+      "subfamily": "Regular",
+      "postscript": "JetBrainsMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "jetbrains-mono-latin-ext-400-normal-fXTG6kC5.woff",
+      "family": "JetBrains Mono",
+      "rawFamily": "JetBrains Mono",
+      "subfamily": "Regular",
+      "postscript": "JetBrainsMono-Regular",
+      "weight": 400,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "jetbrains-mono-latin-ext-600-normal-BfB_LPfz.woff2",
+      "family": "JetBrains Mono",
+      "rawFamily": "JetBrains Mono SemiBold",
+      "subfamily": "Regular",
+      "postscript": "JetBrainsMono-SemiBold",
+      "weight": 600,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "jetbrains-mono-latin-ext-600-normal-DObL3zCW.woff",
+      "family": "JetBrains Mono",
+      "rawFamily": "JetBrains Mono SemiBold",
+      "subfamily": "Regular",
+      "postscript": "JetBrainsMono-SemiBold",
+      "weight": 600,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "playfair-display-latin-500-normal-BScSeVwi.woff",
+      "family": "Playfair Display",
+      "rawFamily": "Playfair Display Medium",
+      "subfamily": "Regular",
+      "postscript": "PlayfairDisplay-Medium",
+      "weight": 500,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "playfair-display-latin-500-normal-DIxvyhka.woff2",
+      "family": "Playfair Display",
+      "rawFamily": "Playfair Display Medium",
+      "subfamily": "Regular",
+      "postscript": "PlayfairDisplay-Medium",
+      "weight": 500,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "playfair-display-latin-ext-500-normal-CFxFMdkY.woff",
+      "family": "Playfair Display",
+      "rawFamily": "Playfair Display Medium",
+      "subfamily": "Regular",
+      "postscript": "PlayfairDisplay-Medium",
+      "weight": 500,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "playfair-display-latin-ext-500-normal-DE-Iylxw.woff2",
+      "family": "Playfair Display",
+      "rawFamily": "Playfair Display Medium",
+      "subfamily": "Regular",
+      "postscript": "PlayfairDisplay-Medium",
+      "weight": 500,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "playfair-display-latin-ext-600-normal-BumBfC1v.woff",
+      "family": "Playfair Display",
+      "rawFamily": "Playfair Display SemiBold",
+      "subfamily": "Regular",
+      "postscript": "PlayfairDisplay-SemiBold",
+      "weight": 600,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    },
+    {
+      "file": "playfair-display-latin-ext-600-normal-CEjQclLc.woff2",
+      "family": "Playfair Display",
+      "rawFamily": "Playfair Display SemiBold",
+      "subfamily": "Regular",
+      "postscript": "PlayfairDisplay-SemiBold",
+      "weight": 600,
+      "style": "normal",
+      "variationAxes": [],
+      "identified": true,
+      "isIcon": false
+    }
+  ],
+  "families": [
+    {
+      "family": "Inter",
+      "weights": [
+        300,
+        400
+      ],
+      "variable": false,
+      "fileCount": 6,
+      "files": [
+        "inter-latin-300-normal-BVlfKGgI.woff2",
+        "inter-latin-300-normal-i8F0SvXL.woff",
+        "inter-latin-ext-300-normal-CPgO9Ksf.woff2",
+        "inter-latin-ext-300-normal-Dp1L8vcn.woff",
+        "inter-latin-ext-400-normal-77YHD8bZ.woff",
+        "inter-latin-ext-400-normal-C1nco2VV.woff2"
+      ]
+    },
+    {
+      "family": "JetBrains Mono",
+      "weights": [
+        400,
+        600
+      ],
+      "variable": false,
+      "fileCount": 6,
+      "files": [
+        "jetbrains-mono-latin-400-normal-6-qcROiO.woff",
+        "jetbrains-mono-latin-400-normal-V6pRDFza.woff2",
+        "jetbrains-mono-latin-ext-400-normal-Bc8Ftmh3.woff2",
+        "jetbrains-mono-latin-ext-400-normal-fXTG6kC5.woff",
+        "jetbrains-mono-latin-ext-600-normal-BfB_LPfz.woff2",
+        "jetbrains-mono-latin-ext-600-normal-DObL3zCW.woff"
+      ]
+    },
+    {
+      "family": "Playfair Display",
+      "weights": [
+        500,
+        600
+      ],
+      "variable": false,
+      "fileCount": 6,
+      "files": [
+        "playfair-display-latin-500-normal-BScSeVwi.woff",
+        "playfair-display-latin-500-normal-DIxvyhka.woff2",
+        "playfair-display-latin-ext-500-normal-CFxFMdkY.woff",
+        "playfair-display-latin-ext-500-normal-DE-Iylxw.woff2",
+        "playfair-display-latin-ext-600-normal-BumBfC1v.woff",
+        "playfair-display-latin-ext-600-normal-CEjQclLc.woff2"
+      ]
+    }
+  ],
+  "unidentified": [],
+  "meta": {
+    "generatedAt": "2026-10-11T16:26:45.436Z",
+    "tool": "fontkit"
+  }
+}

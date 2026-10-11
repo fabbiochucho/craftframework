@@ -1,0 +1,255 @@
+{
+  "typography": [
+    {
+      "role": "display",
+      "fontFamily": "Playfair Display",
+      "fontSize": "96px",
+      "fontWeight": "700",
+      "lineHeight": "96px",
+      "letterSpacing": "-2.4px",
+      "color": "oklch(0.378 0.077 168.94)",
+      "sampleText": "CRAFT"
+    },
+    {
+      "role": "code",
+      "fontFamily": "JetBrains Mono",
+      "fontSize": "48px",
+      "fontWeight": "700",
+      "lineHeight": "48px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.968 0.007 247.896)",
+      "sampleText": "01"
+    },
+    {
+      "role": "heading",
+      "fontFamily": "Playfair Display",
+      "fontSize": "36px",
+      "fontWeight": "700",
+      "lineHeight": "40px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.378 0.077 168.94)",
+      "sampleText": "The blindspots CRAFT was built to expose."
+    },
+    {
+      "role": "body",
+      "fontFamily": "Playfair Display",
+      "fontSize": "24px",
+      "fontWeight": "600",
+      "lineHeight": "32px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.432 0.095 166.913)",
+      "sampleText": "Capacity Readiness & Fiduciary Assurance Toolkit"
+    },
+    {
+      "role": "heading-3",
+      "fontFamily": "Playfair Display",
+      "fontSize": "20px",
+      "fontWeight": "700",
+      "lineHeight": "28px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.378 0.077 168.94)",
+      "sampleText": "Public Sector"
+    },
+    {
+      "role": "heading-3",
+      "fontFamily": "Playfair Display",
+      "fontSize": "18px",
+      "fontWeight": "700",
+      "lineHeight": "28px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.378 0.077 168.94)",
+      "sampleText": "The Spreadsheet Trap"
+    },
+    {
+      "role": "link",
+      "fontFamily": "ui-sans-serif",
+      "fontSize": "14px",
+      "fontWeight": "500",
+      "lineHeight": "20px",
+      "letterSpacing": "normal",
+      "color": "oklch(0.508 0.118 165.612)",
+      "sampleText": "Home"
+    }
+  ],
+  "spacing": {
+    "observed": [
+      4,
+      6,
+      8,
+      10,
+      12,
+      16,
+      20,
+      24,
+      32,
+      40,
+      48,
+      80
+    ],
+    "baseUnit": 8
+  },
+  "radius": [
+    "6px",
+    "8px",
+    "3.35544e+07px"
+  ],
+  "shadows": [
+    {
+      "value": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 1px 3px 0px, rgba(0, 0, 0, 0.1) 0px 1px 2px -1px",
+      "count": 8
+    },
+    {
+      "value": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.696 -0.162114 0.0511766 / 0.3) 0px 10px 15px -3px, oklab(0.696 -0.162114 0.0511766 / 0.3) 0px 4px 6px -4px",
+      "count": 4
+    },
+    {
+      "value": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 10px 15px -3px, rgba(0, 0, 0, 0.1) 0px 4px 6px -4px",
+      "count": 1
+    }
+  ],
+  "buttons": [
+    {
+      "label": "EN",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "oklch(0.446 0.043 257.281)",
+      "padding": "8px 10px",
+      "borderRadius": "6px",
+      "border": "0px solid oklch(0.446 0.043 257.281)",
+      "boxShadow": "none",
+      "fontSize": "14px",
+      "fontWeight": "500",
+      "height": "36px"
+    },
+    {
+      "label": "Sign in",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "oklch(0.446 0.043 257.281)",
+      "padding": "6px 12px",
+      "borderRadius": "8px",
+      "border": "0px solid oklch(0.446 0.043 257.281)",
+      "boxShadow": "none",
+      "fontSize": "14px",
+      "fontWeight": "500",
+      "height": "52px"
+    },
+    {
+      "label": "Register Your Institution",
+      "background": "oklch(0.696 0.17 162.48)",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "#FFFFFF",
+      "padding": "6px 12px",
+      "borderRadius": "8px",
+      "border": "0px solid rgb(255, 255, 255)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.696 -0.162114 0.0511766 / 0.3) 0px 10px 15px -3px, oklab(0.696 -0.162114 0.0511766 / 0.3) 0px 4px 6px -4px",
+      "fontSize": "14px",
+      "fontWeight": "500",
+      "height": "52px"
+    },
+    {
+      "label": "Explore the Methodology",
+      "background": "transparent",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "oklch(0.508 0.118 165.612)",
+      "padding": "12px 24px",
+      "borderRadius": "8px",
+      "border": "0px solid oklch(0.508 0.118 165.612)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "500",
+      "height": "48px"
+    },
+    {
+      "label": "Demo: Portfolio View",
+      "background": "#FFFFFF",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "oklch(0.372 0.044 257.287)",
+      "padding": "12px 24px",
+      "borderRadius": "8px",
+      "border": "1px solid oklch(0.869 0.022 252.894)",
+      "boxShadow": "none",
+      "fontSize": "16px",
+      "fontWeight": "500",
+      "height": "50px"
+    },
+    {
+      "label": "Register Your Institution",
+      "background": "#FFFFFF",
+      "backgroundImage": "",
+      "backdropFilter": "",
+      "color": "oklch(0.508 0.118 165.612)",
+      "padding": "12px 24px",
+      "borderRadius": "8px",
+      "border": "0px solid oklch(0.508 0.118 165.612)",
+      "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, oklab(0.696 -0.162114 0.0511766 / 0.3) 0px 10px 15px -3px, oklab(0.696 -0.162114 0.0511766 / 0.3) 0px 4px 6px -4px",
+      "fontSize": "16px",
+      "fontWeight": "500",
+      "height": "48px"
+    }
+  ],
+  "cards": [],
+  "nav": {
+    "label": "navigation",
+    "background": "oklab(0.999994 0.0000455678 0.0000200868 / 0.9)",
+    "backgroundImage": "",
+    "backdropFilter": "blur(8px)",
+    "color": "#1E293B",
+    "padding": "0px",
+    "borderRadius": "0px",
+    "border": "",
+    "boxShadow": "none",
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "height": "89px"
+  },
+  "chips": [
+    {
+      "label": "Ministry",
+      "background": "oklch(0.984 0.003 247.858)",
+      "color": "oklch(0.446 0.043 257.281)",
+      "padding": "4px 10px",
+      "borderRadius": "3.35544e+07px",
+      "border": "1px solid oklch(0.929 0.013 255.508)",
+      "boxShadow": "none",
+      "fontSize": "11px",
+      "fontWeight": "500",
+      "height": "26.5px"
+    },
+    {
+      "label": "Pan-African Perspective",
+      "background": "oklch(0.987 0.022 95.277)",
+      "color": "oklch(0.473 0.137 46.201)",
+      "padding": "6px 12px",
+      "borderRadius": "3.35544e+07px",
+      "border": "1px solid oklch(0.879 0.169 91.605)",
+      "boxShadow": "none",
+      "fontSize": "12px",
+      "fontWeight": "600",
+      "height": "30px"
+    }
+  ],
+  "statCells": [],
+  "tabs": [],
+  "backgrounds": [
+    {
+      "value": "linear-gradient(to right bottom, oklch(0.378 0.077 168.94) 0%, oklch(0.208 0.042 265.755) 100%)",
+      "area": 81056
+    }
+  ],
+  "glass": [
+    {
+      "backdropFilter": "blur(8px)",
+      "background": "oklab(0.999994 0.0000455678 0.0000200868 / 0.9)",
+      "border": "",
+      "borderRadius": "0px",
+      "boxShadow": "",
+      "area": 170880
+    }
+  ]
+}

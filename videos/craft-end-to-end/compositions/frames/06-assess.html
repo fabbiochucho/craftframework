@@ -1,0 +1,176 @@
+<template>
+  <div data-hf-id="hf-ctx8" id="root" data-composition-id="06-assess" data-start="0" data-duration="8.62" data-width="1920" data-height="1080">
+    <style>
+      @font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-ext-300-normal-CPgO9Ksf.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-300-normal-Dp1L8vcn.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+      @font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-300-normal-BVlfKGgI.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-300-normal-i8F0SvXL.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+      @font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-inter-latin-ext-400-normal-C1nco2VV.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-400-normal-77YHD8bZ.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+      /* ponytail: no Inter latin 400/500 or Mono latin 500 file ships; map the closest shipped latin file to those weights so text never falls back to a system face */
+      @font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:400 600;src:url("assets/fonts/captured-inter-latin-300-normal-BVlfKGgI.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-300-normal-i8F0SvXL.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+      @font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-Bc8Ftmh3.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-fXTG6kC5.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+      @font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400 600;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-400-normal-6-qcROiO.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: Inter, sans-serif; color: #1E293B; }
+      .\30 6-assess-bg { position: absolute; inset: 0; background: #FFFFFF; }
+      .\30 6-assess-stage { position: absolute; inset: 0; transform-origin: 30% 45%; }
+      .\30 6-assess-mono { font-family: "JetBrains Mono", monospace; font-weight: 500; text-transform: uppercase; }
+
+      /* topbar */
+      .\30 6-assess-topbar { position: absolute; left: 96px; right: 96px; top: 48px; height: 52px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #00744D; font-size: 24px; letter-spacing: 0.18em; color: #00744D; }
+
+      /* assessment card (left 60%) */
+      .\30 6-assess-card { position: absolute; left: 96px; top: 140px; width: 1040px; height: 700px; background: #FFFFFF; border: 2.5px solid #00744D; border-radius: 8px; padding: 36px 44px; }
+      .\30 6-assess-title { font-size: 56px; font-weight: 500; line-height: 0.98; letter-spacing: -0.01em; color: #00744D; }
+      .\30 6-assess-sub { margin-top: 16px; font-size: 22px; letter-spacing: 0.14em; color: #1E293B; }
+      .\30 6-assess-hrule { margin-top: 26px; height: 2px; background: #00744D; transform-origin: 0 50%; }
+      .\30 6-assess-rows { margin-top: 6px; }
+      .\30 6-assess-row { position: relative; height: 92px; display: flex; align-items: center; border-bottom: 2px solid #ABFFE3; }
+      .\30 6-assess-name { flex: 1; font-size: 30px; font-weight: 400; line-height: 1.2; }
+      .\30 6-assess-chipcell { width: 300px; display: flex; justify-content: flex-start; }
+      .\30 6-assess-badge { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 6px; background: #00744D; color: #FFFFFF; font-size: 18px; letter-spacing: 0.14em; }
+      .\30 6-assess-badge svg { width: 18px; height: 18px; }
+      .\30 6-assess-chip { display: inline-flex; padding: 8px 14px; border-radius: 6px; background: #ABFFE3; border: 2px solid #00744D; color: #005B3D; font-size: 18px; letter-spacing: 0.14em; }
+      .\30 6-assess-dots { display: flex; gap: 12px; }
+      .\30 6-assess-dot { position: relative; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #00744D; }
+      .\30 6-assess-fill { position: absolute; inset: 2px; border-radius: 50%; background: #00744D; }
+      .\30 6-assess-stamp { position: absolute; left: 230px; top: 16px; padding: 14px 24px; border-radius: 6px; background: #004F3B; color: #ABFFE3; font-size: 26px; letter-spacing: 0.12em; white-space: nowrap; }
+
+      /* right 40% */
+      .\30 6-assess-kpi { position: absolute; left: 1236px; top: 140px; width: 588px; border-top: 2px solid #00744D; }
+      .\30 6-assess-kpitag { margin-top: 18px; font-size: 24px; letter-spacing: 0.14em; color: #00744D; }
+      .\30 6-assess-fig { margin-top: 8px; font-size: 220px; font-weight: 500; line-height: 0.92; letter-spacing: -0.03em; color: #00744D; }
+      .\30 6-assess-level { position: absolute; left: 1236px; top: 560px; width: 588px; height: 280px; border-radius: 8px; background: #00744D; padding: 32px 40px; color: #FFFFFF; }
+      .\30 6-assess-lvtag { position: relative; height: 32px; overflow: hidden; font-size: 24px; letter-spacing: 0.14em; color: #ABFFE3; }
+      .\30 6-assess-lvwin { position: relative; margin-top: 30px; height: 140px; overflow: hidden; }
+      .\30 6-assess-lvtxt { position: absolute; left: 0; top: 0; font-size: 120px; font-weight: 500; line-height: 1.02; letter-spacing: -0.02em; white-space: nowrap; }
+      .\30 6-assess-lvtag span { position: absolute; left: 0; top: 0; white-space: nowrap; }
+    /* shared latin faces (appended last so they win) */
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:400;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/inter-latin-500.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:600;src:url("assets/fonts/inter-latin-600.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:700;src:url("assets/fonts/inter-latin-700.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+</style>
+
+    <div data-hf-id="hf-k3gn" class="06-assess-bg clip" data-start="0" data-duration="8.62" data-track-index="0"></div>
+
+    <div data-hf-id="hf-g6wd" class="06-assess-stage clip" data-start="0" data-duration="8.62" data-track-index="1">
+      <div data-hf-id="hf-wktd" class="06-assess-topbar 06-assess-mono">
+        <span data-hf-id="hf-hqai">CRAFT · Assess</span><span data-hf-id="hf-o14f">06</span>
+      </div>
+
+      <div data-hf-id="hf-fbig" class="06-assess-card">
+        <div data-hf-id="hf-ia7q" class="06-assess-title">Readiness Assessment</div>
+        <div data-hf-id="hf-rk23" class="06-assess-sub 06-assess-mono">5 tiers · 20 domains · 0–5 maturity</div>
+        <div data-hf-id="hf-8n1s" class="06-assess-hrule"></div>
+        <div data-hf-id="hf-t5mt" class="06-assess-rows">
+          <div data-hf-id="hf-r6ie" class="06-assess-row" data-level="4">
+            <div data-hf-id="hf-aro1" class="06-assess-name">Financial Management</div>
+            <div data-hf-id="hf-opl0" class="06-assess-chipcell"><span data-hf-id="hf-gbme" class="06-assess-badge 06-assess-mono"><svg data-hf-id="hf-pok3" viewBox="0 0 18 18"><polyline data-hf-id="hf-olju" points="3,9.5 7.5,14 15,4.5" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg>Evidence</span></div>
+            <div data-hf-id="hf-vohu" class="06-assess-dots"><span data-hf-id="hf-zg78" class="06-assess-dot"><i data-hf-id="hf-6otd" class="06-assess-fill"></i></span><span data-hf-id="hf-kirg" class="06-assess-dot"><i data-hf-id="hf-foz9" class="06-assess-fill"></i></span><span data-hf-id="hf-jbud" class="06-assess-dot"><i data-hf-id="hf-gvwc" class="06-assess-fill"></i></span><span data-hf-id="hf-jq5e" class="06-assess-dot"><i data-hf-id="hf-ghlb" class="06-assess-fill"></i></span><span data-hf-id="hf-lpoj" class="06-assess-dot"><i data-hf-id="hf-lqhi" class="06-assess-fill"></i></span></div>
+          </div>
+          <div data-hf-id="hf-2201" class="06-assess-row" data-level="3">
+            <div data-hf-id="hf-p6ab" class="06-assess-name">Procurement</div>
+            <div data-hf-id="hf-9ews" class="06-assess-chipcell"><span data-hf-id="hf-aapm" class="06-assess-badge 06-assess-mono"><svg data-hf-id="hf-uinn" viewBox="0 0 18 18"><polyline data-hf-id="hf-96pq" points="3,9.5 7.5,14 15,4.5" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg>Evidence</span></div>
+            <div data-hf-id="hf-wzs6" class="06-assess-dots"><span data-hf-id="hf-m3zk" class="06-assess-dot"><i data-hf-id="hf-ha7d" class="06-assess-fill"></i></span><span data-hf-id="hf-kx2h" class="06-assess-dot"><i data-hf-id="hf-mj3k" class="06-assess-fill"></i></span><span data-hf-id="hf-lbdi" class="06-assess-dot"><i data-hf-id="hf-m4sj" class="06-assess-fill"></i></span><span data-hf-id="hf-gy07" class="06-assess-dot"><i data-hf-id="hf-cwu2" class="06-assess-fill"></i></span><span data-hf-id="hf-hcb8" class="06-assess-dot"><i data-hf-id="hf-cij1" class="06-assess-fill"></i></span></div>
+          </div>
+          <div data-hf-id="hf-ov8a" class="06-assess-row" data-level="4">
+            <div data-hf-id="hf-1wq1" class="06-assess-name">Internal Audit</div>
+            <div data-hf-id="hf-87zp" class="06-assess-chipcell"><span data-hf-id="hf-ap0n" class="06-assess-badge 06-assess-mono"><svg data-hf-id="hf-u4cm" viewBox="0 0 18 18"><polyline data-hf-id="hf-9l0r" points="3,9.5 7.5,14 15,4.5" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg>Evidence</span></div>
+            <div data-hf-id="hf-xe37" class="06-assess-dots"><span data-hf-id="hf-a9lw" class="06-assess-dot"><i data-hf-id="hf-tsrj" class="06-assess-fill"></i></span><span data-hf-id="hf-9vav" class="06-assess-dot"><i data-hf-id="hf-u72k" class="06-assess-fill"></i></span><span data-hf-id="hf-9gzu" class="06-assess-dot"><i data-hf-id="hf-t05h" class="06-assess-fill"></i></span><span data-hf-id="hf-92ot" class="06-assess-dot"><i data-hf-id="hf-tegi" class="06-assess-fill"></i></span><span data-hf-id="hf-buu0" class="06-assess-dot"><i data-hf-id="hf-vdzn" class="06-assess-fill"></i></span></div>
+          </div>
+          <div data-hf-id="hf-nool" class="06-assess-row" data-level="3">
+            <div data-hf-id="hf-dj1y" class="06-assess-name">Governance &amp; Oversight</div>
+            <div data-hf-id="hf-8maq" class="06-assess-chipcell"><span data-hf-id="hf-b3bo" class="06-assess-badge 06-assess-mono"><svg data-hf-id="hf-tq1l" viewBox="0 0 18 18"><polyline data-hf-id="hf-9zbs" points="3,9.5 7.5,14 15,4.5" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" /></svg>Evidence</span></div>
+            <div data-hf-id="hf-xse8" class="06-assess-dots"><span data-hf-id="hf-bgiz" class="06-assess-dot"><i data-hf-id="hf-vsao" class="06-assess-fill"></i></span><span data-hf-id="hf-b27y" class="06-assess-dot"><i data-hf-id="hf-uldl" class="06-assess-fill"></i></span><span data-hf-id="hf-anwx" class="06-assess-dot"><i data-hf-id="hf-uzom" class="06-assess-fill"></i></span><span data-hf-id="hf-dg24" class="06-assess-dot"><i data-hf-id="hf-qmbb" class="06-assess-fill"></i></span><span data-hf-id="hf-d1r3" class="06-assess-dot"><i data-hf-id="hf-r0mc" class="06-assess-fill"></i></span></div>
+          </div>
+          <div data-hf-id="hf-x0hk" class="06-assess-row 06-assess-paper" data-level="5" style="border-bottom: none;">
+            <div data-hf-id="hf-ogjy" class="06-assess-name">Anti-Fraud Policy</div>
+            <div data-hf-id="hf-altv" class="06-assess-chipcell"><span data-hf-id="hf-gu96" class="06-assess-chip 06-assess-mono">Policy manual only</span></div>
+            <div data-hf-id="hf-v091" class="06-assess-dots"><span data-hf-id="hf-af6n" class="06-assess-dot"><i data-hf-id="hf-tn6s" class="06-assess-fill"></i></span><span data-hf-id="hf-atho" class="06-assess-dot"><i data-hf-id="hf-t8vr" class="06-assess-fill"></i></span><span data-hf-id="hf-9mkl" class="06-assess-dot"><i data-hf-id="hf-sukq" class="06-assess-fill"></i></span><span data-hf-id="hf-a0vm" class="06-assess-dot"><i data-hf-id="hf-sg9p" class="06-assess-fill"></i></span><span data-hf-id="hf-c0er" class="06-assess-dot"><i data-hf-id="hf-v8ew" class="06-assess-fill"></i></span></div>
+            <div data-hf-id="hf-n6qs" class="06-assess-stamp 06-assess-mono" data-layout-allow-overlap="">Paper Compliance Penalty</div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-vwew" class="06-assess-kpi">
+        <div data-hf-id="hf-wzd4" class="06-assess-kpitag 06-assess-mono">Domains</div>
+        <div data-hf-id="hf-c2fs" class="06-assess-fig">0</div>
+      </div>
+
+      <div data-hf-id="hf-4k94" class="06-assess-level">
+        <div data-hf-id="hf-z5wy" class="06-assess-lvtag 06-assess-mono" data-layout-allow-overflow=""><span data-hf-id="hf-bkcc" class="06-assess-lvtagA">Anti-Fraud · Scored</span><span data-hf-id="hf-mk32" class="06-assess-lvtagB">Anti-Fraud · Evidenced</span></div>
+        <div data-hf-id="hf-ng97" class="06-assess-lvwin" data-layout-allow-overflow=""><span data-hf-id="hf-pe3j" class="06-assess-lvtxt 06-assess-lvB">Level B</span><span data-hf-id="hf-cj7j" class="06-assess-lvtxt 06-assess-lvC">Level C</span></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script>
+      (function () {
+        var root = document.querySelector('[data-composition-id="06-assess"]');
+        var c = function (n) { return Array.prototype.slice.call(root.getElementsByClassName("06-assess-" + n)); };
+        var one = function (n) { return c(n)[0]; };
+        var tl = gsap.timeline({ paused: true });
+
+        // macro: one slow receipt push underneath the whole shot
+        tl.fromTo(one("stage"), { scale: 1 }, { scale: 1.025, duration: 8.12, ease: "none" }, 0);
+
+        // Scene 1 (0.0-1.8): card + header on "Assess twenty domains", KPI 20
+        tl.fromTo(one("topbar"), { opacity: 0, y: -12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 0.05);
+        tl.fromTo(one("card"), { opacity: 0, y: 30, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.4)" }, 0.1);
+        tl.fromTo(one("title"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.3);
+        tl.fromTo(one("sub"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 0.45);
+        tl.fromTo(one("hrule"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.inOut" }, 0.55);
+        tl.fromTo(one("kpi"), { opacity: 0, x: 30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 0.35);
+        var fig = one("fig"), n = { v: 0 };
+        tl.fromTo(n, { v: 0 }, { v: 20, duration: 1.1, ease: "power2.out", onUpdate: function () { fig.textContent = Math.round(n.v); } }, 0.4);
+
+        // rows: slide-up + fade, badge pop + check draw, dots fill to level
+        var rows = c("row");
+        function landRow(row, t) {
+          tl.fromTo(row, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, t);
+          var badge = row.getElementsByClassName("06-assess-badge")[0] || row.getElementsByClassName("06-assess-chip")[0];
+          tl.fromTo(badge, { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2.2)" }, t + 0.22);
+          var check = row.getElementsByTagName("polyline")[0];
+          if (check) tl.fromTo(check, { strokeDasharray: 22, strokeDashoffset: 22 }, { strokeDashoffset: 0, duration: 0.25, ease: "power2.out" }, t + 0.38);
+          var lvl = +row.getAttribute("data-level");
+          var fills = Array.prototype.slice.call(row.getElementsByClassName("06-assess-fill"));
+          fills.forEach(function (f, i) {
+            if (i < lvl) tl.fromTo(f, { scale: 0 }, { scale: 1, duration: 0.22, ease: "back.out(2)" }, t + 0.3 + i * 0.07);
+            else gsap.set(f, { scale: 0 });
+          });
+          return fills;
+        }
+        // Scene 2 (1.8-3.8): four evidenced domains cascade
+        [1.8, 2.25, 2.7, 3.15].forEach(function (t, i) { landRow(rows[i], t); });
+
+        // Scene 3 (3.9-5.6): paper-only row lands, dots fill to 5
+        var paperFills = landRow(rows[4], 3.95);
+        var level = one("level");
+        tl.fromTo(level, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.3)" }, 4.45);
+        gsap.set(one("lvC"), { yPercent: 105 });
+        gsap.set(one("lvtagB"), { yPercent: 110 });
+
+        // Scene 4 (5.6-8.12): stamp slams, dots knock 5 -> 2, Level B -> Level C, hold
+        tl.fromTo(one("stamp"), { opacity: 0, scale: 2.2, rotation: -14 }, { opacity: 1, scale: 1, rotation: -5, duration: 0.24, ease: "power4.in" }, 5.6);
+        var card = one("card");
+        tl.fromTo(card, { x: 0 }, { x: -7, duration: 0.05, ease: "none" }, 5.84);
+        tl.to(card, { x: 5, duration: 0.06, ease: "none" }, 5.89);
+        tl.to(card, { x: 0, duration: 0.12, ease: "power2.out" }, 5.95);
+        [4, 3, 2].forEach(function (i, k) {
+          tl.to(paperFills[i], { scale: 0, y: 26, opacity: 0, duration: 0.3, ease: "power2.in" }, 5.95 + k * 0.09);
+        });
+        tl.to(rows[4].getElementsByClassName("06-assess-name")[0], { opacity: 0.55, duration: 0.3 }, 6.0);
+
+        tl.to(one("lvB"), { yPercent: -105, duration: 0.35, ease: "power3.inOut" }, 6.35);
+        tl.to(one("lvC"), { yPercent: 0, duration: 0.35, ease: "power3.inOut" }, 6.35);
+        tl.to(one("lvtagA"), { yPercent: -110, duration: 0.3, ease: "power3.inOut" }, 6.35);
+        tl.to(one("lvtagB"), { yPercent: 0, duration: 0.3, ease: "power3.inOut" }, 6.35);
+        tl.fromTo(level, { scale: 1 }, { scale: 1.04, duration: 0.15, ease: "power2.out" }, 6.6);
+        tl.to(level, { scale: 1, duration: 0.3, ease: "back.out(2)" }, 6.75);
+
+        window.__timelines = window.__timelines || {};
+        window.__timelines["06-assess"] = tl;
+      })();
+    </script>
+  </div>
+</template>

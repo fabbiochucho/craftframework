@@ -1,0 +1,110 @@
+<template>
+<div data-hf-id="hf-vpyf" id="root" data-composition-id="11-outro" data-width="1920" data-height="1080">
+  <style>
+    @font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-inter-latin-ext-400-normal-C1nco2VV.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-400-normal-77YHD8bZ.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+    @font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-300-normal-BVlfKGgI.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-300-normal-i8F0SvXL.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    @font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-400-normal-6-qcROiO.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    @font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:600;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-BfB_LPfz.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-DObL3zCW.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+
+    #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+    .\31 1-outro-bg { position: absolute; inset: 0; background: #004F3B; }
+    .\31 1-outro-stage {
+      position: absolute; inset: 0; container-type: size;
+      color: #FFFFFF; font-family: Inter, sans-serif;
+    }
+    /* Content sits in the top ~83% (y < 896) — caption keep-out below. */
+    .\31 1-outro-lockup {
+      position: absolute; left: 0; right: 0; top: 9.4cqw;
+      display: flex; align-items: center; justify-content: center; gap: 2.5cqw;
+    }
+    .\31 1-outro-mark { width: 14.6cqw; height: 14.6cqw; display: block; }
+    .\31 1-outro-word {
+      font-weight: 500; font-size: 11.5cqw; line-height: 0.92; letter-spacing: -0.02em;
+    }
+    .\31 1-outro-tagline {
+      position: absolute; left: 0; right: 0; top: 28.6cqw; text-align: center;
+      font-weight: 500; font-size: 3.5cqw; line-height: 1.12; letter-spacing: -0.01em;
+    }
+    .\31 1-outro-line { display: block; }
+    .\31 1-outro-w { display: inline-block; }
+    .\31 1-outro-gold { color: #FBBF24; }
+    .\31 1-outro-rule {
+      position: absolute; left: 50%; top: 39.6cqw; width: 30cqw; margin-left: -15cqw;
+      height: 2px; background: #FFFFFF; transform-origin: 50% 50%;
+    }
+    .\31 1-outro-foot {
+      position: absolute; left: 0; right: 0; top: 41.2cqw; text-align: center;
+      font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 24px;
+      letter-spacing: 0.14em; text-transform: uppercase; color: #ABFFE3;
+    }
+  /* shared latin faces (appended last so they win) */
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:400;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/inter-latin-500.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:600;src:url("assets/fonts/inter-latin-600.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:700;src:url("assets/fonts/inter-latin-700.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+</style>
+
+  <div data-hf-id="hf-52ob" class="clip 11-outro-bg" data-start="0" data-duration="7.51" data-track-index="0"></div>
+
+  <div data-hf-id="hf-lv4u" class="clip 11-outro-stage" id="11-outro-stage" data-start="0" data-duration="7.51" data-track-index="1">
+    <div data-hf-id="hf-mijk" class="11-outro-lockup" id="11-outro-lockup">
+      <img data-hf-id="hf-cm38" class="11-outro-mark" id="11-outro-mark" src="assets/craft-logo.svg" alt="CRAFT shield">
+      <div data-hf-id="hf-gxbu" class="11-outro-word" id="11-outro-word">CRAFT</div>
+    </div>
+
+    <div data-hf-id="hf-04wp" class="11-outro-tagline">
+      <span data-hf-id="hf-j220" class="11-outro-line">
+        <span data-hf-id="hf-w4q4" class="11-outro-w 11-outro-w1">Built</span>
+        <span data-hf-id="hf-rv15" class="11-outro-w 11-outro-w1">by</span>
+        <span data-hf-id="hf-tpiz" class="11-outro-w 11-outro-w1 11-outro-gold">Africa,</span>
+      </span>
+      <span data-hf-id="hf-s0f4" class="11-outro-line">
+        <span data-hf-id="hf-04uq" class="11-outro-w 11-outro-w2">for</span>
+        <span data-hf-id="hf-pwhg" class="11-outro-w 11-outro-w2">growing</span>
+        <span data-hf-id="hf-1hzk" class="11-outro-w 11-outro-w2 11-outro-gold">Africa's</span>
+        <span data-hf-id="hf-m9go" class="11-outro-w 11-outro-w2">partnerships.</span>
+      </span>
+    </div>
+
+    <div data-hf-id="hf-3fb4" class="11-outro-rule" id="11-outro-rule"></div>
+    <div data-hf-id="hf-6zvd" class="11-outro-foot" id="11-outro-foot">Become Change Institute · craftframework.becomechange.institute</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var byId = function (id) { return document.getElementById(id); };
+      var byClass = function (c) { return document.getElementsByClassName(c); };
+      var mark = byId("11-outro-mark");
+      var word = document.getElementById("11-outro-word");
+      var lockup = document.getElementById("11-outro-lockup");
+      var stage = document.getElementById("11-outro-stage");
+      // Mark starts centred alone: offset by half of (wordmark width + gap). Measured once at build.
+      var shift = ((word.offsetWidth || 620) + 48) / 2; // 48px = 2.5cqw gap
+
+      var tl = gsap.timeline({ paused: true });
+
+      // Scene 1 — spring-bloom the shield from zero at centre on "CRAFT" (@0.3), then slide left as the wordmark reveals.
+      tl.fromTo(mark, { scale: 0, rotation: -14, x: shift }, { scale: 1, rotation: 0, duration: 0.7, ease: "back.out(1.8)" }, 0.3)
+        .to(mark, { x: 0, duration: 0.6, ease: "power3.out" }, 0.9)
+        .fromTo(word, { clipPath: "inset(0 100% 0 0)", x: -60, opacity: 0 },
+                      { clipPath: "inset(0 0% 0 0)", x: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.9)
+        // near-imperceptible scale-up through the hold
+        .fromTo(lockup, { scale: 1 }, { scale: 1.03, duration: 6.0, ease: "none" }, 1.5);
+
+      // Scene 2 — tagline builds on its words.
+      tl.fromTo(byClass("11-outro-w1"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out", stagger: 0.14 }, 1.6)
+        .fromTo(byClass("11-outro-w2"), { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out", stagger: 0.16 }, 2.9);
+
+      // Scene 3 — cream rule draws, mono foot fades in, hold, final fade over the last 0.6s.
+      tl.fromTo(byId("11-outro-rule"), { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power2.inOut" }, 4.6)
+        .fromTo(byId("11-outro-foot"), { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 5.0)
+        .fromTo(stage, { opacity: 1 }, { opacity: 0, duration: 0.6, ease: "power1.in" }, 6.91);
+
+      window.__timelines["11-outro"] = tl;
+    })();
+  </script>
+</div>
+</template>

@@ -1,0 +1,2084 @@
+{
+  "bgm": {
+    "path": "assets/music/drums.wav",
+    "source": "host",
+    "volume": 0.22,
+    "duration_s": 157.52
+  },
+  "bgm_pending": false,
+  "voices": [
+    {
+      "frame": 1,
+      "path": "assets/voice/vo-01.wav",
+      "duration_s": 12.3,
+      "words": [
+        {
+          "id": "w01_0",
+          "text": "Nigeria",
+          "start": 0.348,
+          "end": 0.793
+        },
+        {
+          "id": "w01_1",
+          "text": "is",
+          "start": 0.829,
+          "end": 0.913
+        },
+        {
+          "id": "w01_2",
+          "text": "Africa's",
+          "start": 0.913,
+          "end": 1.346
+        },
+        {
+          "id": "w01_3",
+          "text": "most",
+          "start": 1.382,
+          "end": 1.562
+        },
+        {
+          "id": "w01_4",
+          "text": "populous",
+          "start": 1.634,
+          "end": 2.007
+        },
+        {
+          "id": "w01_5",
+          "text": "nation",
+          "start": 2.031,
+          "end": 2.379
+        },
+        {
+          "id": "w01_6",
+          "text": "Yet",
+          "start": 3.267,
+          "end": 3.507
+        },
+        {
+          "id": "w01_7",
+          "text": "foreign",
+          "start": 3.543,
+          "end": 3.82
+        },
+        {
+          "id": "w01_8",
+          "text": "investment",
+          "start": 3.82,
+          "end": 4.3
+        },
+        {
+          "id": "w01_9",
+          "text": "swings",
+          "start": 4.324,
+          "end": 4.625
+        },
+        {
+          "id": "w01_10",
+          "text": "wildly",
+          "start": 4.673,
+          "end": 5.022
+        },
+        {
+          "id": "w01_11",
+          "text": "eight",
+          "start": 5.358,
+          "end": 5.502
+        },
+        {
+          "id": "w01_12",
+          "text": "point",
+          "start": 5.587,
+          "end": 5.815
+        },
+        {
+          "id": "w01_13",
+          "text": "eight",
+          "start": 5.851,
+          "end": 5.971
+        },
+        {
+          "id": "w01_14",
+          "text": "billion",
+          "start": 6.055,
+          "end": 6.284
+        },
+        {
+          "id": "w01_15",
+          "text": "dollars",
+          "start": 6.356,
+          "end": 6.68
+        },
+        {
+          "id": "w01_16",
+          "text": "in 2011",
+          "start": 6.68,
+          "end": 7.726
+        },
+        {
+          "id": "w01_17",
+          "text": "below",
+          "start": 8.038,
+          "end": 8.243
+        },
+        {
+          "id": "w01_18",
+          "text": "zero",
+          "start": 8.279,
+          "end": 8.507
+        },
+        {
+          "id": "w01_19",
+          "text": "in 2022",
+          "start": 8.555,
+          "end": 9.625
+        },
+        {
+          "id": "w01_20",
+          "text": "four",
+          "start": 9.877,
+          "end": 10.058
+        },
+        {
+          "id": "w01_21",
+          "text": "billion",
+          "start": 10.13,
+          "end": 10.358
+        },
+        {
+          "id": "w01_22",
+          "text": "last",
+          "start": 10.358,
+          "end": 10.659
+        },
+        {
+          "id": "w01_23",
+          "text": "year",
+          "start": 10.683,
+          "end": 10.839
+        }
+      ]
+    },
+    {
+      "frame": 2,
+      "path": "assets/voice/vo-02.wav",
+      "duration_s": 11.22,
+      "words": [
+        {
+          "id": "w02_0",
+          "text": "Development",
+          "start": 0.348,
+          "end": 0.961
+        },
+        {
+          "id": "w02_1",
+          "text": "finance",
+          "start": 0.985,
+          "end": 1.382
+        },
+        {
+          "id": "w02_2",
+          "text": "moves",
+          "start": 1.418,
+          "end": 1.634
+        },
+        {
+          "id": "w02_3",
+          "text": "slower",
+          "start": 1.646,
+          "end": 1.935
+        },
+        {
+          "id": "w02_4",
+          "text": "still",
+          "start": 1.959,
+          "end": 2.247
+        },
+        {
+          "id": "w02_5",
+          "text": "At",
+          "start": 3.135,
+          "end": 3.243
+        },
+        {
+          "id": "w02_6",
+          "text": "the",
+          "start": 3.291,
+          "end": 3.351
+        },
+        {
+          "id": "w02_7",
+          "text": "World",
+          "start": 3.399,
+          "end": 3.603
+        },
+        {
+          "id": "w02_8",
+          "text": "Bank",
+          "start": 3.688,
+          "end": 3.976
+        },
+        {
+          "id": "w02_9",
+          "text": "approval",
+          "start": 4.168,
+          "end": 4.565
+        },
+        {
+          "id": "w02_10",
+          "text": "has",
+          "start": 4.589,
+          "end": 4.769
+        },
+        {
+          "id": "w02_11",
+          "text": "taken",
+          "start": 4.829,
+          "end": 5.082
+        },
+        {
+          "id": "w02_12",
+          "text": "up",
+          "start": 5.106,
+          "end": 5.19
+        },
+        {
+          "id": "w02_13",
+          "text": "to",
+          "start": 5.274,
+          "end": 5.37
+        },
+        {
+          "id": "w02_14",
+          "text": "nineteen",
+          "start": 5.394,
+          "end": 5.767
+        },
+        {
+          "id": "w02_15",
+          "text": "months",
+          "start": 5.791,
+          "end": 6.26
+        },
+        {
+          "id": "w02_16",
+          "text": "And",
+          "start": 7.125,
+          "end": 7.257
+        },
+        {
+          "id": "w02_17",
+          "text": "the",
+          "start": 7.293,
+          "end": 7.365
+        },
+        {
+          "id": "w02_18",
+          "text": "scrutiny",
+          "start": 7.389,
+          "end": 7.798
+        },
+        {
+          "id": "w02_19",
+          "text": "is",
+          "start": 7.81,
+          "end": 7.906
+        },
+        {
+          "id": "w02_20",
+          "text": "toughest",
+          "start": 7.978,
+          "end": 8.351
+        },
+        {
+          "id": "w02_21",
+          "text": "on",
+          "start": 8.399,
+          "end": 8.519
+        },
+        {
+          "id": "w02_22",
+          "text": "institutions",
+          "start": 8.531,
+          "end": 9.18
+        },
+        {
+          "id": "w02_23",
+          "text": "like",
+          "start": 9.204,
+          "end": 9.385
+        },
+        {
+          "id": "w02_24",
+          "text": "ours",
+          "start": 9.409,
+          "end": 9.745
+        }
+      ]
+    },
+    {
+      "frame": 3,
+      "path": "assets/voice/vo-03.wav",
+      "duration_s": 12.01,
+      "words": [
+        {
+          "id": "w03_0",
+          "text": "In 2025",
+          "start": 0.348,
+          "end": 1.538
+        },
+        {
+          "id": "w03_1",
+          "text": "all",
+          "start": 1.802,
+          "end": 1.947
+        },
+        {
+          "id": "w03_2",
+          "text": "of",
+          "start": 1.947,
+          "end": 2.055
+        },
+        {
+          "id": "w03_3",
+          "text": "Africa",
+          "start": 2.079,
+          "end": 2.451
+        },
+        {
+          "id": "w03_4",
+          "text": "raised",
+          "start": 2.499,
+          "end": 2.716
+        },
+        {
+          "id": "w03_5",
+          "text": "about",
+          "start": 2.752,
+          "end": 2.992
+        },
+        {
+          "id": "w03_6",
+          "text": "four",
+          "start": 3.052,
+          "end": 3.209
+        },
+        {
+          "id": "w03_7",
+          "text": "billion",
+          "start": 3.281,
+          "end": 3.485
+        },
+        {
+          "id": "w03_8",
+          "text": "dollars",
+          "start": 3.557,
+          "end": 3.882
+        },
+        {
+          "id": "w03_9",
+          "text": "in",
+          "start": 3.918,
+          "end": 4.026
+        },
+        {
+          "id": "w03_10",
+          "text": "venture",
+          "start": 4.062,
+          "end": 4.338
+        },
+        {
+          "id": "w03_11",
+          "text": "capital",
+          "start": 4.399,
+          "end": 4.843
+        },
+        {
+          "id": "w03_12",
+          "text": "less",
+          "start": 5.084,
+          "end": 5.3
+        },
+        {
+          "id": "w03_13",
+          "text": "than",
+          "start": 5.348,
+          "end": 5.444
+        },
+        {
+          "id": "w03_14",
+          "text": "one",
+          "start": 5.504,
+          "end": 5.637
+        },
+        {
+          "id": "w03_15",
+          "text": "percent",
+          "start": 5.709,
+          "end": 6.033
+        },
+        {
+          "id": "w03_16",
+          "text": "of",
+          "start": 6.045,
+          "end": 6.141
+        },
+        {
+          "id": "w03_17",
+          "text": "the",
+          "start": 6.177,
+          "end": 6.225
+        },
+        {
+          "id": "w03_18",
+          "text": "world's",
+          "start": 6.25,
+          "end": 6.514
+        },
+        {
+          "id": "w03_19",
+          "text": "total",
+          "start": 6.574,
+          "end": 6.911
+        },
+        {
+          "id": "w03_20",
+          "text": "Nigeria's",
+          "start": 7.774,
+          "end": 8.267
+        },
+        {
+          "id": "w03_21",
+          "text": "share",
+          "start": 8.291,
+          "end": 8.555
+        },
+        {
+          "id": "w03_22",
+          "text": "five",
+          "start": 8.856,
+          "end": 9.108
+        },
+        {
+          "id": "w03_23",
+          "text": "hundred",
+          "start": 9.144,
+          "end": 9.457
+        },
+        {
+          "id": "w03_24",
+          "text": "and",
+          "start": 9.457,
+          "end": 9.577
+        },
+        {
+          "id": "w03_25",
+          "text": "seventy-two",
+          "start": 9.589,
+          "end": 10.19
+        },
+        {
+          "id": "w03_26",
+          "text": "million",
+          "start": 10.214,
+          "end": 10.55
+        }
+      ]
+    },
+    {
+      "frame": 4,
+      "path": "assets/voice/vo-04.wav",
+      "duration_s": 10.26,
+      "words": [
+        {
+          "id": "w04_0",
+          "text": "And",
+          "start": 0.348,
+          "end": 0.54
+        },
+        {
+          "id": "w04_1",
+          "text": "it",
+          "start": 0.54,
+          "end": 0.673
+        },
+        {
+          "id": "w04_2",
+          "text": "is",
+          "start": 0.673,
+          "end": 0.781
+        },
+        {
+          "id": "w04_3",
+          "text": "not",
+          "start": 0.817,
+          "end": 1.021
+        },
+        {
+          "id": "w04_4",
+          "text": "only",
+          "start": 1.081,
+          "end": 1.25
+        },
+        {
+          "id": "w04_5",
+          "text": "Nigeria",
+          "start": 1.286,
+          "end": 1.73
+        },
+        {
+          "id": "w04_6",
+          "text": "Across",
+          "start": 2.642,
+          "end": 3.026
+        },
+        {
+          "id": "w04_7",
+          "text": "Africa",
+          "start": 3.038,
+          "end": 3.411
+        },
+        {
+          "id": "w04_8",
+          "text": "and",
+          "start": 3.411,
+          "end": 3.507
+        },
+        {
+          "id": "w04_9",
+          "text": "the",
+          "start": 3.567,
+          "end": 3.603
+        },
+        {
+          "id": "w04_10",
+          "text": "Global",
+          "start": 3.675,
+          "end": 3.964
+        },
+        {
+          "id": "w04_11",
+          "text": "South",
+          "start": 4.0,
+          "end": 4.312
+        },
+        {
+          "id": "w04_12",
+          "text": "just",
+          "start": 4.625,
+          "end": 4.805
+        },
+        {
+          "id": "w04_13",
+          "text": "three",
+          "start": 4.865,
+          "end": 4.998
+        },
+        {
+          "id": "w04_14",
+          "text": "point",
+          "start": 5.082,
+          "end": 5.262
+        },
+        {
+          "id": "w04_15",
+          "text": "six",
+          "start": 5.274,
+          "end": 5.49
+        },
+        {
+          "id": "w04_16",
+          "text": "percent",
+          "start": 5.551,
+          "end": 5.851
+        },
+        {
+          "id": "w04_17",
+          "text": "of",
+          "start": 5.875,
+          "end": 5.983
+        },
+        {
+          "id": "w04_18",
+          "text": "humanitarian",
+          "start": 6.055,
+          "end": 6.644
+        },
+        {
+          "id": "w04_19",
+          "text": "funding",
+          "start": 6.668,
+          "end": 7.005
+        },
+        {
+          "id": "w04_20",
+          "text": "reaches",
+          "start": 7.029,
+          "end": 7.365
+        },
+        {
+          "id": "w04_21",
+          "text": "local",
+          "start": 7.401,
+          "end": 7.654
+        },
+        {
+          "id": "w04_22",
+          "text": "organisations",
+          "start": 7.654,
+          "end": 8.327
+        },
+        {
+          "id": "w04_23",
+          "text": "directly",
+          "start": 8.375,
+          "end": 8.784
+        }
+      ]
+    },
+    {
+      "frame": 5,
+      "path": "assets/voice/vo-05.wav",
+      "duration_s": 10.11,
+      "words": [
+        {
+          "id": "w05_0",
+          "text": "And",
+          "start": 0.348,
+          "end": 0.504
+        },
+        {
+          "id": "w05_1",
+          "text": "still",
+          "start": 0.54,
+          "end": 0.865
+        },
+        {
+          "id": "w05_2",
+          "text": "Nigeria",
+          "start": 1.141,
+          "end": 1.502
+        },
+        {
+          "id": "w05_3",
+          "text": "builds",
+          "start": 1.574,
+          "end": 1.935
+        },
+        {
+          "id": "w05_4",
+          "text": "Flutterwave",
+          "start": 2.103,
+          "end": 2.716
+        },
+        {
+          "id": "w05_5",
+          "text": "Interswitch",
+          "start": 2.932,
+          "end": 3.497
+        },
+        {
+          "id": "w05_6",
+          "text": "Moniepoint",
+          "start": 3.762,
+          "end": 4.399
+        },
+        {
+          "id": "w05_7",
+          "text": "OPay",
+          "start": 4.615,
+          "end": 5.06
+        },
+        {
+          "id": "w05_8",
+          "text": "and",
+          "start": 5.324,
+          "end": 5.48
+        },
+        {
+          "id": "w05_9",
+          "text": "thousands",
+          "start": 5.54,
+          "end": 5.889
+        },
+        {
+          "id": "w05_10",
+          "text": "of",
+          "start": 5.901,
+          "end": 5.985
+        },
+        {
+          "id": "w05_11",
+          "text": "strong",
+          "start": 6.021,
+          "end": 6.31
+        },
+        {
+          "id": "w05_12",
+          "text": "businesses",
+          "start": 6.358,
+          "end": 6.875
+        },
+        {
+          "id": "w05_13",
+          "text": "NGOs",
+          "start": 7.127,
+          "end": 7.584
+        },
+        {
+          "id": "w05_14",
+          "text": "and",
+          "start": 7.584,
+          "end": 7.692
+        },
+        {
+          "id": "w05_15",
+          "text": "public",
+          "start": 7.764,
+          "end": 8.052
+        },
+        {
+          "id": "w05_16",
+          "text": "agencies",
+          "start": 8.064,
+          "end": 8.665
+        }
+      ]
+    },
+    {
+      "frame": 6,
+      "path": "assets/voice/vo-06.wav",
+      "duration_s": 15.75,
+      "words": [
+        {
+          "id": "w06_0",
+          "text": "Now",
+          "start": 0.348,
+          "end": 0.588
+        },
+        {
+          "id": "w06_1",
+          "text": "imagine",
+          "start": 0.601,
+          "end": 0.973
+        },
+        {
+          "id": "w06_2",
+          "text": "they",
+          "start": 1.033,
+          "end": 1.105
+        },
+        {
+          "id": "w06_3",
+          "text": "could",
+          "start": 1.165,
+          "end": 1.286
+        },
+        {
+          "id": "w06_4",
+          "text": "prove",
+          "start": 1.346,
+          "end": 1.55
+        },
+        {
+          "id": "w06_5",
+          "text": "it",
+          "start": 1.562,
+          "end": 1.706
+        },
+        {
+          "id": "w06_6",
+          "text": "with",
+          "start": 2.043,
+          "end": 2.199
+        },
+        {
+          "id": "w06_7",
+          "text": "evidence",
+          "start": 2.247,
+          "end": 2.68
+        },
+        {
+          "id": "w06_8",
+          "text": "any",
+          "start": 2.752,
+          "end": 2.92
+        },
+        {
+          "id": "w06_9",
+          "text": "funder",
+          "start": 2.944,
+          "end": 3.245
+        },
+        {
+          "id": "w06_10",
+          "text": "accepts",
+          "start": 3.245,
+          "end": 3.81
+        },
+        {
+          "id": "w06_11",
+          "text": "When",
+          "start": 4.673,
+          "end": 4.901
+        },
+        {
+          "id": "w06_12",
+          "text": "trust",
+          "start": 4.962,
+          "end": 5.25
+        },
+        {
+          "id": "w06_13",
+          "text": "is",
+          "start": 5.25,
+          "end": 5.358
+        },
+        {
+          "id": "w06_14",
+          "text": "proven",
+          "start": 5.43,
+          "end": 5.803
+        },
+        {
+          "id": "w06_15",
+          "text": "money",
+          "start": 6.079,
+          "end": 6.32
+        },
+        {
+          "id": "w06_16",
+          "text": "moves",
+          "start": 6.356,
+          "end": 6.776
+        },
+        {
+          "id": "w06_17",
+          "text": "In 2025",
+          "start": 7.666,
+          "end": 8.844
+        },
+        {
+          "id": "w06_18",
+          "text": "the",
+          "start": 9.192,
+          "end": 9.264
+        },
+        {
+          "id": "w06_19",
+          "text": "Nigeria",
+          "start": 9.288,
+          "end": 9.649
+        },
+        {
+          "id": "w06_20",
+          "text": "Humanitarian",
+          "start": 9.673,
+          "end": 10.262
+        },
+        {
+          "id": "w06_21",
+          "text": "Fund",
+          "start": 10.286,
+          "end": 10.526
+        },
+        {
+          "id": "w06_22",
+          "text": "sent",
+          "start": 10.575,
+          "end": 10.803
+        },
+        {
+          "id": "w06_23",
+          "text": "a",
+          "start": 10.803,
+          "end": 10.863
+        },
+        {
+          "id": "w06_24",
+          "text": "record",
+          "start": 10.887,
+          "end": 11.151
+        },
+        {
+          "id": "w06_25",
+          "text": "seventy",
+          "start": 11.175,
+          "end": 11.572
+        },
+        {
+          "id": "w06_26",
+          "text": "percent",
+          "start": 11.656,
+          "end": 11.969
+        },
+        {
+          "id": "w06_27",
+          "text": "of",
+          "start": 11.993,
+          "end": 12.077
+        },
+        {
+          "id": "w06_28",
+          "text": "direct",
+          "start": 12.137,
+          "end": 12.45
+        },
+        {
+          "id": "w06_29",
+          "text": "allocations",
+          "start": 12.486,
+          "end": 13.038
+        },
+        {
+          "id": "w06_30",
+          "text": "to",
+          "start": 13.087,
+          "end": 13.183
+        },
+        {
+          "id": "w06_31",
+          "text": "Nigerian",
+          "start": 13.207,
+          "end": 13.639
+        },
+        {
+          "id": "w06_32",
+          "text": "NGOs",
+          "start": 13.688,
+          "end": 14.3
+        }
+      ]
+    },
+    {
+      "frame": 7,
+      "path": "assets/voice/vo-07.wav",
+      "duration_s": 10.76,
+      "words": [
+        {
+          "id": "w07_0",
+          "text": "That",
+          "start": 0.348,
+          "end": 0.637
+        },
+        {
+          "id": "w07_1",
+          "text": "is",
+          "start": 0.637,
+          "end": 0.733
+        },
+        {
+          "id": "w07_2",
+          "text": "what",
+          "start": 0.781,
+          "end": 0.961
+        },
+        {
+          "id": "w07_3",
+          "text": "CRAFT",
+          "start": 1.021,
+          "end": 1.25
+        },
+        {
+          "id": "w07_4",
+          "text": "does",
+          "start": 1.322,
+          "end": 1.658
+        },
+        {
+          "id": "w07_5",
+          "text": "and",
+          "start": 1.923,
+          "end": 2.043
+        },
+        {
+          "id": "w07_6",
+          "text": "it",
+          "start": 2.043,
+          "end": 2.127
+        },
+        {
+          "id": "w07_7",
+          "text": "starts",
+          "start": 2.163,
+          "end": 2.5
+        },
+        {
+          "id": "w07_8",
+          "text": "in",
+          "start": 2.548,
+          "end": 2.656
+        },
+        {
+          "id": "w07_9",
+          "text": "minutes",
+          "start": 2.656,
+          "end": 3.173
+        },
+        {
+          "id": "w07_10",
+          "text": "Register",
+          "start": 4.06,
+          "end": 4.493
+        },
+        {
+          "id": "w07_11",
+          "text": "your",
+          "start": 4.553,
+          "end": 4.649
+        },
+        {
+          "id": "w07_12",
+          "text": "institution",
+          "start": 4.697,
+          "end": 5.358
+        },
+        {
+          "id": "w07_13",
+          "text": "set",
+          "start": 5.623,
+          "end": 5.839
+        },
+        {
+          "id": "w07_14",
+          "text": "up",
+          "start": 5.863,
+          "end": 5.995
+        },
+        {
+          "id": "w07_15",
+          "text": "your",
+          "start": 6.031,
+          "end": 6.115
+        },
+        {
+          "id": "w07_16",
+          "text": "workspace",
+          "start": 6.176,
+          "end": 6.716
+        },
+        {
+          "id": "w07_17",
+          "text": "and",
+          "start": 6.981,
+          "end": 7.101
+        },
+        {
+          "id": "w07_18",
+          "text": "align",
+          "start": 7.101,
+          "end": 7.365
+        },
+        {
+          "id": "w07_19",
+          "text": "to",
+          "start": 7.401,
+          "end": 7.462
+        },
+        {
+          "id": "w07_20",
+          "text": "the",
+          "start": 7.51,
+          "end": 7.582
+        },
+        {
+          "id": "w07_21",
+          "text": "frameworks",
+          "start": 7.606,
+          "end": 8.075
+        },
+        {
+          "id": "w07_22",
+          "text": "your",
+          "start": 8.111,
+          "end": 8.183
+        },
+        {
+          "id": "w07_23",
+          "text": "funders",
+          "start": 8.195,
+          "end": 8.627
+        },
+        {
+          "id": "w07_24",
+          "text": "already",
+          "start": 8.627,
+          "end": 8.928
+        },
+        {
+          "id": "w07_25",
+          "text": "use",
+          "start": 8.976,
+          "end": 9.312
+        }
+      ]
+    },
+    {
+      "frame": 8,
+      "path": "assets/voice/vo-08.wav",
+      "duration_s": 11.43,
+      "words": [
+        {
+          "id": "w08_0",
+          "text": "Then",
+          "start": 0.348,
+          "end": 0.576
+        },
+        {
+          "id": "w08_1",
+          "text": "assess",
+          "start": 0.576,
+          "end": 0.889
+        },
+        {
+          "id": "w08_2",
+          "text": "your",
+          "start": 0.937,
+          "end": 0.985
+        },
+        {
+          "id": "w08_3",
+          "text": "organisation",
+          "start": 0.985,
+          "end": 1.742
+        },
+        {
+          "id": "w08_4",
+          "text": "tier",
+          "start": 2.043,
+          "end": 2.211
+        },
+        {
+          "id": "w08_5",
+          "text": "by",
+          "start": 2.259,
+          "end": 2.379
+        },
+        {
+          "id": "w08_6",
+          "text": "tier",
+          "start": 2.451,
+          "end": 2.692
+        },
+        {
+          "id": "w08_7",
+          "text": "organisational",
+          "start": 2.92,
+          "end": 3.533
+        },
+        {
+          "id": "w08_8",
+          "text": "maturity",
+          "start": 3.545,
+          "end": 4.11
+        },
+        {
+          "id": "w08_9",
+          "text": "fiduciary",
+          "start": 4.362,
+          "end": 4.891
+        },
+        {
+          "id": "w08_10",
+          "text": "assurance",
+          "start": 4.891,
+          "end": 5.468
+        },
+        {
+          "id": "w08_11",
+          "text": "grant",
+          "start": 5.757,
+          "end": 5.985
+        },
+        {
+          "id": "w08_12",
+          "text": "management",
+          "start": 6.009,
+          "end": 6.586
+        },
+        {
+          "id": "w08_13",
+          "text": "donor",
+          "start": 6.838,
+          "end": 7.079
+        },
+        {
+          "id": "w08_14",
+          "text": "readiness",
+          "start": 7.127,
+          "end": 7.584
+        },
+        {
+          "id": "w08_15",
+          "text": "and",
+          "start": 7.668,
+          "end": 7.776
+        },
+        {
+          "id": "w08_16",
+          "text": "digital",
+          "start": 7.848,
+          "end": 8.185
+        },
+        {
+          "id": "w08_17",
+          "text": "operations",
+          "start": 8.209,
+          "end": 8.858
+        },
+        {
+          "id": "w08_18",
+          "text": "online",
+          "start": 9.11,
+          "end": 9.447
+        },
+        {
+          "id": "w08_19",
+          "text": "or",
+          "start": 9.447,
+          "end": 9.543
+        },
+        {
+          "id": "w08_20",
+          "text": "offline",
+          "start": 9.579,
+          "end": 10.012
+        }
+      ]
+    },
+    {
+      "frame": 9,
+      "path": "assets/voice/vo-09.wav",
+      "duration_s": 12.15,
+      "words": [
+        {
+          "id": "w09_0",
+          "text": "The",
+          "start": 0.348,
+          "end": 0.468
+        },
+        {
+          "id": "w09_1",
+          "text": "logic",
+          "start": 0.48,
+          "end": 0.805
+        },
+        {
+          "id": "w09_2",
+          "text": "is",
+          "start": 0.841,
+          "end": 0.937
+        },
+        {
+          "id": "w09_3",
+          "text": "rigorous",
+          "start": 1.009,
+          "end": 1.598
+        },
+        {
+          "id": "w09_4",
+          "text": "Every",
+          "start": 2.462,
+          "end": 2.726
+        },
+        {
+          "id": "w09_5",
+          "text": "answer",
+          "start": 2.726,
+          "end": 3.014
+        },
+        {
+          "id": "w09_6",
+          "text": "is",
+          "start": 3.038,
+          "end": 3.111
+        },
+        {
+          "id": "w09_7",
+          "text": "scored",
+          "start": 3.111,
+          "end": 3.423
+        },
+        {
+          "id": "w09_8",
+          "text": "from",
+          "start": 3.447,
+          "end": 3.639
+        },
+        {
+          "id": "w09_9",
+          "text": "zero",
+          "start": 3.663,
+          "end": 3.892
+        },
+        {
+          "id": "w09_10",
+          "text": "to",
+          "start": 3.952,
+          "end": 4.024
+        },
+        {
+          "id": "w09_11",
+          "text": "five",
+          "start": 4.048,
+          "end": 4.397
+        },
+        {
+          "id": "w09_12",
+          "text": "and",
+          "start": 4.661,
+          "end": 4.781
+        },
+        {
+          "id": "w09_13",
+          "text": "tested",
+          "start": 4.841,
+          "end": 5.166
+        },
+        {
+          "id": "w09_14",
+          "text": "against",
+          "start": 5.166,
+          "end": 5.49
+        },
+        {
+          "id": "w09_15",
+          "text": "a",
+          "start": 5.502,
+          "end": 5.562
+        },
+        {
+          "id": "w09_16",
+          "text": "seven-point",
+          "start": 5.574,
+          "end": 6.151
+        },
+        {
+          "id": "w09_17",
+          "text": "evidence",
+          "start": 6.199,
+          "end": 6.584
+        },
+        {
+          "id": "w09_18",
+          "text": "matrix",
+          "start": 6.62,
+          "end": 7.185
+        },
+        {
+          "id": "w09_19",
+          "text": "Policies",
+          "start": 8.087,
+          "end": 8.531
+        },
+        {
+          "id": "w09_20",
+          "text": "on",
+          "start": 8.531,
+          "end": 8.651
+        },
+        {
+          "id": "w09_21",
+          "text": "paper",
+          "start": 8.712,
+          "end": 8.952
+        },
+        {
+          "id": "w09_22",
+          "text": "don't",
+          "start": 9.0,
+          "end": 9.156
+        },
+        {
+          "id": "w09_23",
+          "text": "count",
+          "start": 9.228,
+          "end": 9.457
+        },
+        {
+          "id": "w09_24",
+          "text": "until",
+          "start": 9.505,
+          "end": 9.781
+        },
+        {
+          "id": "w09_25",
+          "text": "practice",
+          "start": 9.853,
+          "end": 10.226
+        },
+        {
+          "id": "w09_26",
+          "text": "proves",
+          "start": 10.298,
+          "end": 10.49
+        },
+        {
+          "id": "w09_27",
+          "text": "them",
+          "start": 10.526,
+          "end": 10.743
+        }
+      ]
+    },
+    {
+      "frame": 10,
+      "path": "assets/voice/vo-10.wav",
+      "duration_s": 8.58,
+      "words": [
+        {
+          "id": "w10_0",
+          "text": "The",
+          "start": 0.348,
+          "end": 0.528
+        },
+        {
+          "id": "w10_1",
+          "text": "results",
+          "start": 0.552,
+          "end": 0.889
+        },
+        {
+          "id": "w10_2",
+          "text": "are",
+          "start": 0.937,
+          "end": 1.057
+        },
+        {
+          "id": "w10_3",
+          "text": "immediate",
+          "start": 1.057,
+          "end": 1.478
+        },
+        {
+          "id": "w10_4",
+          "text": "a",
+          "start": 1.73,
+          "end": 1.802
+        },
+        {
+          "id": "w10_5",
+          "text": "readiness",
+          "start": 1.838,
+          "end": 2.223
+        },
+        {
+          "id": "w10_6",
+          "text": "level",
+          "start": 2.247,
+          "end": 2.476
+        },
+        {
+          "id": "w10_7",
+          "text": "from",
+          "start": 2.499,
+          "end": 2.704
+        },
+        {
+          "id": "w10_8",
+          "text": "A",
+          "start": 2.728,
+          "end": 2.788
+        },
+        {
+          "id": "w10_9",
+          "text": "to",
+          "start": 2.848,
+          "end": 2.956
+        },
+        {
+          "id": "w10_10",
+          "text": "E",
+          "start": 3.016,
+          "end": 3.161
+        },
+        {
+          "id": "w10_11",
+          "text": "the",
+          "start": 3.461,
+          "end": 3.509
+        },
+        {
+          "id": "w10_12",
+          "text": "gaps",
+          "start": 3.581,
+          "end": 3.798
+        },
+        {
+          "id": "w10_13",
+          "text": "that",
+          "start": 3.87,
+          "end": 4.014
+        },
+        {
+          "id": "w10_14",
+          "text": "matter",
+          "start": 4.038,
+          "end": 4.326
+        },
+        {
+          "id": "w10_15",
+          "text": "most",
+          "start": 4.338,
+          "end": 4.615
+        },
+        {
+          "id": "w10_16",
+          "text": "and",
+          "start": 4.891,
+          "end": 4.999
+        },
+        {
+          "id": "w10_17",
+          "text": "reports",
+          "start": 5.0,
+          "end": 5.384
+        },
+        {
+          "id": "w10_18",
+          "text": "ready",
+          "start": 5.432,
+          "end": 5.624
+        },
+        {
+          "id": "w10_19",
+          "text": "for",
+          "start": 5.637,
+          "end": 5.757
+        },
+        {
+          "id": "w10_20",
+          "text": "your",
+          "start": 5.793,
+          "end": 5.913
+        },
+        {
+          "id": "w10_21",
+          "text": "board",
+          "start": 5.997,
+          "end": 6.189
+        },
+        {
+          "id": "w10_22",
+          "text": "and",
+          "start": 6.262,
+          "end": 6.406
+        },
+        {
+          "id": "w10_23",
+          "text": "your",
+          "start": 6.442,
+          "end": 6.526
+        },
+        {
+          "id": "w10_24",
+          "text": "funders",
+          "start": 6.526,
+          "end": 7.127
+        }
+      ]
+    },
+    {
+      "frame": 11,
+      "path": "assets/voice/vo-11.wav",
+      "duration_s": 10.21,
+      "words": [
+        {
+          "id": "w11_0",
+          "text": "Every",
+          "start": 0.348,
+          "end": 0.6
+        },
+        {
+          "id": "w11_1",
+          "text": "gap",
+          "start": 0.673,
+          "end": 0.829
+        },
+        {
+          "id": "w11_2",
+          "text": "becomes",
+          "start": 0.901,
+          "end": 1.237
+        },
+        {
+          "id": "w11_3",
+          "text": "a",
+          "start": 1.238,
+          "end": 1.286
+        },
+        {
+          "id": "w11_4",
+          "text": "costed",
+          "start": 1.346,
+          "end": 1.766
+        },
+        {
+          "id": "w11_5",
+          "text": "owned",
+          "start": 1.995,
+          "end": 2.175
+        },
+        {
+          "id": "w11_6",
+          "text": "action",
+          "start": 2.259,
+          "end": 2.62
+        },
+        {
+          "id": "w11_7",
+          "text": "Track",
+          "start": 3.531,
+          "end": 3.748
+        },
+        {
+          "id": "w11_8",
+          "text": "progress",
+          "start": 3.844,
+          "end": 4.156
+        },
+        {
+          "id": "w11_9",
+          "text": "over",
+          "start": 4.168,
+          "end": 4.325
+        },
+        {
+          "id": "w11_10",
+          "text": "time",
+          "start": 4.385,
+          "end": 4.685
+        },
+        {
+          "id": "w11_11",
+          "text": "while",
+          "start": 4.938,
+          "end": 5.07
+        },
+        {
+          "id": "w11_12",
+          "text": "your",
+          "start": 5.106,
+          "end": 5.202
+        },
+        {
+          "id": "w11_13",
+          "text": "funders",
+          "start": 5.214,
+          "end": 5.635
+        },
+        {
+          "id": "w11_14",
+          "text": "and",
+          "start": 5.635,
+          "end": 5.767
+        },
+        {
+          "id": "w11_15",
+          "text": "independent",
+          "start": 5.767,
+          "end": 6.368
+        },
+        {
+          "id": "w11_16",
+          "text": "reviewers",
+          "start": 6.392,
+          "end": 6.74
+        },
+        {
+          "id": "w11_17",
+          "text": "see",
+          "start": 6.74,
+          "end": 6.861
+        },
+        {
+          "id": "w11_18",
+          "text": "the",
+          "start": 6.921,
+          "end": 6.993
+        },
+        {
+          "id": "w11_19",
+          "text": "same",
+          "start": 7.029,
+          "end": 7.221
+        },
+        {
+          "id": "w11_20",
+          "text": "evidence",
+          "start": 7.221,
+          "end": 7.702
+        },
+        {
+          "id": "w11_21",
+          "text": "and",
+          "start": 7.954,
+          "end": 8.05
+        },
+        {
+          "id": "w11_22",
+          "text": "the",
+          "start": 8.099,
+          "end": 8.159
+        },
+        {
+          "id": "w11_23",
+          "text": "same",
+          "start": 8.207,
+          "end": 8.375
+        },
+        {
+          "id": "w11_24",
+          "text": "trail",
+          "start": 8.447,
+          "end": 8.76
+        }
+      ]
+    },
+    {
+      "frame": 12,
+      "path": "assets/voice/vo-12.wav",
+      "duration_s": 13.4,
+      "words": [
+        {
+          "id": "w12_0",
+          "text": "It",
+          "start": 0.348,
+          "end": 0.54
+        },
+        {
+          "id": "w12_1",
+          "text": "is",
+          "start": 0.54,
+          "end": 0.661
+        },
+        {
+          "id": "w12_2",
+          "text": "built",
+          "start": 0.721,
+          "end": 0.889
+        },
+        {
+          "id": "w12_3",
+          "text": "for",
+          "start": 0.889,
+          "end": 1.021
+        },
+        {
+          "id": "w12_4",
+          "text": "ministries",
+          "start": 1.033,
+          "end": 1.526
+        },
+        {
+          "id": "w12_5",
+          "text": "and",
+          "start": 1.526,
+          "end": 1.658
+        },
+        {
+          "id": "w12_6",
+          "text": "agencies",
+          "start": 1.658,
+          "end": 2.187
+        },
+        {
+          "id": "w12_7",
+          "text": "NGOs",
+          "start": 2.379,
+          "end": 2.884
+        },
+        {
+          "id": "w12_8",
+          "text": "and",
+          "start": 2.968,
+          "end": 3.1
+        },
+        {
+          "id": "w12_9",
+          "text": "cooperatives",
+          "start": 3.161,
+          "end": 3.786
+        },
+        {
+          "id": "w12_10",
+          "text": "startups",
+          "start": 3.954,
+          "end": 4.519
+        },
+        {
+          "id": "w12_11",
+          "text": "SMEs",
+          "start": 4.747,
+          "end": 5.276
+        },
+        {
+          "id": "w12_12",
+          "text": "even",
+          "start": 5.456,
+          "end": 5.685
+        },
+        {
+          "id": "w12_13",
+          "text": "informal",
+          "start": 5.685,
+          "end": 6.057
+        },
+        {
+          "id": "w12_14",
+          "text": "enterprises",
+          "start": 6.129,
+          "end": 6.911
+        },
+        {
+          "id": "w12_15",
+          "text": "One",
+          "start": 7.798,
+          "end": 8.026
+        },
+        {
+          "id": "w12_16",
+          "text": "evidence",
+          "start": 8.026,
+          "end": 8.423
+        },
+        {
+          "id": "w12_17",
+          "text": "base",
+          "start": 8.495,
+          "end": 8.808
+        },
+        {
+          "id": "w12_18",
+          "text": "reused",
+          "start": 9.06,
+          "end": 9.397
+        },
+        {
+          "id": "w12_19",
+          "text": "across",
+          "start": 9.433,
+          "end": 9.757
+        },
+        {
+          "id": "w12_20",
+          "text": "funders",
+          "start": 9.805,
+          "end": 10.25
+        },
+        {
+          "id": "w12_21",
+          "text": "saving",
+          "start": 10.442,
+          "end": 10.815
+        },
+        {
+          "id": "w12_22",
+          "text": "time",
+          "start": 10.839,
+          "end": 11.103
+        },
+        {
+          "id": "w12_23",
+          "text": "and",
+          "start": 11.175,
+          "end": 11.296
+        },
+        {
+          "id": "w12_24",
+          "text": "resources",
+          "start": 11.332,
+          "end": 11.933
+        }
+      ]
+    },
+    {
+      "frame": 13,
+      "path": "assets/voice/vo-13.wav",
+      "duration_s": 7.74,
+      "words": [
+        {
+          "id": "w13_0",
+          "text": "And",
+          "start": 0.348,
+          "end": 0.516
+        },
+        {
+          "id": "w13_1",
+          "text": "it",
+          "start": 0.516,
+          "end": 0.649
+        },
+        {
+          "id": "w13_2",
+          "text": "is",
+          "start": 0.661,
+          "end": 0.781
+        },
+        {
+          "id": "w13_3",
+          "text": "built",
+          "start": 0.841,
+          "end": 1.033
+        },
+        {
+          "id": "w13_4",
+          "text": "here",
+          "start": 1.093,
+          "end": 1.31
+        },
+        {
+          "id": "w13_5",
+          "text": "by",
+          "start": 1.61,
+          "end": 1.706
+        },
+        {
+          "id": "w13_6",
+          "text": "the",
+          "start": 1.754,
+          "end": 1.814
+        },
+        {
+          "id": "w13_7",
+          "text": "Become",
+          "start": 1.875,
+          "end": 2.163
+        },
+        {
+          "id": "w13_8",
+          "text": "Change",
+          "start": 2.223,
+          "end": 2.487
+        },
+        {
+          "id": "w13_9",
+          "text": "Institute",
+          "start": 2.536,
+          "end": 3.064
+        },
+        {
+          "id": "w13_10",
+          "text": "Local",
+          "start": 4.0,
+          "end": 4.337
+        },
+        {
+          "id": "w13_11",
+          "text": "competence",
+          "start": 4.397,
+          "end": 5.01
+        },
+        {
+          "id": "w13_12",
+          "text": "for",
+          "start": 5.19,
+          "end": 5.382
+        },
+        {
+          "id": "w13_13",
+          "text": "global",
+          "start": 5.442,
+          "end": 5.683
+        },
+        {
+          "id": "w13_14",
+          "text": "relevance",
+          "start": 5.731,
+          "end": 6.32
+        }
+      ]
+    },
+    {
+      "frame": 14,
+      "path": "assets/voice/vo-14.wav",
+      "duration_s": 10.6,
+      "words": [
+        {
+          "id": "w14_0",
+          "text": "Take",
+          "start": 0.348,
+          "end": 0.504
+        },
+        {
+          "id": "w14_1",
+          "text": "the",
+          "start": 0.576,
+          "end": 0.649
+        },
+        {
+          "id": "w14_2",
+          "text": "free",
+          "start": 0.661,
+          "end": 0.853
+        },
+        {
+          "id": "w14_3",
+          "text": "Readiness",
+          "start": 0.913,
+          "end": 1.262
+        },
+        {
+          "id": "w14_4",
+          "text": "Check",
+          "start": 1.334,
+          "end": 1.55
+        },
+        {
+          "id": "w14_5",
+          "text": "at",
+          "start": 1.851,
+          "end": 2.007
+        },
+        {
+          "id": "w14_6",
+          "text": "craftframework",
+          "start": 2.067,
+          "end": 2.668
+        },
+        {
+          "id": "w14_7",
+          "text": "dot",
+          "start": 2.764,
+          "end": 2.884
+        },
+        {
+          "id": "w14_8",
+          "text": "becomechange",
+          "start": 2.956,
+          "end": 3.485
+        },
+        {
+          "id": "w14_9",
+          "text": "dot",
+          "start": 3.557,
+          "end": 3.762
+        },
+        {
+          "id": "w14_10",
+          "text": "institute",
+          "start": 3.786,
+          "end": 4.326
+        },
+        {
+          "id": "w14_11",
+          "text": "CRAFT",
+          "start": 5.25,
+          "end": 5.647
+        },
+        {
+          "id": "w14_12",
+          "text": "Trust",
+          "start": 6.608,
+          "end": 6.969
+        },
+        {
+          "id": "w14_13",
+          "text": "proven",
+          "start": 7.317,
+          "end": 7.654
+        }
+      ]
+    }
+  ],
+  "sfx": []
+}

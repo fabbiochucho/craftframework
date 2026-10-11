@@ -1,0 +1,120 @@
+<template id="f06-template">
+<div data-hf-id="hf-a5i7" id="root" data-composition-id="06-imagine" data-start="0" data-duration="16.15" data-width="1920" data-height="1080">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    @font-face{font-family:Inter;font-weight:400;font-display:block;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    @font-face{font-family:Inter;font-weight:500;font-display:block;src:url("assets/fonts/inter-latin-500.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    @font-face{font-family:Inter;font-weight:600;font-display:block;src:url("assets/fonts/inter-latin-600.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    @font-face{font-family:Inter;font-weight:700;font-display:block;src:url("assets/fonts/inter-latin-700.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+    @font-face{font-family:"JetBrains Mono";font-weight:400;font-display:block;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+    #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: Inter, sans-serif; color: #1E293B; }
+    #f06-bg { position: absolute; inset: 0; background: #F0FDF4; }
+    #f06-stage { position: absolute; inset: 0; transform-origin: 50% 42%; }
+
+    .f06-mono { font-family: "JetBrains Mono", monospace; font-weight: 400; text-transform: uppercase; }
+
+    /* topbar spine */
+    #f06-topbar { position: absolute; left: 96px; right: 96px; top: 52px; height: 52px; display: flex; justify-content: space-between; align-items: center; font-size: 26px; letter-spacing: 0.18em; color: #00744D; }
+    #f06-topbar-rule { position: absolute; left: 96px; right: 96px; top: 112px; height: 2px; background: #00744D; transform-origin: 0 50%; }
+
+    /* statements share one centred slot (y 330–630), later lifted to the top third */
+    .f06-slot { position: absolute; left: 96px; right: 96px; top: 330px; height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .f06-line { font-weight: 500; color: #004F3B; white-space: nowrap; }
+    .f06-w { display: inline-block; }
+    #f06-s1 .f06-line { font-size: 140px; line-height: 1.02; letter-spacing: -0.02em; }
+    #f06-s1-sub { margin-top: 36px; font-size: 26px; letter-spacing: 0.18em; color: #00744D; }
+    #f06-s2 .f06-line { font-size: 112px; line-height: 0.98; letter-spacing: -0.02em; }
+    #f06-w-proven { color: #00744D; }
+    #f06-moves-wrap { position: relative; display: inline-block; }
+    #f06-underline { position: absolute; left: 0; right: 0; bottom: -10px; height: 8px; border-radius: 3px; background: #009060; transform-origin: 0 50%; }
+
+    /* stat block */
+    #f06-label { position: absolute; left: 96px; right: 96px; top: 352px; text-align: center; font-size: 26px; letter-spacing: 0.18em; color: #00744D; }
+    #f06-fig { position: absolute; left: 96px; right: 96px; top: 400px; text-align: center; font-size: 260px; font-weight: 500; line-height: 0.92; letter-spacing: -0.03em; color: #004F3B; font-variant-numeric: tabular-nums; }
+    #f06-tag { position: absolute; left: 96px; right: 96px; top: 668px; text-align: center; font-family: "JetBrains Mono", monospace; font-size: 26px; letter-spacing: 0.18em; color: #1E293B; }
+
+    /* citation chrome */
+    #f06-src-rule { position: absolute; left: 96px; width: 1728px; top: 800px; height: 2px; background: #00744D; transform-origin: 0 50%; }
+    #f06-src { position: absolute; left: 96px; width: 1728px; top: 820px; font-size: 22px; letter-spacing: 0.12em; color: #1E293B; white-space: nowrap; }
+  </style>
+
+  <div data-hf-id="hf-1evj" id="f06-bg" class="clip" data-start="0" data-duration="16.15" data-track-index="0"></div>
+
+  <div data-hf-id="hf-5aqb" id="f06-stage" class="clip" data-start="0" data-duration="16.15" data-track-index="1">
+    <div data-hf-id="hf-ba8v" id="f06-topbar" class="f06-mono"><span data-hf-id="hf-iwe4" id="f06-top-l">Imagine · Proof moves money</span><span data-hf-id="hf-bd2b" id="f06-top-r">06 / 14</span></div>
+    <div data-hf-id="hf-4xpj" id="f06-topbar-rule"></div>
+
+    <div data-hf-id="hf-v50i" id="f06-s1" class="f06-slot">
+      <div data-hf-id="hf-ahiv" class="f06-line"><span data-hf-id="hf-4j5g" class="f06-w" id="f06-w-imagine">Imagine</span> <span data-hf-id="hf-p48s" class="f06-w" id="f06-w-they">they</span> <span data-hf-id="hf-wl40" class="f06-w" id="f06-w-could">could</span></div>
+      <div data-hf-id="hf-gzzr" class="f06-line"><span data-hf-id="hf-arf0" class="f06-w" id="f06-w-prove">prove</span> <span data-hf-id="hf-l0dk" class="f06-w" id="f06-w-it">it.</span></div>
+      <div data-hf-id="hf-uvb2" id="f06-s1-sub" class="f06-mono">With evidence any funder accepts</div>
+    </div>
+
+    <div data-hf-id="hf-r6wh" id="f06-s2" class="f06-slot">
+      <div data-hf-id="hf-gloq" class="f06-line"><span data-hf-id="hf-pj9g" class="f06-w" id="f06-w-when">When</span> <span data-hf-id="hf-cz0o" class="f06-w" id="f06-w-trust">trust</span> <span data-hf-id="hf-7ci4" class="f06-w" id="f06-w-is">is</span> <span data-hf-id="hf-e0ao" class="f06-w" id="f06-w-proven">proven,</span></div>
+      <div data-hf-id="hf-g7dp" class="f06-line"><span data-hf-id="hf-x250" class="f06-w" id="f06-w-money">money</span> <span data-hf-id="hf-r857" class="f06-w" id="f06-moves-wrap"><span data-hf-id="hf-izwj" id="f06-w-moves">moves.</span><span data-hf-id="hf-6wp5" id="f06-underline"></span></span></div>
+    </div>
+
+    <div data-hf-id="hf-m3qm" id="f06-label" class="f06-mono">Nigeria Humanitarian Fund · 2025</div>
+    <div data-hf-id="hf-kyl5" id="f06-fig"><span data-hf-id="hf-34xz" id="f06-num">0</span>%</div>
+    <div data-hf-id="hf-0204" id="f06-tag">OF DIRECT ALLOCATIONS TO NATIONAL NGOs · A RECORD</div>
+
+    <div data-hf-id="hf-022t" id="f06-src-rule"></div>
+    <div data-hf-id="hf-kgo0" id="f06-src" class="f06-mono">Source · UN Nigeria, "Nigeria's Humanitarian Reset", 23 Jan 2026 (Nigeria Humanitarian Fund)</div>
+  </div>
+
+  <script>
+    (function () {
+      var tl = gsap.timeline({ paused: true });
+      var E = "power3.out";
+      var word = function (sel, at) {
+        tl.fromTo(sel, { opacity: 0, y: 40, filter: "blur(10px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.7, ease: E }, at);
+      };
+
+      // macro: slow push-in under the whole shot
+      tl.fromTo("#f06-stage", { scale: 1 }, { scale: 1.03, duration: 15.75, ease: "none" }, 0);
+
+      // topbar spine
+      tl.fromTo("#f06-topbar-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: E }, 0);
+      tl.fromTo("#f06-topbar", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: E }, 0.1);
+
+      // Scene 1 (0.0–4.4): "Imagine they could prove it." word by word
+      word("#f06-w-imagine", 0.3);
+      word("#f06-w-they", 0.75);
+      word("#f06-w-could", 0.95);
+      word("#f06-w-prove", 1.15);
+      word("#f06-w-it", 1.45);
+      tl.fromTo("#f06-s1-sub", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.8, ease: E }, 2.2);
+
+      // Scene 2 (4.4–7.5): zoom-through swap to the new statement
+      tl.fromTo("#f06-s1", { opacity: 1, scale: 1, filter: "blur(0px)" },
+        { opacity: 0, scale: 1.08, filter: "blur(14px)", duration: 0.4, ease: "power2.in" }, 4.3);
+      word("#f06-w-when", 4.6);
+      word("#f06-w-trust", 4.85);
+      word("#f06-w-is", 5.05);
+      word("#f06-w-proven", 5.3);
+      word("#f06-w-money", 6.0);
+      word("#f06-w-moves", 6.3);
+      tl.fromTo("#f06-underline", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: E }, 6.6);
+
+      // Scene 3 (7.5–14.0): statement lifts to the top third; label, count-up, tag
+      tl.fromTo("#f06-s2", { y: 0, scale: 1 }, { y: -220, scale: 0.5, duration: 1.2, ease: "power3.inOut" }, 7.5);
+      tl.fromTo("#f06-label", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.7, ease: E }, 9.3);
+      tl.fromTo("#f06-fig", { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.6, ease: E }, 11.1);
+      var n = { v: 0 }, numEl = document.getElementById("f06-num");
+      tl.fromTo(n, { v: 0 }, { v: 70, duration: 1.4, ease: "power2.out",
+        onUpdate: function () { numEl.textContent = Math.round(n.v); } }, 11.2);
+      tl.fromTo("#f06-tag", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.8, ease: E }, 13.2);
+
+      // Scene 4 (14.0–15.75): source line draws on, then hold
+      tl.fromTo("#f06-src-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: E }, 14.0);
+      tl.fromTo("#f06-src", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.9, ease: "power2.out" }, 14.3);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["06-imagine"] = tl;
+    })();
+  </script>
+</div>
+</template>

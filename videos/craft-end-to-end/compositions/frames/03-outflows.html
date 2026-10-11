@@ -1,0 +1,127 @@
+<template>
+<style>
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-ext-300-normal-CPgO9Ksf.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-300-normal-Dp1L8vcn.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:300;src:url("assets/fonts/captured-inter-latin-300-normal-BVlfKGgI.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-300-normal-i8F0SvXL.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-inter-latin-ext-400-normal-C1nco2VV.woff2") format("woff2"), url("assets/fonts/captured-inter-latin-ext-400-normal-77YHD8bZ.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:500;src:url("assets/fonts/captured-playfair-display-latin-ext-500-normal-DE-Iylxw.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-ext-500-normal-CFxFMdkY.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:500;src:url("assets/fonts/captured-playfair-display-latin-500-normal-DIxvyhka.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-500-normal-BScSeVwi.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Playfair Display;font-style:normal;font-display:swap;font-weight:600;src:url("assets/fonts/captured-playfair-display-latin-ext-600-normal-CEjQclLc.woff2") format("woff2"), url("assets/fonts/captured-playfair-display-latin-ext-600-normal-BumBfC1v.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-Bc8Ftmh3.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-400-normal-fXTG6kC5.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-400-normal-6-qcROiO.woff") format("woff");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:600;src:url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-BfB_LPfz.woff2") format("woff2"), url("assets/fonts/captured-jetbrains-mono-latin-ext-600-normal-DObL3zCW.woff") format("woff");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+/* shared latin faces (appended last so they win) */
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:400;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/inter-latin-500.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:600;src:url("assets/fonts/inter-latin-600.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-style:normal;font-display:block;font-weight:700;src:url("assets/fonts/inter-latin-700.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:block;font-weight:500;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+</style>
+<style>
+  #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; color: #1E293B; font-family: Inter, sans-serif; }
+  #o03-outflows-bg { position: absolute; inset: 0; background: #F0FDF4; }
+  #o03-outflows-cam { position: absolute; inset: 0; transform-origin: 30% 45%; }
+  .o03-mono { font-family: "JetBrains Mono", monospace; font-weight: 500; text-transform: uppercase; }
+  #o03-outflows-topbar { position: absolute; left: 96px; right: 96px; top: 72px; display: flex; justify-content: space-between; align-items: baseline; font-size: 26px; letter-spacing: 0.18em; color: #00744D; }
+  #o03-outflows-toprule { position: absolute; left: 96px; right: 96px; top: 128px; height: 2px; background: #00744D; transform-origin: left center; }
+  #o03-outflows-fig { position: absolute; left: 96px; top: 300px; display: flex; align-items: baseline; color: #004F3B; font-weight: 500; line-height: 0.92; white-space: nowrap; }
+  .o03-unit { font-size: 109px; letter-spacing: -0.01em; }
+  #o03-outflows-num { display: inline-block; font-size: 221px; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; transform-origin: left bottom; }
+  #o03-outflows-bn { display: inline-block; margin-left: 12px; }
+  #o03-outflows-tagrule { position: absolute; left: 96px; top: 580px; width: 960px; height: 2px; background: #004F3B; transform-origin: left center; }
+  #o03-outflows-tag { position: absolute; left: 96px; top: 606px; font-size: 26px; letter-spacing: 0.18em; color: #00744D; }
+  #o03-outflows-src { position: absolute; left: 96px; top: 790px; font-size: 22px; letter-spacing: 0.14em; color: #005B3D; }
+  /* chart: baseline y=810, 5.6px per US$1bn */
+  #o03-outflows-axis { position: absolute; left: 1290px; top: 250px; width: 2px; height: 562px; background: #005B3D; transform-origin: center bottom; }
+  #o03-outflows-base { position: absolute; left: 1290px; top: 810px; width: 534px; height: 2px; background: #005B3D; transform-origin: left center; }
+  .o03-tick { position: absolute; left: 1278px; width: 12px; height: 2px; background: #005B3D; }
+  .o03-ticklab { position: absolute; left: 1196px; width: 72px; text-align: right; font-size: 18px; letter-spacing: 0.08em; color: #005B3D; }
+  .o03-col { position: absolute; width: 180px; transform-origin: center bottom; border-radius: 3px 3px 0 0; }
+  #o03-outflows-colout { left: 1340px; top: 314px; height: 496px; background: #004F3B; }
+  #o03-outflows-coloda { left: 1600px; top: 541px; height: 269px; background: #00744D; border-radius: 0; }
+  #o03-outflows-colfdi { left: 1600px; top: 239px; height: 302px; background: #009060; }
+  .o03-seglab { position: absolute; left: 1600px; width: 180px; text-align: center; font-size: 22px; letter-spacing: 0.08em; line-height: 1.3; color: #FFFFFF; }
+  .o03-vallab { position: absolute; width: 180px; text-align: center; font-size: 22px; letter-spacing: 0.08em; color: #004F3B; }
+  .o03-catlab { position: absolute; top: 828px; width: 180px; text-align: center; font-size: 20px; letter-spacing: 0.14em; color: #005B3D; }
+  #o03-outflows-ref { position: absolute; left: 1520px; top: 313px; width: 260px; height: 2px; background: #004F3B; transform-origin: left center; }
+</style>
+
+<div data-hf-id="hf-f648" id="root" data-composition-id="03-outflows" data-width="1920" data-height="1080" data-duration="10.78">
+  <div data-hf-id="hf-pds8" id="o03-outflows-bg" class="clip" data-start="0" data-duration="10.78" data-track-index="0"></div>
+  <div data-hf-id="hf-xh89" id="o03-outflows-cam">
+    <div data-hf-id="hf-umbl" id="o03-outflows-topbar" class="o03-mono"><span data-hf-id="hf-4io9">Every year, Africa loses</span><span data-hf-id="hf-q0nk">03</span></div>
+    <div data-hf-id="hf-td23" id="o03-outflows-toprule"></div>
+
+    <div data-hf-id="hf-ymi2" id="o03-outflows-fig"><span data-hf-id="hf-wpqu" class="o03-unit">US$</span><span data-hf-id="hf-kd17" id="o03-outflows-num">0.0</span><span data-hf-id="hf-umu3" id="o03-outflows-bn" class="o03-unit">bn</span></div>
+    <div data-hf-id="hf-r2km" id="o03-outflows-tagrule"></div>
+    <div data-hf-id="hf-n28j" id="o03-outflows-tag" class="o03-mono">Illicit financial flows · 3.7% of Africa's GDP</div>
+    <div data-hf-id="hf-1emz" id="o03-outflows-src" class="o03-mono">Source · UNCTAD Economic Development in Africa Report 2020</div>
+
+    <div data-hf-id="hf-46lj" id="o03-outflows-axis"></div>
+    <div data-hf-id="hf-s2jf" id="o03-outflows-base"></div>
+    <div data-hf-id="hf-e06o" class="o03-tick" style="top:809px"></div><div data-hf-id="hf-xcou" class="o03-ticklab o03-mono" style="top:798px">0</div>
+    <div data-hf-id="hf-em48" class="o03-tick" style="top:669px"></div><div data-hf-id="hf-7sr6" class="o03-ticklab o03-mono" style="top:658px">25</div>
+    <div data-hf-id="hf-riqr" class="o03-tick" style="top:529px"></div><div data-hf-id="hf-x6vd" class="o03-ticklab o03-mono" style="top:518px">50</div>
+    <div data-hf-id="hf-xf7f" class="o03-tick" style="top:389px"></div><div data-hf-id="hf-5sdw" class="o03-ticklab o03-mono" style="top:378px">75</div>
+    <div data-hf-id="hf-jkji" class="o03-tick" style="top:249px"></div><div data-hf-id="hf-wzww" class="o03-ticklab o03-mono" style="top:238px">100</div>
+
+    <div data-hf-id="hf-6qcg" id="o03-outflows-colout" class="o03-col"></div>
+    <div data-hf-id="hf-tk6o" id="o03-outflows-vout" class="o03-vallab o03-mono" style="left:1340px;top:276px">US$88.6BN</div>
+    <div data-hf-id="hf-9b9v" id="o03-outflows-ref"></div>
+    <div data-hf-id="hf-12z2" id="o03-outflows-coloda" class="o03-col"></div>
+    <div data-hf-id="hf-wtoy" id="o03-outflows-loda" class="o03-seglab o03-mono" style="top:650px">ODA<br data-hf-id="hf-x5px">US$48BN</div>
+    <div data-hf-id="hf-jkwf" id="o03-outflows-colfdi" class="o03-col"></div>
+    <div data-hf-id="hf-uvbt" id="o03-outflows-lfdi" class="o03-seglab o03-mono" style="top:362px">FDI<br data-hf-id="hf-rsrt">US$54BN</div>
+    <div data-hf-id="hf-9yi2" id="o03-outflows-cout" class="o03-catlab o03-mono" style="left:1340px">Outflows</div>
+    <div data-hf-id="hf-xsu7" id="o03-outflows-cin" class="o03-catlab o03-mono" style="left:1600px">Aid + FDI</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+  (function () {
+    const $ = (id) => document.getElementById("o03-outflows-" + id);
+    const tl = gsap.timeline({ paused: true });
+    const num = $("num");
+
+    // slow continuous camera drift underneath the whole shot
+    tl.fromTo($("cam"), { scale: 1 }, { scale: 1.035, duration: 10.38, ease: "none" }, 0);
+
+    // Scene 1: topbar on "Meanwhile"
+    tl.fromTo($("topbar"), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 0.3);
+    tl.fromTo($("toprule"), { scaleX: 0 }, { scaleX: 1, duration: 0.7, ease: "power3.out" }, 0.3);
+    tl.fromTo($("fig"), { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.5);
+
+    // Scene 2: count-up + dynamic scale + outflow column share one ease -> one beat
+    const COUNT_AT = 1.0, COUNT_DUR = 2.6, EASE = "power3.out";
+    const state = { v: 0 };
+    tl.fromTo(state, { v: 0 }, { v: 88.6, duration: COUNT_DUR, ease: EASE,
+      onUpdate: () => { num.textContent = (Math.round(state.v * 10) / 10).toFixed(1); } }, COUNT_AT);
+    tl.fromTo(num, { scale: 0.5 }, { scale: 1, duration: COUNT_DUR, ease: EASE }, COUNT_AT);
+    tl.fromTo($("axis"), { scaleY: 0 }, { scaleY: 1, duration: 0.6, ease: "power2.out" }, COUNT_AT);
+    tl.fromTo($("base"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power2.out" }, COUNT_AT);
+    tl.fromTo(".o03-tick, .o03-ticklab", { opacity: 0 }, { opacity: 1, duration: 0.3, stagger: 0.05, ease: "power1.out" }, COUNT_AT + 0.2);
+    tl.fromTo($("colout"), { scaleY: 0 }, { scaleY: 1, duration: COUNT_DUR, ease: EASE }, COUNT_AT);
+    tl.fromTo($("cout"), { opacity: 0 }, { opacity: 1, duration: 0.4 }, COUNT_AT + 0.3);
+    tl.fromTo($("bn"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "back.out(1.6)" }, COUNT_AT + COUNT_DUR);
+    tl.fromTo($("vout"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, COUNT_AT + COUNT_DUR);
+
+    // on "illicit financial flows" @4.1
+    tl.fromTo($("tagrule"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power3.out" }, 4.1);
+    tl.fromTo($("tag"), { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.6, ease: "power3.out" }, 4.15);
+
+    // Scene 3: reference line at the 88.6 level, then aid + FDI stack past it
+    tl.fromTo($("ref"), { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, 6.2);
+    tl.fromTo($("cin"), { opacity: 0 }, { opacity: 1, duration: 0.4 }, 6.4);
+    tl.fromTo($("coloda"), { scaleY: 0 }, { scaleY: 1, duration: 0.3, ease: "power2.out" }, 7.2);
+    tl.fromTo($("loda"), { opacity: 0 }, { opacity: 1, duration: 0.3 }, 7.35);
+    tl.fromTo($("colfdi"), { scaleY: 0 }, { scaleY: 1, duration: 0.8, ease: "power3.out" }, 7.5);
+    tl.fromTo($("lfdi"), { opacity: 0 }, { opacity: 1, duration: 0.3 }, 7.9);
+
+    // Scene 4: source line, then hold
+    tl.fromTo($("src"), { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 8.6);
+
+    window.__timelines = window.__timelines || {};
+    window.__timelines["03-outflows"] = tl;
+  })();
+</script>
+</template>

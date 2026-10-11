@@ -1,0 +1,62 @@
+{
+  "schema": "hyperframes.capture.icons.v1",
+  "headline": {
+    "file": "assets/favicon.png",
+    "source": "assets/icon-icon-32x32.png",
+    "rank": 2,
+    "shape": "bare-mark",
+    "reason": "bare mark preferred over 2 badge(s)"
+  },
+  "icons": [
+    {
+      "file": "assets/icon-icon-unsized.svg",
+      "url": "https://craftframework.becomechange.institute/favicon.svg",
+      "rel": "icon",
+      "sizes": null,
+      "type": "image/svg+xml",
+      "rank": 0,
+      "shape": "badge",
+      "shapeReason": "first painted element is a full-bleed rounded rect (512x512 of 512x512)"
+    },
+    {
+      "file": "assets/icon-apple-touch-icon-180x180.png",
+      "url": "https://craftframework.becomechange.institute/apple-touch-icon.png",
+      "rel": "apple-touch-icon",
+      "sizes": "180x180",
+      "type": null,
+      "rank": 1,
+      "shape": "badge",
+      "shapeReason": "4 of 4 edge midpoints are opaque, so the drawing carries a backdrop"
+    },
+    {
+      "file": "assets/icon-icon-32x32.png",
+      "url": "https://craftframework.becomechange.institute/favicon-32.png",
+      "rel": "icon",
+      "sizes": "32x32",
+      "type": "image/png",
+      "rank": 2,
+      "shape": "bare-mark",
+      "shapeReason": "0 of 4 edge midpoints are opaque, so the drawing has transparent margins"
+    },
+    {
+      "file": "assets/icon-icon-16x16.png",
+      "url": "https://craftframework.becomechange.institute/favicon-16.png",
+      "rel": "icon",
+      "sizes": "16x16",
+      "type": "image/png",
+      "rank": 3,
+      "shape": "bare-mark",
+      "shapeReason": "0 of 4 edge midpoints are opaque, so the drawing has transparent margins"
+    },
+    {
+      "file": "assets/icon-icon-any.ico",
+      "url": "https://craftframework.becomechange.institute/favicon.ico",
+      "rel": "icon",
+      "sizes": "any",
+      "type": null,
+      "rank": 4,
+      "shape": "unknown",
+      "shapeReason": "image format could not be decoded for inspection"
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+<template id="f08-template" data-composition-id="08-assess" data-width="1920" data-height="1080" data-duration="11.93">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+@font-face{font-family:Inter;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-inter-latin-ext-400-normal-C1nco2VV.woff2") format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:JetBrains Mono;font-style:normal;font-display:swap;font-weight:400;src:url("assets/fonts/captured-jetbrains-mono-latin-400-normal-V6pRDFza.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-weight:400;font-display:block;src:url("assets/fonts/inter-latin-400.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Inter;font-weight:500;font-display:block;src:url("assets/fonts/inter-latin-500.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;font-family:Inter,sans-serif;color:#1E293B}
+#f08-bg{position:absolute;inset:0;background:#FFFFFF}
+#f08-stage{position:absolute;inset:0}
+
+.f08-mono{font-family:"JetBrains Mono",monospace;font-weight:400;text-transform:uppercase}
+#f08-topbar{position:absolute;left:80px;right:80px;top:40px;display:flex;justify-content:space-between;align-items:center;font-size:22px;letter-spacing:0.18em;color:#00744D;padding-bottom:12px;border-bottom:2px solid #00744D}
+#f08-rail{position:absolute;left:80px;top:104px;font-size:20px;letter-spacing:0.14em;color:rgba(30,41,59,0.4)}
+#f08-rail-active{color:#004F3B}
+
+#f08-win{position:absolute;left:80px;top:160px;width:1120px;border:2px solid #00744D;border-radius:8px;background:#FFFFFF;overflow:hidden}
+#f08-win-title{height:36px;border-bottom:2px solid #00744D;display:flex;align-items:center;padding:0 16px;font-size:16px;letter-spacing:0.14em;color:#00744D}
+#f08-view{position:relative;width:1120px;height:663px;overflow:hidden}
+#f08-world{position:absolute;left:0;top:0;width:1664px;height:985px;transform-origin:0 0}
+#f08-shot{position:absolute;left:0;top:0;width:1664px;height:985px;display:block}
+#f08-ring{position:absolute;left:35px;top:806px;width:50px;height:50px;border:2px solid #00744D;border-radius:50%;box-sizing:border-box}
+
+#f08-panel{position:absolute;left:1270px;top:160px;width:570px}
+#f08-panel-label{font-size:20px;letter-spacing:0.14em;color:#00744D;margin-bottom:14px}
+.f08-row{position:relative;display:flex;align-items:center;height:84px;border-top:2px solid #ABFFE3}
+.f08-num{width:56px;font-size:20px;letter-spacing:0.08em;color:#1E293B}
+.f08-name{flex:1;font-size:27px;font-weight:500;letter-spacing:-0.01em;line-height:1.05;color:#1E293B}
+.f08-tick{width:34px;height:34px;border-radius:50%;background:#00744D;display:flex;align-items:center;justify-content:center}
+.f08-rule{position:absolute;left:0;right:0;top:-2px;height:2px;background:#00744D;transform-origin:0 50%}
+
+#f08-pills{display:flex;gap:12px;margin-top:26px}
+.f08-pill{font-size:18px;letter-spacing:0.12em;color:#004F3B;border:2px solid #00744D;border-radius:8px;padding:10px 14px;background:#FFFFFF}
+#f08-ready{display:flex;align-items:center;gap:14px;margin-top:22px;font-size:18px;letter-spacing:0.14em;color:#00744D}
+#f08-dot-wrap{position:relative;width:16px;height:16px}
+#f08-dot,#f08-dot-pulse{position:absolute;inset:0;border-radius:50%;background:#009060}
+</style>
+
+<div data-hf-id="hf-1cvw" id="root" data-composition-id="08-assess" data-start="0" data-duration="11.93" data-width="1920" data-height="1080">
+  <div data-hf-id="hf-8o96" id="f08-bg" class="clip" data-start="0" data-duration="11.93" data-track-index="0"></div>
+
+  <div data-hf-id="hf-24wk" id="f08-stage" class="clip" data-start="0" data-duration="11.93" data-track-index="1">
+    <div data-hf-id="hf-d9cv" id="f08-topbar" class="f08-mono"><span data-hf-id="hf-k3ti">CRAFT · Walkthrough</span><span data-hf-id="hf-lna9">08</span></div>
+    <div data-hf-id="hf-n84u" id="f08-rail" class="f08-mono">01 Onboard · <span data-hf-id="hf-gs4k" id="f08-rail-active" class="f08-rail-on">02 Assess</span> · 03 Score · 04 Results · 05 Track</div>
+
+    <div data-hf-id="hf-zvn8" id="f08-win">
+      <div data-hf-id="hf-qtru" id="f08-win-title" class="f08-mono">Assessment Wizard · 5-Tier Capacity Assessment</div>
+      <div data-hf-id="hf-75cx" id="f08-view">
+        <div data-hf-id="hf-z5xu" id="f08-world">
+          <img data-hf-id="hf-uh6a" id="f08-shot" src="assets/screens/assessment.png" alt="">
+          <div data-hf-id="hf-qaj4" id="f08-ring"></div>
+        </div>
+      </div>
+    </div>
+
+    <div data-hf-id="hf-9x60" id="f08-panel">
+      <div data-hf-id="hf-ov3g" id="f08-panel-label" class="f08-mono">5 Tiers · Whole organisation</div>
+      <div data-hf-id="hf-1ic5" id="f08-row1" class="f08-row"><div data-hf-id="hf-jbav" id="f08-rule1" class="f08-rule"></div><span data-hf-id="hf-3kmr" id="f08-num1" class="f08-num f08-mono">01</span><span data-hf-id="hf-i2ou" id="f08-name1" class="f08-name">Organisational Maturity</span><span data-hf-id="hf-asq0" id="f08-tick1" class="f08-tick"><svg data-hf-id="hf-igxa" width="18" height="18" viewBox="0 0 18 18"><path data-hf-id="hf-capd" d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" /></svg></span></div>
+      <div data-hf-id="hf-5gg6" id="f08-row2" class="f08-row"><div data-hf-id="hf-anf0" id="f08-rule2" class="f08-rule"></div><span data-hf-id="hf-nbk9" id="f08-num2" class="f08-num f08-mono">02</span><span data-hf-id="hf-u1n4" id="f08-name2" class="f08-name">Fiduciary Assurance</span><span data-hf-id="hf-jglv" id="f08-tick2" class="f08-tick"><svg data-hf-id="hf-yv5e" width="18" height="18" viewBox="0 0 18 18"><path data-hf-id="hf-05k5" d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" /></svg></span></div>
+      <div data-hf-id="hf-9ek7" id="f08-row3" class="f08-row"><div data-hf-id="hf-bf2t" id="f08-rule3" class="f08-rule"></div><span data-hf-id="hf-2cxj" id="f08-num3" class="f08-num f08-mono">03</span><span data-hf-id="hf-acaj" id="f08-name3" class="f08-name">Grant Management</span><span data-hf-id="hf-fihu" id="f08-tick3" class="f08-tick"><svg data-hf-id="hf-z9gf" width="18" height="18" viewBox="0 0 18 18"><path data-hf-id="hf-1ch8" d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" /></svg></span></div>
+      <div data-hf-id="hf-fka0" id="f08-row4" class="f08-row"><div data-hf-id="hf-u6si" id="f08-rule4" class="f08-rule"></div><span data-hf-id="hf-eso9" id="f08-num4" class="f08-num f08-mono">04</span><span data-hf-id="hf-6tr4" id="f08-name4" class="f08-name">Donor &amp; USG Readiness</span><span data-hf-id="hf-wqs5" id="f08-tick4" class="f08-tick"><svg data-hf-id="hf-znrg" width="18" height="18" viewBox="0 0 18 18"><path data-hf-id="hf-0y67" d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" /></svg></span></div>
+      <div data-hf-id="hf-gbxt" id="f08-row5" class="f08-row"><div data-hf-id="hf-y4wj" id="f08-rule5" class="f08-rule"></div><span data-hf-id="hf-eu5n" id="f08-num5" class="f08-num f08-mono">05</span><span data-hf-id="hf-q2ju" id="f08-name5" class="f08-name">Digital &amp; Operational Readiness</span><span data-hf-id="hf-vz4c" id="f08-tick5" class="f08-tick"><svg data-hf-id="hf-022h" width="18" height="18" viewBox="0 0 18 18"><path data-hf-id="hf-253a" d="M3.5 9.5l3.5 3.5 7.5-8" fill="none" stroke="#FFFFFF" stroke-width="2.5" /></svg></span></div>
+
+      <div data-hf-id="hf-sxku" id="f08-pills">
+        <span data-hf-id="hf-gofr" id="f08-pill-web" class="f08-pill f08-mono">Web Wizard</span>
+        <span data-hf-id="hf-fu49" id="f08-pill-xls" class="f08-pill f08-mono">Offline Excel Template</span>
+      </div>
+      <div data-hf-id="hf-zfbc" id="f08-ready" class="f08-mono">
+        <span data-hf-id="hf-rqsz" id="f08-dot-wrap"><span data-hf-id="hf-bz5q" id="f08-dot-pulse"></span><span data-hf-id="hf-ajcq" id="f08-dot"></span></span>
+        <span data-hf-id="hf-cem9" id="f08-ready-label">Offline ready</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  window.__timelines = window.__timelines || {};
+  var tl = gsap.timeline({ paused: true });
+  var E = "power3.out", IO = "power3.inOut";
+
+  // Camera on the screenshot (the image is the world). Base fit: 1120/1664.
+  var S0 = 1120 / 1664, S1 = S0 * 1.6;
+  var Y1 = 663 - 985 * S1, XMIN = 1120 - 1664 * S1;
+  gsap.set("#f08-world", { scale: S0, x: 0, y: 0 });
+
+  // Scene 1 — chrome + window card (hero lands by ~0.6s on "assess your organisation")
+  tl.fromTo("#f08-topbar", { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 0);
+  tl.fromTo("#f08-rail", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.5, ease: E }, 0.1);
+  tl.fromTo("#f08-win", { opacity: 0, x: -80 }, { opacity: 1, x: 0, duration: 0.9, ease: E }, 0.3);
+  tl.fromTo("#f08-world", { scale: S0 * 1.04 }, { scale: S0, duration: 1.2, ease: E }, 0.3);
+
+  // "tier by tier" @2.0 — push into the bottom tier stepper, ring on Tier 1
+  tl.to("#f08-world", { scale: S1, x: -43, y: Y1, duration: 1.1, ease: IO }, 2.0);
+  tl.fromTo("#f08-ring", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.5, ease: E }, 2.6);
+
+  // Scene 2 — tier list arrives muted, then lights on each spoken tier
+  tl.fromTo("#f08-panel-label", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 2.5);
+  for (var i = 1; i <= 5; i++) {
+    tl.fromTo("#f08-row" + i, { opacity: 0, y: 14 }, { opacity: 0.38, y: 0, duration: 0.5, ease: E }, 2.55 + (i - 1) * 0.06);
+    gsap.set("#f08-tick" + i, { scale: 0, opacity: 0 });
+    gsap.set("#f08-rule" + i, { scaleX: 0 });
+  }
+
+  var cues = [2.9, 4.4, 5.8, 6.8, 7.8];
+  var tierX = [60, 433, 808, 1183, 1558];      // stepper circle centres (image px)
+  var camX = [-43, -170, -360, -520, XMIN];     // pan across the stepper per tier
+  cues.forEach(function (t, k) {
+    var n = k + 1;
+    tl.fromTo("#f08-rule" + n, { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: E }, t);
+    tl.to("#f08-row" + n, { opacity: 1, duration: 0.3, ease: E }, t + 0.1);
+    tl.to(["#f08-num" + n, "#f08-name" + n], { color: "#004F3B", duration: 0.3, ease: E }, t + 0.1);
+    tl.fromTo("#f08-tick" + n, { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(1.6)" }, t + 0.2);
+    if (k > 0) {
+      tl.to("#f08-world", { x: camX[k], duration: 0.8, ease: IO }, t - 0.2);
+      tl.to("#f08-ring", { x: tierX[k] - tierX[0], duration: 0.6, ease: IO }, t - 0.1);
+    }
+  });
+
+  // List complete — camera eases back out to the full screenshot
+  tl.to("#f08-world", { scale: S0, x: 0, y: 0, duration: 1.0, ease: IO }, 8.3);
+
+  // Scene 3 — "online or offline" @9.1
+  tl.fromTo("#f08-pill-web", { opacity: 0, scale: 0.8, y: 10 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "back.out(1.5)" }, 9.1);
+  tl.fromTo("#f08-pill-xls", { opacity: 0, scale: 0.8, y: 10 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "back.out(1.5)" }, 9.3);
+  tl.fromTo("#f08-ready", { opacity: 0, x: -10 }, { opacity: 1, x: 0, duration: 0.45, ease: E }, 9.6);
+  tl.fromTo("#f08-dot-pulse", { scale: 1, opacity: 0.6 }, { scale: 2.6, opacity: 0, duration: 0.9, ease: "power2.out" }, 9.8);
+
+  // hold to end
+  tl.set({}, {}, 11.43);
+  window.__timelines["08-assess"] = tl;
+})();
+</script>
+</template>

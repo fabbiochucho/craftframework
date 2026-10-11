@@ -1,0 +1,70 @@
+{
+  "ok": true,
+  "projectDir": "C:\\Users\\BlackCzarHP\\repos\\craftframework\\videos\\craft-end-to-end\\capture",
+  "url": "https://craftframework.becomechange.institute",
+  "httpStatus": 200,
+  "title": "CRAFT: Capacity Readiness & Fiduciary Assurance Toolkit | DiBadili Institute",
+  "screenshots": 6,
+  "assets": 32,
+  "dropped": {
+    "size-floor": 0,
+    "budget-exhausted": 0,
+    "cap-reached": 116,
+    "unavailable": 0
+  },
+  "detectedSections": 7,
+  "fonts": [
+    "Inter",
+    "Playfair Display",
+    "JetBrains Mono"
+  ],
+  "fontsDetailed": [
+    {
+      "family": "Inter",
+      "weights": [
+        300,
+        400,
+        500,
+        600,
+        700,
+        800
+      ],
+      "variable": false
+    },
+    {
+      "family": "Playfair Display",
+      "weights": [
+        500,
+        600,
+        700,
+        800
+      ],
+      "variable": false
+    },
+    {
+      "family": "JetBrains Mono",
+      "weights": [
+        400,
+        600,
+        700
+      ],
+      "variable": false
+    }
+  ],
+  "animations": {
+    "webAnimations": 0,
+    "cssDeclarations": 44,
+    "scrollTargets": 18,
+    "cdpAnimations": 36,
+    "canvases": 0
+  },
+  "warnings": [
+    "116 referenced asset(s) are not in this capture (116 cap-reached). A thin capture with no drops is a thin page; this one was truncated."
+  ],
+  "lastPhase": {
+    "schema": "hyperframes.capture.phase.v1",
+    "phase": "complete",
+    "status": "completed",
+    "remainingMs": 89534
+  }
+}
