@@ -12,8 +12,24 @@ function fakeSession(email: string) {
   return { token, exp }
 }
 
+// Forwards the app's /api calls to the test API server. Every context needs it,
+// including extra ones a spec opens for a second user; idempotent per context.
+const forwarded = new WeakSet<BrowserContext>()
+async function forwardApi(context: BrowserContext) {
+  if (forwarded.has(context)) return
+  forwarded.add(context)
+  // Only this test fixture redirects APIs; deployed bundles retain normal auth.
+  await context.route(/\/api\//, async (route: Route) => {
+    const req = route.request()
+    const url = new URL(req.url())
+    const response = await route.fetch({ url: `${API_ORIGIN}${url.pathname}${url.search}`, headers: await req.allHeaders() })
+    await route.fulfill({ response })
+  })
+}
+
 /** Installs the test-only sign-in (browser session + /api forwarding) for one user. */
 export async function signInAs(context: BrowserContext, email: string) {
+  await forwardApi(context)
   const { token, exp } = fakeSession(email)
   await context.addCookies([{ name: 'nf_jwt', value: token, url: WEB_ORIGIN }])
   await context.addInitScript(([e, t, x]) => {
@@ -28,13 +44,7 @@ export async function signInAs(context: BrowserContext, email: string) {
 
 export const test = base.extend<{ signedIn: Page; apiRoutes: void }>({
   apiRoutes: [async ({ context }, use) => {
-    // Only this test fixture redirects APIs; deployed bundles retain normal auth.
-    await context.route(/\/api\//, async (route: Route) => {
-      const req = route.request()
-      const url = new URL(req.url())
-      const response = await route.fetch({ url: `${API_ORIGIN}${url.pathname}${url.search}`, headers: await req.allHeaders() })
-      await route.fulfill({ response })
-    })
+    await forwardApi(context)
     await use()
   }, { auto: true }],
   signedIn: async ({ page, context, request }, use) => {

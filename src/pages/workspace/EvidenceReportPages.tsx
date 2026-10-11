@@ -55,9 +55,10 @@ export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: s
   const [link, setLink] = useState({ targetType: 'cap', targetId: '', linkType: 'supports', reviewerNotes: '' })
   const [archived, setArchived] = useState(false)
   const { run, error } = useAction(ev.reload)
+  // Checked first: the post-archive reload 404s, which would otherwise replace this with "Not found".
+  if (archived) return <div><Header title="Evidence archived" back={{ to: '/app/workspaces/$workspaceId/evidence', params: { workspaceId }, label: 'Registry' }} /><p>The original file is retained for audit.</p></div>
   if (!ev.data) return <State loading={ev.loading} error={ev.error} />
   const e = ev.data
-  if (archived) return <div><Header title="Evidence archived" back={{ to: '/app/workspaces/$workspaceId/evidence', params: { workspaceId }, label: 'Registry' }} /><p>The original file is retained for audit.</p></div>
   const review = (status: string) => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}/approve`), { method: 'POST', body: { status, comments } }))
   return (
     <div className="max-w-3xl space-y-4">

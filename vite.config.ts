@@ -4,7 +4,6 @@ import viteReact from '@vitejs/plugin-react'
 import viteTsConfigPaths from 'vite-tsconfig-paths'
 import tailwindcss from '@tailwindcss/vite'
 import netlify from '@netlify/vite-plugin-tanstack-start'
-import { VitePWA } from 'vite-plugin-pwa'
 
 const config = defineConfig({
   plugins: [
@@ -15,66 +14,7 @@ const config = defineConfig({
     netlify(),
     tanstackStart(),
     viteReact(),
-    // ------------------------------------------------------------------------
-    // CRAFT v4.0 — Offline-First PWA
-    // ------------------------------------------------------------------------
-    // Generates a Workbox service worker that precaches the app shell and core
-    // assessment schemas so field assessors can keep working with no signal.
-    // `autoUpdate` ships new builds silently on the next navigation. Registration
-    // is done manually from the client (see components/OfflineBanner.tsx) rather
-    // than via an injected <script>, because TanStack Start renders through SSR
-    // and has no static index.html for the plugin to rewrite. The PWA manifest is
-    // hand-authored at public/manifest.json (manifest: false below) and linked
-    // from the document head in routes/__root.tsx.
-    VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: false,
-      manifest: false,
-      includeAssets: ['favicon.ico', 'favicon.svg', 'apple-touch-icon.png'],
-      workbox: {
-        // Precache the built app shell (JS/CSS/HTML) plus icons and fonts.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
-        navigateFallback: null,
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
-        runtimeCaching: [
-          {
-            // Private APIs must never use a shared service-worker cache.
-            urlPattern: ({ url }) =>
-              url.pathname === '/api' || url.pathname.startsWith('/api/'),
-            handler: 'NetworkOnly',
-          },
-          {
-            // Static build assets — serve instantly from cache, revalidate later.
-            urlPattern: ({ request }) =>
-              ['script', 'style', 'font'].includes(request.destination),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'craft-static',
-              expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 30 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Web fonts (Google Fonts CSS + files used for Playfair/Inter/Mono).
-            urlPattern: ({ url }) =>
-              url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com',
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'craft-fonts',
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-        ],
-      },
-      devOptions: {
-        // Keep the SW off during `netlify dev` to avoid caching a live-reloading
-        // build; it is generated and active only for production output.
-        enabled: false,
-      },
-    }),
+    // Offline service worker: generated post-build by scripts/generate-sw.mjs.
   ],
 })
 

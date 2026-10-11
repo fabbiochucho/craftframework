@@ -20,14 +20,22 @@ type SupportEvent =
 
 let consent = false
 let initialized = false
+// Consent changes are applied in order; tracking waits for the pending one so
+// the first event after opting in isn't dropped while posthog-js still loads.
+let ready: Promise<void> = Promise.resolve()
 
 function sensitiveRoute() {
   return window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/assessment')
 }
 
-export async function setSupportAnalyticsConsent(enabled: boolean, key?: string) {
+export function setSupportAnalyticsConsent(enabled: boolean, key?: string): Promise<void> {
   consent = enabled
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined') return ready
+  ready = ready.then(() => applyConsent(enabled, key)).catch(() => {})
+  return ready
+}
+
+async function applyConsent(enabled: boolean, key?: string) {
   if (enabled && sensitiveRoute()) return
   if (enabled && key && !initialized) {
     const posthog = await loadPosthog()
@@ -64,10 +72,12 @@ export async function setSupportAnalyticsConsent(enabled: boolean, key?: string)
 }
 
 export async function trackSupportEvent({ event, ...properties }: SupportEvent) {
-  if (!consent || !initialized || typeof window === 'undefined') return
+  if (!consent || typeof window === 'undefined') return
   // Workspace pages can contain confidential assessment and evidence data.
   if (sensitiveRoute()) return
   try {
+    await ready
+    if (!consent || !initialized) return
     const posthog = await loadPosthog()
     posthog.capture(event, properties)
   } catch {

@@ -1,5 +1,5 @@
 [build]
-  command = "vite build"
+  command = "npm run build"
   publish = "dist/client"
 [dev]
   command = "npm run dev"
@@ -38,6 +38,12 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://eu.i.posthog.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    # Revalidate every load so a new deploy's service worker is picked up.
+    Cache-Control = "no-cache"
 
 [[headers]]
   for = "/api/*"
