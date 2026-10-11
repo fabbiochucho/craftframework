@@ -33,6 +33,7 @@ import { Route as InstituteRouteImport } from './routes/institute'
 import { Route as IssbDisclosuresRouteImport } from './routes/issb-disclosures'
 import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as NarrativeReportRouteImport } from './routes/narrative-report'
 import { Route as ObligationsRouteImport } from './routes/obligations'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OpenSourceRouteImport } from './routes/open-source'
@@ -189,6 +190,11 @@ const LaunchRoute = LaunchRouteImport.update({
 const MethodologyRoute = MethodologyRouteImport.update({
   id: '/methodology',
   path: '/methodology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NarrativeReportRoute = NarrativeReportRouteImport.update({
+  id: '/narrative-report',
+  path: '/narrative-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ObligationsRoute = ObligationsRouteImport.update({
@@ -423,6 +429,7 @@ export interface FileRoutesByFullPath {
   '/issb-disclosures': typeof IssbDisclosuresRoute
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
+  '/narrative-report': typeof NarrativeReportRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -486,6 +493,7 @@ export interface FileRoutesByTo {
   '/issb-disclosures': typeof IssbDisclosuresRoute
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
+  '/narrative-report': typeof NarrativeReportRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -550,6 +558,7 @@ export interface FileRoutesById {
   '/issb-disclosures': typeof IssbDisclosuresRoute
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
+  '/narrative-report': typeof NarrativeReportRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -615,6 +624,7 @@ export interface FileRouteTypes {
     | '/issb-disclosures'
     | '/launch'
     | '/methodology'
+    | '/narrative-report'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -678,6 +688,7 @@ export interface FileRouteTypes {
     | '/issb-disclosures'
     | '/launch'
     | '/methodology'
+    | '/narrative-report'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -741,6 +752,7 @@ export interface FileRouteTypes {
     | '/issb-disclosures'
     | '/launch'
     | '/methodology'
+    | '/narrative-report'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -805,6 +817,7 @@ export interface RootRouteChildren {
   IssbDisclosuresRoute: typeof IssbDisclosuresRoute
   LaunchRoute: typeof LaunchRoute
   MethodologyRoute: typeof MethodologyRoute
+  NarrativeReportRoute: typeof NarrativeReportRoute
   ObligationsRoute: typeof ObligationsRoute
   OnboardingRoute: typeof OnboardingRoute
   OpenSourceRoute: typeof OpenSourceRoute
@@ -1011,6 +1024,13 @@ declare module '@tanstack/react-router' {
       path: '/methodology'
       fullPath: '/methodology'
       preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/narrative-report': {
+      id: '/narrative-report'
+      path: '/narrative-report'
+      fullPath: '/narrative-report'
+      preLoaderRoute: typeof NarrativeReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/obligations': {
@@ -1312,6 +1332,7 @@ const rootRouteChildren: RootRouteChildren = {
   IssbDisclosuresRoute: IssbDisclosuresRoute,
   LaunchRoute: LaunchRoute,
   MethodologyRoute: MethodologyRoute,
+  NarrativeReportRoute: NarrativeReportRoute,
   ObligationsRoute: ObligationsRoute,
   OnboardingRoute: OnboardingRoute,
   OpenSourceRoute: OpenSourceRoute,
