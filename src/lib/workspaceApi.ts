@@ -59,5 +59,21 @@ export const STATUS_STYLE: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700',
   in_review: 'bg-blue-100 text-blue-700',
   not_started: 'bg-slate-100 text-slate-700',
+  // Corrective Action & Evidence Hub effectiveness
+  not_required: 'bg-slate-100 text-slate-600',
+  pending: 'bg-amber-100 text-amber-800',
+  effective: 'bg-emerald-100 text-emerald-700',
+  not_effective: 'bg-rose-100 text-rose-700',
+  // ESG Report Quality Checklist
+  met: 'bg-emerald-100 text-emerald-700',
+  partially_met: 'bg-amber-100 text-amber-800',
+  blocked: 'bg-rose-100 text-rose-700',
+  not_applicable: 'bg-slate-100 text-slate-600',
+  final: 'bg-emerald-100 text-emerald-700',
+  accepted: 'bg-emerald-100 text-emerald-700',
+  none: 'bg-slate-100 text-slate-600',
+  not_met: 'bg-rose-100 text-rose-700',
+  returned: 'bg-amber-100 text-amber-800',
+  exception_approved: 'bg-indigo-100 text-indigo-700',
 }
 export const TIER_LABEL = (tier: number) => `Tier ${tier}`

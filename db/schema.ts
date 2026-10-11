@@ -550,8 +550,11 @@ export const governanceAssessments = pgTable(
     id: serial('id').primaryKey(),
     orgId: integer('org_id').notNull(),
     workspaceId: integer('workspace_id').notNull(),
-    // 'G2G' | 'ISO' | 'COSO'
+    // 'G2G' | 'ISO' | 'COSO' | 'CRAFT' (ten-pillar CRAFT Governance Scorecard)
     assessmentType: text('assessment_type').notNull().default('G2G'),
+    reportingPeriod: text('reporting_period').notNull().default(''),
+    // CRAFT scorecard: institution funds or supports innovation → founder-protection criteria apply
+    innovationSupport: boolean('innovation_support').notNull().default(false),
     version: integer('version').notNull().default(1),
     // 'draft' | 'in_review' | 'approved'
     status: text('status').notNull().default('draft'),
@@ -576,6 +579,9 @@ export const governanceScores = pgTable(
     evidenceUploaded: boolean('evidence_uploaded').notNull().default(false),
     reviewerNotes: text('reviewer_notes').notNull().default(''),
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    // Not applicable is distinct from "not answered"; it requires a reason.
+    notApplicable: boolean('not_applicable').notNull().default(false),
+    naReason: text('na_reason').notNull().default(''),
   },
   (t) => [unique('governance_scores_uq').on(t.assessmentId, t.pillar, t.domain)],
 )
@@ -615,6 +621,8 @@ export const esgFrameworks = pgTable(
     applicability: text('applicability').notNull().default('all'),
     // 'available' | 'adopted'
     adoptionStatus: text('adoption_status').notNull().default('available'),
+    // Plan-generator inputs (e.g. SEC Nigeria plan: entity type, horizon, first reporting year)
+    settings: jsonb('settings').$type<Record<string, unknown>>().notNull().default({}),
   },
   (t) => [index('esg_frameworks_ws_idx').on(t.orgId, t.workspaceId)],
 )
@@ -689,6 +697,18 @@ export const capRecords = pgTable(
     status: text('status').notNull().default('open'),
     completionDate: timestamp('completion_date', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    rootCause: text('root_cause').notNull().default(''),
+    expectedOutcome: text('expected_outcome').notNull().default(''),
+    resources: text('resources').notNull().default(''),
+    dependencies: text('dependencies').notNull().default(''),
+    residualRisk: text('residual_risk').notNull().default(''),
+    // 'not_required' | 'pending' | 'effective' | 'not_effective'
+    effectivenessStatus: text('effectiveness_status').notNull().default('not_required'),
+    effectivenessDue: date('effectiveness_due'),
+    effectivenessNotes: text('effectiveness_notes').notNull().default(''),
+    effectivenessReviewedBy: text('effectiveness_reviewed_by'),
+    effectivenessReviewedAt: timestamp('effectiveness_reviewed_at', { withTimezone: true }),
+    reopenedCount: integer('reopened_count').notNull().default(0),
   },
   (t) => [index('cap_records_ws_idx').on(t.orgId, t.workspaceId)],
 )
@@ -786,6 +806,59 @@ export const documentApprovals = pgTable(
 )
 
 // --- Reports ----------------------------------------------------------------------
+// --- ESG Report Quality Checklist ----------------------------------------------
+// One row per organisation reporting period; the organisation persists across years.
+export const qaPeriods = pgTable(
+  'qa_periods',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    label: text('label').notNull(),
+    periodStart: date('period_start').notNull(),
+    periodEnd: date('period_end').notNull(),
+    // QaProfile: jurisdiction, entity category, SEC/MOFI scope, financial activities…
+    profile: jsonb('profile').$type<Record<string, unknown>>().notNull().default({}),
+    checklistVersion: text('checklist_version').notNull(),
+    // 'draft' | 'final' — finalised periods are frozen snapshots
+    status: text('status').notNull().default('draft'),
+    preparedBy: text('prepared_by').notNull(),
+    approvedBy: text('approved_by'),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    snapshot: jsonb('snapshot').$type<Record<string, unknown>>(),
+    // Corrections to a finalised period create a revised version linked to the original.
+    revisionOf: integer('revision_of'),
+    revisionReason: text('revision_reason').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('qa_periods_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
+export const qaCheckInstances = pgTable(
+  'qa_check_instances',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    periodId: integer('period_id').notNull(),
+    checkId: text('check_id').notNull(),
+    // 'not_started' | 'in_progress' | 'met' | 'partially_met' | 'not_applicable' | 'blocked'
+    status: text('status').notNull().default('not_started'),
+    owner: text('owner'),
+    reviewer: text('reviewer'),
+    dueDate: date('due_date'),
+    notes: text('notes').notNull().default(''),
+    blocker: text('blocker').notNull().default(''),
+    evidenceId: integer('evidence_id'),
+    naReason: text('na_reason').notNull().default(''),
+    naSetBy: text('na_set_by'),
+    naApprovedBy: text('na_approved_by'),
+    naApprovedAt: timestamp('na_approved_at', { withTimezone: true }),
+    updatedBy: text('updated_by'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique('qa_check_instances_uq').on(t.periodId, t.checkId), index('qa_check_instances_period_idx').on(t.orgId, t.periodId)],
+)
+
 export const reports = pgTable(
   'reports',
   {

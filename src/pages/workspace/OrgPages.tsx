@@ -183,10 +183,12 @@ function PrivacyControls({ org }: { org: Org }) {
 }
 
 const SECTIONS: [string, string][] = [
-  ['/app/workspaces/$workspaceId/governance/assessments', 'Governance assessments'],
+  ['/app/workspaces/$workspaceId/governance/assessments', 'Governance assessments & CRAFT Scorecard'],
   ['/app/workspaces/$workspaceId/esg/frameworks', 'ESG frameworks'],
   ['/app/workspaces/$workspaceId/esg/roadmap', 'ESG roadmap'],
-  ['/app/workspaces/$workspaceId/actions', 'Corrective actions'],
+  ['/app/workspaces/$workspaceId/esg/planner', 'IFRS S1/S2 implementation plan (SEC Nigeria)'],
+  ['/app/workspaces/$workspaceId/qa', 'ESG report quality checklist'],
+  ['/app/workspaces/$workspaceId/actions', 'Corrective Action & Evidence Hub'],
   ['/app/workspaces/$workspaceId/evidence', 'Evidence registry'],
   ['/app/workspaces/$workspaceId/reports', 'Reports'],
   ['/app/workspaces/$workspaceId/compliance-dashboard', 'Compliance dashboard'],
