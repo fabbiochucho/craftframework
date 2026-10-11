@@ -17,6 +17,8 @@ import {
   computeImplementationEvidence,
   clampSessionTimeout,
   SESSION_TIMEOUT_DEFAULT,
+  clampPlanMonths,
+  CIP_PLAN_MONTHS_DEFAULT,
   LensId,
   defaultActiveLenses,
   Archetype,
@@ -198,6 +200,10 @@ interface AccessContextType {
 interface CIPContextType {
   cipStatuses: Record<string, RiskStatus>
   updateCIPStatus: (riskId: string, status: RiskStatus) => void
+  // Self-determinable Capacity Development Plan length, in months - the user
+  // picks it, and every generated due date is scheduled to fit inside it.
+  planMonths: number
+  setPlanMonths: (months: number) => void
 }
 
 interface LensContextType {
@@ -345,6 +351,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [entityProfile, setEntityProfileState, profileSaveStatus] = useTenantState<EntityProfile>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
     archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
   }, !!activeClientOrgId)
+  // Capacity Development Plan length, in months - self-determinable (see
+  // CIPPage), defaults to the original 24-month horizon.
+  const [planMonths, setPlanMonthsState] = useTenantState<number>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'cip-plan-months', CIP_PLAN_MONTHS_DEFAULT, !!activeClientOrgId)
   useEffect(() => {
     if (!currentUser || currentUser.isDemo || activeClientOrgId) return
     if (profileSaveStatus === 'ready' || profileSaveStatus === 'saved') {
@@ -768,6 +777,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       api.saveCapacityStatus(currentUser.orgId, riskId, status)
     }
   }, [currentUser])
+
+  const setPlanMonths = useCallback((months: number) => {
+    if (readOnlyRef.current) return
+    setPlanMonthsState(clampPlanMonths(months))
+  }, [setPlanMonthsState])
 
   // A portfolio-mandated lens can never be switched off by the institution.
   const setLensActive = useCallback(
@@ -1261,8 +1275,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   )
 
   const cipValue = useMemo<CIPContextType>(
-    () => ({ cipStatuses, updateCIPStatus }),
-    [cipStatuses, updateCIPStatus],
+    () => ({ cipStatuses, updateCIPStatus, planMonths, setPlanMonths }),
+    [cipStatuses, updateCIPStatus, planMonths, setPlanMonths],
   )
 
   const lensValue = useMemo<LensContextType>(
