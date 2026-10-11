@@ -9,3 +9,7 @@ dist/
 playwright-report/
 test-results/
 artifacts/
+
+# Video render outputs and review snapshots (large, regenerable; GitHub rejects files over 100 MB)
+videos/**/renders/
+videos/**/snapshots/
