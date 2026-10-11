@@ -174,8 +174,15 @@ export function SupportBot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...entry.escalation, contactEmail, escalationConsent }),
       })
-      const data = await response.json()
-      if (!response.ok) throw new Error('Escalation failed')
+      const data = await response.json().catch(() => null)
+      // The backend deliberately returns non-2xx for states that still mean
+      // "recorded, just not emailed yet" - 503 for not_configured/needs_
+      // reconciliation, not only 200 for accepted. Gating on response.ok
+      // alone discarded that distinction and reported a hard failure even
+      // when the escalation was recorded successfully.
+      if (!data || !['accepted', 'not_configured', 'needs_reconciliation'].includes(data.status)) {
+        throw new Error('Escalation failed')
+      }
       if (data.status === 'accepted' && !data.deduplicated) {
         trackSupportEvent({ event: 'support_escalated', reason: data.reason, recipient_type: data.recipientType })
       }

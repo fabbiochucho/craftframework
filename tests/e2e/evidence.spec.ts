@@ -1,11 +1,12 @@
-import { test, expect } from './fixtures'
+import { test, expect, signInAs } from './fixtures'
 
-test('evidence review, links, download and archive survive reloads', async ({ signedIn: page }) => {
+test('evidence review, links, download and archive survive reloads', async ({ signedIn: page, browser }) => {
   await page.goto('/app/workspaces')
   await page.getByLabel('Organization name').fill('Evidence E2E Org')
   await page.getByLabel('Country').fill('Kenya')
   await page.getByRole('button', { name: 'Create organization' }).click()
   await expect(page.getByRole('heading', { name: 'Workspaces' })).toBeVisible()
+  const orgId = (await page.evaluate(() => fetch('/api/orgs').then(r => r.json())))[0].id
   await page.getByLabel('New workspace').fill('Evidence audit')
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   await page.getByRole('link', { name: 'Evidence audit' }).click()
@@ -23,8 +24,25 @@ test('evidence review, links, download and archive survive reloads', async ({ si
     name: 'audit-policy.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% browser evidence regression\n'),
   })
   await page.getByRole('link', { name: 'audit-policy.pdf' }).click()
-  await page.getByLabel('Reviewer comments').fill('Reviewed against the adopted policy')
-  await page.getByRole('button', { name: 'Approve', exact: true }).click()
+  const evidenceUrl = page.url()
+
+  // Segregation of duties: the API rejects a reviewer approving their own
+  // upload, so approval has to come from a second admin in a separate
+  // signed-in context, matching how this is meant to be used for real.
+  await page.evaluate(oid => fetch(`/api/orgs/${oid}/members`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'reviewer@acme.example', role: 'admin' }),
+  }), orgId)
+  const reviewerContext = await browser.newContext()
+  await signInAs(reviewerContext, 'reviewer@acme.example')
+  const reviewerPage = await reviewerContext.newPage()
+  await reviewerPage.goto(evidenceUrl)
+  await reviewerPage.getByLabel('Reviewer comments').fill('Reviewed against the adopted policy')
+  await reviewerPage.getByRole('button', { name: 'Approve', exact: true }).click()
+  await expect(reviewerPage.getByText('Reviewed against the adopted policy')).toBeVisible()
+  await reviewerContext.close()
+
+  await page.reload()
   await expect(page.getByText('Reviewed against the adopted policy')).toBeVisible()
   await page.getByLabel('Target ID (in this workspace)').fill(String(cap.id))
   await page.getByRole('button', { name: 'Link evidence', exact: true }).click()
