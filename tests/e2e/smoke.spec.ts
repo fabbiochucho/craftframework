@@ -51,6 +51,8 @@ test('org/workspace -> assessment -> finding -> CAP -> evidence -> report PDF', 
   })
   await expect(page.getByText('policy.pdf')).toBeVisible()
   await page.getByRole('link', { name: 'policy.pdf' }).click()
+  // The registry also has an "Expiry date" input; wait for the detail page.
+  await expect(page.getByRole('heading', { name: 'Edit evidence metadata' })).toBeVisible()
   await page.getByLabel('Expiry date').fill('2027-02-01')
   await page.getByRole('button', { name: 'Save changes' }).click()
   await page.reload()

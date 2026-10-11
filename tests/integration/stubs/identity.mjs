@@ -11,3 +11,9 @@ export async function getUser() {
   if (scoped !== undefined) return scoped
   return globalThis.__craftTestIdentity ?? null
 }
+
+// No operator token in tests: behaves like Identity admin being unavailable,
+// which callers (e.g. /api/users) already treat as "directory rows only".
+export const admin = {
+  async listUsers() { throw new Error('Identity admin is unavailable in tests') },
+}

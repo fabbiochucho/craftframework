@@ -24,6 +24,7 @@ test('evidence review, links, download and archive survive reloads', async ({ si
     name: 'audit-policy.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n% browser evidence regression\n'),
   })
   await page.getByRole('link', { name: 'audit-policy.pdf' }).click()
+  await expect(page).toHaveURL(/\/evidence\/\d+$/)
   const evidenceUrl = page.url()
 
   // Segregation of duties: the API rejects a reviewer approving their own
@@ -60,7 +61,7 @@ test('evidence review, links, download and archive survive reloads', async ({ si
   page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Archive (admin)' }).click()
   await expect(page.getByRole('heading', { name: 'Evidence archived' })).toBeVisible()
-  await page.getByRole('link', { name: 'Registry', exact: true }).click()
+  await page.getByRole('link', { name: '← Registry', exact: true }).click()
   await expect(page.getByRole('link', { name: 'audit-policy.pdf' })).toHaveCount(0)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Evidence registry' })).toBeVisible()
