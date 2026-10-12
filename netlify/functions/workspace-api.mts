@@ -10,7 +10,7 @@ import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
-  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances,
+  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
@@ -22,7 +22,10 @@ import {
 import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
 import { logger } from '../lib/logger.js'
-import { craftScorecard, criterionById, GOVERNANCE_CRITERIA, GOVERNANCE_PILLARS } from '../../src/lib/craft-governance.js'
+import {
+  activeCriteria, craftScorecard, criterionById, GOVERNANCE_CRITERIA, GOVERNANCE_PILLARS, VALIDATION_METHODS, VALIDATION_OUTCOMES, validationDelta,
+  type ValidatorScores,
+} from '../../src/lib/craft-governance.js'
 import {
   applicableChecks, CHECKLIST_VERSION, CHECKS, checkWeight, CLASS_LABELS, JURISDICTIONS, jurisdictionByCode, LEGACY_CHECKS_STATUS, PACK_LABELS, scoreChecklist, STATUS_LABELS,
   type CheckInstance, type CheckStatus, type EvidenceState, type QaProfile,
@@ -846,20 +849,59 @@ const routes: Route[] = [
     ])
     if (a.assessmentType === 'CRAFT') {
       const { findingsBySeverity } = buildScorecard([], findings)
-      return json({ assessment: a, findingsBySeverity, ...craftScorecard(craftResponses(scores), undefined, { innovationSupport: a.innovationSupport }) })
+      const opts = { innovationSupport: a.innovationSupport }
+      const responses = craftResponses(scores)
+      const vals = await db.select().from(governanceValidations).where(and(eq(governanceValidations.orgId, orgId), eq(governanceValidations.assessmentId, a.id))).orderBy(asc(governanceValidations.id))
+      const validations = vals.map((v) => ({ ...v, ...validationDelta(responses, v.scores as ValidatorScores, opts) }))
+      return json({ assessment: a, findingsBySeverity, validations, ...craftScorecard(responses, undefined, opts) })
     }
     return json({ assessment: a, ...buildScorecard(scores, findings) })
   } },
   { method: 'GET', pattern: `${W}/craft-scorecard/catalogue`, access: 'viewer', scope: 'workspace', handler: async () =>
     json({ pillars: Object.values(GOVERNANCE_PILLARS), criteria: GOVERNANCE_CRITERIA }) },
+  { method: 'POST', pattern: `${A}/validations`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    // Independent (external) validation of an approved CRAFT assessment. Validators are usually
+    // invited as viewers; they must declare independence and cannot be the assessment's creator.
+    const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
+    if (a.assessmentType !== 'CRAFT') throw bad('independent validation applies to CRAFT Governance Scorecard assessments')
+    if (a.status !== 'approved') throw new HttpError(409, 'Only an approved assessment can be independently validated')
+    if (a.createdBy === caller.email && caller.role !== 'super_admin') throw new HttpError(403, 'Segregation of duties: the assessment creator cannot validate it')
+    if (c.body.independenceDeclared !== true) throw bad('The validator must declare independence from the assessed institution')
+    const [dup] = await db.select({ id: governanceValidations.id }).from(governanceValidations)
+      .where(and(eq(governanceValidations.orgId, orgId), eq(governanceValidations.assessmentId, a.id), eq(governanceValidations.validatorEmail, caller.email)))
+    if (dup) throw new HttpError(409, 'You have already validated this assessment')
+    const outcome = oneOf(c.body.outcome, 'outcome', VALIDATION_OUTCOMES)
+    const notes = str(c.body.notes, 'notes', 4000, outcome !== 'validated')
+    const allowed = new Set(activeCriteria({ innovationSupport: a.innovationSupport }).map((x) => x.id))
+    const scores: ValidatorScores = {}
+    if (c.body.scores != null) {
+      if (typeof c.body.scores !== 'object' || Array.isArray(c.body.scores)) throw bad('scores must be an object of criterion re-scores')
+      for (const [id, v] of Object.entries(c.body.scores as Record<string, any>)) {
+        if (!allowed.has(id)) throw bad(`unknown criterion ${id}`)
+        const score = Number(v?.score)
+        if (!Number.isInteger(score) || score < 1 || score > 5) throw bad(`score for ${id} must be an integer 1-5`)
+        scores[id] = { score, evidence: v?.evidence === true, comment: str(v?.comment, 'comment', 1000, false) }
+      }
+    }
+    const [row] = await db.insert(governanceValidations).values({
+      orgId, assessmentId: a.id, validatorEmail: caller.email, validatorName: str(c.body.validatorName, 'validatorName', 200),
+      validatorOrganisation: str(c.body.validatorOrganisation, 'validatorOrganisation', 200, false), independenceDeclared: true,
+      scope: str(c.body.scope, 'scope', 2000, false), method: oneOf(c.body.method, 'method', VALIDATION_METHODS), outcome, notes, scores,
+    }).returning()
+    const scoreRows = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
+    await audit(c, orgId, wsId, 'assessment', a.id, 'update', { externalValidation: row.id, outcome, reScored: Object.keys(scores).length })
+    return json({ ...row, ...validationDelta(craftResponses(scoreRows), scores, { innovationSupport: a.innovationSupport }) }, 201)
+  } },
   { method: 'GET', pattern: `${W}/craft-scorecard/history`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
     // Every CRAFT assessment version with its own score: earlier results are never recalculated away.
     const list = await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId), eq(governanceAssessments.assessmentType, 'CRAFT'))).orderBy(asc(governanceAssessments.version))
     const ids = list.map((x) => x.id)
     const scores = ids.length ? await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), inArray(governanceScores.assessmentId, ids))) : []
+    const vals = ids.length ? await db.select().from(governanceValidations).where(and(eq(governanceValidations.orgId, orgId), inArray(governanceValidations.assessmentId, ids))).orderBy(desc(governanceValidations.id)) : []
     return json(list.map((x) => {
       const r = craftScorecard(craftResponses(scores.filter((s) => s.assessmentId === x.id)), undefined, { innovationSupport: x.innovationSupport })
-      return { id: x.id, version: x.version, reportingPeriod: x.reportingPeriod, innovationSupport: x.innovationSupport, status: x.status, startedAt: x.startedAt, overall: r.overall, rating: r.rating?.level ?? null, completeness: r.completeness, pillars: r.pillars.map((p) => ({ id: p.id, score: p.score })) }
+      const v = vals.find((y) => y.assessmentId === x.id)
+      return { id: x.id, version: x.version, reportingPeriod: x.reportingPeriod, innovationSupport: x.innovationSupport, validation: v ? { outcome: v.outcome, validatorOrganisation: v.validatorOrganisation, at: v.createdAt } : null, status: x.status, startedAt: x.startedAt, overall: r.overall, rating: r.rating?.level ?? null, completeness: r.completeness, pillars: r.pillars.map((p) => ({ id: p.id, score: p.score })) }
     }))
   } },
   { method: 'POST', pattern: `${A}/submit`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {

@@ -30,7 +30,7 @@ test('plan generator, quality checklist, CRAFT scorecard and CAP hub work end to
   // 2. ESG report quality checklist
   await page.goto(dashboard)
   await page.getByRole('main').getByRole('link', { name: 'ESG report quality checklist' }).click()
-  await expect(page.getByText('Release blocker:')).toBeVisible()
+  await expect(page.getByText('Release blocker:')).toHaveCount(0)
   await page.getByLabel('Label (e.g. FY2028 annual report)').fill('FY2028')
   await page.getByLabel('Period start').fill('2028-01-01')
   await page.getByLabel('Period end').fill('2028-12-31')
@@ -78,6 +78,7 @@ test('plan generator, quality checklist, CRAFT scorecard and CAP hub work end to
   await page.getByRole('button', { name: 'Ethics' }).click()
   await expect(page.getByText('ETH-4 · Fair and transparent founder contracting')).toBeVisible()
   await page.getByRole('button', { name: 'Scorecard' }).click()
-  await expect(page.getByText('CRAFT-GS 0.1 — provisional.')).toBeVisible()
+  await expect(page.getByText('CRAFT-GS 1.0 — approved 2026-10-12.')).toBeVisible()
   await expect(page.getByText('80', { exact: true })).toBeVisible()
+  await expect(page.getByText('Independent validation opens once the assessment is approved.')).toBeVisible()
 })

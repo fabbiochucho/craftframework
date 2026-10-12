@@ -12,7 +12,7 @@ const wsTables = tables.filter((t) => {
   const n = getTableName(t)
   return n.startsWith('ws_') || ['workspaces', 'governance_assessments', 'governance_scores', 'governance_findings', 'esg_frameworks',
     'esg_requirements', 'esg_implementation_plans', 'esg_milestones', 'cap_records', 'action_items', 'action_logs',
-    'evidence_registry', 'evidence_links', 'document_approvals', 'reports', 'report_versions', 'support_issues', 'report_schedules', 'gdpr_requests', 'qa_periods', 'qa_check_instances'].includes(n)
+    'evidence_registry', 'evidence_links', 'document_approvals', 'reports', 'report_versions', 'support_issues', 'report_schedules', 'gdpr_requests', 'qa_periods', 'qa_check_instances', 'governance_validations'].includes(n)
 })
 assert.ok(wsTables.length >= 20, 'expected workspace tables')
 for (const t of wsTables) {
