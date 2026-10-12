@@ -1452,13 +1452,16 @@ const routes: Route[] = [
     json(DOCUMENT_KINDS.map(({ id, label }) => ({ id, label }))) },
   { method: 'POST', pattern: `${W}/evidence/:id/content-check`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     // Re-read a stored document, e.g. one uploaded before content checks existed or with a corrected kind.
+    // ocrText: text the browser read from a scan/image; used only when the file itself has no readable text.
     const e = await loadEvidence(orgId, wsId, intParam(c.p[1]))
     const declaredKind = c.body.documentKind !== undefined ? declaredDocumentKind(c.body.documentKind) : e.declaredKind
+    const ocrText = c.body.ocrText !== undefined ? str(c.body.ocrText, 'ocrText', 400_000, false) : ''
     const data = await getStore('evidence').get(e.filePath, { type: 'arrayBuffer' })
     if (!data) throw new HttpError(404, 'File not found')
-    const contentCheck = checkContent({ fileName: e.documentName, declaredKind, text: await extractText(decodeEvidence(data), e.mimeType) })
+    let contentCheck = checkContent({ fileName: e.documentName, declaredKind, text: await extractText(decodeEvidence(data), e.mimeType) })
+    if (contentCheck.status === 'unreadable' && ocrText.trim()) contentCheck = checkContent({ fileName: e.documentName, declaredKind, text: ocrText, source: 'browser-ocr' })
     const [u] = await db.update(evidenceRegistry).set({ declaredKind, contentCheck: { ...contentCheck } }).where(eq(evidenceRegistry.id, e.id)).returning()
-    await audit(c, orgId, wsId, 'evidence', e.id, 'update', { contentCheck: contentCheck.status, declaredKind })
+    await audit(c, orgId, wsId, 'evidence', e.id, 'update', { contentCheck: contentCheck.status, source: contentCheck.source, declaredKind })
     return json(u)
   } },
   { method: 'GET', pattern: `${W}/evidence/expiry-alerts`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
