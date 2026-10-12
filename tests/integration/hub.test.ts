@@ -187,7 +187,8 @@ describe('CRAFT Governance Scorecard', () => {
     expectStatus(await put('leadership', 'LDR-2', { score: 5, evidenceUploaded: false }), 200)
 
     const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${id}/scorecard`), 200).body
-    assert.equal(sc.methodology.isProvisional, true)
+    assert.equal(sc.methodology.isProvisional, false)
+    assert.equal(sc.methodology.version, 'CRAFT-GS 1.0')
     assert.deepEqual(sc.notApplicable, ['FIN-3'])
     assert.deepEqual(sc.unevidenced, ['LDR-2'])
     assert.equal(sc.complete, false)
@@ -204,9 +205,29 @@ describe('CRAFT Governance Scorecard', () => {
     assert.ok(isc.missingResponses.includes('DAT-4') && isc.recommendations.some((r: any) => r.criterionId === 'ETH-4'))
     assert.ok(!sc.missingResponses.includes('ETH-4'), 'not part of an ordinary assessment')
 
+    // Independent validation: approved assessments only, independence declared, creator excluded.
+    const vpath = `${P()}/assessments/${id}/validations`
+    const vbody = { validatorName: 'Ada Obi', validatorOrganisation: 'Independent Reviews Ltd', independenceDeclared: true, method: 'sample_testing', outcome: 'validated_with_qualifications', notes: 'Board charter review not evidenced', scores: { 'LDR-1': { score: 3, evidence: true, comment: 'Charter not reviewed in 3 years' } } }
+    assert.equal((await as(VIEWER).post(vpath, vbody)).status, 409, 'not approved yet')
+    expectStatus(await as(ASSESSOR).post(`${P()}/assessments/${id}/submit`, {}), 200)
+    expectStatus(await as(ADMIN).post(`${P()}/assessments/${id}/approve`, {}), 200)
+    assert.equal((await as(ASSESSOR).post(vpath, vbody)).status, 403, 'creator cannot validate')
+    assert.equal((await as(VIEWER).post(vpath, { ...vbody, independenceDeclared: false })).status, 400)
+    assert.equal((await as(VIEWER).post(vpath, { ...vbody, notes: '' })).status, 400, 'qualifications need notes')
+    assert.equal((await as(VIEWER).post(vpath, { ...vbody, scores: { 'ETH-4': { score: 3 } } })).status, 400, 'overlay criterion not in this assessment')
+    const val = expectStatus(await as(VIEWER).post(vpath, vbody), 201).body
+    assert.equal(val.selfOverall, 70)
+    assert.ok(val.validatedOverall < 70 && val.delta < 0)
+    assert.equal((await as(VIEWER).post(vpath, vbody)).status, 409, 'one validation per validator')
+    const vsc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${id}/scorecard`), 200).body
+    assert.equal(vsc.validations.length, 1)
+    assert.equal(vsc.validations[0].outcome, 'validated_with_qualifications')
+    assert.equal(vsc.overall, 70, 'the self-assessed score is unchanged by validation')
+
     const hist = expectStatus(await as(VIEWER).get(`${P()}/craft-scorecard/history`), 200).body
     assert.equal(hist.length, 2)
     assert.equal(hist[1].innovationSupport, true)
+    assert.equal(hist[0].validation.outcome, 'validated_with_qualifications')
     assert.equal(hist[0].reportingPeriod, 'FY2026')
     assert.equal(hist[0].overall, 70)
   })

@@ -17,11 +17,12 @@ describe('ESG Report Quality Checklist', () => {
     ;({ wsId } = await createOrg())
   })
 
-  it('serves the catalogue with jurisdictions and flags the provisional 30-check baseline', async () => {
+  it('serves the catalogue with jurisdictions and the approved 30-check baseline', async () => {
     const cat = expectStatus(await as(VIEWER).get(`${P()}/qa/catalogue`), 200).body
     assert.ok(cat.jurisdictions.some((j: any) => j.code === 'KE'))
     assert.equal(cat.legacy.imported, 30)
-    assert.equal(cat.legacy.reconciled, false, 'the 30-check baseline stays provisional until reconciled')
+    assert.equal(cat.legacy.reconciled, true)
+    assert.equal(cat.legacy.approvedOn, '2026-10-12')
     assert.ok(!('condition' in cat.checks[0]))
   })
 

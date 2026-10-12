@@ -22,7 +22,7 @@ Developed through DiBadili Institute · https://craftframework.becomechange.inst
 |---|---|---|
 | Readiness assessment (5 tiers, 20 domains, 0–5 maturity, 7-point evidence matrix) | Live | Assessment wizard, Paper Compliance Penalty, accreditation Levels A–E, findings, Trust Delta |
 | Workspace governance assessments (draft → review → approved, separation of duties, versions) | Live | The assessment creator cannot approve their own assessment |
-| **CRAFT Governance Scorecard** (10 pillars, 30 criteria) | Live once deployed | Provisional methodology CRAFT-GS 0.1; evidence cap; not-applicable with reason; weighted, renormalised scoring; recommendations; history by reporting period |
+| **CRAFT Governance Scorecard** (10 pillars, 30 criteria) | Live once deployed | Methodology CRAFT-GS 1.0 (approved 12 Oct 2026, not externally validated); evidence cap; not-applicable with reason; weighted, renormalised scoring; recommendations; history by reporting period |
 | Founder-protection overlay (incubators, accelerators, startup competitions, innovation funders) | Live once deployed | 4 extra criteria: fair contracting, IP safeguards for all participants, accessible dispute resolution, safeguard accountability |
 | **ESG & Sustainability Implementation Planner** | Live once deployed | Framework catalogue (IFRS S1/S2, GRI, ESRS/CSRD, SASB, TNFD, GHG Protocol, CDP, Integrated Reporting, SEC Nigeria) with publisher, obligation and source; per-requirement plans, owners, milestones, roadmap |
 | SEC Nigeria IFRS S1/S2 implementation-plan generator | Live once deployed | The circular's 8 minimum elements; 90-day / 12-month / 24-month horizons; editable; Word and CSV export |
@@ -30,7 +30,7 @@ Developed through DiBadili Institute · https://craftframework.becomechange.inst
 | **Corrective Action & Evidence Hub** | Live once deployed | One CAP register fed by governance findings, ESG requirements, scorecard recommendations and quality checks; root cause, expected outcome, resources, dependencies, residual risk; closure only on approved, unexpired evidence; effectiveness review; reopen |
 | Evidence registry | Live | Upload, expiry, approve/reject with comments, uploader cannot approve own evidence, archive retained for audit |
 | **ESG Report Quality Checklist** | Live once deployed | Six modules: general quality (30), IFRS S1 (20), IFRS S2 (21), SEC (8), FRCN SRG 1 (12), MOFI-aligned (9), evidence and controls (4), plus country checks; jurisdiction rule packs; evidence-gated status; N/A approval; exceptions that never waive mandatory checks; readiness gate; frozen sign-off snapshots and revised versions; Word/CSV export |
-| General quality baseline (GQ-01–GQ-30) | **Provisional** | Imported from the provisional reconstruction supplied on 11 October 2026; must be reconciled with the original 30-check wording and weights before release |
+| General quality baseline (GQ-01–GQ-30) | Live | Approved as the canonical CRAFT baseline on 12 October 2026 |
 | Planner workstreams, dependency graph, budget fields; cross-framework requirement mapping | Planned | |
 | XLSX / PDF export of the new modules; multi-factor sign-in | Planned | |
 
@@ -56,7 +56,7 @@ Ten proposed CRAFT pillars (original CRAFT content, informed by — not equivale
 
 1. Leadership, Board Effectiveness and Strategic Direction · 2. Ethics, Integrity and Organisational Culture · 3. Accountability, Transparency and Stakeholder Engagement · 4. Risk Management, Internal Controls and Assurance · 5. Financial Stewardship and Fiduciary Responsibility · 6. Operational Capability, Performance and Service Delivery · 7. People, Inclusion and Human-Capital Management · 8. Sustainability, Climate and Responsible Value Creation · 9. Data Governance, Cybersecurity and Digital Accountability · 10. Institutional Resilience, Continuity and Succession
 
-**Scoring (methodology CRAFT-GS 0.1, provisional).** Each criterion is scored 1–5 (Absent, Initial, Defined, Implemented, Embedded and reviewed). A score without evidence counts at most 2. Not-applicable needs a reason and is excluded; unanswered criteria are reported, never scored. Pillar scores are weighted means; the overall score renormalises pillar weights (summing to 100) over answered pillars. Bands: Emerging (<40), Developing (40), Established (60), Advanced (80), Exemplary (90). The methodology has not been externally validated, and a CRAFT score is not an official score of any governance code. It is not a MOFI score either: the MOFI scorecard informs CRAFT, but no MOFI authority has been granted.
+**Scoring (methodology CRAFT-GS 1.0, approved 12 October 2026).** Each criterion is scored 1–5 (Absent, Initial, Defined, Implemented, Embedded and reviewed). A score without evidence counts at most 2. Not-applicable needs a reason and is excluded; unanswered criteria are reported, never scored. Pillar scores are weighted means; the overall score renormalises pillar weights (summing to 100) over answered pillars. Bands: Emerging (<40), Developing (40), Established (60), Advanced (80), Exemplary (90). The weights and bands were approved by the product owner; the methodology has not been externally validated, and a CRAFT score is not an official score of any governance code. It is not a MOFI score either: the MOFI scorecard informs CRAFT, but no MOFI authority has been granted.
 
 **Founder protection (innovation-support overlay).** For incubators, accelerators, startup competitions and innovation funders, four criteria are added: fair and transparent founder contracting; IP and confidential-information safeguards for every participant, not only winners; accessible grievance and dispute resolution with timelines; and demonstrable safeguard accountability, with breaches tracked as corrective actions. The aim is to make trust something institutions demonstrate, not something founders are asked to assume.
 
@@ -80,7 +80,7 @@ One organisation-level CAP register, fed by governance findings, ESG requirement
 - **Applicability engine.** The period start date, jurisdiction and entity category determine which packs apply and whether each check is mandatory.
 - **Requirement classes.** M-REG (regulatory), M-STD (standard), M-GOV (governance mandate, e.g. MOFI scope), C-MAND (conditional), GP (good practice), CRAFT (internal evidence rule). Applicability is decided separately for each period.
 - **Status rules.** Met requires linked evidence accepted by an authorised reviewer. Partially met and Not met require the gap. Blocked requires the blocker. Returned requires what is missing. Pending review requires linked evidence. Not applicable requires a rationale and approval by someone else. Exception approved is admin-only, earns no points and can never waive a mandatory requirement.
-- **Scoring.** Weights are Critical 5, High 3, Medium 2, good practice 1. Met earns full weight and Partially met half; nothing earns points before evidence acceptance. The checklist also reports coverage, evidence acceptance, mandatory coverage and mandatory pass rate. These are proposed settings pending owner approval.
+- **Scoring.** Weights are Critical 5, High 3, Medium 2, good practice 1. Met earns full weight and Partially met half; nothing earns points before evidence acceptance. The checklist also reports coverage, evidence acceptance, mandatory coverage and mandatory pass rate. Weights and score labels were approved on 12 October 2026.
 - **Readiness gate.** "Ready for approval" is never shown with an open critical check, an unresolved mandatory requirement, a pending N/A decision, unreviewed evidence or missing sign-off, whatever the score.
 - **Sign-off.** The preparer cannot give final approval. Finalised periods are frozen snapshots and never silently recalculate; corrections create a revised version with reason, actor and time. Period lists warn when the entity basis or checklist version differs.
 - **Action metrics.** Overdue action rate, on-time completion and effectiveness pass rate are shown alongside the score.
@@ -128,7 +128,7 @@ Evidence should be relevant, specific, current, attributable and appropriate to 
 ## 12. Immediate next steps
 
 1. Deploy branch `feat/governance-planner-cap-hub` (adds one additive migration).
-2. Reconcile the provisional GQ-01–GQ-30 baseline against the original 30 CRAFT quality checks — release blocker for the checklist.
-3. Approve or adjust the provisional scorecard weights and bands, and the checklist weights and score labels.
+2. Weights, bands and the 30-check baseline were approved on 12 October 2026; any change creates a new methodology or checklist version.
+3. Plan external validation of the CRAFT-GS methodology.
 4. Confirm the founder-protection overlay wording with legal and programme partners.
 5. Re-verify regulatory sources before each reporting cycle (SEC, FRCN, ICPAK, ICAG, ZICA, NBAA, PAAB, ICPAR, JSE).
