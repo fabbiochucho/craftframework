@@ -6,7 +6,7 @@
 // Regulatory facts carry their source and the date they were checked; anything not confirmed
 // against the primary source is flagged `requiresVerification`.
 
-export const CHECKLIST_VERSION = 'CRAFT-QA 1.1 (2026-10-11)'
+export const CHECKLIST_VERSION = 'CRAFT-QA 1.2 (2026-10-12)'
 
 // --- Jurisdiction rule packs ------------------------------------------------------------
 export interface EntityCategory {
@@ -211,7 +211,7 @@ export const CLASS_LABELS: Record<ReqClass, string> = {
   'C-MAND': 'Conditionally mandatory', GP: 'Good practice', CRAFT: 'CRAFT assessment rule',
 }
 export const PACK_LABELS: Record<Pack, string> = {
-  GQ: 'General quality (provisional baseline)', S1: 'IFRS S1', S2: 'IFRS S2', SEC: 'SEC Nigeria', FRC: 'FRCN SRG 1',
+  GQ: 'General quality', S1: 'IFRS S1', S2: 'IFRS S2', SEC: 'SEC Nigeria', FRC: 'FRCN SRG 1',
   MOFI: 'MOFI-aligned governance', EC: 'Evidence and controls', JUR: 'Jurisdiction',
 }
 
@@ -221,12 +221,12 @@ const mk = (pack: Pack, rows: Row[], extra: Record<string, Partial<Check>> = {})
 
 const financed = { condition: (p: QaProfile) => p.financialActivities, conditionNote: 'Applies where activities include asset management, commercial banking or insurance.' }
 
-// Provisional reconstruction of the 30-check general quality baseline (supplied 11 October 2026).
-// NOT the verified original wording: reconcile against the original legacy checklist before release.
+// CRAFT general quality baseline: 30 checks supplied on 11 October 2026 and approved by the
+// product owner on 12 October 2026 as the canonical baseline. Change only through a new checklist version.
 type Gq = [string, string]
 const gq = (group: string, rows: Gq[]): Check[] => rows.map(([id, q]) => ({
   id, pack: 'GQ', title: `${group}: ${q.replace(/\?$/, '')}`, classes: ['GP'], severity: 'medium', acceptance: q,
-  evidence: 'Report section and supporting records', provisional: true,
+  evidence: 'Report section and supporting records',
 }))
 
 export const CHECKS: Check[] = [
@@ -391,7 +391,7 @@ export function applicableChecks(profile: QaProfile, periodStart: string): { app
     let reason = ''
     switch (c.pack) {
       case 'GQ':
-        reason = 'General quality baseline (provisional reconstruction, pending reconciliation with the original 30 checks).'
+        reason = 'CRAFT general quality baseline (approved 12 October 2026).'
         break
       case 'EC':
         reason = 'CRAFT evidence and control rule.'
@@ -459,7 +459,7 @@ export const BANDS = [
   { min: 40, label: 'Weak' }, { min: 0, label: 'High improvement need' },
 ] as const
 
-// Proposed default weights (product owner to approve): Critical 5, High 3, Medium 2, Low 1; good practice 1.
+// Weights approved by the product owner on 12 October 2026: Critical 5, High 3, Medium 2, Low 1; good practice 1.
 export const checkWeight = (c: Check) => (c.classes.length === 1 && c.classes[0] === 'GP' ? 1 : SEVERITY_WEIGHT[c.severity])
 
 const ratio = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : 0)
@@ -518,6 +518,7 @@ export function scoreChecklist(applicable: ApplicableCheck[], instances: CheckIn
 export const LEGACY_CHECKS_STATUS = {
   imported: 30,
   expected: 30,
-  reconciled: false,
-  note: 'The 30 general quality checks (GQ-01–GQ-30) are a provisional reconstruction supplied on 11 October 2026, not the verified original wording or weights. Reconcile them against the original legacy checklist before release; this remains a release blocker.',
+  reconciled: true,
+  approvedOn: '2026-10-12',
+  note: 'The 30 general quality checks (GQ-01–GQ-30) were approved by the product owner on 12 October 2026 as the canonical CRAFT baseline, together with the 5/3/2/1 weights and score labels.',
 }
