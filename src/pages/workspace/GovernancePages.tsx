@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { api, SEVERITY_STYLE, TIER_LABEL, wsPath } from '../../lib/workspaceApi'
 import { ALL_DOMAINS, GOVERNANCE_DOMAINS } from '../../lib/governanceDomains'
-import { Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead, Tabs } from '../../components/ui'
+import { Accordion, Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead, Tabs } from '../../components/ui'
 import { EditFields, ErrorLine, Header, State, StatusPill, useAction, useApi } from './shared'
 
 export function AssessmentsListPage({ workspaceId }: { workspaceId: string }) {
@@ -88,6 +88,59 @@ function CraftWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; 
   )
 }
 
+const OUTCOME_LABEL: Record<string, string> = { validated: 'Validated', validated_with_qualifications: 'Validated with qualifications', not_validated: 'Not validated' }
+const OUTCOME_STYLE: Record<string, string> = { validated: 'bg-emerald-100 text-emerald-700', validated_with_qualifications: 'bg-amber-100 text-amber-800', not_validated: 'bg-rose-100 text-rose-700' }
+
+function IndependentValidation({ workspaceId, a, d, reload }: { workspaceId: string; a: any; d: any; reload: () => void }) {
+  const [v, setV] = useState({ validatorName: '', validatorOrganisation: '', scope: '', method: 'document_review', outcome: 'validated', notes: '', independenceDeclared: false })
+  const [rescore, setRescore] = useState<Record<string, { score: string; evidence: boolean; comment: string }>>({})
+  const { run, error, busy } = useAction(reload)
+  const answered: string[] = a.scores.filter((s: any) => !s.notApplicable).map((s: any) => s.domain)
+  const scores = Object.fromEntries(Object.entries(rescore).filter(([, x]) => x.score).map(([id, x]) => [id, { score: Number(x.score), evidence: x.evidence, comment: x.comment }]))
+  return (
+    <Card><CardContent className="space-y-3">
+      <h3 className="font-semibold">Independent validation</h3>
+      <p className="text-sm text-slate-600">An independent reviewer checks the approved self-assessment and may re-score criteria. The self-assessed score is never overwritten; the validated score and the difference are shown alongside it. Validation is not certification or an assurance opinion.</p>
+      {d.validations?.length ? <Table><Thead><tr><Th>Validator</Th><Th>Method</Th><Th>Outcome</Th><Th>Self score</Th><Th>Validated score</Th><Th>Difference</Th><Th>Date</Th></tr></Thead>
+        <Tbody>{d.validations.map((x: any) => (
+          <tr key={x.id}><Td>{x.validatorName}{x.validatorOrganisation && <p className="text-xs text-slate-500">{x.validatorOrganisation}</p>}</Td><Td>{x.method.replace(/_/g, ' ')}</Td>
+            <Td><Badge className={OUTCOME_STYLE[x.outcome]}>{OUTCOME_LABEL[x.outcome]}</Badge>{x.notes && <p className="text-xs text-slate-500">{x.notes}</p>}</Td>
+            <Td>{x.selfOverall ?? '—'}</Td><Td>{x.validatedOverall ?? '—'}{x.validatedRating && <p className="text-xs">{x.validatedRating}</p>}</Td>
+            <Td className={x.delta < 0 ? 'text-rose-700' : ''}>{x.delta == null ? '—' : x.delta > 0 ? `+${x.delta}` : x.delta}</Td><Td>{new Date(x.createdAt).toLocaleDateString()}</Td></tr>))}</Tbody></Table>
+        : <p className="text-sm text-slate-500">Not yet independently validated.</p>}
+      {d.validations?.flatMap((x: any) => x.adjustments.map((j: any) => ({ ...j, by: x.validatorName }))).length > 0 && <ul className="list-disc pl-5 text-xs text-slate-600">
+        {d.validations.flatMap((x: any) => x.adjustments.map((j: any) => <li key={`${x.id}-${j.criterionId}`}>{j.criterionId}: self {j.selfScore ?? '—'} → validator {j.validatorScore}{j.validatorEvidence ? '' : ' (no evidence)'} — {x.validatorName}{j.comment ? `: ${j.comment}` : ''}</li>))}
+      </ul>}
+      {a.status !== 'approved' ? <p className="text-sm text-slate-500">Independent validation opens once the assessment is approved.</p> : <>
+        <div className="grid gap-3 md:grid-cols-3">
+          <Input label="Validator name" value={v.validatorName} onChange={e => setV({ ...v, validatorName: e.target.value })} />
+          <Input label="Validator organisation" value={v.validatorOrganisation} onChange={e => setV({ ...v, validatorOrganisation: e.target.value })} />
+          <Input label="Validation scope" value={v.scope} onChange={e => setV({ ...v, scope: e.target.value })} />
+          <Select label="Method" value={v.method} onChange={method => setV({ ...v, method })} options={['document_review', 'sample_testing', 'interviews', 'site_visit', 'combined'].map(x => ({ value: x, label: x.replace(/_/g, ' ') }))} />
+          <Select label="Outcome" value={v.outcome} onChange={outcome => setV({ ...v, outcome })} options={Object.entries(OUTCOME_LABEL).map(([value, label]) => ({ value, label }))} />
+          <Input label="Notes (required unless fully validated)" value={v.notes} onChange={e => setV({ ...v, notes: e.target.value })} />
+        </div>
+        <Accordion title={`Re-score criteria (optional, ${Object.keys(scores).length} re-scored)`}>
+          <div className="space-y-2 p-3">{answered.map(id => {
+            const x = rescore[id] ?? { score: '', evidence: true, comment: '' }
+            const set = (p: Partial<typeof x>) => setRescore({ ...rescore, [id]: { ...x, ...p } })
+            return <div key={id} className="flex flex-wrap items-end gap-2">
+              <span className="w-20 text-sm font-medium">{id}</span>
+              <div className="w-48"><Select placeholder="Keep self score" value={x.score} onChange={score => set({ score })} options={RUBRIC.map((l, i) => ({ value: String(i + 1), label: l }))} /></div>
+              <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={x.evidence} onChange={e => set({ evidence: e.target.checked })} /> Evidence seen</label>
+              <div className="min-w-[200px] flex-1"><Input aria-label={`${id} comment`} value={x.comment} onChange={e => set({ comment: e.target.value })} /></div>
+            </div>
+          })}</div>
+        </Accordion>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={v.independenceDeclared} onChange={e => setV({ ...v, independenceDeclared: e.target.checked })} />
+          <span>I declare that I am independent of the assessed institution and have no conflict of interest in this validation.</span></label>
+        <ErrorLine error={error} />
+        <Button disabled={busy || !v.validatorName || !v.independenceDeclared} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/validations`), { method: 'POST', body: { ...v, scores } }))}>Record independent validation</Button>
+      </>}
+    </CardContent></Card>
+  )
+}
+
 function CraftScorecard({ workspaceId, a }: { workspaceId: string; a: any }) {
   const sc = useApi<any>(wsPath(workspaceId, `/assessments/${a.id}/scorecard`))
   const hist = useApi<any[]>(wsPath(workspaceId, '/craft-scorecard/history'))
@@ -96,7 +149,7 @@ function CraftScorecard({ workspaceId, a }: { workspaceId: string; a: any }) {
   const d = sc.data
   return (
     <div className="space-y-4">
-      <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800"><b>{d.methodology.version} — provisional.</b> {d.methodology.assumptions.join(' ')}</p>
+      <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800"><b>{d.methodology.version}{d.methodology.isProvisional ? ' — provisional' : ` — approved ${d.methodology.approvedOn}`}.</b> {d.methodology.assumptions.join(' ')}</p>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Overall</p><p className="text-3xl font-bold text-emerald-900">{d.overall ?? '—'}</p><p className="text-sm">{d.rating?.level ?? (d.errors.length ? d.errors.join('; ') : 'Not scored')}</p></div>
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Completeness</p><p className="text-3xl font-bold text-emerald-900">{d.completeness}%</p><p className="text-sm">{d.complete ? 'All applicable criteria scored' : `${d.missingResponses.length} unanswered`}</p></div>
@@ -113,10 +166,12 @@ function CraftScorecard({ workspaceId, a }: { workspaceId: string; a: any }) {
           <tr key={r.criterionId}><Td><b>{r.criterionId}</b> {r.criterion}</Td><Td><Badge className={SEVERITY_STYLE[r.priority]}>{r.effectiveScore} · {r.priority}</Badge></Td><Td>{r.action}</Td><Td className="text-xs">{r.evidence.join('; ')}</Td>
             <Td><Button size="sm" variant="ghost" onClick={() => run(() => api(wsPath(workspaceId, '/cap'), { method: 'POST', body: { sourceType: 'manual', findingDescription: `${a.reportingPeriod ? `${a.reportingPeriod} · ` : ''}${r.criterionId} ${r.criterion}: effective score ${r.effectiveScore}/5`, severity: r.priority, correctiveAction: r.action } }))}>Raise CAP</Button></Td></tr>))}</Tbody></Table>
       <p className="text-sm text-slate-600">Open findings — {Object.entries(d.findingsBySeverity).map(([k, v]) => `${k}: ${v}`).join(' · ')}</p>
+      <IndependentValidation workspaceId={workspaceId} a={a} d={d} reload={sc.reload} />
       {hist.data && hist.data.length > 1 && <>
         <h3 className="font-semibold">History across reporting periods</h3>
-        <Table><Thead><tr><Th>Version</Th><Th>Period</Th><Th>Status</Th><Th>Overall</Th><Th>Rating</Th><Th>Completeness</Th></tr></Thead>
-          <Tbody>{hist.data.map(h => <tr key={h.id}><Td>v{h.version}</Td><Td>{h.reportingPeriod || '—'}</Td><Td><StatusPill value={h.status} /></Td><Td>{h.overall ?? '—'}</Td><Td>{h.rating ?? '—'}</Td><Td>{h.completeness}%</Td></tr>)}</Tbody></Table>
+        <Table><Thead><tr><Th>Version</Th><Th>Period</Th><Th>Status</Th><Th>Overall</Th><Th>Rating</Th><Th>Completeness</Th><Th>Independent validation</Th></tr></Thead>
+          <Tbody>{hist.data.map(h => <tr key={h.id}><Td>v{h.version}</Td><Td>{h.reportingPeriod || '—'}</Td><Td><StatusPill value={h.status} /></Td><Td>{h.overall ?? '—'}</Td><Td>{h.rating ?? '—'}</Td><Td>{h.completeness}%</Td>
+            <Td>{h.validation ? <Badge className={OUTCOME_STYLE[h.validation.outcome]}>{OUTCOME_LABEL[h.validation.outcome]}</Badge> : '—'}</Td></tr>)}</Tbody></Table>
         <p className="text-xs text-slate-500">Compare periods only where scope, criteria and methodology version are the same.</p>
       </>}
     </div>
@@ -242,7 +297,7 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
   return (
     <div className="space-y-6">
       <Header title={d.assessmentType === 'CRAFT' ? `CRAFT Governance Scorecard v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}` : `${d.assessmentType} assessment v${d.version}`}
-        subtitle={d.assessmentType === 'CRAFT' ? 'Ten-pillar CRAFT methodology (provisional). Not a certification, credit rating, assurance opinion or official score of any governance code.' : 'Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification.'} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
+        subtitle={d.assessmentType === 'CRAFT' ? 'Ten-pillar CRAFT methodology (CRAFT-GS 1.0). Not a certification, credit rating, assurance opinion or official score of any governance code.' : 'Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification.'} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <ErrorLine error={error} />
       {tab === 'overview' && (

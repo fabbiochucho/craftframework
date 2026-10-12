@@ -607,6 +607,30 @@ export const governanceFindings = pgTable(
   (t) => [index('governance_findings_assessment_idx').on(t.orgId, t.assessmentId)],
 )
 
+// Independent (external) validation of an approved CRAFT Governance Scorecard assessment.
+export const governanceValidations = pgTable(
+  'governance_validations',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    assessmentId: integer('assessment_id').notNull(),
+    validatorEmail: text('validator_email').notNull(),
+    validatorName: text('validator_name').notNull(),
+    validatorOrganisation: text('validator_organisation').notNull().default(''),
+    independenceDeclared: boolean('independence_declared').notNull().default(false),
+    scope: text('scope').notNull().default(''),
+    // 'document_review' | 'sample_testing' | 'interviews' | 'site_visit' | 'combined'
+    method: text('method').notNull(),
+    // 'validated' | 'validated_with_qualifications' | 'not_validated'
+    outcome: text('outcome').notNull(),
+    notes: text('notes').notNull().default(''),
+    // Optional independent re-scores: criterionId → { score 1–5, evidence, comment }
+    scores: jsonb('scores').$type<Record<string, { score: number; evidence: boolean; comment?: string }>>().notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('governance_validations_assessment_idx').on(t.orgId, t.assessmentId)],
+)
+
 // --- ESG --------------------------------------------------------------------
 export const esgFrameworks = pgTable(
   'esg_frameworks',

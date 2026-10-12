@@ -10,9 +10,10 @@ const p = (x: Partial<QaProfile>): QaProfile => ({ ...base, ...x })
 // Catalogue integrity: unique ids, the user's packs complete, no fabricated legacy checks.
 assert.equal(new Set(CHECKS.map((c) => c.id)).size, CHECKS.length)
 for (const [pack, n] of [['GQ', 30], ['S1', 20], ['S2', 21], ['SEC', 8], ['FRC', 12], ['MOFI', 9], ['EC', 4]] as const) assert.equal(CHECKS.filter((c) => c.pack === pack).length, n, pack)
-// The 30-check baseline is a provisional reconstruction, never presented as the verified original.
-assert.equal(CHECKS.filter((c) => c.pack === 'GQ' && c.provisional).length, LEGACY_CHECKS_STATUS.imported)
-assert.equal(LEGACY_CHECKS_STATUS.reconciled, false)
+// The approved 30-check general quality baseline.
+assert.equal(CHECKS.filter((c) => c.pack === 'GQ').length, LEGACY_CHECKS_STATUS.imported)
+assert.equal(LEGACY_CHECKS_STATUS.reconciled, true)
+assert.ok(!CHECKS.some((c) => c.provisional))
 assert.ok(CHECKS.filter((c) => c.pack === 'GQ').every((c) => c.classes.length === 1 && c.classes[0] === 'GP'))
 for (const j of JURISDICTIONS) if (!j.lastVerified) assert.ok(j.requiresVerification, j.code)
 
