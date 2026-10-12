@@ -73,6 +73,8 @@ export type ContentStatus = 'match' | 'possible_mismatch' | 'unreadable' | 'not_
 export interface ContentCheck {
   status: ContentStatus
   method: string
+  // 'browser-ocr': text came from OCR in the uploader's browser (scans/images), not from the file itself.
+  source: 'file' | 'browser-ocr'
   expectedKind: string | null
   expectedLabel: string | null
   detectedKind: string | null
@@ -85,10 +87,10 @@ export interface ContentCheck {
 
 const MIN_TEXT = 40
 
-export function checkContent(input: { fileName: string; declaredKind?: string | null; text: string | null }, now = new Date()): ContentCheck {
+export function checkContent(input: { fileName: string; declaredKind?: string | null; text: string | null; source?: ContentCheck['source'] }, now = new Date()): ContentCheck {
   const declared = kindById(input.declaredKind)
   const expected = declared ?? kindFromName(input.fileName)
-  const base = { method: CONTENT_CHECK_METHOD, expectedKind: expected?.id ?? null, expectedLabel: expected?.label ?? null, checkedAt: now.toISOString() }
+  const base = { method: CONTENT_CHECK_METHOD, source: input.source ?? 'file', expectedKind: expected?.id ?? null, expectedLabel: expected?.label ?? null, checkedAt: now.toISOString() }
   const text = input.text ?? ''
   if (text.replace(/\s+/g, '').length < MIN_TEXT) {
     return { ...base, status: 'unreadable', detectedKind: null, detectedLabel: null, matched: [], characters: text.length,

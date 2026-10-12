@@ -13,3 +13,6 @@ artifacts/
 # Video render outputs and review snapshots (large, regenerable; GitHub rejects files over 100 MB)
 videos/**/renders/
 videos/**/snapshots/
+
+# Copied from node_modules by scripts/copy-ocr-assets.mjs
+public/ocr/
