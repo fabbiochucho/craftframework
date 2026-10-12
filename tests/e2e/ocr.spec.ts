@@ -1,16 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { test, expect } from './fixtures'
 
-// The production CSP from netlify.toml, applied here so self-hosted OCR is proven to run under it.
-const CSP = /Content-Security-Policy = "([^"]+)"/.exec(readFileSync('netlify.toml', 'utf8'))![1]
-
 test('a scanned image is read by OCR in the browser and checked against its name', async ({ signedIn: page }) => {
-  await page.route(url => !url.pathname.startsWith('/api'), async route => {
-    const res = await route.fetch()
-    await route.fulfill({ response: res, headers: { ...res.headers(), 'content-security-policy': CSP } })
-  })
+  // Pages carry the production CSP (src/server.ts); OCR and the rest of the page must run under it.
   const csp: string[] = []
-  page.on('console', m => { if (/Content Security Policy/i.test(m.text()) && /script-src|worker-src|connect-src|wasm/.test(m.text())) csp.push(m.text()) })
+  page.on('console', m => { if (/Content Security Policy/i.test(m.text())) csp.push(m.text()) })
 
   // A "scan": an image of a board charter, with no text layer.
   const scanPage = await page.context().newPage()
@@ -20,7 +13,9 @@ test('a scanned image is read by OCR in the browser and checked against its name
   const png = await scanPage.locator('div').screenshot()
   await scanPage.close()
 
-  await page.goto('/app/workspaces')
+  const doc = await page.goto('/app/workspaces')
+  expect(doc!.headers()['content-security-policy']).toContain("'wasm-unsafe-eval'")
+  expect(doc!.headers()['x-frame-options']).toBe('DENY')
   await page.getByLabel('Organization name').fill('OCR E2E Org')
   await page.getByLabel('Country').fill('Nigeria')
   await page.getByRole('button', { name: 'Create organization' }).click()
