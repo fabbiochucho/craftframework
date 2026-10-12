@@ -31,6 +31,7 @@ import {
   type CheckInstance, type CheckStatus, type EvidenceState, type QaProfile,
 } from '../../src/lib/esg-checklist.js'
 import { qaCsv, renderQaDoc, type QaView } from '../lib/qa-report.js'
+import { checkContent, DOCUMENT_KINDS, extractText, kindById } from '../lib/evidence-content.js'
 import {
   catalogueMeta, defaultFirstReportingYear, ESG_CATALOGUE, generateSecPlan, planCsv, renderPlanDoc, SEC_NG_FRAMEWORK,
   type EntityType, type Horizon, type PlanRow, type PlanSettings, type Readiness,
@@ -535,6 +536,12 @@ async function buildQaView(orgId: number, wsId: number, p: typeof qaPeriods.$inf
     organisation: org?.name ?? '', applicability, jurisdiction: { name: j.name, sourceTitle: j.sourceTitle }, summary, rows,
     checks: rows, legacy: LEGACY_CHECKS_STATUS, actions, revisionOf: p.revisionOf, revisionReason: p.revisionReason,
   }
+}
+
+function declaredDocumentKind(v: unknown): string | null {
+  if (v == null || v === '') return null
+  if (!kindById(String(v))) throw bad('unknown documentKind')
+  return String(v)
 }
 
 // Root cause, expected outcome, resources, dependencies and residual risk on a CAP.
@@ -1427,14 +1434,32 @@ const routes: Route[] = [
     if (file.size === 0 || file.size > MAX_EVIDENCE_BYTES) throw bad(`file must be between 1 byte and ${MAX_EVIDENCE_BYTES / 1024 / 1024} MB`)
     if (!ALLOWED_EVIDENCE_MIME.includes(file.type)) throw bad('unsupported file type (PDF, DOCX, XLSX, images, ZIP)')
     const documentType = oneOf(form.get('documentType') ?? undefined, 'documentType', ['assessment', 'policy', 'evidence', 'certification'] as const, 'evidence')
+    const declaredKind = declaredDocumentKind(form.get('documentKind'))
     const key = `${orgId}/${wsId}/${crypto.randomUUID()}`
-    await getStore('evidence').set(key, encodeEvidence(await file.arrayBuffer()), { metadata: { mimeType: file.type } })
+    const bytes = await file.arrayBuffer()
+    // Read the contents and check them against the name / declared kind. The text is not stored.
+    const contentCheck = checkContent({ fileName: file.name, declaredKind, text: await extractText(bytes, file.type) })
+    await getStore('evidence').set(key, encodeEvidence(bytes), { metadata: { mimeType: file.type } })
     const [e] = await db.insert(evidenceRegistry).values({
       orgId, workspaceId: wsId, documentName: file.name.slice(0, 255), documentType, uploadedBy: caller.email, filePath: key,
       fileSizeKb: Math.ceil(file.size / 1024), mimeType: file.type, expiryDate: dateOrNull(form.get('expiryDate') || null, 'expiryDate'),
+      declaredKind, contentCheck: { ...contentCheck },
     }).returning()
-    await audit(c, orgId, wsId, 'evidence', e.id, 'create', { name: e.documentName })
+    await audit(c, orgId, wsId, 'evidence', e.id, 'create', { name: e.documentName, contentCheck: contentCheck.status })
     return json(e, 201)
+  } },
+  { method: 'GET', pattern: `${W}/evidence/document-kinds`, access: 'viewer', scope: 'workspace', handler: async () =>
+    json(DOCUMENT_KINDS.map(({ id, label }) => ({ id, label }))) },
+  { method: 'POST', pattern: `${W}/evidence/:id/content-check`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    // Re-read a stored document, e.g. one uploaded before content checks existed or with a corrected kind.
+    const e = await loadEvidence(orgId, wsId, intParam(c.p[1]))
+    const declaredKind = c.body.documentKind !== undefined ? declaredDocumentKind(c.body.documentKind) : e.declaredKind
+    const data = await getStore('evidence').get(e.filePath, { type: 'arrayBuffer' })
+    if (!data) throw new HttpError(404, 'File not found')
+    const contentCheck = checkContent({ fileName: e.documentName, declaredKind, text: await extractText(decodeEvidence(data), e.mimeType) })
+    const [u] = await db.update(evidenceRegistry).set({ declaredKind, contentCheck: { ...contentCheck } }).where(eq(evidenceRegistry.id, e.id)).returning()
+    await audit(c, orgId, wsId, 'evidence', e.id, 'update', { contentCheck: contentCheck.status, declaredKind })
+    return json(u)
   } },
   { method: 'GET', pattern: `${W}/evidence/expiry-alerts`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
     const limit = new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10)
@@ -1493,6 +1518,10 @@ const routes: Route[] = [
     if (e.uploadedBy === caller.email && caller.role !== 'super_admin') throw new HttpError(403, 'Segregation of duties: uploader cannot approve their own evidence')
     const status = oneOf(c.body.status, 'status', ['approved', 'rejected'] as const, 'approved')
     const comments = str(c.body.comments, 'comments', 2000, false)
+    const check = e.contentCheck as { status?: string } | null
+    if (status === 'approved' && check?.status === 'possible_mismatch' && comments.trim().length < 10) {
+      throw new HttpError(409, 'The content check flagged this document: record in the comments how you confirmed it is the right document before approving')
+    }
     await db.insert(documentApprovals).values({ orgId, evidenceId: e.id, reviewerId: caller.email, status, comments: encryptField(comments) })
     if (status === 'approved') await db.update(evidenceLinks).set({ approvedBy: caller.email, approvalDate: new Date() }).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.evidenceId, e.id)))
     const [u] = await db.update(evidenceRegistry).set({ status }).where(eq(evidenceRegistry.id, e.id)).returning()

@@ -6,6 +6,17 @@ import { EditFields, ErrorLine, Header, State, StatusPill, Tile, useAction, useA
 
 const dash = (workspaceId: string) => ({ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' })
 const ACCEPT = '.pdf,.docx,.xlsx,.zip,image/*'
+const CHECK_STYLE: Record<string, [string, string]> = {
+  match: ['bg-emerald-100 text-emerald-700', 'content matches'],
+  possible_mismatch: ['bg-rose-100 text-rose-700', 'possible mismatch'],
+  unreadable: ['bg-yellow-100 text-yellow-800', 'check manually'],
+  not_checked: ['bg-slate-100 text-slate-600', 'type not recognised'],
+}
+function ContentBadge({ check }: { check?: { status: string } | null }) {
+  if (!check) return <span className="text-slate-400">—</span>
+  const [cls, label] = CHECK_STYLE[check.status] ?? CHECK_STYLE.not_checked
+  return <Badge className={cls}>{label}</Badge>
+}
 
 export function EvidencePage({ workspaceId }: { workspaceId: string }) {
   const [flt, setFlt] = useState({ type: '', status: '' })
@@ -13,11 +24,13 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
   const list = useApi<any[]>(wsPath(workspaceId, `/evidence${qs ? `?${qs}` : ''}`))
   const [docType, setDocType] = useState('evidence')
   const [expiry, setExpiry] = useState('')
+  const [kind, setKind] = useState('')
+  const kinds = useApi<{ id: string; label: string }[]>(wsPath(workspaceId, '/evidence/document-kinds'))
   const input = useRef<HTMLInputElement>(null)
   const { run, error } = useAction(list.reload)
   const upload = (file: File) => {
     const form = new FormData()
-    form.set('file', file); form.set('documentType', docType); if (expiry) form.set('expiryDate', expiry)
+    form.set('file', file); form.set('documentType', docType); if (expiry) form.set('expiryDate', expiry); if (kind) form.set('documentKind', kind)
     return run(() => api(wsPath(workspaceId, '/evidence/upload'), { method: 'POST', form }))
   }
   const expired = list.data?.filter(e => e.expiryState === 'expired') ?? []
@@ -32,6 +45,7 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
         className="flex flex-wrap items-end gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-white p-4">
         <p className="text-sm text-slate-500">Drag a file here (PDF, DOCX, XLSX, image, ZIP — max 10 MB) or</p>
         <div className="w-40"><Select value={docType} onChange={setDocType} options={opt(['assessment', 'policy', 'evidence', 'certification'])} /></div>
+        <div className="w-56"><Select placeholder="Document is… (from file name)" value={kind} onChange={setKind} options={(kinds.data ?? []).map(k => ({ value: k.id, label: k.label }))} /></div>
         <div className="w-44"><Input type="date" aria-label="Expiry date" value={expiry} onChange={e => setExpiry(e.target.value)} /></div>
         <input ref={input} type="file" accept={ACCEPT} className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) void upload(f) }} />
         <Button onClick={() => input.current?.click()}>Choose file</Button>
@@ -41,10 +55,10 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
         <div className="w-44"><Select placeholder="Any status" value={flt.status} onChange={status => setFlt({ ...flt, status })} options={opt(['pending_review', 'approved', 'rejected', 'expired'])} /></div>
       </div>
       <ErrorLine error={error} /><State loading={list.loading} error={list.error} />
-      <Table><Thead><tr><Th>File</Th><Th>Type</Th><Th>Uploaded</Th><Th>Expiry</Th><Th>Status</Th></tr></Thead>
+      <Table><Thead><tr><Th>File</Th><Th>Type</Th><Th>Uploaded</Th><Th>Expiry</Th><Th>Content check</Th><Th>Status</Th></tr></Thead>
         <Tbody>{list.data?.map(e => (
           <tr key={e.id}><Td><Link className="text-emerald-700 underline" to="/app/workspaces/$workspaceId/evidence/$evidenceId" params={{ workspaceId, evidenceId: String(e.id) }}>{e.documentName}</Link></Td>
-            <Td>{e.documentType}</Td><Td>{new Date(e.uploadedAt).toLocaleDateString()}</Td><Td>{e.expiryDate ?? '—'}</Td><Td><StatusPill value={e.status} /></Td></tr>))}</Tbody></Table>
+            <Td>{e.documentType}</Td><Td>{new Date(e.uploadedAt).toLocaleDateString()}</Td><Td>{e.expiryDate ?? '—'}</Td><Td><ContentBadge check={e.contentCheck} /></Td><Td><StatusPill value={e.status} /></Td></tr>))}</Tbody></Table>
     </div>
   )
 }
@@ -75,8 +89,17 @@ export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: s
         <Button variant="outline" onClick={() => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}`), { method: 'PUT', body: { status: 'pending_review' } }))}>Resubmit for review</Button>
         <Button variant="destructive" onClick={() => { if (confirm('Archive this evidence? It will no longer count toward verification.')) void run(async () => { await api(wsPath(workspaceId, `/evidence/${evidenceId}`), { method: 'DELETE' }); setArchived(true) }) }}>Archive (admin)</Button>
       </CardContent></Card>
+      <Card><CardContent className="space-y-2 text-sm">
+        <p className="font-semibold">Content check <ContentBadge check={e.contentCheck} /></p>
+        {e.contentCheck?.expectedLabel && <p>Named as: {e.contentCheck.expectedLabel}{e.declaredKind ? ' (declared)' : ' (from file name)'}</p>}
+        {e.contentCheck?.detectedLabel && <p>Reads like: {e.contentCheck.detectedLabel}</p>}
+        {e.contentCheck?.matched?.length > 0 && <p className="text-slate-600">Found: {e.contentCheck.matched.join(', ')}</p>}
+        {e.contentCheck?.warnings?.map((w: string) => <p key={w} role="alert" className="text-rose-700">{w}</p>)}
+        <Button variant="outline" size="sm" onClick={() => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}/content-check`), { method: 'POST', body: {} }))}>Re-check contents</Button>
+      </CardContent></Card>
       <ErrorLine error={error} />
       <Card><CardContent className="space-y-2"><p className="text-sm font-semibold">Approval workflow</p>
+        {e.contentCheck?.status === 'possible_mismatch' && <p className="text-sm text-rose-700">The contents may not match the name. To approve, say in the comments how you confirmed it is the right document.</p>}
         <Input label="Reviewer comments" value={comments} onChange={x => setComments(x.target.value)} />
         <div className="flex gap-2"><Button onClick={() => review('approved')}>Approve</Button><Button variant="destructive" onClick={() => review('rejected')}>Reject</Button></div>
         <ul className="text-xs text-slate-600">{e.approvals.map((a: any) => <li key={a.id}>{new Date(a.reviewDate).toLocaleDateString()} — {a.reviewerId}: {a.status} {a.comments}</li>)}</ul></CardContent></Card>
