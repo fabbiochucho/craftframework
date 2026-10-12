@@ -10,7 +10,7 @@ const { count, size, warnings } = await generateSW({
   swDest: 'dist/client/sw.js',
   // Precache the built app shell (JS/CSS/HTML) plus icons and fonts.
   globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
-  globIgnores: ['sw.js', 'workbox-*.js', 'launch/**'],
+  globIgnores: ['sw.js', 'workbox-*.js', 'launch/**', 'ocr/**'],
   maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
   navigateFallback: null,
   cleanupOutdatedCaches: true,

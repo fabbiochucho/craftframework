@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { api, REPORT_TYPES, reportSlug, wsPath } from '../../lib/workspaceApi'
+import { canOcr, ocrCheck } from '../../lib/ocr'
 import { Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead } from '../../components/ui'
 import { EditFields, ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
 
@@ -12,10 +13,15 @@ const CHECK_STYLE: Record<string, [string, string]> = {
   unreadable: ['bg-yellow-100 text-yellow-800', 'check manually'],
   not_checked: ['bg-slate-100 text-slate-600', 'type not recognised'],
 }
-function ContentBadge({ check }: { check?: { status: string } | null }) {
+function ContentBadge({ check }: { check?: { status: string; source?: string } | null }) {
   if (!check) return <span className="text-slate-400">—</span>
   const [cls, label] = CHECK_STYLE[check.status] ?? CHECK_STYLE.not_checked
-  return <Badge className={cls}>{label}</Badge>
+  return <Badge className={cls}>{label}{check.source === 'browser-ocr' ? ' (OCR)' : ''}</Badge>
+}
+// Scans have no text layer: read them in this browser and send only the text for the check.
+async function readScan(workspaceId: string, id: number | string, file: Blob, setNote: (s: string) => void) {
+  setNote('Reading the scanned document in your browser…')
+  try { await ocrCheck(workspaceId, id, file); setNote('') } catch { setNote('Could not read the scan automatically. Check its contents manually.') }
 }
 
 export function EvidencePage({ workspaceId }: { workspaceId: string }) {
@@ -27,11 +33,15 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
   const [kind, setKind] = useState('')
   const kinds = useApi<{ id: string; label: string }[]>(wsPath(workspaceId, '/evidence/document-kinds'))
   const input = useRef<HTMLInputElement>(null)
+  const [ocrNote, setOcrNote] = useState('')
   const { run, error } = useAction(list.reload)
   const upload = (file: File) => {
     const form = new FormData()
     form.set('file', file); form.set('documentType', docType); if (expiry) form.set('expiryDate', expiry); if (kind) form.set('documentKind', kind)
-    return run(() => api(wsPath(workspaceId, '/evidence/upload'), { method: 'POST', form }))
+    return run(async () => {
+      const e = await api(wsPath(workspaceId, '/evidence/upload'), { method: 'POST', form })
+      if (e.contentCheck?.status === 'unreadable' && canOcr(file.type)) { await list.reload(); await readScan(workspaceId, e.id, file, setOcrNote) }
+    })
   }
   const expired = list.data?.filter(e => e.expiryState === 'expired') ?? []
   const expiring = list.data?.filter(e => e.expiryState === 'expiring') ?? []
@@ -54,6 +64,7 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
         <div className="w-44"><Select placeholder="Any type" value={flt.type} onChange={type => setFlt({ ...flt, type })} options={opt(['assessment', 'policy', 'evidence', 'certification'])} /></div>
         <div className="w-44"><Select placeholder="Any status" value={flt.status} onChange={status => setFlt({ ...flt, status })} options={opt(['pending_review', 'approved', 'rejected', 'expired'])} /></div>
       </div>
+      {ocrNote && <p role="status" className="text-sm text-slate-600">{ocrNote}</p>}
       <ErrorLine error={error} /><State loading={list.loading} error={list.error} />
       <Table><Thead><tr><Th>File</Th><Th>Type</Th><Th>Uploaded</Th><Th>Expiry</Th><Th>Content check</Th><Th>Status</Th></tr></Thead>
         <Tbody>{list.data?.map(e => (
@@ -68,6 +79,7 @@ export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: s
   const [comments, setComments] = useState('')
   const [link, setLink] = useState({ targetType: 'cap', targetId: '', linkType: 'supports', reviewerNotes: '' })
   const [archived, setArchived] = useState(false)
+  const [ocrNote, setOcrNote] = useState('')
   const { run, error } = useAction(ev.reload)
   // Checked first: the post-archive reload 404s, which would otherwise replace this with "Not found".
   if (archived) return <div><Header title="Evidence archived" back={{ to: '/app/workspaces/$workspaceId/evidence', params: { workspaceId }, label: 'Registry' }} /><p>The original file is retained for audit.</p></div>
@@ -95,7 +107,16 @@ export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: s
         {e.contentCheck?.detectedLabel && <p>Reads like: {e.contentCheck.detectedLabel}</p>}
         {e.contentCheck?.matched?.length > 0 && <p className="text-slate-600">Found: {e.contentCheck.matched.join(', ')}</p>}
         {e.contentCheck?.warnings?.map((w: string) => <p key={w} role="alert" className="text-rose-700">{w}</p>)}
-        <Button variant="outline" size="sm" onClick={() => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}/content-check`), { method: 'POST', body: {} }))}>Re-check contents</Button>
+        {e.contentCheck?.source === 'browser-ocr' && <p className="text-slate-600">Text was read from the scan by OCR in the uploader's browser.</p>}
+        {ocrNote && <p role="status" className="text-slate-600">{ocrNote}</p>}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}/content-check`), { method: 'POST', body: {} }))}>Re-check contents</Button>
+          {e.contentCheck?.status === 'unreadable' && canOcr(e.mimeType) && <Button variant="outline" size="sm" onClick={() => run(async () => {
+            const res = await fetch(`/api${wsPath(workspaceId, `/evidence/${evidenceId}/download`)}`, { credentials: 'same-origin' })
+            if (!res.ok) throw new Error('Could not download the file')
+            await readScan(workspaceId, evidenceId, new Blob([await res.blob()], { type: e.mimeType }), setOcrNote)
+          })}>Read scan in this browser</Button>}
+        </div>
       </CardContent></Card>
       <ErrorLine error={error} />
       <Card><CardContent className="space-y-2"><p className="text-sm font-semibold">Approval workflow</p>
