@@ -147,7 +147,7 @@ export function readZipEntries(buf: Buffer, want: (name: string) => boolean): Ma
 }
 
 const xmlText = (xml: string) => xml.replace(/<\/(w:p|a:p|row)>/g, '\n').replace(/<[^>]+>/g, ' ')
-  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/[ \t]+/g, ' ')
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&').replace(/[ 	]+/g, ' ')
 
 const MAX_TEXT = 400_000
 
