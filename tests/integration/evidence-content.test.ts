@@ -65,3 +65,28 @@ describe('evidence content check', () => {
     expectStatus(await as(OWNER).post(`${P()}/evidence/${pic.id}/approve`, { status: 'approved' }), 200)
   })
 })
+
+describe('evidence content check with browser OCR text', () => {
+  beforeEach(async () => {
+    await truncateAll()
+    ;({ wsId } = await createOrg())
+  })
+
+  it('uses OCR text only when the file itself has no readable text', async () => {
+    const img = new File([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0])], 'Board Charter 2025.png', { type: 'image/png' })
+    const pic = expectStatus(await as(ASSESSOR).upload(`${P()}/evidence/upload`, img), 201).body
+    assert.equal(pic.contentCheck.status, 'unreadable')
+    const ocr = expectStatus(await as(ASSESSOR).post(`${P()}/evidence/${pic.id}/content-check`, { ocrText: register.join('\n') }), 200).body
+    assert.equal(ocr.contentCheck.status, 'possible_mismatch')
+    assert.equal(ocr.contentCheck.source, 'browser-ocr')
+    const good = expectStatus(await as(ASSESSOR).post(`${P()}/evidence/${pic.id}/content-check`, { ocrText: charter.join('\n') }), 200).body
+    assert.equal(good.contentCheck.status, 'match')
+    assert.equal((await as(ASSESSOR).post(`${P()}/evidence/${pic.id}/content-check`, { ocrText: 'x'.repeat(400_001) })).status, 400)
+
+    // A file with real text ignores whatever OCR text is sent.
+    const pdf = expectStatus(await as(ASSESSOR).upload(`${P()}/evidence/upload`, await textPdf('Board Charter 2025.pdf', register)), 201).body
+    const kept = expectStatus(await as(ASSESSOR).post(`${P()}/evidence/${pdf.id}/content-check`, { ocrText: charter.join('\n') }), 200).body
+    assert.equal(kept.contentCheck.status, 'possible_mismatch')
+    assert.equal(kept.contentCheck.source, 'file')
+  })
+})
