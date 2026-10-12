@@ -916,6 +916,26 @@ paths:
         '403': { description: Forbidden }
         '404': { description: Not found }
         '429': { description: Too many requests }
+  /workspaces/{workspace_id}/evidence/{id}/content-check:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
   /workspaces/{workspace_id}/evidence/{id}/download:
     parameters:
       - name: workspace_id
@@ -923,6 +943,22 @@ paths:
         required: true
         schema: { type: string }
       - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/evidence/document-kinds:
+    parameters:
+      - name: workspace_id
         in: path
         required: true
         schema: { type: string }
