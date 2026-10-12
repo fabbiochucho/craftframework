@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/craft-governance.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  activeCriteria, craftScorecard, criterionById, DEFAULT_PILLAR_WEIGHTS, GOVERNANCE_CRITERIA, GOVERNANCE_PILLARS, METHODOLOGY, validateScoringInputs,
+  activeCriteria, craftScorecard, validationDelta, criterionById, DEFAULT_PILLAR_WEIGHTS, GOVERNANCE_CRITERIA, GOVERNANCE_PILLARS, METHODOLOGY, validateScoringInputs,
   type CriterionResponse,
 } from './craft-governance.ts'
 
@@ -17,7 +17,8 @@ for (const c of GOVERNANCE_CRITERIA) {
 const CORE = activeCriteria()
 assert.equal(CORE.length, 30)
 assert.equal(activeCriteria({ innovationSupport: true }).length, 34)
-assert.ok(METHODOLOGY.isProvisional)
+assert.equal(METHODOLOGY.isProvisional, false)
+assert.equal(METHODOLOGY.version, 'CRAFT-GS 1.0')
 assert.equal(criterionById('LDR-1')?.pillarId, 'leadership')
 
 const all = (score: number, evidence = true): CriterionResponse[] => CORE.map((c) => ({ criterionId: c.id, score, evidence, notApplicable: false }))
@@ -73,5 +74,16 @@ assert.deepEqual([...inno.missingResponses].sort(), founders)
 assert.equal(inno.complete, false)
 const innoDone = craftScorecard([...all(5), ...founders.map((id) => ({ criterionId: id, score: 1, evidence: true, notApplicable: false }))], DEFAULT_PILLAR_WEIGHTS, { innovationSupport: true })
 assert.ok(innoDone.overall! < 100 && innoDone.recommendations.some((r) => r.criterionId === 'ETH-4' && r.priority === 'high'))
+
+// Independent validation: re-scores replace self scores; the delta is like for like.
+const selfAll = all(5)
+const noChange = validationDelta(selfAll, {})
+assert.equal(noChange.delta, 0)
+const down = validationDelta(selfAll, { 'LDR-1': { score: 2, evidence: true, comment: 'No charter review on file' }, 'RSK-1': { score: 3, evidence: false } })
+assert.ok(down.delta! < 0)
+assert.equal(down.selfOverall, 100)
+assert.deepEqual(down.adjustments.map((a) => [a.criterionId, a.selfScore, a.validatorScore]), [['LDR-1', 5, 2], ['RSK-1', 5, 3]])
+// An unevidenced validator re-score is capped too.
+assert.ok(validationDelta(selfAll, { 'RSK-1': { score: 5, evidence: false } }).delta! < 0)
 
 console.log('craft-governance.test.ts: all assertions passed')

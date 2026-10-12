@@ -7,7 +7,7 @@ import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from '.
 const dash = (workspaceId: string) => ({ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' })
 const opt = (pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }))
 const PACK_NAMES: Record<string, string> = {
-  GQ: 'General quality (provisional)', S1: 'IFRS S1', S2: 'IFRS S2', SEC: 'SEC Nigeria', FRC: 'FRCN SRG 1', MOFI: 'MOFI-aligned governance', EC: 'Evidence and controls', JUR: 'Jurisdiction',
+  GQ: 'General quality', S1: 'IFRS S1', S2: 'IFRS S2', SEC: 'SEC Nigeria', FRC: 'FRCN SRG 1', MOFI: 'MOFI-aligned governance', EC: 'Evidence and controls', JUR: 'Jurisdiction',
 }
 
 // ---------------------------------------------------------------------------------------------

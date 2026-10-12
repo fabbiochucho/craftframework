@@ -278,7 +278,7 @@ export const GOVERNANCE_PILLARS: Record<GovernancePillarId, GovernancePillar> = 
   },
 }
 
-// Provisional CRAFT rating bands
+// CRAFT rating bands (approved by the product owner on 12 October 2026)
 export const RATING_BANDS: RatingBand[] = [
   {
     level: 'Emerging',
@@ -380,16 +380,17 @@ export function calculateOverallScore(
 }
 
 // ============================================================================
-// Provisional CRAFT criteria (methodology CRAFT-GS 0.1). Original CRAFT content,
+// CRAFT criteria (methodology CRAFT-GS 1.0, approved 12 October 2026). Original CRAFT content,
 // "informed by" the named frameworks — not a reproduction of, or equivalence to,
 // any of them. Source references carry no verifiedDate until checked.
 // ============================================================================
 export const METHODOLOGY = {
-  version: 'CRAFT-GS 0.1',
-  isProvisional: true,
+  version: 'CRAFT-GS 1.0',
+  isProvisional: false,
+  approvedOn: '2026-10-12',
   evidenceCap: 2,
   assumptions: [
-    'Provisional CRAFT methodology: weights, criteria and rating bands have not been externally validated.',
+    'CRAFT methodology approved by the product owner on 12 October 2026 (pillar weights, criteria and rating bands); it has not been externally validated.',
     'Each criterion is scored 1–5 against the shared rubric; criteria within a pillar carry equal weight.',
     'A score without supporting evidence counts at most 2 (Initial): a policy on paper is not verified practice.',
     'Not-applicable criteria require a reason and are excluded from the pillar score; unanswered criteria are reported, not scored.',
@@ -545,3 +546,29 @@ export function craftScorecard(responses: CriterionResponse[], weights: Record<G
 }
 
 export const criterionById = (id: string) => GOVERNANCE_CRITERIA.find((x) => x.id === id) ?? null
+
+// --- Independent (external) validation ---------------------------------------------------------
+export const VALIDATION_METHODS = ['document_review', 'sample_testing', 'interviews', 'site_visit', 'combined'] as const
+export const VALIDATION_OUTCOMES = ['validated', 'validated_with_qualifications', 'not_validated'] as const
+export type ValidatorScores = Record<string, { score: number; evidence: boolean; comment?: string }>
+
+// The validator's re-scores replace the self-assessed responses for the criteria they re-scored;
+// both sides are then scored by the same engine so the difference is like for like.
+export function validationDelta(self: CriterionResponse[], validator: ValidatorScores, opts: ScorecardOptions = {}) {
+  const selfCard = craftScorecard(self, DEFAULT_PILLAR_WEIGHTS, opts)
+  const byId = new Map(self.map((r) => [r.criterionId, r]))
+  const merged = new Map(byId)
+  for (const [id, v] of Object.entries(validator)) merged.set(id, { criterionId: id, score: v.score, evidence: v.evidence, notApplicable: false })
+  const validatedCard = craftScorecard([...merged.values()], DEFAULT_PILLAR_WEIGHTS, opts)
+  const adjustments = Object.entries(validator).map(([id, v]) => {
+    const s = byId.get(id)
+    return { criterionId: id, selfScore: s?.notApplicable ? null : s?.score ?? null, validatorScore: v.score, selfEvidence: !!s?.evidence, validatorEvidence: v.evidence, comment: v.comment ?? '' }
+  })
+  return {
+    selfOverall: selfCard.overall,
+    validatedOverall: validatedCard.overall,
+    delta: selfCard.overall == null || validatedCard.overall == null ? null : validatedCard.overall - selfCard.overall,
+    validatedRating: validatedCard.rating?.level ?? null,
+    adjustments,
+  }
+}

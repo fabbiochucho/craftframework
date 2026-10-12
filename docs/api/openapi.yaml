@@ -430,6 +430,26 @@ paths:
         '403': { description: Forbidden }
         '404': { description: Not found }
         '429': { description: Too many requests }
+  /workspaces/{workspace_id}/assessments/{id}/validations:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
   /workspaces/{workspace_id}/audit-log:
     parameters:
       - name: workspace_id
