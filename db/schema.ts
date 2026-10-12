@@ -787,6 +787,10 @@ export const evidenceRegistry = pgTable(
     filePath: text('file_path').notNull(),
     fileSizeKb: integer('file_size_kb').notNull().default(0),
     mimeType: text('mime_type').notNull().default('application/octet-stream'),
+    // What the uploader says the document is (evidence-content DOCUMENT_KINDS id), if chosen.
+    declaredKind: text('declared_kind'),
+    // Result of reading the document's contents against its name / declared kind (no text stored).
+    contentCheck: jsonb('content_check').$type<Record<string, unknown>>(),
     expiryDate: date('expiry_date'),
     // 'pending_review' | 'approved' | 'rejected' | 'expired'
     status: text('status').notNull().default('pending_review'),
