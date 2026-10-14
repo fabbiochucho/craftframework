@@ -37,6 +37,10 @@ import {
   NINE_TESTS, ORG_DESIGN_VERSION, RUBRIC, RUBRIC_PASS, SECTIONS as ORG_SECTIONS, type OrgData,
 } from '../../src/lib/org-design.js'
 import { renderOrgDoc } from '../lib/org-design-report.js'
+import {
+  CATALOGUES, catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, HEALTH_SECURITY_TYPES, healthSecurityTypesFor,
+  isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
+} from '../../src/lib/health-security.js'
 import { CHECK_OUTCOMES, regulatorySources, REVERIFY_AFTER_DAYS, sourceByKey, sourceStatus } from '../../src/lib/regulatory-sources.js'
 import {
   catalogueMeta, defaultFirstReportingYear, ESG_CATALOGUE, generateSecPlan, planCsv, renderPlanDoc, SEC_NG_FRAMEWORK,
@@ -467,6 +471,14 @@ async function ensureEsgCatalogue(orgId: number, wsId: number) {
   }
 }
 
+// 'nphi' (national public health institute) and 'subnational' (state, county or provincial government)
+// unlock the health-security assessments (src/lib/health-security.ts).
+const ORG_TYPES = ['government', 'ngo', 'private', 'nphi', 'subnational'] as const
+
+function catalogueResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean; naReason: string }[]): Responses {
+  return Object.fromEntries(scores.map((s) => [s.domain, { score: s.notApplicable ? null : s.tierLevel, evidence: s.evidenceUploaded, notApplicable: s.notApplicable, naReason: s.naReason }]))
+}
+
 function craftResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean }[]) {
   return scores.map((s) => ({ criterionId: s.domain, score: s.notApplicable ? null : s.tierLevel, evidence: s.evidenceUploaded, notApplicable: s.notApplicable }))
 }
@@ -691,7 +703,7 @@ const routes: Route[] = [
   } },
   { method: 'POST', pattern: '/orgs', access: 'authed', handler: async (c, { caller }) => {
     if (!isVerifiedOrgEmailDomain(caller.email)) throw new HttpError(403, 'An organizational (non-consumer) email domain is required to create an organization')
-    const type = oneOf(c.body.type, 'type', ['government', 'ngo', 'private'] as const, 'private')
+    const type = oneOf(c.body.type, 'type', ORG_TYPES, 'private')
     const [org] = await db.insert(wsOrganizations).values({
       name: str(c.body.name, 'name', 200), type, country: str(c.body.country, 'country', 100, false),
       region: str(c.body.region, 'region', 100, false), contactEmail: encryptField(str(c.body.contactEmail, 'contactEmail', 200, false) || caller.email),
@@ -705,7 +717,7 @@ const routes: Route[] = [
   { method: 'PUT', pattern: '/orgs/:org', access: 'admin', scope: 'org', handler: async (c, { orgId }) => {
     const set: Record<string, unknown> = {}
     if (c.body.name !== undefined) set.name = str(c.body.name, 'name', 200)
-    if (c.body.type !== undefined) set.type = oneOf(c.body.type, 'type', ['government', 'ngo', 'private'] as const)
+    if (c.body.type !== undefined) set.type = oneOf(c.body.type, 'type', ORG_TYPES)
     for (const k of ['country', 'region', 'contactEmail', 'contactPhone'] as const) if (c.body[k] !== undefined) {
       const value = str(c.body[k], k, 200, false)
       set[k] = k === 'contactEmail' || k === 'contactPhone' ? encryptField(value) : value
@@ -762,10 +774,18 @@ const routes: Route[] = [
   { method: 'GET', pattern: `${W}/assessments`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
     json(await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId))).orderBy(desc(governanceAssessments.id))) },
   { method: 'POST', pattern: `${W}/assessments`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
-    const assessmentType = oneOf(c.body.assessmentType, 'assessmentType', ['G2G', 'ISO', 'COSO', 'CRAFT'] as const, 'G2G')
+    const assessmentType = oneOf(c.body.assessmentType, 'assessmentType', ['G2G', 'ISO', 'COSO', 'CRAFT', ...HEALTH_SECURITY_TYPES] as const, 'G2G')
     const reportingPeriod = str(c.body.reportingPeriod, 'reportingPeriod', 50, false)
     if (c.body.innovationSupport !== undefined && typeof c.body.innovationSupport !== 'boolean') throw bad('innovationSupport must be boolean')
-    const innovationSupport = assessmentType === 'CRAFT' && c.body.innovationSupport === true
+    if (c.body.extendedScope !== undefined && typeof c.body.extendedScope !== 'boolean') throw bad('extendedScope must be boolean')
+    if (isHealthSecurityType(assessmentType)) {
+      const [org] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+      if (!healthSecurityTypesFor(org?.type ?? '').includes(assessmentType)) {
+        throw new HttpError(403, `${HEALTH_SECURITY_LABELS[assessmentType]} is available only to organisations registered as a national public health institute${assessmentType === 'JEE_SUB' || assessmentType === 'AAR' || assessmentType === 'SIMEX' ? ' or a subnational government' : ''}`)
+      }
+    }
+    // The flag column holds the founder-protection overlay for CRAFT and the Centre of Excellence scope for NPHI.
+    const innovationSupport = (assessmentType === 'CRAFT' && c.body.innovationSupport === true) || (assessmentType === 'NPHI' && c.body.extendedScope === true)
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(governanceAssessments)
       .where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId), eq(governanceAssessments.assessmentType, assessmentType)))
     const [a] = await db.insert(governanceAssessments).values({ orgId, workspaceId: wsId, assessmentType, reportingPeriod, innovationSupport, version: n + 1, createdBy: caller.email }).returning()
@@ -798,6 +818,15 @@ const routes: Route[] = [
       if (crit.appliesTo === 'innovation_support' && !a.innovationSupport) throw bad('founder-protection criteria apply only to assessments of institutions that fund or support innovation')
       if (notApplicable) score = 1
       else if (!Number.isInteger(score) || score < 1 || score > 5) throw bad('score must be an integer 1-5')
+    } else if (catalogueFor(a.assessmentType)) {
+      const cat = catalogueFor(a.assessmentType)!
+      const item = itemById(cat, domain)
+      if (item?.sectionId !== pillar) throw bad(`unknown ${cat.id} section/item`)
+      if (item.extended && !a.innovationSupport) throw bad('Centre of Excellence items apply only when that scope was selected for the assessment')
+      if (notApplicable) score = 1
+      else if (!Number.isInteger(score) || score < 1 || score > 5) throw bad('score must be an integer 1-5')
+    } else if (a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
+      throw bad('after-action reviews and simulation exercises record findings, not scores')
     } else if (!Number.isFinite(score) || score < 0 || score > 5) throw bad('score must be 0-5')
     const naReason = notApplicable ? str(c.body.naReason, 'naReason', 1000) : ''
     const values = {
@@ -873,6 +902,11 @@ const routes: Route[] = [
       const vals = await db.select().from(governanceValidations).where(and(eq(governanceValidations.orgId, orgId), eq(governanceValidations.assessmentId, a.id))).orderBy(asc(governanceValidations.id))
       const validations = vals.map((v) => ({ ...v, ...validationDelta(responses, v.scores as ValidatorScores, opts) }))
       return json({ assessment: a, findingsBySeverity, validations, ...craftScorecard(responses, undefined, opts) })
+    }
+    const cat = catalogueFor(a.assessmentType)
+    if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
+      const { findingsBySeverity } = buildScorecard([], findings)
+      return json({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
     }
     return json({ assessment: a, ...buildScorecard(scores, findings) })
   } },
@@ -1254,6 +1288,30 @@ const routes: Route[] = [
     const name = `esg-report-qa-${p.label.replace(/[^\w.-]+/g, '_')}`
     if (format === 'csv') return new Response(qaCsv(view, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.csv"` } })
     return new Response(renderQaDoc(view, today(), { reportId: `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email }), { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })
+  } },
+
+  // ---------------------- Health security (NPHI, JEE, SPAR, subnational JEE, AAR, SimEx) ----------------------
+  { method: 'GET', pattern: `${W}/health-security/catalogue`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId }) => {
+    const [org] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+    return json({ orgType: org?.type ?? null, available: healthSecurityTypesFor(org?.type ?? ''), labels: HEALTH_SECURITY_LABELS, catalogues: CATALOGUES, reviewDomains: REVIEW_DOMAINS, crosswalk: CROSSWALK })
+  } },
+  { method: 'GET', pattern: `${W}/health-security/overview`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const all = await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId), inArray(governanceAssessments.assessmentType, ['NPHI', 'JEE', 'SPAR', 'JEE_SUB'])))
+    const latest: Record<string, typeof all[number]> = {}
+    for (const a of all) {
+      const cur = latest[a.assessmentType]
+      const rank = (x: typeof a) => [x.status === 'approved' ? 1 : 0, x.version]
+      if (!cur || rank(a)[0] > rank(cur)[0] || (rank(a)[0] === rank(cur)[0] && a.version > cur.version)) latest[a.assessmentType] = a
+    }
+    const scores: Record<string, CatalogueScore> = {}
+    const summary = []
+    for (const [type, a] of Object.entries(latest)) {
+      const rows = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
+      const cs = catalogueScore(catalogueFor(type)!, catalogueResponses(rows), a.innovationSupport)
+      scores[type] = cs
+      summary.push({ type, label: HEALTH_SECURITY_LABELS[type as keyof typeof HEALTH_SECURITY_LABELS], assessmentId: a.id, version: a.version, status: a.status, reportingPeriod: a.reportingPeriod, overall: cs.overall, completeness: cs.completeness, sdg: cs.sdg ?? null })
+    }
+    return json({ summary, crosswalk: crosswalkView(scores) })
   } },
 
   // ---------------------- Regulatory source register ----------------------
