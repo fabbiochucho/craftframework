@@ -1,170 +1,66 @@
-import { Database, Users2, Share2, ShieldCheck, Clock, Globe2, Cookie, Mail } from 'lucide-react'
-import { Reveal } from '../components/ui'
+import { Link } from '@tanstack/react-router'
 import { BRAND } from '../lib/data'
+import { Mail, PolicyLayout, type PolicySection } from '../components/PolicyLayout'
 
 // Last substantive revision of this policy. Update when the text changes.
-const EFFECTIVE_DATE = 'September 21, 2026'
+export const PRIVACY_EFFECTIVE_DATE = '15 October 2026'
 
-interface Clause {
-  icon: typeof Database
-  title: string
-  body: React.ReactNode
-}
-
-const CLAUSES: Clause[] = [
-  {
-    icon: Database,
-    title: '1. Data We Collect',
-    body: (
-      <>
-        Account data: your name, email address, and organization affiliation when you register or are
-        invited to a workspace. Workspace data: assessment responses, capacity-improvement plans,
-        compliance records, financial reconciliation figures, and Data Room documents your organization
-        enters or uploads. Usage data: sign-in timestamps and the directory record created when you first
-        authenticate. We do not collect payment card data — {BRAND.product} does not process payments.
-      </>
-    ),
-  },
-  {
-    icon: Users2,
-    title: '2. How We Use Your Data',
-    body: (
-      <>
-        To provide the Service: authenticate you, scope your workspace to your organization, compute
-        readiness scores, and track your Capacity Improvement Plan. To operate the platform: send
-        transactional emails (invitations, compliance-deadline reminders) and maintain an audit log of
-        account and permission changes. We do not use your workspace data to train any AI model, and we do
-        not sell your data to third parties.
-      </>
-    ),
-  },
-  {
-    icon: Share2,
-    title: '3. Who We Share Data With',
-    body: (
-      <>
-        We use a small number of infrastructure providers to run the Service, each acting as a data
-        processor under contract, never as an independent data controller of your information: our hosting
-        and serverless function provider, our authentication provider, our Postgres database provider, our
-        file-storage provider for Data Room evidence, and Resend for transactional email delivery. Within
-        {' '}{BRAND.product} itself, your data is visible only to your own organization's workspace members,
-        an access grant you or your organization has explicitly issued to a reviewer or firm, and platform
-        administrators where necessary for support or legal compliance.
-      </>
-    ),
-  },
-  {
-    icon: ShieldCheck,
-    title: '4. Your Rights (GDPR / CCPA)',
-    body: (
-      <>
-        If you are in the European Economic Area, the UK, or California, you have the right to access the
-        personal data we hold about you, correct it, export it, and request its deletion (the
-        "right to be forgotten"). Once signed in, download an export at <code>/api/privacy/export</code> or
-        request organisation-scoped erasure through <code>POST /api/privacy/erasure-requests</code>. A different
-        organisation admin or owner must approve erasure; you may also contact us for assistance. California residents additionally have the right to opt out of the sale
-        or sharing of personal data — we do not sell or share personal data, so this right is satisfied by
-        default. To exercise any of these rights, contact{' '}
-        <a href={`mailto:${BRAND.contactEmail}`} className="font-semibold text-emerald-700 underline-offset-2 hover:underline">
-          {BRAND.contactEmail}
-        </a>{' '}
-        We respond to verified requests within 30 days.
-      </>
-    ),
-  },
-  {
-    icon: Clock,
-    title: '5. Data Retention',
-    body: (
-      <>
-        We retain organisational assessment, compliance, financial, and evidence records while the
-        organisation needs them for accountability. An approved erasure request removes the member's
-        organisation membership and replaces their identity in audit actors and assigned/created-by fields
-        with a pseudonym; archived evidence blobs are purged. The audit trail and a minimal erasure-request
-        record are retained to preserve integrity and demonstrate that the request was handled. Active
-        organisational evidence and business records may remain where needed for legal or audit obligations.
-      </>
-    ),
-  },
-  {
-    icon: Globe2,
-    title: '6. International Data Transfers',
-    body: (
-      <>
-        {BRAND.product} serves institutions across Africa, the EU, the GCC, and beyond. Your data may be
-        processed in a different country than the one you are located in. Where we transfer personal data
-        out of the EEA or UK, we rely on our processors' standard contractual clauses or equivalent
-        safeguards.
-      </>
-    ),
-  },
-  {
-    icon: Cookie,
-    title: '7. Cookies & Local Storage',
-    body: (
-      <>
-        {BRAND.product} does not use advertising or analytics-tracking cookies. We use a small number of
-        strictly necessary items stored in your browser: a session token to keep you signed in, and a
-        language-preference cookie/local-storage value so the interface remembers your chosen language. No
-        non-essential trackers are loaded, so no cookie-consent banner is required under applicable law.
-      </>
-    ),
-  },
-  {
-    icon: Mail,
-    title: '8. Changes & Contact',
-    body: (
-      <>
-        We may revise this policy from time to time by updating this page and its effective date. For any
-        privacy question, or to exercise a data-subject right, contact{' '}
-        <a href={`mailto:${BRAND.contactEmail}`} className="font-semibold text-emerald-700 underline-offset-2 hover:underline">
-          {BRAND.contactEmail}
-        </a>
-        .
-      </>
-    ),
-  },
+const SECTIONS: PolicySection[] = [
+  { title: 'Who we are and our role', body: <>
+    <p>{BRAND.product} is operated by the DiBadili Institute. For your account (name, email, sign-in and security records) we are the <b>controller</b>. For the information an organisation puts into its workspace — assessments, findings, plans, evidence and reports — the <b>organisation is the controller</b> and we act as its <b>processor</b> under our <Link to="/data-processing" className="text-emerald-700 underline">Data Processing Terms</Link>.</p>
+    <p>Data protection contact: <Mail />.</p>
+  </> },
+  { title: 'Data we collect', body: <ul>
+    <li><b>Account data:</b> name, email address, organisation memberships and roles.</li>
+    <li><b>Security data:</b> sign-in session records, multi-factor sign-in status (the authenticator secret is encrypted; recovery codes are stored only as one-way hashes), rate-limit counters and audit-log entries (who did what, when, and the IP address and browser type of the request).</li>
+    <li><b>Workspace data:</b> assessment responses and scores, findings, corrective actions, plans, budgets, ESG report checks, organisational design reviews, health-security assessments, regulatory source checks and uploaded evidence.</li>
+    <li><b>Support data:</b> messages you send to the support assistant, redacted before storage; an optional contact email.</li>
+    <li><b>We do not collect</b> payment card data, and we do not use advertising trackers.</li>
+  </ul> },
+  { title: 'How we use it and our lawful bases', body: <table><thead><tr><th>Purpose</th><th>Lawful basis</th></tr></thead><tbody>
+    <tr><td>Provide the service: sign-in, workspaces, scoring, reports, exports</td><td>Contract with you or your organisation</td></tr>
+    <tr><td>Security: authentication, multi-factor sign-in, rate limiting, audit trails, fraud and abuse prevention</td><td>Legitimate interests and legal obligations to secure personal data</td></tr>
+    <tr><td>Transactional email: invitations, reminders, scheduled reports, escalations</td><td>Contract; legitimate interests</td></tr>
+    <tr><td>Optional product analytics of support-chat events</td><td>Consent (off unless you opt in)</td></tr>
+    <tr><td>Answering requests and complaints; meeting legal duties</td><td>Legal obligation; legitimate interests</td></tr>
+  </tbody></table> },
+  { title: 'How documents are checked', body: <>
+    <p>When evidence is uploaded, the server reads the document’s text to check that it matches its name or declared type. The extracted text is <b>not stored</b>; only the result (match, possible mismatch, unreadable) and matched keywords are kept. Scanned documents are read by optical character recognition <b>inside your own browser</b>; only the recognised text is sent for the check, and the image never leaves your device for OCR.</p>
+    <p>We do not use workspace data to train AI models, and we do not sell personal data.</p>
+  </> },
+  { title: 'Who we share it with', body: <>
+    <p>Inside {BRAND.product}, workspace data is visible only to members of that organisation’s workspaces, people the organisation grants access to (for example an independent validator or reviewer), and platform operators where needed for support, security or legal compliance.</p>
+    <p>We use a small number of service providers as sub-processors, listed with their purpose and data on the <Link to="/subprocessors" className="text-emerald-700 underline">Sub-processors</Link> page. Support messages you choose to make public are published, after personal details are redacted, as issues in the public CRAFT GitHub repository; conduct and security reports are never published.</p>
+  </> },
+  { title: 'Your rights', body: <>
+    <p>Depending on where you are, data protection law gives you rights to access, correct, delete, restrict or object to processing of your personal data, to data portability, and to withdraw consent. These include the Nigeria Data Protection Act 2023, Kenya’s Data Protection Act 2019, South Africa’s Protection of Personal Information Act, Ghana’s Data Protection Act 2012, Uganda’s Data Protection and Privacy Act 2019, Rwanda’s Law No. 058/2021, the EU and UK GDPR, and similar laws elsewhere.</p>
+    <ul>
+      <li>Download a copy of your data from the platform (privacy export).</li>
+      <li>Ask for erasure from within your organisation; another organisation admin or owner approves it.</li>
+      <li>Or write to <Mail />. We respond to verified requests within 30 days.</li>
+    </ul>
+    <p>Where workspace data belongs to an organisation, we pass requests about it to that organisation as controller.</p>
+  </> },
+  { title: 'Retention', body: <>
+    <p>Workspace records are kept while the organisation needs them for accountability, then deleted or anonymised at its request. Finalised reports, assessments and checklists are kept as frozen snapshots so they stay verifiable.</p>
+    <p>An approved erasure request removes the person’s memberships, replaces their identity in audit actors and assignment fields with a pseudonym, and purges archived evidence files. The audit trail and a minimal record of the request are kept to show it was handled. Rate-limit counters are deleted within minutes; multi-factor secrets and recovery-code hashes are deleted when you turn multi-factor sign-in off.</p>
+  </> },
+  { title: 'International transfers', body: <p>Our service providers may process data outside your country. Where a transfer requires safeguards — for example under the Nigeria Data Protection Act, POPIA or the GDPR — we rely on adequacy, the provider’s standard contractual clauses, or another lawful transfer mechanism, and we keep the list of providers and locations on the <Link to="/subprocessors" className="text-emerald-700 underline">Sub-processors</Link> page.</p> },
+  { title: 'Cookies and browser storage', body: <><table><thead><tr><th>Name</th><th>Purpose</th><th>Type</th><th>Duration</th></tr></thead><tbody>
+    <tr><td><code>nf_jwt</code></td><td>Keeps you signed in</td><td>Strictly necessary</td><td>Session; renewed while active</td></tr>
+    <tr><td><code>craft_mfa</code></td><td>Shows a multi-factor code was entered in this browser</td><td>Strictly necessary (HttpOnly, Secure)</td><td>12 hours</td></tr>
+    <tr><td><code>craft_lang_hint</code></td><td>Suggests an interface language from your approximate country (only when you have not chosen one)</td><td>Functional cookie</td><td>30 days</td></tr>
+    <tr><td>Language preference</td><td>Remembers the language you chose</td><td>Functional (browser storage)</td><td>Until cleared</td></tr>
+    <tr><td><code>craft_session_lock</code> and workspace selection</td><td>Inactivity sign-out across tabs; remembers the selected organisation</td><td>Strictly necessary / functional (browser storage)</td><td>Until cleared</td></tr>
+    <tr><td>Offline queue</td><td>Holds edits made offline until they sync</td><td>Functional (browser database)</td><td>Until synced or cleared</td></tr>
+  </tbody></table><p>Support-chat analytics (PostHog, EU) is off unless you opt in; it keeps no cookies or browser storage and records only the type of support event, never message content.</p></> },
+  { title: 'Security', body: <p>We protect data with encryption in transit (HTTPS with HSTS), field-level encryption of sensitive fields at rest, role-based access per organisation and workspace, optional and organisation-enforceable multi-factor sign-in, segregation-of-duties checks, rate limiting, strict security headers and audit logs. See <Link to="/security" className="text-emerald-700 underline">Security</Link> for details and how to report a vulnerability.</p> },
+  { title: 'Children', body: <p>{BRAND.product} is for organisations and professionals. It is not directed at children and we do not knowingly collect children’s personal data.</p> },
+  { title: 'Complaints', body: <p>Please contact us first at <Mail />. You may also complain to your data protection authority, for example the Nigeria Data Protection Commission, Kenya’s Office of the Data Protection Commissioner, South Africa’s Information Regulator, Ghana’s Data Protection Commission, Uganda’s Personal Data Protection Office, Rwanda’s National Cyber Security Authority, or your EU or UK supervisory authority.</p> },
+  { title: 'Changes', body: <p>We update this policy when our processing changes and change the effective date above. Material changes are highlighted at the top of this page.</p> },
 ]
 
 export function PrivacyPage() {
-  return (
-    <div>
-      <section className="bg-gradient-to-br from-emerald-900 to-slate-900 py-20 text-white">
-        <div className="mx-auto max-w-4xl px-6">
-          <p className="text-sm font-semibold uppercase tracking-wider text-amber-400">Legal</p>
-          <h1 className="mt-3 font-display text-4xl font-bold sm:text-5xl">Privacy Policy</h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
-            What personal data {BRAND.product} collects, why, who it's shared with, and the rights you have
-            over it.
-          </p>
-          <p className="mt-4 text-xs text-slate-400">Effective date: {EFFECTIVE_DATE}</p>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-4xl px-6 py-16">
-        <div className="space-y-5">
-          {CLAUSES.map((c, i) => {
-            const Icon = c.icon
-            return (
-              <Reveal key={c.title} delay={i * 60}>
-                <div className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="font-display text-lg font-bold text-emerald-900 sm:text-xl">{c.title}</h2>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-[15px]">{c.body}</p>
-                  </div>
-                </div>
-              </Reveal>
-            )
-          })}
-        </div>
-
-        <p className="mt-10 text-center text-xs text-slate-400">
-          {BRAND.footer}
-        </p>
-      </section>
-    </div>
-  )
+  return <PolicyLayout title="Privacy Policy" effective={PRIVACY_EFFECTIVE_DATE} sections={SECTIONS}
+    intro={<>What personal data {BRAND.product} collects, why, who it is shared with, how long it is kept and the rights you have over it.</>} />
 }
