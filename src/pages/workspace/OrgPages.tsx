@@ -189,6 +189,7 @@ const SECTIONS: [string, string][] = [
   ['/app/workspaces/$workspaceId/esg/roadmap', 'ESG roadmap'],
   ['/app/workspaces/$workspaceId/esg/planner', 'IFRS S1/S2 implementation plan (SEC Nigeria)'],
   ['/app/workspaces/$workspaceId/qa', 'ESG report quality checklist'],
+  ['/app/workspaces/$workspaceId/regulatory-sources', 'Regulatory sources (54 countries)'],
   ['/app/workspaces/$workspaceId/actions', 'Corrective Action & Evidence Hub'],
   ['/app/workspaces/$workspaceId/evidence', 'Evidence registry'],
   ['/app/workspaces/$workspaceId/reports', 'Reports'],
