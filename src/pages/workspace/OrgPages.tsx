@@ -184,6 +184,7 @@ function PrivacyControls({ org }: { org: Org }) {
 
 const SECTIONS: [string, string][] = [
   ['/app/workspaces/$workspaceId/governance/assessments', 'Governance assessments & CRAFT Scorecard'],
+  ['/app/workspaces/$workspaceId/org-design', 'Organisational design & diagnosis'],
   ['/app/workspaces/$workspaceId/esg/frameworks', 'ESG frameworks'],
   ['/app/workspaces/$workspaceId/esg/roadmap', 'ESG roadmap'],
   ['/app/workspaces/$workspaceId/esg/planner', 'IFRS S1/S2 implementation plan (SEC Nigeria)'],

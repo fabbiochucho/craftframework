@@ -607,6 +607,29 @@ export const governanceFindings = pgTable(
   (t) => [index('governance_findings_assessment_idx').on(t.orgId, t.assessmentId)],
 )
 
+// Organisational design & diagnosis reviews (CRAFT-OD): answers per section; finalised reviews are frozen.
+export const orgDesignReviews = pgTable(
+  'org_design_reviews',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    title: text('title').notNull(),
+    methodologyVersion: text('methodology_version').notNull(),
+    // sectionId → { fieldKey → value } (validated by src/lib/org-design.ts cleanSection)
+    data: jsonb('data').$type<Record<string, Record<string, unknown>>>().notNull().default({}),
+    // 'draft' | 'final'
+    status: text('status').notNull().default('draft'),
+    preparedBy: text('prepared_by').notNull(),
+    approvedBy: text('approved_by'),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    snapshot: jsonb('snapshot').$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('org_design_reviews_ws_idx').on(t.orgId, t.workspaceId)],
+)
+
 // Independent (external) validation of an approved CRAFT Governance Scorecard assessment.
 export const governanceValidations = pgTable(
   'governance_validations',
