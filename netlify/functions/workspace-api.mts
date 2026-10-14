@@ -10,7 +10,7 @@ import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
-  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews,
+  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
@@ -37,6 +37,7 @@ import {
   NINE_TESTS, ORG_DESIGN_VERSION, RUBRIC, RUBRIC_PASS, SECTIONS as ORG_SECTIONS, type OrgData,
 } from '../../src/lib/org-design.js'
 import { renderOrgDoc } from '../lib/org-design-report.js'
+import { CHECK_OUTCOMES, regulatorySources, REVERIFY_AFTER_DAYS, sourceByKey, sourceStatus } from '../../src/lib/regulatory-sources.js'
 import {
   catalogueMeta, defaultFirstReportingYear, ESG_CATALOGUE, generateSecPlan, planCsv, renderPlanDoc, SEC_NG_FRAMEWORK,
   type EntityType, type Horizon, type PlanRow, type PlanSettings, type Readiness,
@@ -1253,6 +1254,26 @@ const routes: Route[] = [
     const name = `esg-report-qa-${p.label.replace(/[^\w.-]+/g, '_')}`
     if (format === 'csv') return new Response(qaCsv(view, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.csv"` } })
     return new Response(renderQaDoc(view, today(), { reportId: `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email }), { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })
+  } },
+
+  // ---------------------- Regulatory source register ----------------------
+  { method: 'GET', pattern: `${W}/regulatory-sources`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const checks = await db.select().from(regulatorySourceChecks).where(and(eq(regulatorySourceChecks.orgId, orgId), eq(regulatorySourceChecks.workspaceId, wsId))).orderBy(desc(regulatorySourceChecks.checkedAt))
+    const now = today()
+    return json({ reverifyAfterDays: REVERIFY_AFTER_DAYS, sources: regulatorySources().map((s) => {
+      const history = checks.filter((x) => x.sourceKey === s.key)
+      const latest = history[0] ? { outcome: history[0].outcome, checkedAt: history[0].checkedAt.toISOString() } : null
+      return { ...s, ...sourceStatus(s, latest, now), latestCheck: history[0] ?? null, checks: history.length }
+    }) })
+  } },
+  { method: 'POST', pattern: `${W}/regulatory-sources/checks`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const key = str(c.body.sourceKey, 'sourceKey', 40)
+    if (!sourceByKey(key)) throw bad('unknown sourceKey')
+    const outcome = oneOf(c.body.outcome, 'outcome', CHECK_OUTCOMES)
+    const note = str(c.body.note, 'note', 2000, outcome !== 'confirmed')
+    const [row] = await db.insert(regulatorySourceChecks).values({ orgId, workspaceId: wsId, sourceKey: key, outcome, note, checkedBy: caller.email }).returning()
+    await audit(c, orgId, wsId, 'regulatory_source', key, 'create', { outcome })
+    return json(row, 201)
   } },
 
   // ---------------------- Organisational design & diagnosis (CRAFT-OD) ----------------------

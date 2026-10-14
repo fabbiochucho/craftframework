@@ -95,4 +95,13 @@ const half = scoreChecklist(app, allMet.map((i) => (i.checkId === 'S1-01' ? { ..
 assert.ok(half.score < 100 && half.score > 98)
 assert.equal(scoreChecklist([], [], true).score, 0)
 
+// 1.3: all 54 African countries have a pack; generated packs never assume a mandatory date.
+assert.equal(JURISDICTIONS.length, 55)
+assert.equal(JURISDICTIONS.at(-1)!.code, 'OTHER')
+for (const j of JURISDICTIONS.filter((x) => x.code !== 'OTHER')) assert.ok(j.market, `${j.code} has market context`)
+const bw = (category: string) => applicableChecks({ jurisdiction: 'BW', category, adoptingVoluntarily: false, financialActivities: false, secScope: false, mofiScope: false, mofiOverlay: false }, '2027-01-01')
+assert.equal(bw('bw_listed').applicability.status, 'not_required')
+assert.ok(bw('bw_listed').checks.some((c) => c.check.id === 'JUR-02' && !c.mandatory && /BSE/.test(c.reason)))
+assert.ok(!bw('bw_other').checks.some((c) => c.check.id === 'JUR-02'))
+assert.ok(JURISDICTIONS.find((j) => j.code === 'BW')!.requiresVerification)
 console.log('esg-checklist.test.ts: all assertions passed')
