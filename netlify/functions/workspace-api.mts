@@ -37,6 +37,7 @@ import {
   NINE_TESTS, ORG_DESIGN_VERSION, RUBRIC, RUBRIC_PASS, SECTIONS as ORG_SECTIONS, type OrgData,
 } from '../../src/lib/org-design.js'
 import { renderOrgDoc } from '../lib/org-design-report.js'
+import { analysePlan, findCycle, type PlanTask } from '../../src/lib/plan-graph.js'
 import {
   catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
   isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
@@ -1041,6 +1042,29 @@ const routes: Route[] = [
       if (!Number.isInteger(n) || n < 0) throw bad('evidenceCount invalid')
       set.evidenceCount = n
     }
+    if (c.body.workstream !== undefined) set.workstream = str(c.body.workstream, 'workstream', 100, false)
+    for (const k of ['budgetEstimate', 'budgetActual'] as const) if (c.body[k] !== undefined) {
+      if (c.body[k] === null || c.body[k] === '') { set[k] = null; continue }
+      const n = Number(c.body[k])
+      if (!Number.isFinite(n) || n < 0 || n >= 1e12) throw bad(`${k} must be a non-negative amount`)
+      set[k] = n.toFixed(2)
+    }
+    if (c.body.budgetCurrency !== undefined) {
+      const cur = str(c.body.budgetCurrency, 'budgetCurrency', 3, false).toUpperCase()
+      if (cur && !/^[A-Z]{3}$/.test(cur)) throw bad('budgetCurrency must be a three-letter ISO 4217 code')
+      set.budgetCurrency = cur
+    }
+    if (c.body.dependsOn !== undefined) {
+      if (!Array.isArray(c.body.dependsOn) || c.body.dependsOn.length > 50 || !c.body.dependsOn.every((x: unknown) => Number.isInteger(x))) throw bad('dependsOn must be a list of plan ids')
+      const deps = [...new Set(c.body.dependsOn as number[])]
+      const all = await db.select({ id: esgImplementationPlans.id, dependsOn: esgImplementationPlans.dependsOn }).from(esgImplementationPlans).where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId)))
+      if (!all.some((p) => p.id === id)) throw new HttpError(404, 'Not found')
+      const unknown = deps.filter((d) => !all.some((p) => p.id === d))
+      if (unknown.length) throw bad(`unknown plan id(s) in dependsOn: ${unknown.join(', ')}`)
+      const cycle = findCycle(all, id, deps)
+      if (cycle) throw bad(`dependency cycle: ${cycle.join(' → ')}`)
+      set.dependsOn = deps
+    }
     const [plan] = Object.keys(set).length
       ? await db.update(esgImplementationPlans).set(set).where(and(eq(esgImplementationPlans.id, id), eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId))).returning()
       : await db.select().from(esgImplementationPlans).where(and(eq(esgImplementationPlans.id, id), eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId)))
@@ -1065,12 +1089,14 @@ const routes: Route[] = [
       .where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId)))
     const planIds = rows.map((r) => r.plan.id)
     const ms = planIds.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, planIds))) : []
+    const money = (v: string | null) => (v === null ? null : Number(v))
     const items = rows.map(({ plan, req }) => {
       const mine = ms.filter((m) => m.planId === plan.id)
       const done = mine.filter((m) => m.status === 'completed').length
       return {
         planId: plan.id, requirementId: req.requirementId, text: req.requirementText, category: req.category,
         deadline: req.implementationDeadline, start: plan.timelineStart, end: plan.timelineEnd, status: plan.status,
+        workstream: plan.workstream, dependsOn: plan.dependsOn, budgetEstimate: money(plan.budgetEstimate), budgetActual: money(plan.budgetActual), budgetCurrency: plan.budgetCurrency,
         milestones: mine, percentComplete: plan.status === 'completed' ? 100 : mine.length ? Math.round((done / mine.length) * 100) : 0,
       }
     }).sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'))
@@ -1081,7 +1107,9 @@ const routes: Route[] = [
       e.percent += i.percentComplete
     }
     for (const e of Object.values(byCategory)) e.percent = Math.round(e.percent / e.total)
-    return json({ items, byCategory })
+    const analysis = analysePlan(items.map((i): PlanTask => ({ id: i.planId, label: i.requirementId, workstream: i.workstream, status: i.status, start: i.start, end: i.end ?? i.deadline,
+      dependsOn: i.dependsOn, budgetEstimate: i.budgetEstimate, budgetActual: i.budgetActual, budgetCurrency: i.budgetCurrency })))
+    return json({ items, byCategory, analysis })
   } },
 
   // ---------------------------- 2.3b SEC Nigeria IFRS S1/S2 plan generator ----------------------------
