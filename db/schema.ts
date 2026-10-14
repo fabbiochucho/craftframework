@@ -515,6 +515,20 @@ export const wsOrganizations = pgTable('ws_organizations', {
   typeVerifiedBy: text('type_verified_by'),
   typeVerifiedAt: timestamp('type_verified_at', { withTimezone: true }),
   typeVerificationNote: text('type_verification_note').notNull().default(''),
+  // Members must use multi-factor sign-in to reach this organisation's data.
+  requireMfa: boolean('require_mfa').notNull().default(false),
+})
+
+// Multi-factor sign-in (TOTP) per user. The secret is field-encrypted; recovery codes are stored as hashes.
+export const userMfa = pgTable('user_mfa', {
+  userKey: text('user_key').primaryKey(), // sha256 of the normalised email (netlify/lib/mfa.ts mfaUserKey)
+  secret: text('secret'),
+  pendingSecret: text('pending_secret'),
+  enabled: boolean('enabled').notNull().default(false),
+  enabledAt: timestamp('enabled_at', { withTimezone: true }),
+  lastStep: integer('last_step').notNull().default(-1),
+  recoveryCodes: jsonb('recovery_codes').$type<string[]>().notNull().default([]),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
 export const wsOrgMembers = pgTable(

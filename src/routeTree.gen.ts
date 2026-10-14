@@ -48,6 +48,7 @@ import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WallboardRouteImport } from './routes/wallboard'
 import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
 import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
+import { Route as AppSecurityRouteImport } from './routes/app.security'
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
 import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
@@ -275,6 +276,11 @@ const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
   path: '/admin/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSecurityRoute = AppSecurityRouteImport.update({
+  id: '/app/security',
+  path: '/app/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AssessmentFrameworkIdRoute = AssessmentFrameworkIdRouteImport.update({
   id: '/$frameworkId',
   path: '/$frameworkId',
@@ -500,6 +506,7 @@ export interface FileRoutesByFullPath {
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
@@ -572,6 +579,7 @@ export interface FileRoutesByTo {
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
@@ -645,6 +653,7 @@ export interface FileRoutesById {
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
   '/admin_/portfolio': typeof AdminPortfolioRoute
+  '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
@@ -719,6 +728,7 @@ export interface FileRouteTypes {
     | '/wallboard'
     | '/accept/$token'
     | '/admin/portfolio'
+    | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
     | '/app/org/audit-log'
@@ -791,6 +801,7 @@ export interface FileRouteTypes {
     | '/wallboard'
     | '/accept/$token'
     | '/admin/portfolio'
+    | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
     | '/app/org/audit-log'
@@ -863,6 +874,7 @@ export interface FileRouteTypes {
     | '/wallboard'
     | '/accept/$token'
     | '/admin_/portfolio'
+    | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard_/trust-delta'
     | '/app/org/audit-log'
@@ -936,6 +948,7 @@ export interface RootRouteChildren {
   WallboardRoute: typeof WallboardRoute
   AcceptTokenRoute: typeof AcceptTokenRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
+  AppSecurityRoute: typeof AppSecurityRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
   AppOrgAuditLogRoute: typeof AppOrgAuditLogRoute
   AppOrgMembersRoute: typeof AppOrgMembersRoute
@@ -1243,6 +1256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/security': {
+      id: '/app/security'
+      path: '/app/security'
+      fullPath: '/app/security'
+      preLoaderRoute: typeof AppSecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/assessment/$frameworkId': {
       id: '/assessment/$frameworkId'
       path: '/$frameworkId'
@@ -1515,6 +1535,7 @@ const rootRouteChildren: RootRouteChildren = {
   WallboardRoute: WallboardRoute,
   AcceptTokenRoute: AcceptTokenRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
+  AppSecurityRoute: AppSecurityRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
   AppOrgAuditLogRoute: AppOrgAuditLogRoute,
   AppOrgMembersRoute: AppOrgMembersRoute,
