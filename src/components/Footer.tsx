@@ -8,6 +8,11 @@ const footerLinks = [
   { to: '/methodology', labelKey: 'footer.methodology', fallback: 'Methodology' },
   { to: '/terms', labelKey: 'footer.terms', fallback: 'Terms of Service' },
   { to: '/privacy', labelKey: 'footer.privacy', fallback: 'Privacy Policy' },
+  { to: '/acceptable-use', labelKey: 'footer.acceptableUse', fallback: 'Acceptable Use' },
+  { to: '/data-processing', labelKey: 'footer.dataProcessing', fallback: 'Data Processing' },
+  { to: '/subprocessors', labelKey: 'footer.subprocessors', fallback: 'Sub-processors' },
+  { to: '/security', labelKey: 'footer.security', fallback: 'Security' },
+  { to: '/accessibility', labelKey: 'footer.accessibility', fallback: 'Accessibility' },
   { to: '/launch', labelKey: 'footer.pressKit', fallback: 'Press Kit' },
   { to: '/contact', labelKey: 'footer.contact', fallback: 'Contact' },
 ] as const
