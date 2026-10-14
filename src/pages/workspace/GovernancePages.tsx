@@ -5,17 +5,18 @@ import { api, SEVERITY_STYLE, TIER_LABEL, wsPath } from '../../lib/workspaceApi'
 import { ALL_DOMAINS, GOVERNANCE_DOMAINS } from '../../lib/governanceDomains'
 import { Accordion, Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead, Tabs } from '../../components/ui'
 import { EditFields, ErrorLine, Header, State, StatusPill, useAction, useApi } from './shared'
-import { activeItems, catalogueFor, HEALTH_SECURITY_LABELS, REVIEW_DOMAINS, type HealthSecurityType } from '../../lib/health-security'
+import { activeItems, REVIEW_DOMAINS } from '../../lib/health-security'
+import { catalogueByType, RESTRICTED_LABELS } from '../../lib/assessment-catalogues'
 
-const CATALOGUE_TYPES = ['NPHI', 'JEE', 'JEE_SUB', 'SPAR']
+const CATALOGUE_TYPES = ['NPHI', 'JEE', 'JEE_SUB', 'SPAR', 'PSP']
 function healthSecurityDomains(a: any): { value: string; label: string }[] | null {
   if (a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') return REVIEW_DOMAINS
-  const cat = catalogueFor(a.assessmentType)
+  const cat = catalogueByType(a.assessmentType)
   return cat ? activeItems(cat, a.innovationSupport).map(i => ({ value: i.id, label: `${i.id} ${i.name}` })) : null
 }
 
 function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
-  const cat = catalogueFor(a.assessmentType)!
+  const cat = catalogueByType(a.assessmentType)!
   const locked = a.status !== 'draft'
   const sections = cat.sections.filter(s => a.innovationSupport || !s.extended)
   const [section, setSection] = useState(sections[0].id)
@@ -109,7 +110,7 @@ export function AssessmentsListPage({ workspaceId }: { workspaceId: string }) {
         <span>This institution funds or supports innovation (incubator, accelerator, startup competition, innovation funder). Adds founder-protection criteria: fair contracting, IP safeguards for every participant, accessible dispute resolution and demonstrable safeguard accountability.</span>
       </label>}
       {type === 'NPHI' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={extendedScope} onChange={e => setExtendedScope(e.target.checked)} /> {hs.data?.catalogues.NPHI.extendedScopeLabel}</label>}
-      {hs.data && !hs.data.available.length && <p className="text-xs text-slate-500">Health-security assessments (NPHI, JEE, SPAR, subnational JEE) appear here for organisations registered as a national public health institute or a subnational government in Organization settings.</p>}
+      {hs.data && !hs.data.available.length && <p className="text-xs text-slate-500">Public-sector performance and health-security assessments (NPHI, JEE, SPAR, subnational JEE) appear here for government bodies, subnational governments and national public health institutes. Set the organisation type in Organization settings.</p>}
       <ErrorLine error={error} />
       <State loading={list.loading} error={list.error} />
       <Table>
@@ -383,8 +384,8 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
   const act = (what: string) => run(() => api(wsPath(workspaceId, `/assessments/${assessmentId}/${what}`), { method: 'POST', body: { comments } }))
   return (
     <div className="space-y-6">
-      <Header title={d.assessmentType === 'CRAFT' ? `CRAFT Governance Scorecard v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}` : `${HEALTH_SECURITY_LABELS[d.assessmentType as HealthSecurityType] ?? `${d.assessmentType} assessment`} v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}`}
-        subtitle={d.assessmentType === 'CRAFT' ? 'Ten-pillar CRAFT methodology (CRAFT-GS 1.0). Not a certification, credit rating, assurance opinion or official score of any governance code.' : catalogueFor(d.assessmentType)?.disclaimer ?? (d.assessmentType === 'AAR' || d.assessmentType === 'SIMEX' ? 'IHR Monitoring and Evaluation Framework: findings by JEE technical area.' : 'Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification.')} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
+      <Header title={d.assessmentType === 'CRAFT' ? `CRAFT Governance Scorecard v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}` : `${RESTRICTED_LABELS[d.assessmentType] ?? `${d.assessmentType} assessment`} v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}`}
+        subtitle={d.assessmentType === 'CRAFT' ? 'Ten-pillar CRAFT methodology (CRAFT-GS 1.0). Not a certification, credit rating, assurance opinion or official score of any governance code.' : catalogueByType(d.assessmentType)?.disclaimer ?? (d.assessmentType === 'AAR' || d.assessmentType === 'SIMEX' ? 'IHR Monitoring and Evaluation Framework: findings by JEE technical area.' : 'Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification.')} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <ErrorLine error={error} />
       {tab === 'overview' && (

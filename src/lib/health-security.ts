@@ -32,7 +32,7 @@ export const healthSecurityTypesFor = (orgType: string): HealthSecurityType[] =>
 export interface CatalogueItem { id: string; sectionId: string; name: string; description: string; critical?: boolean; extended?: boolean }
 export interface CatalogueSection { id: string; name: string; intro: string; extended?: boolean }
 export interface Catalogue {
-  id: 'NPHI' | 'JEE' | 'JEE_SUB' | 'SPAR'
+  id: 'NPHI' | 'JEE' | 'JEE_SUB' | 'SPAR' | 'PSP'
   title: string
   version: string
   source: { title: string; url: string }
