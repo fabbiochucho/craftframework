@@ -3,7 +3,7 @@ import { OfflineFrameworkEditor } from '../../components/OfflineFrameworkEditor'
 import { Link } from '@tanstack/react-router'
 import { api, SEVERITY_STYLE, wsPath } from '../../lib/workspaceApi'
 import { Accordion, Badge, Button, Card, CardContent, Input, ProgressBar, Select, Table, Tbody, Td, Th, Thead } from '../../components/ui'
-import { EditFields, ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
+import { EditFields, ErrorLine, ExportButtons, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
 
 const dash = (workspaceId: string) => ({ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' })
 
@@ -128,6 +128,7 @@ export function EsgRoadmapPage({ workspaceId }: { workspaceId: string }) {
   return (
     <div className="space-y-6">
       <Header title="ESG roadmap" back={dash(workspaceId)} />
+      <ExportButtons path={wsPath(workspaceId, '/esg-roadmap/export')} name="esg-roadmap" />
       <State loading={rm.loading} error={rm.error} />
       <div className="grid gap-3 md:grid-cols-3">{Object.entries(rm.data?.byCategory ?? {}).map(([k, v]: any) => <Tile key={k} label={`${k} (${v.total})`} value={`${v.percent}%`} />)}</div>
       {rm.data?.analysis && (() => { const a = rm.data.analysis; const label = (id: number) => items.find(i => i.planId === id)?.requirementId ?? id; return <>

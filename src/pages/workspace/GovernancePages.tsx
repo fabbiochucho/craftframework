@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarCh
 import { api, SEVERITY_STYLE, TIER_LABEL, wsPath } from '../../lib/workspaceApi'
 import { ALL_DOMAINS, GOVERNANCE_DOMAINS } from '../../lib/governanceDomains'
 import { Accordion, Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead, Tabs } from '../../components/ui'
-import { EditFields, ErrorLine, Header, State, StatusPill, useAction, useApi } from './shared'
+import { EditFields, ErrorLine, ExportButtons, Header, State, StatusPill, useAction, useApi } from './shared'
 import { activeItems, REVIEW_DOMAINS } from '../../lib/health-security'
 import { catalogueByType, RESTRICTED_LABELS } from '../../lib/assessment-catalogues'
 import { SPAR_LEVELS, SPAR_SOURCE } from '../../lib/spar-levels'
@@ -67,6 +67,7 @@ function CatalogueScorecard({ workspaceId, a }: { workspaceId: string; a: any })
   const d = sc.data
   return (
     <div className="space-y-4">
+      <ExportButtons path={wsPath(workspaceId, `/assessments/${a.id}/scorecard/export`)} name={`${a.assessmentType.toLowerCase()}-scorecard-v${a.version}`} />
       <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{d.catalogue.disclaimer}</p>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Overall</p><p className="text-3xl font-bold text-emerald-900">{d.overall === null ? '—' : `${d.overall}%`}</p><p className="text-sm">mean of section scores</p></div>
@@ -236,6 +237,7 @@ function CraftScorecard({ workspaceId, a }: { workspaceId: string; a: any }) {
   const d = sc.data
   return (
     <div className="space-y-4">
+      <ExportButtons path={wsPath(workspaceId, `/assessments/${a.id}/scorecard/export`)} name={`craft-scorecard-v${a.version}`} />
       <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800"><b>{d.methodology.version}{d.methodology.isProvisional ? ' — provisional' : ` — approved ${d.methodology.approvedOn}`}.</b> {d.methodology.assumptions.join(' ')}</p>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Overall</p><p className="text-3xl font-bold text-emerald-900">{d.overall ?? '—'}</p><p className="text-sm">{d.rating?.level ?? (d.errors.length ? d.errors.join('; ') : 'Not scored')}</p></div>
@@ -361,6 +363,7 @@ function ScorecardTab({ workspaceId, assessmentId }: { workspaceId: string; asse
   const bars = Object.entries(sc.data.pillars).map(([pillar, v]: any) => ({ pillar, tier: Math.round(v.avgTier * 10) / 10 }))
   return (
     <div className="space-y-4">
+      <ExportButtons path={wsPath(workspaceId, `/assessments/${assessmentId}/scorecard/export`)} name={`scorecard-${assessmentId}`} />
       <p className="text-sm text-slate-600">Overall: <b>{sc.data.overallTier.toFixed(1)}</b> · Risk classification: <Badge className="bg-amber-100 text-amber-800">{sc.data.risk ?? 'Not scored'}</Badge></p>
       <div className="grid gap-4 lg:grid-cols-2">
         <Card><CardContent><div className="h-80"><ResponsiveContainer width="100%" height="100%">
