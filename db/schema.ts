@@ -787,6 +787,17 @@ export const capRecords = pgTable(
     effectivenessReviewedBy: text('effectiveness_reviewed_by'),
     effectivenessReviewedAt: timestamp('effectiveness_reviewed_at', { withTimezone: true }),
     reopenedCount: integer('reopened_count').notNull().default(0),
+    // Correction (fix this instance now) vs corrective action (remove the cause) vs preventive action (stop it elsewhere).
+    immediateCorrection: text('immediate_correction').notNull().default(''),
+    preventiveAction: text('preventive_action').notNull().default(''),
+    // Duplicate merging: a merged CAP points at the CAP it was merged into; the survivor keeps the provenance.
+    mergedInto: integer('merged_into'),
+    mergedFrom: jsonb('merged_from').$type<{ capId: number; sourceType: string; sourceId: number | null; findingDescription: string; severity: string; mergedAt: string; mergedBy: string }[]>().notNull().default([]),
+    // Escalation: 0 none, 1 workspace admins, 2 organisation owner / executive, 3 board or governing body.
+    escalationLevel: integer('escalation_level').notNull().default(0),
+    escalatedAt: timestamp('escalated_at', { withTimezone: true }),
+    escalatedTo: text('escalated_to'),
+    escalationReason: text('escalation_reason').notNull().default(''),
   },
   (t) => [index('cap_records_ws_idx').on(t.orgId, t.workspaceId)],
 )

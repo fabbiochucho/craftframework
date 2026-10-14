@@ -199,6 +199,26 @@ export function EsgPlanPage({ workspaceId, requirementId }: { workspaceId: strin
   )
 }
 
+function Duplicates({ workspaceId, onMerged }: { workspaceId: string; onMerged: () => Promise<void> }) {
+  const d = useApi<any[]>(wsPath(workspaceId, '/cap/duplicates'))
+  const { run, error, busy } = useAction(async () => { await d.reload(); await onMerged() })
+  if (!d.data?.length) return null
+  return (
+    <Card><CardContent className="space-y-3">
+      <h2 className="font-semibold">Possible duplicates ({d.data.length})</h2>
+      <p className="text-xs text-slate-500">Merging keeps each duplicate as a record pointing to the CAP you keep, records its source and description on that CAP, takes the highest severity and moves the evidence links across.</p>
+      <ErrorLine error={error} />
+      {d.data.map(g => (
+        <div key={g.ids.join('-')} className="rounded-lg border border-slate-200 p-3 text-sm">
+          <p className="text-xs text-slate-500">{g.reason}{g.similarity ? ` · similarity ${Math.round(g.similarity * 100)}%` : ''}</p>
+          <ul className="my-2 space-y-1">{g.caps.map((c: any) => <li key={c.id}><b>#{c.id}</b> {c.findingDescription} <Badge className={SEVERITY_STYLE[c.severity]}>{c.severity}</Badge></li>)}</ul>
+          <div className="flex flex-wrap gap-2">{g.caps.map((c: any) => (
+            <Button key={c.id} size="sm" variant="outline" disabled={busy} onClick={() => run(() => api(wsPath(workspaceId, `/cap/${c.id}/merge`), { method: 'POST', body: { duplicateIds: g.ids.filter((x: number) => x !== c.id) } }))}>Keep #{c.id}, merge the others</Button>))}</div>
+        </div>))}
+    </CardContent></Card>
+  )
+}
+
 export function CapHubPage({ workspaceId }: { workspaceId: string }) {
   const [flt, setFlt] = useState({ status: '', severity: '', due_date: '' })
   const qs = Object.entries(flt).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
@@ -206,6 +226,7 @@ export function CapHubPage({ workspaceId }: { workspaceId: string }) {
   const sum = useApi<any>(wsPath(workspaceId, '/cap/summary'))
   const [f, setF] = useState({ findingDescription: '', severity: 'medium', dueDate: '', rootCause: '' })
   const { run, error } = useAction(async () => { await list.reload(); await sum.reload() })
+  const [note, setNote] = useState('')
   const opt = (a: string[]) => a.map(v => ({ value: v, label: v.replace('_', ' ') }))
   return (
     <div className="space-y-6">
@@ -216,10 +237,16 @@ export function CapHubPage({ workspaceId }: { workspaceId: string }) {
         <Tile label="Effectiveness review pending" value={sum.data?.effectivenessPending ?? '–'} tone="text-amber-700" />
         <Tile label="Failed effectiveness" value={sum.data?.notEffective ?? '–'} tone="text-rose-700" />
         <Tile label="Reopened" value={sum.data?.reopened ?? '–'} tone="text-amber-700" />
+        <Tile label="Escalated" value={sum.data?.escalated ?? '–'} tone="text-rose-700" />
+        <Tile label="Merged duplicates" value={sum.data?.merged ?? '–'} />
       </div>
+      <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => run(async () => { const r = await api(wsPath(workspaceId, '/cap/escalations/run'), { method: 'POST', body: {} }); setNote(`${r.escalated} CAP(s) escalated`) })}>Run escalation check (admin)</Button>
+        {note && <span role="status" className="self-center text-sm text-slate-600">{note}</span>}</div>
+      <p className="text-xs text-slate-500">Escalation rises with days overdue: critical after 1, 14 and 30 days; high after 14, 30 and 60; medium after 30, 60 and 90; low after 60, 90 and 120. Levels: workspace admins, organisation owner or executive, board or governing body. A daily check applies these automatically.</p>
+      <Duplicates workspaceId={workspaceId} onMerged={async () => { await list.reload(); await sum.reload() }} />
       <p className="text-xs text-slate-500">Closing a corrective action never changes a score or marks a requirement compliant: the source criterion must be reassessed against verified evidence.</p>
       <div className="flex flex-wrap gap-3">
-        <div className="w-40"><Select placeholder="Any status" value={flt.status} onChange={status => setFlt({ ...flt, status })} options={opt(['open', 'in_progress', 'completed', 'overdue'])} /></div>
+        <div className="w-40"><Select placeholder="Any status" value={flt.status} onChange={status => setFlt({ ...flt, status })} options={opt(['open', 'in_progress', 'completed', 'overdue', 'merged'])} /></div>
         <div className="w-40"><Select placeholder="Any severity" value={flt.severity} onChange={severity => setFlt({ ...flt, severity })} options={opt(['critical', 'high', 'medium', 'low'])} /></div>
         <div className="w-40"><Select placeholder="Any due date" value={flt.due_date} onChange={due_date => setFlt({ ...flt, due_date })} options={opt(['overdue', 'this_week', 'this_month', 'later'])} /></div>
       </div>
@@ -237,8 +264,27 @@ export function CapHubPage({ workspaceId }: { workspaceId: string }) {
         <Tbody>{list.data?.map(c => (
           <tr key={c.id}><Td>{c.sourceType.replace('_', ' ')}</Td>
             <Td><Link className="text-emerald-700 underline" to="/app/workspaces/$workspaceId/actions/$capId" params={{ workspaceId, capId: String(c.id) }}>{c.findingDescription}</Link></Td>
-            <Td><Badge className={SEVERITY_STYLE[c.severity]}>{c.severity}</Badge></Td><Td>{c.assignedTo ?? '—'}</Td><Td>{c.dueDate ?? '—'}</Td><Td><StatusPill value={c.status} /></Td></tr>))}</Tbody></Table>
+            <Td><Badge className={SEVERITY_STYLE[c.severity]}>{c.severity}</Badge></Td><Td>{c.assignedTo ?? '—'}</Td><Td>{c.dueDate ?? '—'}</Td><Td><StatusPill value={c.status} />{c.escalationLevel > 0 && c.status !== 'completed' && <Badge className="ml-1 bg-rose-100 text-rose-700">escalated L{c.escalationLevel}</Badge>}{c.mergedInto && <span className="ml-1 text-xs text-slate-500">→ #{c.mergedInto}</span>}</Td></tr>))}</Tbody></Table>
     </div>
+  )
+}
+
+const ESCALATION = ['None', 'Workspace admins', 'Organisation owner / executive', 'Board or governing body']
+function Escalation({ c, workspaceId, capId, reload }: { c: any; workspaceId: string; capId: string; reload: () => void }) {
+  const [f, setF] = useState({ reason: '', to: '' })
+  const { run, error, busy } = useAction(reload)
+  const open = c.status !== 'completed' && c.status !== 'merged'
+  return (
+    <Card><CardContent className="space-y-2 text-sm">
+      <h2 className="font-semibold">Escalation</h2>
+      <p>Level {c.escalationLevel}: {ESCALATION[c.escalationLevel]}{c.escalatedTo && c.escalationLevel > 0 && <> · escalated to {c.escalatedTo}</>}{c.escalatedAt && <> on {String(c.escalatedAt).slice(0, 10)}</>}{c.escalationReason && <> · {c.escalationReason}</>}</p>
+      {open && c.escalationLevel < 3 && <div className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[220px] flex-1"><Input label="Reason for escalating" value={f.reason} onChange={e => setF({ ...f, reason: e.target.value })} /></div>
+        <div className="w-60"><Input label={`Escalate to (default: ${ESCALATION[c.escalationLevel + 1]})`} value={f.to} onChange={e => setF({ ...f, to: e.target.value })} /></div>
+        <Button size="sm" variant="destructive" disabled={busy || !f.reason} onClick={() => run(async () => { await api(wsPath(workspaceId, `/cap/${capId}/escalate`), { method: 'POST', body: f }); setF({ reason: '', to: '' }) })}>Escalate</Button>
+      </div>}
+      <ErrorLine error={error} />
+    </CardContent></Card>
   )
 }
 
@@ -252,7 +298,7 @@ export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; cap
   const { run, error } = useAction(cap.reload)
   if (!cap.data) return <State loading={cap.loading} error={cap.error} />
   const c = cap.data
-  const closed = c.status === 'completed'
+  const closed = c.status === 'completed' || c.status === 'merged'
   const put = (id: number, body: object) => run(() => api(wsPath(workspaceId, `/cap/${capId}/actions/${id}`), { method: 'PUT', body }))
   return (
     <div className="space-y-6">
@@ -260,11 +306,16 @@ export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; cap
       <p className="flex items-center gap-2 text-sm"><StatusPill value={c.status} /><Badge className={SEVERITY_STYLE[c.severity]}>{c.severity}</Badge> due {c.dueDate ?? '—'} · owner {c.assignedTo ?? 'unassigned'}</p>
       <ErrorLine error={error} />
       <p className="text-sm text-slate-600">Verification requires approved, nonarchived evidence that has not expired. Closure rechecks the current evidence.</p>
+      {c.status === 'merged' && <p role="alert" className="rounded bg-slate-100 p-2 text-sm">Merged into <Link className="text-emerald-700 underline" to="/app/workspaces/$workspaceId/actions/$capId" params={{ workspaceId, capId: String(c.mergedInto) }}>CAP #{c.mergedInto}</Link>. This record is kept for provenance.</p>}
+      {c.mergedFrom?.length > 0 && <Accordion title={`Merged duplicates (${c.mergedFrom.length})`}><ul className="space-y-1 p-3 text-sm">{c.mergedFrom.map((m: any) => <li key={m.capId}><b>#{m.capId}</b> {m.findingDescription} · {m.severity} · source {m.sourceType.replace('_', ' ')}{m.sourceId ? ` #${m.sourceId}` : ''} · merged {m.mergedAt.slice(0, 10)} by {m.mergedBy}</li>)}</ul></Accordion>}
+      <Escalation c={c} workspaceId={workspaceId} capId={capId} reload={cap.reload} />
       <p className="text-sm">Effectiveness: <StatusPill value={c.effectivenessStatus} />{c.effectivenessDue && <> due {c.effectivenessDue}</>}{c.reopenedCount > 0 && <> · reopened {c.reopenedCount}×</>}{c.effectivenessReviewedBy && <> · reviewed by {c.effectivenessReviewedBy}</>}</p>
       <Card><CardContent className="space-y-3">
         <h2 className="font-semibold">Finding analysis</h2>
         <EditFields key={`${c.id}-${c.status}`} initial={c} disabled={closed} fields={[
-          { name: 'rootCause', label: 'Root cause (why the gap occurred)' }, { name: 'correctiveAction', label: 'Corrective action' },
+          { name: 'immediateCorrection', label: 'Immediate correction (fix this instance now)' },
+          { name: 'rootCause', label: 'Root cause (why the gap occurred)' }, { name: 'correctiveAction', label: 'Corrective action (remove the cause)' },
+          { name: 'preventiveAction', label: 'Preventive action (stop it happening elsewhere)' },
           { name: 'expectedOutcome', label: 'Expected outcome' }, { name: 'resources', label: 'Resources and budget (label estimates; do not invent costs)' },
           { name: 'dependencies', label: 'Dependencies' }, { name: 'residualRisk', label: 'Residual risk' },
         ]} save={async body => { await api(wsPath(workspaceId, `/cap/${capId}`), { method: 'PUT', body }); await cap.reload() }} />
