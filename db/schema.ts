@@ -23,6 +23,7 @@ import {
   boolean,
   date,
   primaryKey,
+  numeric,
 } from 'drizzle-orm/pg-core'
 
 export { offlineFrameworks, offlineFrameworkReceipts } from './offline-schema.ts'
@@ -723,6 +724,12 @@ export const esgImplementationPlans = pgTable(
     milestone2: text('milestone_2'),
     milestone3: text('milestone_3'),
     evidenceCount: integer('evidence_count').notNull().default(0),
+    // Planner: workstream grouping, dependencies (other plan ids in the workspace) and budget.
+    workstream: text('workstream').notNull().default(''),
+    dependsOn: jsonb('depends_on').$type<number[]>().notNull().default([]),
+    budgetEstimate: numeric('budget_estimate', { precision: 14, scale: 2 }),
+    budgetActual: numeric('budget_actual', { precision: 14, scale: 2 }),
+    budgetCurrency: text('budget_currency').notNull().default(''),
   },
   (t) => [index('esg_plans_ws_idx').on(t.orgId, t.workspaceId)],
 )
