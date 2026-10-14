@@ -1036,6 +1036,132 @@ paths:
         '403': { description: Forbidden }
         '404': { description: Not found }
         '429': { description: Too many requests }
+  /workspaces/{workspace_id}/org-design:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+    post:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/org-design/{id}:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/org-design/{id}/finalise:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      x-min-role: admin
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/org-design/{id}/report:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/org-design/{id}/sections/{section}:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+      - name: section
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      x-min-role: assessor
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
+  /workspaces/{workspace_id}/org-design/catalogue:
+    parameters:
+      - name: workspace_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      x-min-role: viewer
+      responses:
+        '200': { description: OK }
+        '201': { description: Created }
+        '400': { description: Invalid request }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden }
+        '404': { description: Not found }
+        '429': { description: Too many requests }
   /workspaces/{workspace_id}/qa/catalogue:
     parameters:
       - name: workspace_id

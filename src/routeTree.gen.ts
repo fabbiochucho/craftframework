@@ -66,6 +66,8 @@ import { Route as AppWorkspacesWorkspaceIdEsgRequirementsRouteImport } from './r
 import { Route as AppWorkspacesWorkspaceIdEsgRoadmapRouteImport } from './routes/app.workspaces.$workspaceId.esg.roadmap'
 import { Route as AppWorkspacesWorkspaceIdEvidenceIndexRouteImport } from './routes/app.workspaces.$workspaceId.evidence.index'
 import { Route as AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport } from './routes/app.workspaces.$workspaceId.evidence.$evidenceId'
+import { Route as AppWorkspacesWorkspaceIdOrgDesignIndexRouteImport } from './routes/app.workspaces.$workspaceId.org-design.index'
+import { Route as AppWorkspacesWorkspaceIdOrgDesignReviewIdRouteImport } from './routes/app.workspaces.$workspaceId.org-design.$reviewId'
 import { Route as AppWorkspacesWorkspaceIdQaIndexRouteImport } from './routes/app.workspaces.$workspaceId.qa.index'
 import { Route as AppWorkspacesWorkspaceIdQaPeriodIdRouteImport } from './routes/app.workspaces.$workspaceId.qa.$periodId'
 import { Route as AppWorkspacesWorkspaceIdReportsIndexRouteImport } from './routes/app.workspaces.$workspaceId.reports.index'
@@ -372,6 +374,18 @@ const AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute =
     path: '/app/workspaces/$workspaceId/evidence/$evidenceId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppWorkspacesWorkspaceIdOrgDesignIndexRoute =
+  AppWorkspacesWorkspaceIdOrgDesignIndexRouteImport.update({
+    id: '/app/workspaces/$workspaceId/org-design/',
+    path: '/app/workspaces/$workspaceId/org-design/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute =
+  AppWorkspacesWorkspaceIdOrgDesignReviewIdRouteImport.update({
+    id: '/app/workspaces/$workspaceId/org-design/$reviewId',
+    path: '/app/workspaces/$workspaceId/org-design/$reviewId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppWorkspacesWorkspaceIdQaIndexRoute =
   AppWorkspacesWorkspaceIdQaIndexRouteImport.update({
     id: '/app/workspaces/$workspaceId/qa/',
@@ -481,10 +495,12 @@ export interface FileRoutesByFullPath {
   '/app/workspaces/$workspaceId/esg/requirements': typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
   '/app/workspaces/$workspaceId/esg/roadmap': typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
   '/app/workspaces/$workspaceId/evidence/$evidenceId': typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  '/app/workspaces/$workspaceId/org-design/$reviewId': typeof AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute
   '/app/workspaces/$workspaceId/qa/$periodId': typeof AppWorkspacesWorkspaceIdQaPeriodIdRoute
   '/app/workspaces/$workspaceId/reports/$reportId': typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
   '/app/workspaces/$workspaceId/actions/': typeof AppWorkspacesWorkspaceIdActionsIndexRoute
   '/app/workspaces/$workspaceId/evidence/': typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  '/app/workspaces/$workspaceId/org-design/': typeof AppWorkspacesWorkspaceIdOrgDesignIndexRoute
   '/app/workspaces/$workspaceId/qa/': typeof AppWorkspacesWorkspaceIdQaIndexRoute
   '/app/workspaces/$workspaceId/reports/': typeof AppWorkspacesWorkspaceIdReportsIndexRoute
   '/app/workspaces/$workspaceId/esg/implementation/$requirementId': typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
@@ -548,10 +564,12 @@ export interface FileRoutesByTo {
   '/app/workspaces/$workspaceId/esg/requirements': typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
   '/app/workspaces/$workspaceId/esg/roadmap': typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
   '/app/workspaces/$workspaceId/evidence/$evidenceId': typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  '/app/workspaces/$workspaceId/org-design/$reviewId': typeof AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute
   '/app/workspaces/$workspaceId/qa/$periodId': typeof AppWorkspacesWorkspaceIdQaPeriodIdRoute
   '/app/workspaces/$workspaceId/reports/$reportId': typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
   '/app/workspaces/$workspaceId/actions': typeof AppWorkspacesWorkspaceIdActionsIndexRoute
   '/app/workspaces/$workspaceId/evidence': typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  '/app/workspaces/$workspaceId/org-design': typeof AppWorkspacesWorkspaceIdOrgDesignIndexRoute
   '/app/workspaces/$workspaceId/qa': typeof AppWorkspacesWorkspaceIdQaIndexRoute
   '/app/workspaces/$workspaceId/reports': typeof AppWorkspacesWorkspaceIdReportsIndexRoute
   '/app/workspaces/$workspaceId/esg/implementation/$requirementId': typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
@@ -616,10 +634,12 @@ export interface FileRoutesById {
   '/app/workspaces/$workspaceId/esg/requirements': typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
   '/app/workspaces/$workspaceId/esg/roadmap': typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
   '/app/workspaces/$workspaceId/evidence/$evidenceId': typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  '/app/workspaces/$workspaceId/org-design/$reviewId': typeof AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute
   '/app/workspaces/$workspaceId/qa/$periodId': typeof AppWorkspacesWorkspaceIdQaPeriodIdRoute
   '/app/workspaces/$workspaceId/reports/$reportId': typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
   '/app/workspaces/$workspaceId/actions/': typeof AppWorkspacesWorkspaceIdActionsIndexRoute
   '/app/workspaces/$workspaceId/evidence/': typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  '/app/workspaces/$workspaceId/org-design/': typeof AppWorkspacesWorkspaceIdOrgDesignIndexRoute
   '/app/workspaces/$workspaceId/qa/': typeof AppWorkspacesWorkspaceIdQaIndexRoute
   '/app/workspaces/$workspaceId/reports/': typeof AppWorkspacesWorkspaceIdReportsIndexRoute
   '/app/workspaces/$workspaceId/esg/implementation/$requirementId': typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
@@ -685,10 +705,12 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/esg/requirements'
     | '/app/workspaces/$workspaceId/esg/roadmap'
     | '/app/workspaces/$workspaceId/evidence/$evidenceId'
+    | '/app/workspaces/$workspaceId/org-design/$reviewId'
     | '/app/workspaces/$workspaceId/qa/$periodId'
     | '/app/workspaces/$workspaceId/reports/$reportId'
     | '/app/workspaces/$workspaceId/actions/'
     | '/app/workspaces/$workspaceId/evidence/'
+    | '/app/workspaces/$workspaceId/org-design/'
     | '/app/workspaces/$workspaceId/qa/'
     | '/app/workspaces/$workspaceId/reports/'
     | '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
@@ -752,10 +774,12 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/esg/requirements'
     | '/app/workspaces/$workspaceId/esg/roadmap'
     | '/app/workspaces/$workspaceId/evidence/$evidenceId'
+    | '/app/workspaces/$workspaceId/org-design/$reviewId'
     | '/app/workspaces/$workspaceId/qa/$periodId'
     | '/app/workspaces/$workspaceId/reports/$reportId'
     | '/app/workspaces/$workspaceId/actions'
     | '/app/workspaces/$workspaceId/evidence'
+    | '/app/workspaces/$workspaceId/org-design'
     | '/app/workspaces/$workspaceId/qa'
     | '/app/workspaces/$workspaceId/reports'
     | '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
@@ -819,10 +843,12 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/esg/requirements'
     | '/app/workspaces/$workspaceId/esg/roadmap'
     | '/app/workspaces/$workspaceId/evidence/$evidenceId'
+    | '/app/workspaces/$workspaceId/org-design/$reviewId'
     | '/app/workspaces/$workspaceId/qa/$periodId'
     | '/app/workspaces/$workspaceId/reports/$reportId'
     | '/app/workspaces/$workspaceId/actions/'
     | '/app/workspaces/$workspaceId/evidence/'
+    | '/app/workspaces/$workspaceId/org-design/'
     | '/app/workspaces/$workspaceId/qa/'
     | '/app/workspaces/$workspaceId/reports/'
     | '/app/workspaces/$workspaceId/esg/implementation/$requirementId'
@@ -886,10 +912,12 @@ export interface RootRouteChildren {
   AppWorkspacesWorkspaceIdEsgRequirementsRoute: typeof AppWorkspacesWorkspaceIdEsgRequirementsRoute
   AppWorkspacesWorkspaceIdEsgRoadmapRoute: typeof AppWorkspacesWorkspaceIdEsgRoadmapRoute
   AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute: typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute
+  AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute: typeof AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute
   AppWorkspacesWorkspaceIdQaPeriodIdRoute: typeof AppWorkspacesWorkspaceIdQaPeriodIdRoute
   AppWorkspacesWorkspaceIdReportsReportIdRoute: typeof AppWorkspacesWorkspaceIdReportsReportIdRoute
   AppWorkspacesWorkspaceIdActionsIndexRoute: typeof AppWorkspacesWorkspaceIdActionsIndexRoute
   AppWorkspacesWorkspaceIdEvidenceIndexRoute: typeof AppWorkspacesWorkspaceIdEvidenceIndexRoute
+  AppWorkspacesWorkspaceIdOrgDesignIndexRoute: typeof AppWorkspacesWorkspaceIdOrgDesignIndexRoute
   AppWorkspacesWorkspaceIdQaIndexRoute: typeof AppWorkspacesWorkspaceIdQaIndexRoute
   AppWorkspacesWorkspaceIdReportsIndexRoute: typeof AppWorkspacesWorkspaceIdReportsIndexRoute
   AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute: typeof AppWorkspacesWorkspaceIdEsgImplementationRequirementIdRoute
@@ -1299,6 +1327,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdEvidenceEvidenceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/workspaces/$workspaceId/org-design/': {
+      id: '/app/workspaces/$workspaceId/org-design/'
+      path: '/app/workspaces/$workspaceId/org-design'
+      fullPath: '/app/workspaces/$workspaceId/org-design/'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdOrgDesignIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/workspaces/$workspaceId/org-design/$reviewId': {
+      id: '/app/workspaces/$workspaceId/org-design/$reviewId'
+      path: '/app/workspaces/$workspaceId/org-design/$reviewId'
+      fullPath: '/app/workspaces/$workspaceId/org-design/$reviewId'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdOrgDesignReviewIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/workspaces/$workspaceId/qa/': {
       id: '/app/workspaces/$workspaceId/qa/'
       path: '/app/workspaces/$workspaceId/qa'
@@ -1435,6 +1477,8 @@ const rootRouteChildren: RootRouteChildren = {
     AppWorkspacesWorkspaceIdEsgRoadmapRoute,
   AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute:
     AppWorkspacesWorkspaceIdEvidenceEvidenceIdRoute,
+  AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute:
+    AppWorkspacesWorkspaceIdOrgDesignReviewIdRoute,
   AppWorkspacesWorkspaceIdQaPeriodIdRoute:
     AppWorkspacesWorkspaceIdQaPeriodIdRoute,
   AppWorkspacesWorkspaceIdReportsReportIdRoute:
@@ -1443,6 +1487,8 @@ const rootRouteChildren: RootRouteChildren = {
     AppWorkspacesWorkspaceIdActionsIndexRoute,
   AppWorkspacesWorkspaceIdEvidenceIndexRoute:
     AppWorkspacesWorkspaceIdEvidenceIndexRoute,
+  AppWorkspacesWorkspaceIdOrgDesignIndexRoute:
+    AppWorkspacesWorkspaceIdOrgDesignIndexRoute,
   AppWorkspacesWorkspaceIdQaIndexRoute: AppWorkspacesWorkspaceIdQaIndexRoute,
   AppWorkspacesWorkspaceIdReportsIndexRoute:
     AppWorkspacesWorkspaceIdReportsIndexRoute,
