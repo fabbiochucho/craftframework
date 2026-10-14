@@ -110,6 +110,11 @@ export function QaListPage({ workspaceId }: { workspaceId: string }) {
         </div>
         {jur && <p className="text-xs text-slate-600">{jur.authority}. {jur.note} <a className="text-emerald-700 underline" href={jur.sourceUrl} target="_blank" rel="noreferrer">{jur.sourceTitle}</a>
           {jur.requiresVerification && <Badge className="ml-2 bg-amber-100 text-amber-800">requires verification</Badge>}</p>}
+        {jur?.market && <p className="text-xs text-slate-600">
+          <b>Securities regulator:</b> {jur.market.regulator ?? 'none recorded'} · <b>Exchange(s):</b> {jur.market.exchanges.join(', ') || 'none'}
+          {jur.market.esgDisclosure && <> · <b>Sustainability disclosure:</b> {jur.market.esgDisclosure}</>}
+          {jur.market.blocs.length > 0 && <> · <b>Blocs:</b> {jur.market.blocs.join(', ')}</>}
+          {jur.market.verify.length > 0 && <> · <span className="text-amber-800">to verify: {jur.market.verify.join(', ')}</span></>}</p>}
         <div className="space-y-1">{PROFILE_FLAGS.filter(([, , show]) => show(f.jurisdiction)).map(([k, label]) => (
           <label key={k} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!f[k]} onChange={e => setF({ ...f, [k]: e.target.checked })} /> {label}</label>))}</div>
         <div className="flex flex-wrap items-end gap-3">

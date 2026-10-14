@@ -6,7 +6,10 @@
 // Regulatory facts carry their source and the date they were checked; anything not confirmed
 // against the primary source is flagged `requiresVerification`.
 
-export const CHECKLIST_VERSION = 'CRAFT-QA 1.2 (2026-10-12)'
+import { AFRICA_COUNTRIES, COUNTRY_SOURCES, countryByIso, REC_LABELS, type AfricaCountry } from './africa-countries.ts'
+
+// 1.3: jurisdiction packs for all 54 African countries (CRAFT-AFR registry) and JUR-02.
+export const CHECKLIST_VERSION = 'CRAFT-QA 1.3 (2026-10-14)'
 
 // --- Jurisdiction rule packs ------------------------------------------------------------
 export interface EntityCategory {
@@ -31,6 +34,8 @@ export interface Jurisdiction {
   voluntaryFrom: string | null
   categories: EntityCategory[]
   note: string
+  // Capital-market context from the 54-country registry (absent for OTHER).
+  market?: { regulator: string | null; exchanges: string[]; esgDisclosure: string | null; accountancyBody: string | null; blocs: string[]; verify: string[] }
 }
 
 const IFRS_PROFILES = 'https://www.ifrs.org/ifrs-sustainability-disclosure-standards-around-the-world/use-by-jurisdiction/'
@@ -146,7 +151,7 @@ export const JURISDICTIONS: Jurisdiction[] = [
     note: 'No mandatory ISSB adoption found in the IFRS Foundation list (checked 2026-10-11); confirm current JSE and regulator requirements.',
   },
   {
-    code: 'OTHER', name: 'Other jurisdiction', authority: 'To be confirmed', sourceTitle: 'IFRS Foundation — use by jurisdiction', sourceUrl: IFRS_PROFILES,
+    code: 'OTHER', name: 'Other jurisdiction (outside Africa)', authority: 'To be confirmed', sourceTitle: 'IFRS Foundation — use by jurisdiction', sourceUrl: IFRS_PROFILES,
     lastVerified: null, requiresVerification: true, voluntaryFrom: null,
     categories: [{ id: 'other', label: 'Entity (set adoption status manually)', mandatoryFrom: null }],
     note: 'No CRAFT rule pack yet: record the applicable requirement and source manually.',
@@ -173,6 +178,37 @@ export interface Applicability {
   sourceUrl: string
   requiresVerification: boolean
 }
+
+// Countries without a detailed rule pack get a generated one from the registry: no mandatory
+// IFRS S1/S2 date is assumed, and every such pack is flagged for verification.
+const marketOf = (c: AfricaCountry): NonNullable<Jurisdiction['market']> => ({
+  regulator: c.regulator, exchanges: c.exchanges, esgDisclosure: c.esgDisclosure, accountancyBody: c.accountancyBody,
+  blocs: [...c.recs.map((r) => REC_LABELS[r]), ...(c.monetaryUnion ? [c.monetaryUnion] : []), ...(c.ohada ? ['OHADA'] : [])], verify: c.verify,
+})
+function generatedPack(c: AfricaCountry): Jurisdiction {
+  const id = c.iso2.toLowerCase()
+  const listed = c.exchanges.length ? [{ id: `${id}_listed`, label: `Listed on ${c.exchanges.join(' / ')}`, mandatoryFrom: null }] : []
+  const ifrsNote = c.ifrs === 'snapshot' ? 'The IFRS Foundation has published a snapshot of a proposed ISSB framework (may change before adoption).' : 'Not on the IFRS Foundation list of jurisdictions adopting ISSB Standards (checked 14 October 2026).'
+  return {
+    code: c.iso2, name: c.name,
+    authority: [c.regulator, c.accountancyBody].filter(Boolean).join('; ') || 'No securities regulator or accountancy body recorded',
+    sourceTitle: COUNTRY_SOURCES.ifrs.title, sourceUrl: COUNTRY_SOURCES.ifrs.url, lastVerified: null, requiresVerification: true, voluntaryFrom: null,
+    categories: [
+      ...listed,
+      { id: `${id}_regulated`, label: 'Regulated financial institution or other public interest entity', mandatoryFrom: null },
+      { id: `${id}_public`, label: 'Public sector entity', mandatoryFrom: null, note: 'Confirm whether IPSASB sustainability standards or national public-sector guidance apply.' },
+      { id: `${id}_other`, label: 'Other organisation (set adoption status manually)', mandatoryFrom: null },
+    ],
+    note: `${ifrsNote}${c.esgDisclosure ? ` Sustainability disclosure: ${c.esgDisclosure}.` : ''} No mandatory IFRS S1/S2 date is assumed; record the applicable requirement and its source.`,
+    market: marketOf(c),
+  }
+}
+for (const c of AFRICA_COUNTRIES) {
+  const existing = JURISDICTIONS.find((j) => j.code === c.iso2)
+  if (existing) existing.market = marketOf(c)
+  else JURISDICTIONS.push(generatedPack(c))
+}
+JURISDICTIONS.sort((a, b) => (a.code === 'OTHER' ? 1 : b.code === 'OTHER' ? -1 : a.name.localeCompare(b.name)))
 
 export const jurisdictionByCode = (code: string) => JURISDICTIONS.find((j) => j.code === code) ?? null
 
@@ -366,7 +402,9 @@ export const CHECKS: Check[] = [
     ['ZW-01', 'Transition reliefs and full-compliance date', 'M-REG', 'high', 'Category, reliefs used and the date full ISSB compliance is required are recorded.', 'Category memo; relief register'],
     ['GH-01', 'ICAG category and sector classification', 'M-REG', 'high', 'Significant PIE, high-impact sector or other mandatory adopter classification documented.', 'Classification memo'],
     ['NG-01', 'FRC readiness test', 'M-REG', 'high', 'Entity has passed through the FRC Readiness Test Assessment before adopting.', 'FRC correspondence; readiness submission'],
+    ['JUR-02', 'Exchange or regulator sustainability-disclosure rules', 'C-MAND', 'high', 'The exchange or regulator sustainability-disclosure rules or guidance for listed issuers have been identified, their status (mandatory, comply-or-explain or voluntary) confirmed with the source, and applied in the report.', 'Copy of the rule or guidance; status confirmation; index mapping disclosures to it'],
   ], {
+    'JUR-02': { condition: (p) => p.category.endsWith('_listed') && !!countryByIso(p.jurisdiction)?.esgDisclosure, conditionNote: 'Applies to listed issuers where the exchange or regulator has sustainability-disclosure rules or guidance.' },
     'KE-01': { condition: (p, a) => p.jurisdiction === 'KE' && a.status === 'mandatory' && p.category === 'ke_pie' },
     'RW-01': { condition: (p, a) => p.jurisdiction === 'RW' && a.scope === 'exchange_esg_guidelines' },
     'RW-02': { condition: (p, a) => p.jurisdiction === 'RW' && a.scope === 'climate_only' },
@@ -420,6 +458,7 @@ export function applicableChecks(profile: QaProfile, periodStart: string): { app
         break
       case 'JUR':
         if (c.id === 'JUR-01') { if (!reporting) continue; mandatory = a.status === 'mandatory' }
+        else if (c.id === 'JUR-02') { mandatory = false; reason = `${countryByIso(profile.jurisdiction)?.esgDisclosure}.`; break }
         else mandatory = a.status === 'mandatory'
         reason = c.conditionNote ?? jurisdictionByCode(profile.jurisdiction)?.sourceTitle ?? ''
         break
