@@ -126,7 +126,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     // Excluding the route entirely removes the race instead of trying to win
     // it, and is correct for every caller: nothing under /app/workspaces
     // depends on the legacy entityProfile wizard having run.
-    if (pathname.startsWith('/app/workspaces')) return
+    // The same holds for the rest of the /app/* platform (organization settings and members).
+    if (pathname.startsWith('/app/')) return
     navigate({ to: '/onboarding' })
   }, [authReady, currentUser, onboardingComplete, pathname, navigate, enterDemo])
 
