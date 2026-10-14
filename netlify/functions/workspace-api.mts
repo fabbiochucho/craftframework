@@ -38,9 +38,10 @@ import {
 } from '../../src/lib/org-design.js'
 import { renderOrgDoc } from '../lib/org-design-report.js'
 import {
-  CATALOGUES, catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, HEALTH_SECURITY_TYPES, healthSecurityTypesFor,
+  catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
   isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
 } from '../../src/lib/health-security.js'
+import { ASSESSMENT_CATALOGUES, assessmentTypesFor, catalogueByType, RESTRICTED_LABELS, RESTRICTED_TYPES } from '../../src/lib/assessment-catalogues.js'
 import { CHECK_OUTCOMES, regulatorySources, REVERIFY_AFTER_DAYS, sourceByKey, sourceStatus } from '../../src/lib/regulatory-sources.js'
 import {
   catalogueMeta, defaultFirstReportingYear, ESG_CATALOGUE, generateSecPlan, planCsv, renderPlanDoc, SEC_NG_FRAMEWORK,
@@ -774,14 +775,16 @@ const routes: Route[] = [
   { method: 'GET', pattern: `${W}/assessments`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
     json(await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId))).orderBy(desc(governanceAssessments.id))) },
   { method: 'POST', pattern: `${W}/assessments`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
-    const assessmentType = oneOf(c.body.assessmentType, 'assessmentType', ['G2G', 'ISO', 'COSO', 'CRAFT', ...HEALTH_SECURITY_TYPES] as const, 'G2G')
+    const assessmentType = oneOf(c.body.assessmentType, 'assessmentType', ['G2G', 'ISO', 'COSO', 'CRAFT', ...RESTRICTED_TYPES] as const, 'G2G')
     const reportingPeriod = str(c.body.reportingPeriod, 'reportingPeriod', 50, false)
     if (c.body.innovationSupport !== undefined && typeof c.body.innovationSupport !== 'boolean') throw bad('innovationSupport must be boolean')
     if (c.body.extendedScope !== undefined && typeof c.body.extendedScope !== 'boolean') throw bad('extendedScope must be boolean')
-    if (isHealthSecurityType(assessmentType)) {
+    if ((RESTRICTED_TYPES as readonly string[]).includes(assessmentType)) {
       const [org] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
-      if (!healthSecurityTypesFor(org?.type ?? '').includes(assessmentType)) {
-        throw new HttpError(403, `${HEALTH_SECURITY_LABELS[assessmentType]} is available only to organisations registered as a national public health institute${assessmentType === 'JEE_SUB' || assessmentType === 'AAR' || assessmentType === 'SIMEX' ? ' or a subnational government' : ''}`)
+      if (!assessmentTypesFor(org?.type ?? '').includes(assessmentType)) {
+        const who = assessmentType === 'PSP' ? 'a government body, subnational government or national public health institute'
+          : `a national public health institute${isHealthSecurityType(assessmentType) && healthSecurityTypesFor('subnational').includes(assessmentType) ? ' or a subnational government' : ''}`
+        throw new HttpError(403, `${RESTRICTED_LABELS[assessmentType]} is available only to organisations registered as ${who}`)
       }
     }
     // The flag column holds the founder-protection overlay for CRAFT and the Centre of Excellence scope for NPHI.
@@ -818,8 +821,8 @@ const routes: Route[] = [
       if (crit.appliesTo === 'innovation_support' && !a.innovationSupport) throw bad('founder-protection criteria apply only to assessments of institutions that fund or support innovation')
       if (notApplicable) score = 1
       else if (!Number.isInteger(score) || score < 1 || score > 5) throw bad('score must be an integer 1-5')
-    } else if (catalogueFor(a.assessmentType)) {
-      const cat = catalogueFor(a.assessmentType)!
+    } else if (catalogueByType(a.assessmentType)) {
+      const cat = catalogueByType(a.assessmentType)!
       const item = itemById(cat, domain)
       if (item?.sectionId !== pillar) throw bad(`unknown ${cat.id} section/item`)
       if (item.extended && !a.innovationSupport) throw bad('Centre of Excellence items apply only when that scope was selected for the assessment')
@@ -903,7 +906,7 @@ const routes: Route[] = [
       const validations = vals.map((v) => ({ ...v, ...validationDelta(responses, v.scores as ValidatorScores, opts) }))
       return json({ assessment: a, findingsBySeverity, validations, ...craftScorecard(responses, undefined, opts) })
     }
-    const cat = catalogueFor(a.assessmentType)
+    const cat = catalogueByType(a.assessmentType)
     if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
       const { findingsBySeverity } = buildScorecard([], findings)
       return json({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
@@ -1293,7 +1296,7 @@ const routes: Route[] = [
   // ---------------------- Health security (NPHI, JEE, SPAR, subnational JEE, AAR, SimEx) ----------------------
   { method: 'GET', pattern: `${W}/health-security/catalogue`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId }) => {
     const [org] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
-    return json({ orgType: org?.type ?? null, available: healthSecurityTypesFor(org?.type ?? ''), labels: HEALTH_SECURITY_LABELS, catalogues: CATALOGUES, reviewDomains: REVIEW_DOMAINS, crosswalk: CROSSWALK })
+    return json({ orgType: org?.type ?? null, available: assessmentTypesFor(org?.type ?? ''), labels: RESTRICTED_LABELS, catalogues: ASSESSMENT_CATALOGUES, reviewDomains: REVIEW_DOMAINS, crosswalk: CROSSWALK })
   } },
   { method: 'GET', pattern: `${W}/health-security/overview`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
     const all = await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId), inArray(governanceAssessments.assessmentType, ['NPHI', 'JEE', 'SPAR', 'JEE_SUB'])))
