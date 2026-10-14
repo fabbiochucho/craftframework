@@ -508,6 +508,13 @@ export const wsOrganizations = pgTable('ws_organizations', {
   contactEmail: text('contact_email').notNull().default(''),
   contactPhone: text('contact_phone').notNull().default(''),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  // Verification of a restricted organisation type (NPHI): 'not_required' | 'pending' | 'verified' | 'rejected'.
+  typeVerification: text('type_verification').notNull().default('not_required'),
+  // 'email_domain' (admin's email on a registered NPHI domain) | 'manual' (confirmed by a platform operator)
+  typeVerificationMethod: text('type_verification_method'),
+  typeVerifiedBy: text('type_verified_by'),
+  typeVerifiedAt: timestamp('type_verified_at', { withTimezone: true }),
+  typeVerificationNote: text('type_verification_note').notNull().default(''),
 })
 
 export const wsOrgMembers = pgTable(

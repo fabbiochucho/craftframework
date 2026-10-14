@@ -11,5 +11,6 @@ export const PUBLIC_BODY_ORG_TYPES = ['government', 'subnational', 'nphi']
 export const RESTRICTED_TYPES = [...HEALTH_SECURITY_TYPES, 'PSP'] as const
 export const RESTRICTED_LABELS: Record<string, string> = { ...HEALTH_SECURITY_LABELS, PSP: 'Public-sector performance (APRM, performance system, PEFA, OECD-DAC, Agenda 2063)' }
 
-export const assessmentTypesFor = (orgType: string): string[] =>
-  [...(PUBLIC_BODY_ORG_TYPES.includes(orgType) ? ['PSP'] : []), ...healthSecurityTypesFor(orgType)]
+/** Assessment types an organisation may use. NPHI-only types need a verified NPHI. */
+export const assessmentTypesFor = (orgType: string, nphiVerified = true): string[] =>
+  [...(PUBLIC_BODY_ORG_TYPES.includes(orgType) ? ['PSP'] : []), ...(orgType === 'nphi' && !nphiVerified ? [] : healthSecurityTypesFor(orgType))]

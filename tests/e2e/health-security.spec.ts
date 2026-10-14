@@ -1,7 +1,7 @@
-import { test, expect } from './fixtures'
+import { test, expect, signInAs } from './fixtures'
 
 // An organisation registered as an NPHI runs a SPAR self-assessment and sees the crosswalk.
-test('NPHI runs a SPAR self-assessment and sees the health-security overview', async ({ signedIn: page }) => {
+test('NPHI runs a SPAR self-assessment and sees the health-security overview', async ({ signedIn: page, browser }) => {
   await page.goto('/app/workspaces')
   await page.getByLabel('Organization name').fill('NPHI E2E')
   await page.getByLabel('Country').fill('Nigeria')
@@ -17,6 +17,19 @@ test('NPHI runs a SPAR self-assessment and sees the health-security overview', a
   await page.getByRole('main').getByRole('link', { name: 'Health security (NPHI, JEE, SPAR, IHR)' }).click()
   await expect(page.getByText(/available to organisations registered as a/)).toBeVisible()
   expect((await page.evaluate(id => fetch(`/api/orgs/${id}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'nphi' }) }).then(r => r.status), orgId))).toBe(200)
+
+  // Not on a registered NPHI domain: pending until a platform operator verifies it.
+  await page.goto('/app/org/settings')
+  await expect(page.getByText('NPHI verification:')).toBeVisible()
+  await expect(page.getByText('pending', { exact: true })).toBeVisible()
+  const operatorContext = await browser.newContext()
+  await signInAs(operatorContext, 'fabbiochucho@gmail.com')
+  const operator = await operatorContext.newPage()
+  await operator.goto('/app/org/settings')
+  await operator.getByLabel('Decision note for NPHI E2E').fill('Establishment act and DG letter checked')
+  await operator.getByRole('row', { name: /NPHI E2E/ }).getByRole('button', { name: 'Verify' }).click()
+  await expect(operator.getByRole('row', { name: /NPHI E2E/ }).getByText('verified', { exact: true })).toBeVisible()
+  await operatorContext.close()
 
   await page.goto(dashboard)
   await page.getByRole('main').getByRole('link', { name: 'Governance assessments & CRAFT Scorecard' }).click()
