@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { api, STATUS_STYLE } from '../../lib/workspaceApi'
+import { api, downloadApi, STATUS_STYLE } from '../../lib/workspaceApi'
 import { Badge, Button, Input, Select } from '../../components/ui'
 
 // Load JSON from the API on mount (and on `reload`). Browser-only.
@@ -90,6 +90,19 @@ export function useAction(onDone?: () => void | Promise<void>) {
     }
   }
   return { run, error, busy }
+}
+
+/** Excel (XLSX) and PDF download buttons for an export endpoint that takes ?format=xlsx|pdf. */
+export function ExportButtons({ path, name }: { path: string; name: string }) {
+  const { run, error, busy } = useAction()
+  const sep = path.includes('?') ? '&' : '?'
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Button variant="outline" disabled={busy} onClick={() => run(() => downloadApi(`${path}${sep}format=xlsx`, `${name}.xlsx`))}>Excel (XLSX)</Button>
+      <Button variant="outline" disabled={busy} onClick={() => run(() => downloadApi(`${path}${sep}format=pdf`, `${name}.pdf`))}>PDF</Button>
+      {error && <span role="alert" className="text-sm text-rose-700">{error}</span>}
+    </span>
+  )
 }
 
 export const ErrorLine = ({ error }: { error: string | null }) =>
