@@ -13,6 +13,8 @@ Allow: /informal-economy
 Allow: /frameworks
 Allow: /guide
 Allow: /help
+Allow: /launch
+Allow: /architecture
 Disallow: /
 
 Sitemap: https://craftframework.becomechange.institute/sitemap.xml
