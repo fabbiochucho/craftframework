@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { api, downloadApi, SEVERITY_STYLE, wsPath } from '../../lib/workspaceApi'
 import { Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead } from '../../components/ui'
-import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
+import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi, ExportButtons } from './shared'
 
 const dash = (workspaceId: string) => ({ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' })
 const opt = (pairs: [string, string][]) => pairs.map(([value, label]) => ({ value, label }))
@@ -56,6 +56,7 @@ export function SecPlannerPage({ workspaceId }: { workspaceId: string }) {
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => run(() => downloadApi(wsPath(workspaceId, '/esg-planner/sec-ng/export'), 'ifrs-s1-s2-implementation-plan.doc'))}>Download Word document</Button>
           <Button variant="outline" onClick={() => run(() => downloadApi(wsPath(workspaceId, '/esg-planner/sec-ng/export?format=csv'), 'ifrs-s1-s2-implementation-plan.csv'))}>Download CSV</Button>
+          <ExportButtons path={wsPath(workspaceId, '/esg-planner/sec-ng/export')} name="ifrs-s1-s2-implementation-plan" />
         </div>
       </>}
       <Table><Thead><tr><Th>#</Th><Th>Required element</Th><Th>Owner</Th><Th>Timeline</Th><Th>Milestones</Th><Th>Status</Th></tr></Thead>
@@ -195,6 +196,7 @@ export function QaPeriodPage({ workspaceId, periodId }: { workspaceId: string; p
         <div className="w-56"><Input label="Search" value={flt.q} onChange={e => setFlt({ ...flt, q: e.target.value })} /></div>
         <Button variant="outline" onClick={() => run(() => downloadApi(wsPath(workspaceId, `/qa/periods/${periodId}/export`), `esg-report-qa-${d.period.label}.doc`))}>Word report</Button>
         <Button variant="outline" onClick={() => run(() => downloadApi(wsPath(workspaceId, `/qa/periods/${periodId}/export?format=csv`), `esg-report-qa-${d.period.label}.csv`))}>CSV</Button>
+        <ExportButtons path={wsPath(workspaceId, `/qa/periods/${periodId}/export`)} name={`esg-report-qa-${d.period.label}`} />
         {!frozen && <Button disabled={busy} onClick={() => run(() => api(wsPath(workspaceId, `/qa/periods/${periodId}/finalise`), { method: 'POST', body: {} }))}>Finalise and sign off</Button>}
       </div>
       {frozen && <div className="flex flex-wrap items-end gap-3">

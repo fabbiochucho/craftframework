@@ -39,6 +39,8 @@ import {
 import { renderOrgDoc } from '../lib/org-design-report.js'
 import { analysePlan, findCycle, type PlanTask } from '../../src/lib/plan-graph.js'
 import { nphiForEmail } from '../../src/lib/nphi-registry.js'
+import { exportResponse } from '../lib/export-formats.js'
+import { catalogueScorecardDoc, craftScorecardDoc, domainScorecardDoc, planExportDoc, qaExportDoc, roadmapExportDoc } from '../lib/export-docs.js'
 import {
   catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
   isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
@@ -596,15 +598,72 @@ async function loadSecPlan(orgId: number, wsId: number) {
   const reqs = await db.select().from(esgRequirements).where(and(eq(esgRequirements.orgId, orgId), eq(esgRequirements.frameworkId, fw.id))).orderBy(asc(esgRequirements.requirementId))
   const plans = reqs.length ? await db.select().from(esgImplementationPlans).where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId), inArray(esgImplementationPlans.requirementId, reqs.map((r) => r.id)))) : []
   const ms = plans.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, plans.map((p) => p.id)))).orderBy(asc(esgMilestones.milestoneNum)) : []
-  const rows: (PlanRow & { requirementDbId: number; planId: number | null })[] = reqs.map((r) => {
+  const rows: (PlanRow & { requirementDbId: number; planId: number | null; workstream: string; dependsOn: number[]; budgetEstimate: number | null; budgetActual: number | null; budgetCurrency: string })[] = reqs.map((r) => {
     const p = plans.find((x) => x.requirementId === r.id)
     return {
       requirementDbId: r.id, planId: p?.id ?? null, requirementId: r.requirementId, requirementText: r.requirementText,
       owner: p?.owner ?? null, status: p?.status ?? 'not_started', timelineStart: p?.timelineStart ?? null, timelineEnd: p?.timelineEnd ?? null,
+      workstream: p?.workstream ?? '', dependsOn: p?.dependsOn ?? [], budgetEstimate: p?.budgetEstimate == null ? null : Number(p.budgetEstimate),
+      budgetActual: p?.budgetActual == null ? null : Number(p.budgetActual), budgetCurrency: p?.budgetCurrency ?? '',
       milestones: p ? ms.filter((m) => m.planId === p.id).map((m) => ({ milestoneNum: m.milestoneNum, description: m.description, targetDate: m.targetDate, status: m.status, completionEvidenceLink: m.completionEvidenceLink })) : [],
     }
   })
   return { fw, rows, settings: fw.settings as Partial<PlanSettings> }
+}
+
+async function scorecardData(orgId: number, a: typeof governanceAssessments.$inferSelect) {
+    const [scores, findings] = await Promise.all([
+      db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
+      db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
+    ])
+    if (a.assessmentType === 'CRAFT') {
+      const { findingsBySeverity } = buildScorecard([], findings)
+      const opts = { innovationSupport: a.innovationSupport }
+      const responses = craftResponses(scores)
+      const vals = await db.select().from(governanceValidations).where(and(eq(governanceValidations.orgId, orgId), eq(governanceValidations.assessmentId, a.id))).orderBy(asc(governanceValidations.id))
+      const validations = vals.map((v) => ({ ...v, ...validationDelta(responses, v.scores as ValidatorScores, opts) }))
+      return ({ assessment: a, findingsBySeverity, validations, ...craftScorecard(responses, undefined, opts) })
+    }
+    const cat = catalogueByType(a.assessmentType)
+    if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
+      const { findingsBySeverity } = buildScorecard([], findings)
+      return ({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
+    }
+    return ({ assessment: a, ...buildScorecard(scores, findings) })
+}
+
+async function buildRoadmap(orgId: number, wsId: number) {
+    const rows = await db.select({ plan: esgImplementationPlans, req: esgRequirements }).from(esgImplementationPlans)
+      .innerJoin(esgRequirements, eq(esgRequirements.id, esgImplementationPlans.requirementId))
+      .where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId)))
+    const planIds = rows.map((r) => r.plan.id)
+    const ms = planIds.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, planIds))) : []
+    const money = (v: string | null) => (v === null ? null : Number(v))
+    const items = rows.map(({ plan, req }) => {
+      const mine = ms.filter((m) => m.planId === plan.id)
+      const done = mine.filter((m) => m.status === 'completed').length
+      return {
+        planId: plan.id, requirementId: req.requirementId, text: req.requirementText, category: req.category,
+        deadline: req.implementationDeadline, start: plan.timelineStart, end: plan.timelineEnd, status: plan.status,
+        workstream: plan.workstream, dependsOn: plan.dependsOn, budgetEstimate: money(plan.budgetEstimate), budgetActual: money(plan.budgetActual), budgetCurrency: plan.budgetCurrency,
+        milestones: mine, percentComplete: plan.status === 'completed' ? 100 : mine.length ? Math.round((done / mine.length) * 100) : 0,
+      }
+    }).sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'))
+    const byCategory: Record<string, { total: number; percent: number }> = {}
+    for (const i of items) {
+      const e = (byCategory[i.category] ??= { total: 0, percent: 0 })
+      e.total++
+      e.percent += i.percentComplete
+    }
+    for (const e of Object.values(byCategory)) e.percent = Math.round(e.percent / e.total)
+    const analysis = analysePlan(items.map((i): PlanTask => ({ id: i.planId, label: i.requirementId, workstream: i.workstream, status: i.status, start: i.start, end: i.end ?? i.deadline,
+      dependsOn: i.dependsOn, budgetEstimate: i.budgetEstimate, budgetActual: i.budgetActual, budgetCurrency: i.budgetCurrency })))
+  return { items, byCategory, analysis }
+}
+
+async function exportMeta(orgId: number, author: string) {
+  const [org] = await db.select({ name: wsOrganizations.name }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+  return { organisation: org?.name ?? '', generatedOn: today(), author }
 }
 
 // --- report snapshot --------------------------------------------------------------------------------
@@ -942,26 +1001,20 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { finding: f.id, fields: Object.keys(set) })
     return json({ ...f, description: decryptField(f.description) })
   } },
-  { method: 'GET', pattern: `${A}/scorecard`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+  { method: 'GET', pattern: `${A}/scorecard`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) =>
+    json(await scorecardData(orgId, await loadAssessment(orgId, wsId, intParam(c.p[1])))) },
+  { method: 'GET', pattern: `${A}/scorecard/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
-    const [scores, findings] = await Promise.all([
-      db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
-      db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
-    ])
-    if (a.assessmentType === 'CRAFT') {
-      const { findingsBySeverity } = buildScorecard([], findings)
-      const opts = { innovationSupport: a.innovationSupport }
-      const responses = craftResponses(scores)
-      const vals = await db.select().from(governanceValidations).where(and(eq(governanceValidations.orgId, orgId), eq(governanceValidations.assessmentId, a.id))).orderBy(asc(governanceValidations.id))
-      const validations = vals.map((v) => ({ ...v, ...validationDelta(responses, v.scores as ValidatorScores, opts) }))
-      return json({ assessment: a, findingsBySeverity, validations, ...craftScorecard(responses, undefined, opts) })
-    }
-    const cat = catalogueByType(a.assessmentType)
-    if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
-      const { findingsBySeverity } = buildScorecard([], findings)
-      return json({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
-    }
-    return json({ assessment: a, ...buildScorecard(scores, findings) })
+    const d: any = await scorecardData(orgId, a)
+    const meta = await exportMeta(orgId, caller.email)
+    const doc = a.assessmentType === 'CRAFT' ? craftScorecardDoc(d, a, meta)
+      : catalogueByType(a.assessmentType) ? catalogueScorecardDoc(d, { ...a, label: RESTRICTED_LABELS[a.assessmentType] ?? a.assessmentType }, meta)
+      : a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX' ? null
+      : domainScorecardDoc(d, a, meta)
+    if (!doc) throw bad('after-action reviews and simulation exercises have no scorecard to export')
+    const format = c.url.searchParams.get('format') ?? 'xlsx'
+    await audit(c, orgId, wsId, 'assessment', a.id, 'read', { scorecardExport: format })
+    return (await exportResponse(doc, format, `${a.assessmentType.toLowerCase()}-scorecard-v${a.version}`)) ?? (() => { throw bad('format must be xlsx or pdf') })()
   } },
   { method: 'GET', pattern: `${W}/craft-scorecard/catalogue`, access: 'viewer', scope: 'workspace', handler: async () =>
     json({ pillars: Object.values(GOVERNANCE_PILLARS), criteria: GOVERNANCE_CRITERIA }) },
@@ -1132,33 +1185,12 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'org', plan.id, 'update', { esgPlan: true, fields: Object.keys(set) })
     return json(plan)
   } },
-  { method: 'GET', pattern: `${W}/esg-roadmap`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
-    const rows = await db.select({ plan: esgImplementationPlans, req: esgRequirements }).from(esgImplementationPlans)
-      .innerJoin(esgRequirements, eq(esgRequirements.id, esgImplementationPlans.requirementId))
-      .where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId)))
-    const planIds = rows.map((r) => r.plan.id)
-    const ms = planIds.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, planIds))) : []
-    const money = (v: string | null) => (v === null ? null : Number(v))
-    const items = rows.map(({ plan, req }) => {
-      const mine = ms.filter((m) => m.planId === plan.id)
-      const done = mine.filter((m) => m.status === 'completed').length
-      return {
-        planId: plan.id, requirementId: req.requirementId, text: req.requirementText, category: req.category,
-        deadline: req.implementationDeadline, start: plan.timelineStart, end: plan.timelineEnd, status: plan.status,
-        workstream: plan.workstream, dependsOn: plan.dependsOn, budgetEstimate: money(plan.budgetEstimate), budgetActual: money(plan.budgetActual), budgetCurrency: plan.budgetCurrency,
-        milestones: mine, percentComplete: plan.status === 'completed' ? 100 : mine.length ? Math.round((done / mine.length) * 100) : 0,
-      }
-    }).sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'))
-    const byCategory: Record<string, { total: number; percent: number }> = {}
-    for (const i of items) {
-      const e = (byCategory[i.category] ??= { total: 0, percent: 0 })
-      e.total++
-      e.percent += i.percentComplete
-    }
-    for (const e of Object.values(byCategory)) e.percent = Math.round(e.percent / e.total)
-    const analysis = analysePlan(items.map((i): PlanTask => ({ id: i.planId, label: i.requirementId, workstream: i.workstream, status: i.status, start: i.start, end: i.end ?? i.deadline,
-      dependsOn: i.dependsOn, budgetEstimate: i.budgetEstimate, budgetActual: i.budgetActual, budgetCurrency: i.budgetCurrency })))
-    return json({ items, byCategory, analysis })
+  { method: 'GET', pattern: `${W}/esg-roadmap`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => json(await buildRoadmap(orgId, wsId)) },
+  { method: 'GET', pattern: `${W}/esg-roadmap/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const { items, analysis } = await buildRoadmap(orgId, wsId)
+    const format = c.url.searchParams.get('format') ?? 'xlsx'
+    await audit(c, orgId, wsId, 'org', wsId, 'read', { roadmapExport: format })
+    return (await exportResponse(roadmapExportDoc(items, analysis, await exportMeta(orgId, caller.email)), format, 'esg-roadmap')) ?? (() => { throw bad('format must be xlsx or pdf') })()
   } },
 
   // ---------------------------- 2.3b SEC Nigeria IFRS S1/S2 plan generator ----------------------------
@@ -1205,10 +1237,12 @@ const routes: Route[] = [
     const fresh = await loadSecPlan(orgId, wsId)
     return json({ created, updated, settings: fresh.settings, rows: fresh.rows }, created ? 201 : 200)
   } },
-  { method: 'GET', pattern: `${W}/esg-planner/sec-ng/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+  { method: 'GET', pattern: `${W}/esg-planner/sec-ng/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const { rows, settings } = await loadSecPlan(orgId, wsId)
     if (!settings.entityType) throw new HttpError(409, 'Generate the plan before exporting it')
     await audit(c, orgId, wsId, 'org', wsId, 'read', { secPlanExport: c.url.searchParams.get('format') ?? 'doc' })
+    const office = await exportResponse(planExportDoc(settings, rows, await exportMeta(orgId, caller.email)), c.url.searchParams.get('format') ?? '', 'ifrs-s1-s2-implementation-plan')
+    if (office) return office
     if (c.url.searchParams.get('format') === 'csv') {
       return new Response(planCsv(rows, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="ifrs-s1-s2-implementation-plan.csv"' } })
     }
@@ -1366,6 +1400,9 @@ const routes: Route[] = [
     const format = c.url.searchParams.get('format') === 'csv' ? 'csv' : 'doc'
     await audit(c, orgId, wsId, 'org', p.id, 'read', { qaExport: format, frozen: p.status === 'final' })
     const name = `esg-report-qa-${p.label.replace(/[^\w.-]+/g, '_')}`
+    const reportId = `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`
+    const office = await exportResponse(qaExportDoc(view, await exportMeta(orgId, caller.email), reportId), c.url.searchParams.get('format') ?? '', name)
+    if (office) return office
     if (format === 'csv') return new Response(qaCsv(view, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.csv"` } })
     return new Response(renderQaDoc(view, today(), { reportId: `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email }), { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })
   } },
