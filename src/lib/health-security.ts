@@ -38,6 +38,7 @@ export interface Catalogue {
   source: { title: string; url: string }
   levels: string[] // index 0 = level 1
   evidenceCap: number | null // score counted at most this without evidence
+  unansweredScoresZero?: boolean // WHO SPAR rule: an indicator with no level selected counts as 0
   extendedScopeLabel?: string
   sections: CatalogueSection[]
   items: CatalogueItem[]
@@ -174,31 +175,32 @@ export const SPAR: Catalogue = {
   source: { title: 'WHO — IHR (2005) States Parties self-assessment annual reporting tool, second edition', url: 'https://www.who.int/publications/i/item/9789240040120' },
   levels: ['Level 1', 'Level 2', 'Level 3', 'Level 4', 'Level 5'],
   evidenceCap: null,
+  unansweredScoresZero: true,
   sections: [
-    sec('C1', 'C1 Policy, legal and normative instruments to implement IHR', ''), sec('C2', 'C2 IHR coordination, National IHR Focal Point functions and advocacy', ''),
+    sec('C1', 'C1 Policy, legal and normative instruments to implement IHR', ''), sec('C2', 'C2 IHR coordination and National IHR Focal Point', ''),
     sec('C3', 'C3 Financing', ''), sec('C4', 'C4 Laboratory', ''), sec('C5', 'C5 Surveillance', ''), sec('C6', 'C6 Human resources', ''),
-    sec('C7', 'C7 Health emergency management', ''), sec('C8', 'C8 Health services provision', ''), sec('C9', 'C9 Infection prevention and control', ''),
-    sec('C10', 'C10 Risk communication and community engagement', ''), sec('C11', 'C11 Points of entry and border health', ''), sec('C12', 'C12 Zoonotic diseases', ''),
+    sec('C7', 'C7 Health emergency management', ''), sec('C8', 'C8 Health services provision', ''), sec('C9', 'C9 Infection prevention and control (IPC)', ''),
+    sec('C10', 'C10 Risk communication and community engagement (RCCE)', ''), sec('C11', 'C11 Points of entry (PoEs) and border health', ''), sec('C12', 'C12 Zoonotic diseases', ''),
     sec('C13', 'C13 Food safety', ''), sec('C14', 'C14 Chemical events', ''), sec('C15', 'C15 Radiation emergencies', ''),
   ],
   items: [
     ...it('C1', [['C1.1', 'Policy, legal and normative instruments', ''], ['C1.2', 'Gender equality in health emergencies', '']]),
-    ...it('C2', [['C2.1', 'National IHR Focal Point functions', ''], ['C2.2', 'Multisectoral IHR coordination mechanisms', ''], ['C2.3', 'Advocacy for IHR implementation', '']]),
+    ...it('C2', [['C2.1', 'National IHR Focal Point functions', ''], ['C2.2', 'Multisectoral coordination mechanisms', ''], ['C2.3', 'Advocacy for IHR implementation', '']]),
     ...it('C3', [['C3.1', 'Financing for IHR implementation', ''], ['C3.2', 'Financing for public health emergency response', '']]),
-    ...it('C4', [['C4.1', 'Specimen referral and transport system', ''], ['C4.2', 'Laboratory biosafety and biosecurity regime', ''], ['C4.3', 'Laboratory quality system', ''], ['C4.4', 'Laboratory testing capacity modalities', ''], ['C4.5', 'Effective national diagnostic network', '']]),
-    ...it('C5', [['C5.1', 'Early warning surveillance function', ''], ['C5.2', 'Event management (verification, investigation, analysis and dissemination)', '']]),
+    ...it('C4', [['C4.1', 'Specimen referral and transport system', ''], ['C4.2', 'Implementation of a laboratory biosafety and biosecurity regime', ''], ['C4.3', 'Laboratory quality system', ''], ['C4.4', 'Laboratory testing capacity modalities', ''], ['C4.5', 'Effective national diagnostic network', '']]),
+    ...it('C5', [['C5.1', 'Early warning surveillance function', ''], ['C5.2', 'Event management', '']]),
     ...it('C6', [['C6.1', 'Human resources for implementation of IHR', ''], ['C6.2', 'Workforce surge during a public health event', '']]),
     ...it('C7', [['C7.1', 'Planning for health emergencies', ''], ['C7.2', 'Management of health emergency response', ''], ['C7.3', 'Emergency logistic and supply chain management', '']]),
-    ...it('C8', [['C8.1', 'Case management', ''], ['C8.2', 'Utilisation of health services', ''], ['C8.3', 'Continuity of essential health services', '']]),
-    ...it('C9', [['C9.1', 'IPC programmes', ''], ['C9.2', 'Healthcare-associated infection surveillance', ''], ['C9.3', 'Safe environment in health facilities', '']]),
+    ...it('C8', [['C8.1', 'Case management', ''], ['C8.2', 'Utilization of health services', ''], ['C8.3', 'Continuity of essential health services (EHS)', '']]),
+    ...it('C9', [['C9.1', 'Infection prevention and control programmes', ''], ['C9.2', 'Health care-associated infections (HCAI) surveillance', ''], ['C9.3', 'Safe environment in health facilities', '']]),
     ...it('C10', [['C10.1', 'RCCE system for emergencies', ''], ['C10.2', 'Risk communication', ''], ['C10.3', 'Community engagement', '']]),
-    ...it('C11', [['C11.1', 'Core capacity requirements at all times for designated points of entry', ''], ['C11.2', 'Public health response at points of entry', ''], ['C11.3', 'Risk-based approach to international travel-related measures', '']]),
-    ...it('C12', [['C12.1', 'Collaborative One Health effort across sectors on zoonoses', '']]),
+    ...it('C11', [['C11.1', 'Core capacity requirements at all times for PoEs (airports, ports and ground crossings)', ''], ['C11.2', 'Public health response at PoEs', ''], ['C11.3', 'Risk-based approach to international travel-related measures', '']]),
+    ...it('C12', [['C12.1', 'One Health collaborative efforts across sectors on activities to address zoonoses', '']]),
     ...it('C13', [['C13.1', 'Multisectoral collaboration mechanism for food safety events', '']]),
-    ...it('C14', [['C14.1', 'Resources for detection and alert (chemical events)', '']]),
-    ...it('C15', [['C15.1', 'Capacity and resources (radiation emergencies)', '']]),
+    ...it('C14', [['C14.1', 'Resources for detection and alert', '']]),
+    ...it('C15', [['C15.1', 'Capacity and resources', '']]),
   ],
-  disclaimer: 'Prepares and tracks the SPAR self-assessment. The official report is submitted by the National IHR Focal Point through WHO e-SPAR; confirm indicator wording and level descriptors against the WHO tool.',
+  disclaimer: 'Prepares and tracks the SPAR self-assessment. Indicator names checked against the WHO tool (2nd ed., 2021) on 15 October 2026; the level summaries are CRAFT paraphrases with page references to WHO’s official wording. As in WHO’s method, an unanswered indicator counts as zero. The official report is submitted by the National IHR Focal Point through WHO e-SPAR.',
 }
 
 // --- Subnational JEE-style self-assessment ----------------------------------------------------
@@ -278,8 +280,9 @@ export function catalogueScore(c: Catalogue, responses: Responses, extendedScope
   })
   const sections = c.sections.filter((s) => extendedScope || !s.extended).map((s) => {
     const mine = items.filter((i) => i.sectionId === s.id && !i.notApplicable)
-    const pcts = mine.map((i) => i.percent).filter((p): p is number => p !== null)
-    return { id: s.id, name: s.name, percent: pcts.length ? round1(mean(pcts)!) : null, scored: pcts.length, total: mine.length }
+    const scored = mine.map((i) => i.percent).filter((p): p is number => p !== null)
+    const pcts = c.unansweredScoresZero ? mine.map((i) => i.percent ?? 0) : scored
+    return { id: s.id, name: s.name, percent: pcts.length ? round1(mean(pcts)!) : null, scored: scored.length, total: mine.length }
   })
   const secPcts = sections.map((s) => s.percent).filter((p): p is number => p !== null)
   const applicable = items.filter((i) => !i.notApplicable)

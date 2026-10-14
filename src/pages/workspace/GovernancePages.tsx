@@ -7,6 +7,7 @@ import { Accordion, Badge, Button, Card, CardContent, Input, Select, Table, Tbod
 import { EditFields, ErrorLine, Header, State, StatusPill, useAction, useApi } from './shared'
 import { activeItems, REVIEW_DOMAINS } from '../../lib/health-security'
 import { catalogueByType, RESTRICTED_LABELS } from '../../lib/assessment-catalogues'
+import { SPAR_LEVELS, SPAR_SOURCE } from '../../lib/spar-levels'
 
 const CATALOGUE_TYPES = ['NPHI', 'JEE', 'JEE_SUB', 'SPAR', 'PSP']
 function healthSecurityDomains(a: any): { value: string; label: string }[] | null {
@@ -42,8 +43,9 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
           <Card key={i.id}><CardContent className="space-y-2">
             <p className="font-semibold text-slate-800">{i.id} · {i.name} {i.critical && <Badge className="bg-rose-100 text-rose-700">critical</Badge>}</p>
             {i.description && <p className="text-sm text-slate-600">{i.description}</p>}
+            {SPAR_LEVELS[i.id] && <p className="text-xs text-slate-500">Level summaries are CRAFT paraphrases. Confirm against WHO’s wording on p. {SPAR_LEVELS[i.id].page} of the <a className="underline" href={SPAR_SOURCE.url} target="_blank" rel="noreferrer">SPAR tool</a>. {SPAR_SOURCE.rule}</p>}
             <fieldset disabled={locked} className="flex flex-wrap items-end gap-3">
-              {!d.na && <div className="w-64"><Select placeholder="Not scored" label="Level" value={d.score} onChange={score => set({ score })} options={cat.levels.map((l, n) => ({ value: String(n + 1), label: l }))} /></div>}
+              {!d.na && <div className="w-full max-w-xl"><Select placeholder="Not scored" label="Level" value={d.score} onChange={score => set({ score })} options={cat.levels.map((l, n) => ({ value: String(n + 1), label: SPAR_LEVELS[i.id] ? `${l} — ${SPAR_LEVELS[i.id].levels[n]}` : l }))} /></div>}
               {!d.na && <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.evidence} onChange={e => set({ evidence: e.target.checked })} /> Evidence held</label>}
               <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>
               {d.na && <div className="min-w-[260px] flex-1"><Input label="Reason it does not apply" value={d.naReason} onChange={e => set({ naReason: e.target.value })} /></div>}
