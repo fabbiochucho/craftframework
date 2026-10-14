@@ -10,7 +10,7 @@ import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
-  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks,
+  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks, userMfa,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
@@ -37,9 +37,14 @@ import {
   NINE_TESTS, ORG_DESIGN_VERSION, RUBRIC, RUBRIC_PASS, SECTIONS as ORG_SECTIONS, type OrgData,
 } from '../../src/lib/org-design.js'
 import { renderOrgDoc } from '../lib/org-design-report.js'
+import { renderSVG } from 'uqr'
 import { analysePlan, findCycle, type PlanTask } from '../../src/lib/plan-graph.js'
 import { nphiForEmail } from '../../src/lib/nphi-registry.js'
 import { escalationFor, ESCALATION_LEVELS, findDuplicateGroups, maxSeverity } from '../lib/cap-tools.js'
+import {
+  generateRecoveryCodes, generateSecret, hashRecoveryCode, MFA_COOKIE, MFA_SESSION_HOURS, mfaCookieHeader, mfaSessionKey, mfaUserKey, otpauthUri,
+  readCookie, signMfaSession, verifyMfaSession, verifyTotp,
+} from '../lib/mfa.js'
 import { exportResponse } from '../lib/export-formats.js'
 import { catalogueScorecardDoc, craftScorecardDoc, domainScorecardDoc, planExportDoc, qaExportDoc, roadmapExportDoc } from '../lib/export-docs.js'
 import {
@@ -336,6 +341,41 @@ function intParam(v: string): number {
   return n
 }
 const json = (data: unknown, status = 200) => Response.json(data, { status })
+
+// --- Multi-factor sign-in ---------------------------------------------------------------------------
+async function loadMfa(email: string) {
+  const [row] = await db.select().from(userMfa).where(eq(userMfa.userKey, mfaUserKey(email)))
+  return row ?? null
+}
+const mfaVerified = (req: Request, email: string) => verifyMfaSession(readCookie(req.headers.get('cookie'), MFA_COOKIE), email, Date.now(), mfaSessionKey())
+function withMfaSession(res: Response, email: string): Response {
+  const token = signMfaSession(email, Date.now() + MFA_SESSION_HOURS * 3_600_000, mfaSessionKey())
+  res.headers.append('Set-Cookie', mfaCookieHeader(token, MFA_SESSION_HOURS * 3600))
+  return res
+}
+// Account-level security events go to the platform audit log (category Auth).
+async function auditUser(_c: Ctx, email: string, details: { mfa: string }) {
+  await db.insert(auditLogs).values({ actor: email, action: `multi-factor sign-in ${details.mfa.replace(/_/g, ' ')}`, target: 'account', category: 'Auth' })
+}
+
+/** Checks a TOTP or recovery code for an enabled user; records the step or burns the recovery code. */
+async function checkSecondFactor(c: Ctx, row: typeof userMfa.$inferSelect, email: string): Promise<'totp' | 'recovery'> {
+  const now = Date.now()
+  if (isRateLimitedCount(await incrementRateLimit(`mfa:${email}`, now), 10)) throw new HttpError(429, 'Too many attempts; wait a minute and try again')
+  if (typeof c.body.code === 'string' && c.body.code.trim()) {
+    const step = verifyTotp(decryptField(row.secret!), c.body.code, now, row.lastStep)
+    if (step === null) throw new HttpError(401, 'Invalid or already used code')
+    await db.update(userMfa).set({ lastStep: step, updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    return 'totp'
+  }
+  if (typeof c.body.recoveryCode === 'string' && c.body.recoveryCode.trim()) {
+    const h = hashRecoveryCode(c.body.recoveryCode)
+    if (!row.recoveryCodes.includes(h)) throw new HttpError(401, 'Invalid or already used recovery code')
+    await db.update(userMfa).set({ recoveryCodes: row.recoveryCodes.filter((x) => x !== h), updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    return 'recovery'
+  }
+  throw bad('code or recoveryCode required')
+}
 
 async function audit(
   c: Ctx, orgId: number, wsId: number | null, resourceType: string, resourceId: string | number | null,
@@ -783,6 +823,70 @@ const routes: Route[] = [
     approveErasureRequest(c, caller, intParam(c.p[0])) },
 
   // ---------------------------- 2.1 Organizations ----------------------------
+  // ---------------------------- Multi-factor sign-in ----------------------------
+  { method: 'GET', pattern: '/mfa/status', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    const required = await db.select({ id: wsOrganizations.id, name: wsOrganizations.name }).from(wsOrgMembers)
+      .innerJoin(wsOrganizations, eq(wsOrganizations.id, wsOrgMembers.orgId)).where(and(memberEmailFilter(caller.email), eq(wsOrganizations.requireMfa, true)))
+    return json({ enabled: !!row?.enabled, verified: !!row?.enabled && mfaVerified(c.req, caller.email), recoveryCodesLeft: row?.recoveryCodes.length ?? 0, requiredBy: required })
+  } },
+  { method: 'POST', pattern: '/mfa/enroll', access: 'authed', handler: async (_c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is already on; turn it off first to change authenticator')
+    const secret = generateSecret()
+    await db.insert(userMfa).values({ userKey: mfaUserKey(caller.email), pendingSecret: encryptField(secret) })
+      .onConflictDoUpdate({ target: userMfa.userKey, set: { pendingSecret: encryptField(secret), updatedAt: new Date() } })
+    const uri = otpauthUri('CRAFT', caller.email, secret)
+    return json({ secret, otpauthUri: uri, qrSvg: `data:image/svg+xml;base64,${Buffer.from(renderSVG(uri)).toString('base64')}` })
+  } },
+  { method: 'POST', pattern: '/mfa/enroll/confirm', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.pendingSecret) throw new HttpError(409, 'Start enrolment first')
+    if (isRateLimitedCount(await incrementRateLimit(`mfa:${caller.email}`, Date.now()), 10)) throw new HttpError(429, 'Too many attempts; wait a minute and try again')
+    const secret = decryptField(row.pendingSecret)
+    const step = verifyTotp(secret, String(c.body.code ?? ''), Date.now())
+    if (step === null) throw new HttpError(401, 'That code does not match; check the time on your phone and try again')
+    const codes = generateRecoveryCodes()
+    await db.update(userMfa).set({ secret: encryptField(secret), pendingSecret: null, enabled: true, enabledAt: new Date(), lastStep: step, recoveryCodes: codes.map(hashRecoveryCode), updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    await auditUser(c, caller.email, { mfa: 'enabled' })
+    return withMfaSession(json({ enabled: true, recoveryCodes: codes }), caller.email)
+  } },
+  { method: 'POST', pattern: '/mfa/verify', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is not on for this account')
+    const how = await checkSecondFactor(c, row, caller.email)
+    if (how === 'recovery') await auditUser(c, caller.email, { mfa: 'recovery_code_used' })
+    return withMfaSession(json({ verified: true, method: how }), caller.email)
+  } },
+  { method: 'POST', pattern: '/mfa/recovery-codes', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is not on for this account')
+    await checkSecondFactor(c, row, caller.email)
+    const codes = generateRecoveryCodes()
+    await db.update(userMfa).set({ recoveryCodes: codes.map(hashRecoveryCode), updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    await auditUser(c, caller.email, { mfa: 'recovery_codes_regenerated' })
+    return json({ recoveryCodes: codes })
+  } },
+  { method: 'POST', pattern: '/mfa/disable', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is not on for this account')
+    const [req] = await db.select({ name: wsOrganizations.name }).from(wsOrgMembers).innerJoin(wsOrganizations, eq(wsOrganizations.id, wsOrgMembers.orgId))
+      .where(and(memberEmailFilter(caller.email), eq(wsOrganizations.requireMfa, true))).limit(1)
+    if (req) throw new HttpError(409, `${req.name} requires multi-factor sign-in for its members`)
+    await checkSecondFactor(c, row, caller.email)
+    await db.update(userMfa).set({ enabled: false, secret: null, pendingSecret: null, recoveryCodes: [], lastStep: -1, updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    await auditUser(c, caller.email, { mfa: 'disabled' })
+    const res = json({ enabled: false })
+    res.headers.append('Set-Cookie', mfaCookieHeader('', 0))
+    return res
+  } },
+  { method: 'PUT', pattern: '/orgs/:org/security', access: 'admin', scope: 'org', handler: async (c, { orgId, caller }) => {
+    if (typeof c.body.requireMfa !== 'boolean') throw bad('requireMfa must be boolean')
+    if (c.body.requireMfa && !(await loadMfa(caller.email))?.enabled) throw new HttpError(409, 'Turn on multi-factor sign-in for your own account before requiring it for everyone')
+    const [u] = await db.update(wsOrganizations).set({ requireMfa: c.body.requireMfa }).where(eq(wsOrganizations.id, orgId)).returning()
+    await audit(c, orgId, null, 'org', orgId, 'update', { requireMfa: c.body.requireMfa })
+    return json(exposeOrganization(u))
+  } },
   { method: 'GET', pattern: '/orgs', access: 'authed', handler: async (_c, { caller }) => {
     const rows = await db.select({ org: wsOrganizations, role: wsOrgMembers.role }).from(wsOrgMembers)
       .innerJoin(wsOrganizations, eq(wsOrganizations.id, wsOrgMembers.orgId))
@@ -2197,6 +2301,12 @@ export default async (req: Request) => {
         if (body === null || typeof body !== 'object' || Array.isArray(body)) throw bad('JSON object body required')
       }
       const ctx: Ctx = { req, url, p: m, body, caller, ip }
+      // Multi-factor sign-in: an enrolled user needs a current MFA session for everything except the /mfa routes.
+      let mfaRow: typeof userMfa.$inferSelect | null = null
+      if (caller && !r.pattern.startsWith('/mfa/')) {
+        mfaRow = await loadMfa(caller.email)
+        if (mfaRow?.enabled && !mfaVerified(req, caller.email)) return finish(json({ error: 'mfa_required' }, 401))
+      }
       let orgId = 0, wsId = 0, role: OrgRole = 'viewer'
       if (r.access !== 'public' && r.access !== 'authed') {
         if (r.scope === 'workspace') {
@@ -2207,6 +2317,11 @@ export default async (req: Request) => {
         } else {
           orgId = intParam(m[0])
           role = await requireOrgAccess(caller!, orgId, r.access)
+        }
+        // Organisations that require MFA refuse members who have not turned it on.
+        if (!mfaRow?.enabled && !(r.scope === 'org' && r.pattern === '/orgs/:org' && req.method === 'GET')) {
+          const [org] = await db.select({ requireMfa: wsOrganizations.requireMfa }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+          if (org?.requireMfa) return finish(json({ error: 'mfa_enrollment_required' }, 403))
         }
       }
       return finish(await r.handler(ctx, { caller: caller!, orgId, wsId, role }))
@@ -2220,5 +2335,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = {
-  path: ['/api/orgs', '/api/orgs/*', '/api/workspaces/*', '/api/support-bot/*', '/api/privacy/*'],
+  path: ['/api/orgs', '/api/orgs/*', '/api/workspaces/*', '/api/support-bot/*', '/api/privacy/*', '/api/mfa/*'],
 }

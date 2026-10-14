@@ -9,7 +9,7 @@ export const ORG_TYPE_OPTIONS = [
   { value: 'government', label: 'Government (national ministry, department or agency)' }, { value: 'subnational', label: 'Subnational government (state, county or province)' },
   { value: 'nphi', label: 'National public health institute (NPHI)' }, { value: 'ngo', label: 'NGO' }, { value: 'private', label: 'Private' },
 ]
-type Org = { id: number; name: string; type: string; country: string; region: string; contactEmail: string; role: string; typeVerification?: string; typeVerificationMethod?: string | null; typeVerifiedBy?: string | null; typeVerificationNote?: string }
+type Org = { requireMfa?: boolean; id: number; name: string; type: string; country: string; region: string; contactEmail: string; role: string; typeVerification?: string; typeVerificationMethod?: string | null; typeVerifiedBy?: string | null; typeVerificationNote?: string }
 
 const VERIFY_STYLE: Record<string, string> = { verified: 'bg-emerald-100 text-emerald-800', pending: 'bg-amber-100 text-amber-800', rejected: 'bg-rose-100 text-rose-700' }
 
@@ -111,6 +111,11 @@ export function OrgSettingsPage() {
       <ErrorLine error={saveErr} />
       {canEdit && <Button disabled={busy || !f} onClick={() => run(() => api(`/orgs/${org.id}`, { method: 'PUT', body: f }))}>Save</Button>}
       </div>
+      <Card><CardContent className="space-y-2 text-sm">
+        <h2 className="font-semibold">Security</h2>
+        <p>Multi-factor sign-in for members: <b>{org.requireMfa ? 'required' : 'optional'}</b>. <Link className="text-emerald-700 underline" to="/app/security">Your account security</Link></p>
+        {canEdit && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api(`/orgs/${org.id}/security`, { method: 'PUT', body: { requireMfa: !org.requireMfa } }))}>{org.requireMfa ? 'Stop requiring multi-factor sign-in' : 'Require multi-factor sign-in for all members'}</Button>}
+      </CardContent></Card>
       <PrivacyControls key={`privacy-${org.id}`} org={org} />
       {isOperator && <TypeVerificationQueue />}
     </div>
