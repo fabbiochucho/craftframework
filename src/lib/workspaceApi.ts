@@ -53,6 +53,7 @@ export const STATUS_STYLE: Record<string, string> = {
   resolved: 'bg-emerald-100 text-emerald-700',
   approved: 'bg-emerald-100 text-emerald-700',
   overdue: 'bg-rose-100 text-rose-700',
+  merged: 'bg-slate-200 text-slate-600',
   expired: 'bg-rose-100 text-rose-700',
   rejected: 'bg-rose-100 text-rose-700',
   pending_review: 'bg-amber-100 text-amber-800',
