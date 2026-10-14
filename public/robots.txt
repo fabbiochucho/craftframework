@@ -15,6 +15,12 @@ Allow: /guide
 Allow: /help
 Allow: /launch
 Allow: /architecture
+Allow: /acceptable-use
+Allow: /data-processing
+Allow: /subprocessors
+Allow: /security
+Allow: /accessibility
+Allow: /.well-known/security.txt
 Disallow: /
 
 Sitemap: https://craftframework.becomechange.institute/sitemap.xml
