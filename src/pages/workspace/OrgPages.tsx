@@ -5,6 +5,10 @@ import { useAuthCtx } from '../../lib/context'
 import { Button, Card, CardContent, CardTitle, CardHeader, Input, Select, Table, Thead, Tbody, Th, Td, ProgressBar } from '../../components/ui'
 import { ErrorLine, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
 
+export const ORG_TYPE_OPTIONS = [
+  { value: 'government', label: 'Government (national ministry, department or agency)' }, { value: 'subnational', label: 'Subnational government (state, county or province)' },
+  { value: 'nphi', label: 'National public health institute (NPHI)' }, { value: 'ngo', label: 'NGO' }, { value: 'private', label: 'Private' },
+]
 type Org = { id: number; name: string; type: string; country: string; region: string; contactEmail: string; role: string }
 
 function useOrg() {
@@ -35,7 +39,7 @@ function CreateOrg({ onDone }: { onDone: () => void }) {
       <CardContent className="space-y-3">
         <p className="text-sm text-slate-500">An organizational email domain is required (consumer mailboxes are rejected).</p>
         <Input label="Organization name" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} />
-        <Select label="Type" value={f.type} onChange={type => setF({ ...f, type })} options={[{ value: 'government', label: 'Government' }, { value: 'ngo', label: 'NGO' }, { value: 'private', label: 'Private' }]} />
+        <Select label="Type" value={f.type} onChange={type => setF({ ...f, type })} options={ORG_TYPE_OPTIONS} />
         <Input label="Country" value={f.country} onChange={e => setF({ ...f, country: e.target.value })} />
         <ErrorLine error={error} />
         <Button disabled={busy || !f.name} onClick={() => run(() => api('/orgs', { method: 'POST', body: f }))}>Create organization</Button>
@@ -59,6 +63,8 @@ export function OrgSettingsPage() {
       {selector}
       <div key={org.id} className="space-y-4">
       <Input label="Name" disabled={!canEdit} value={v.name} onChange={e => setF({ ...f, name: e.target.value })} />
+      <Select label="Organisation type" value={v.type} onChange={type => canEdit && setF({ ...f, type })} options={ORG_TYPE_OPTIONS} />
+      {(v.type === 'nphi' || v.type === 'subnational') && <p className="text-xs text-slate-600">Unlocks the health-security assessments: {v.type === 'nphi' ? 'NPHI development, JEE, SPAR, subnational JEE, after-action reviews and simulation exercises' : 'subnational JEE-style self-assessment, after-action reviews and simulation exercises'}.</p>}
       <Input label="Country" disabled={!canEdit} value={v.country} onChange={e => setF({ ...f, country: e.target.value })} />
       <Input label="Region" disabled={!canEdit} value={v.region} onChange={e => setF({ ...f, region: e.target.value })} />
       <Input label="Contact email" disabled={!canEdit} value={v.contactEmail} onChange={e => setF({ ...f, contactEmail: e.target.value })} />
@@ -185,6 +191,7 @@ function PrivacyControls({ org }: { org: Org }) {
 const SECTIONS: [string, string][] = [
   ['/app/workspaces/$workspaceId/governance/assessments', 'Governance assessments & CRAFT Scorecard'],
   ['/app/workspaces/$workspaceId/org-design', 'Organisational design & diagnosis'],
+  ['/app/workspaces/$workspaceId/health-security', 'Health security (NPHI, JEE, SPAR, IHR)'],
   ['/app/workspaces/$workspaceId/esg/frameworks', 'ESG frameworks'],
   ['/app/workspaces/$workspaceId/esg/roadmap', 'ESG roadmap'],
   ['/app/workspaces/$workspaceId/esg/planner', 'IFRS S1/S2 implementation plan (SEC Nigeria)'],
