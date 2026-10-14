@@ -10,7 +10,7 @@ import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
-  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations,
+  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
@@ -32,6 +32,11 @@ import {
 } from '../../src/lib/esg-checklist.js'
 import { qaCsv, renderQaDoc, type QaView } from '../lib/qa-report.js'
 import { checkContent, DOCUMENT_KINDS, extractText, kindById } from '../lib/evidence-content.js'
+import {
+  cleanSection, CONFIGURATIONS, finaliseGaps, COORDINATING_MECHANISMS, DEAL_KENNEDY, DESIGN_PARAMETERS, diagnose, FUNCTIONAL_UNITS, HANDY, LEARNING_OUTCOMES, METAPHORS,
+  NINE_TESTS, ORG_DESIGN_VERSION, RUBRIC, RUBRIC_PASS, SECTIONS as ORG_SECTIONS, type OrgData,
+} from '../../src/lib/org-design.js'
+import { renderOrgDoc } from '../lib/org-design-report.js'
 import {
   catalogueMeta, defaultFirstReportingYear, ESG_CATALOGUE, generateSecPlan, planCsv, renderPlanDoc, SEC_NG_FRAMEWORK,
   type EntityType, type Horizon, type PlanRow, type PlanSettings, type Readiness,
@@ -476,6 +481,12 @@ function qaProfile(v: any): QaProfile {
     jurisdiction: j.code, category: String(v.category), adoptingVoluntarily: flag('adoptingVoluntarily'), financialActivities: flag('financialActivities'),
     secScope: j.code === 'NG' && flag('secScope'), mofiScope: j.code === 'NG' && flag('mofiScope'), mofiOverlay: j.code === 'NG' && flag('mofiOverlay'),
   }
+}
+
+async function loadOrgReview(orgId: number, wsId: number, id: number) {
+  const [r] = await db.select().from(orgDesignReviews).where(and(eq(orgDesignReviews.id, id), eq(orgDesignReviews.orgId, orgId), eq(orgDesignReviews.workspaceId, wsId)))
+  if (!r) throw new HttpError(404, 'Not found')
+  return r
 }
 
 async function loadQaPeriod(orgId: number, wsId: number, id: number) {
@@ -1242,6 +1253,64 @@ const routes: Route[] = [
     const name = `esg-report-qa-${p.label.replace(/[^\w.-]+/g, '_')}`
     if (format === 'csv') return new Response(qaCsv(view, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.csv"` } })
     return new Response(renderQaDoc(view, today(), { reportId: `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email }), { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })
+  } },
+
+  // ---------------------- Organisational design & diagnosis (CRAFT-OD) ----------------------
+  { method: 'GET', pattern: `${W}/org-design/catalogue`, access: 'viewer', scope: 'workspace', handler: async () => json({
+    version: ORG_DESIGN_VERSION, sections: ORG_SECTIONS, configurations: CONFIGURATIONS, coordinatingMechanisms: COORDINATING_MECHANISMS, designParameters: DESIGN_PARAMETERS,
+    handy: HANDY, dealKennedy: DEAL_KENNEDY, metaphors: METAPHORS, nineTests: NINE_TESTS, functionalUnits: FUNCTIONAL_UNITS, rubric: RUBRIC, learningOutcomes: LEARNING_OUTCOMES, rubricPass: RUBRIC_PASS,
+  }) },
+  { method: 'GET', pattern: `${W}/org-design`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const list = await db.select().from(orgDesignReviews).where(and(eq(orgDesignReviews.orgId, orgId), eq(orgDesignReviews.workspaceId, wsId))).orderBy(desc(orgDesignReviews.updatedAt))
+    return json(list.map(({ data, snapshot: _s, ...r }) => {
+      const d = diagnose(data as OrgData)
+      return { ...r, dominant: d.configuration.dominant, verdict: d.tests.verdict }
+    }))
+  } },
+  { method: 'POST', pattern: `${W}/org-design`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const [r] = await db.insert(orgDesignReviews).values({ orgId, workspaceId: wsId, title: str(c.body.title, 'title', 200), methodologyVersion: ORG_DESIGN_VERSION, preparedBy: caller.email }).returning()
+    await audit(c, orgId, wsId, 'org_design', r.id, 'create', { title: r.title })
+    return json(r, 201)
+  } },
+  { method: 'GET', pattern: `${W}/org-design/:id`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const r = await loadOrgReview(orgId, wsId, intParam(c.p[1]))
+    const frozen = r.status === 'final' && r.snapshot ? (r.snapshot as { data: OrgData; diagnosis: ReturnType<typeof diagnose> }) : null
+    return json({ ...r, data: frozen?.data ?? r.data, diagnosis: frozen?.diagnosis ?? diagnose(r.data as OrgData) })
+  } },
+  { method: 'PUT', pattern: `${W}/org-design/:id/sections/:section`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const r = await loadOrgReview(orgId, wsId, intParam(c.p[1]))
+    if (r.status !== 'draft') throw new HttpError(409, 'Review is finalised')
+    const section = c.p[2]
+    let values: Record<string, unknown>
+    try { values = cleanSection(section, c.body) } catch (e) { throw bad((e as Error).message) }
+    const data = { ...(r.data as OrgData), [section]: { ...((r.data as OrgData)[section] ?? {}), ...values } }
+    const [u] = await db.update(orgDesignReviews).set({ data, updatedAt: new Date() }).where(eq(orgDesignReviews.id, r.id)).returning()
+    await audit(c, orgId, wsId, 'org_design', r.id, 'update', { section, fields: Object.keys(values), by: caller.email })
+    return json({ ...u, diagnosis: diagnose(data) })
+  } },
+  { method: 'POST', pattern: `${W}/org-design/:id/finalise`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const r = await loadOrgReview(orgId, wsId, intParam(c.p[1]))
+    if (r.status !== 'draft') throw new HttpError(409, 'Review is already finalised')
+    const data = r.data as OrgData
+    const diagnosis = diagnose(data)
+    const gaps = finaliseGaps(data)
+    if (gaps.length) throw new HttpError(409, `Cannot finalise: ${gaps.join('; ')}`)
+    const [u] = await db.update(orgDesignReviews).set({ status: 'final', approvedBy: caller.email, approvedAt: new Date(), snapshot: { data, diagnosis } }).where(eq(orgDesignReviews.id, r.id)).returning()
+    await audit(c, orgId, wsId, 'org_design', r.id, 'update', { finalised: true, verdict: diagnosis.tests.verdict })
+    return json({ ...u, diagnosis })
+  } },
+  { method: 'GET', pattern: `${W}/org-design/:id/report`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const r = await loadOrgReview(orgId, wsId, intParam(c.p[1]))
+    const [org] = await db.select().from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+    const frozen = r.status === 'final' && r.snapshot ? (r.snapshot as { data: OrgData; diagnosis: ReturnType<typeof diagnose> }) : null
+    const data = frozen?.data ?? (r.data as OrgData)
+    const doc = renderOrgDoc({
+      title: r.title, organisation: org?.name ?? '', country: org?.country ?? '', status: r.status, preparedBy: r.preparedBy, approvedBy: r.approvedBy,
+      approvedAt: r.approvedAt?.toISOString().slice(0, 10) ?? null, methodologyVersion: r.methodologyVersion, data, diagnosis: frozen?.diagnosis ?? diagnose(data),
+    }, today(), { reportId: `OD-${r.id}-${r.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email })
+    await audit(c, orgId, wsId, 'org_design', r.id, 'read', { report: true })
+    const name = `organisational-analysis-${r.title.replace(/[^\w.-]+/g, '_')}`
+    return new Response(doc, { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })
   } },
 
   // ---------------------------- 2.4 CAP ----------------------------
