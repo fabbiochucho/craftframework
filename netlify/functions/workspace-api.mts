@@ -39,6 +39,7 @@ import {
 import { renderOrgDoc } from '../lib/org-design-report.js'
 import { analysePlan, findCycle, type PlanTask } from '../../src/lib/plan-graph.js'
 import { nphiForEmail } from '../../src/lib/nphi-registry.js'
+import { escalationFor, ESCALATION_LEVELS, findDuplicateGroups, maxSeverity } from '../lib/cap-tools.js'
 import { exportResponse } from '../lib/export-formats.js'
 import { catalogueScorecardDoc, craftScorecardDoc, domainScorecardDoc, planExportDoc, qaExportDoc, roadmapExportDoc } from '../lib/export-docs.js'
 import {
@@ -586,7 +587,7 @@ function declaredDocumentKind(v: unknown): string | null {
 // Root cause, expected outcome, resources, dependencies and residual risk on a CAP.
 function capDetailFields(body: Record<string, any>) {
   const out: Record<string, string> = {}
-  for (const k of ['rootCause', 'expectedOutcome', 'resources', 'dependencies', 'residualRisk'] as const) {
+  for (const k of ['rootCause', 'expectedOutcome', 'resources', 'dependencies', 'residualRisk', 'immediateCorrection', 'preventiveAction'] as const) {
     if (body[k] !== undefined) out[k] = str(body[k], k, 4000, false)
   }
   return out
@@ -659,6 +660,21 @@ async function buildRoadmap(orgId: number, wsId: number) {
     const analysis = analysePlan(items.map((i): PlanTask => ({ id: i.planId, label: i.requirementId, workstream: i.workstream, status: i.status, start: i.start, end: i.end ?? i.deadline,
       dependsOn: i.dependsOn, budgetEstimate: i.budgetEstimate, budgetActual: i.budgetActual, budgetCurrency: i.budgetCurrency })))
   return { items, byCategory, analysis }
+}
+
+// Raise CAPs to the escalation level their severity and days overdue call for (never lowers a level).
+async function applyEscalations(caps: (typeof capRecords.$inferSelect)[], actor: string, c: Ctx | null, wsId: number | null) {
+  const now = today()
+  let n = 0
+  for (const cap of caps) {
+    const e = escalationFor(cap, now)
+    if (e.level <= cap.escalationLevel) continue
+    await db.update(capRecords).set({ escalationLevel: e.level, escalatedAt: new Date(), escalatedTo: ESCALATION_LEVELS[e.level], escalationReason: e.reason }).where(eq(capRecords.id, cap.id))
+    if (c) await audit(c, cap.orgId, wsId, 'cap', cap.id, 'update', { escalationLevel: e.level, reason: e.reason, by: actor })
+    else await db.insert(wsAuditLog).values({ orgId: cap.orgId, workspaceId: cap.workspaceId, actorId: actor, resourceType: 'cap', resourceId: String(cap.id), action: 'update', details: { escalationLevel: e.level, reason: e.reason } })
+    n++
+  }
+  return n
 }
 
 async function exportMeta(orgId: number, author: string) {
@@ -1562,6 +1578,14 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'cap', cap.id, 'create', { sourceType, sourceId })
     return json(cap, 201)
   } },
+  { method: 'GET', pattern: `${W}/cap/duplicates`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const caps = await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId)))
+    return json(findDuplicateGroups(caps).map((g) => ({ ...g, caps: g.ids.map((id) => { const c = caps.find((x) => x.id === id)!; return { id, findingDescription: c.findingDescription, severity: c.severity, sourceType: c.sourceType, sourceId: c.sourceId, status: c.status } }) })))
+  } },
+  { method: 'POST', pattern: `${W}/cap/escalations/run`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const caps = await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId)))
+    return json({ escalated: await applyEscalations(caps, 'system', c, wsId) })
+  } },
   { method: 'GET', pattern: `${W}/cap/:id`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
     const actions = await db.select().from(actionItems).where(and(eq(actionItems.orgId, orgId), eq(actionItems.capId, cap.id))).orderBy(asc(actionItems.sequenceNum))
@@ -1575,6 +1599,7 @@ const routes: Route[] = [
   { method: 'PUT', pattern: `${W}/cap/:id`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
     if (cap.status === 'completed') throw new HttpError(409, 'CAP is closed')
+    if (cap.status === 'merged') throw new HttpError(409, `CAP was merged into CAP #${cap.mergedInto}`)
     const set: Record<string, unknown> = {}
     if (c.body.assignedTo !== undefined) set.assignedTo = str(c.body.assignedTo, 'assignedTo', 200, false) || null
     if (c.body.dueDate !== undefined) set.dueDate = dateOrNull(c.body.dueDate, 'dueDate')
@@ -1588,8 +1613,46 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'cap', cap.id, 'update', { fields: Object.keys(set), comment: comment || undefined })
     return json(u)
   } },
+  { method: 'POST', pattern: `${W}/cap/:id/merge`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    // Merge duplicates into this CAP. Each duplicate is kept as a 'merged' record pointing here; this CAP keeps their
+    // provenance (source, description, severity), takes the highest severity, and gains their evidence links.
+    const primary = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (primary.status === 'completed' || primary.status === 'merged') throw new HttpError(409, 'Merge into an open CAP')
+    if (!Array.isArray(c.body.duplicateIds) || !c.body.duplicateIds.length || c.body.duplicateIds.length > 50 || !c.body.duplicateIds.every((x: unknown) => Number.isInteger(x))) throw bad('duplicateIds must be a list of CAP ids')
+    const ids = [...new Set(c.body.duplicateIds as number[])]
+    if (ids.includes(primary.id)) throw bad('a CAP cannot be merged into itself')
+    const dups = await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId), inArray(capRecords.id, ids)))
+    if (dups.length !== ids.length) throw bad('every duplicate must be a CAP in this workspace')
+    const closed = dups.filter((d) => d.status === 'completed' || d.status === 'merged')
+    if (closed.length) throw new HttpError(409, `Already closed or merged: ${closed.map((d) => `#${d.id}`).join(', ')}`)
+    const at = new Date().toISOString()
+    const provenance = dups.flatMap((d) => [{ capId: d.id, sourceType: d.sourceType, sourceId: d.sourceId, findingDescription: d.findingDescription, severity: d.severity, mergedAt: at, mergedBy: caller.email }, ...(d.mergedFrom ?? [])])
+    await db.update(capRecords).set({ status: 'merged', mergedInto: primary.id }).where(inArray(capRecords.id, ids))
+    const [u] = await db.update(capRecords).set({ mergedFrom: [...(primary.mergedFrom ?? []), ...provenance], severity: maxSeverity([primary.severity, ...dups.map((d) => d.severity)]) }).where(eq(capRecords.id, primary.id)).returning()
+    const links = await db.select().from(evidenceLinks).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.targetType, 'cap'), inArray(evidenceLinks.targetId, ids)))
+    const existing = new Set((await db.select({ e: evidenceLinks.evidenceId }).from(evidenceLinks).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.targetType, 'cap'), eq(evidenceLinks.targetId, primary.id)))).map((x) => x.e))
+    for (const l of links) if (!existing.has(l.evidenceId)) {
+      existing.add(l.evidenceId)
+      const { id: _id, ...rest } = l
+      await db.insert(evidenceLinks).values({ ...rest, targetId: primary.id })
+    }
+    for (const d of dups) await audit(c, orgId, wsId, 'cap', d.id, 'update', { mergedInto: primary.id, by: caller.email })
+    await audit(c, orgId, wsId, 'cap', primary.id, 'update', { merged: ids, by: caller.email })
+    return json(u)
+  } },
+  { method: 'POST', pattern: `${W}/cap/:id/escalate`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (cap.status === 'completed' || cap.status === 'merged') throw new HttpError(409, 'Only open CAPs can be escalated')
+    if (cap.escalationLevel >= 3) throw new HttpError(409, 'Already escalated to the board or governing body')
+    const reason = str(c.body.reason, 'reason', 1000)
+    const to = str(c.body.to, 'to', 200, false) || ESCALATION_LEVELS[cap.escalationLevel + 1]
+    const [u] = await db.update(capRecords).set({ escalationLevel: cap.escalationLevel + 1, escalatedAt: new Date(), escalatedTo: to, escalationReason: reason }).where(eq(capRecords.id, cap.id)).returning()
+    await audit(c, orgId, wsId, 'cap', cap.id, 'update', { escalationLevel: u.escalationLevel, escalatedTo: to, by: caller.email, manual: true })
+    return json(u)
+  } },
   { method: 'POST', pattern: `${W}/cap/:id/actions`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (cap.status === 'merged') throw new HttpError(409, `CAP was merged into CAP #${cap.mergedInto}`)
     if (cap.status === 'completed') throw new HttpError(409, 'CAP is closed')
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(actionItems).where(and(eq(actionItems.orgId, orgId), eq(actionItems.capId, cap.id)))
     const [a] = await db.insert(actionItems).values({
@@ -1645,6 +1708,7 @@ const routes: Route[] = [
   } },
   { method: 'POST', pattern: `${W}/cap/:id/close`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (cap.status === 'merged') throw new HttpError(409, `CAP was merged into CAP #${cap.mergedInto}`)
     if (cap.status === 'completed') throw new HttpError(409, 'CAP already closed')
     const actions = await db.select().from(actionItems).where(and(eq(actionItems.orgId, orgId), eq(actionItems.capId, cap.id)))
     const blockers = capCloseBlockers(actions)
