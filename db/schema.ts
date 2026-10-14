@@ -607,6 +607,23 @@ export const governanceFindings = pgTable(
   (t) => [index('governance_findings_assessment_idx').on(t.orgId, t.assessmentId)],
 )
 
+// Re-verification of regulatory sources (src/lib/regulatory-sources.ts) before each reporting cycle.
+export const regulatorySourceChecks = pgTable(
+  'regulatory_source_checks',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    workspaceId: integer('workspace_id').notNull(),
+    sourceKey: text('source_key').notNull(),
+    // 'confirmed' | 'changed' | 'unreachable'
+    outcome: text('outcome').notNull(),
+    note: text('note').notNull().default(''),
+    checkedBy: text('checked_by').notNull(),
+    checkedAt: timestamp('checked_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index('regulatory_source_checks_ws_idx').on(t.orgId, t.workspaceId, t.sourceKey)],
+)
+
 // Organisational design & diagnosis reviews (CRAFT-OD): answers per section; finalised reviews are frozen.
 export const orgDesignReviews = pgTable(
   'org_design_reviews',
