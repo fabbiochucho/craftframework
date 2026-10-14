@@ -56,6 +56,7 @@ import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
 import { Route as AppWorkspacesIndexRouteImport } from './routes/app.workspaces.index'
 import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
 import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
+import { Route as AppWorkspacesWorkspaceIdHealthSecurityRouteImport } from './routes/app.workspaces.$workspaceId.health-security'
 import { Route as AppWorkspacesWorkspaceIdRegulatorySourcesRouteImport } from './routes/app.workspaces.$workspaceId.regulatory-sources'
 import { Route as AppWorkspacesWorkspaceIdSupportBotRouteImport } from './routes/app.workspaces.$workspaceId.support-bot'
 import { Route as AppWorkspacesWorkspaceIdSupportIssuesRouteImport } from './routes/app.workspaces.$workspaceId.support-issues'
@@ -315,6 +316,12 @@ const AppWorkspacesWorkspaceIdDashboardRoute =
     path: '/app/workspaces/$workspaceId/dashboard',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AppWorkspacesWorkspaceIdHealthSecurityRoute =
+  AppWorkspacesWorkspaceIdHealthSecurityRouteImport.update({
+    id: '/app/workspaces/$workspaceId/health-security',
+    path: '/app/workspaces/$workspaceId/health-security',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppWorkspacesWorkspaceIdRegulatorySourcesRoute =
   AppWorkspacesWorkspaceIdRegulatorySourcesRouteImport.update({
     id: '/app/workspaces/$workspaceId/regulatory-sources',
@@ -494,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
+  '/app/workspaces/$workspaceId/health-security': typeof AppWorkspacesWorkspaceIdHealthSecurityRoute
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
@@ -564,6 +572,7 @@ export interface FileRoutesByTo {
   '/app/workspaces': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
+  '/app/workspaces/$workspaceId/health-security': typeof AppWorkspacesWorkspaceIdHealthSecurityRoute
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
@@ -635,6 +644,7 @@ export interface FileRoutesById {
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
+  '/app/workspaces/$workspaceId/health-security': typeof AppWorkspacesWorkspaceIdHealthSecurityRoute
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
@@ -707,6 +717,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
+    | '/app/workspaces/$workspaceId/health-security'
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
@@ -777,6 +788,7 @@ export interface FileRouteTypes {
     | '/app/workspaces'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
+    | '/app/workspaces/$workspaceId/health-security'
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
@@ -847,6 +859,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
+    | '/app/workspaces/$workspaceId/health-security'
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
@@ -917,6 +930,7 @@ export interface RootRouteChildren {
   AppWorkspacesIndexRoute: typeof AppWorkspacesIndexRoute
   AppWorkspacesWorkspaceIdComplianceDashboardRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   AppWorkspacesWorkspaceIdDashboardRoute: typeof AppWorkspacesWorkspaceIdDashboardRoute
+  AppWorkspacesWorkspaceIdHealthSecurityRoute: typeof AppWorkspacesWorkspaceIdHealthSecurityRoute
   AppWorkspacesWorkspaceIdRegulatorySourcesRoute: typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   AppWorkspacesWorkspaceIdSupportBotRoute: typeof AppWorkspacesWorkspaceIdSupportBotRoute
   AppWorkspacesWorkspaceIdSupportIssuesRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
@@ -1271,6 +1285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/workspaces/$workspaceId/health-security': {
+      id: '/app/workspaces/$workspaceId/health-security'
+      path: '/app/workspaces/$workspaceId/health-security'
+      fullPath: '/app/workspaces/$workspaceId/health-security'
+      preLoaderRoute: typeof AppWorkspacesWorkspaceIdHealthSecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/workspaces/$workspaceId/regulatory-sources': {
       id: '/app/workspaces/$workspaceId/regulatory-sources'
       path: '/app/workspaces/$workspaceId/regulatory-sources'
@@ -1482,6 +1503,8 @@ const rootRouteChildren: RootRouteChildren = {
     AppWorkspacesWorkspaceIdComplianceDashboardRoute,
   AppWorkspacesWorkspaceIdDashboardRoute:
     AppWorkspacesWorkspaceIdDashboardRoute,
+  AppWorkspacesWorkspaceIdHealthSecurityRoute:
+    AppWorkspacesWorkspaceIdHealthSecurityRoute,
   AppWorkspacesWorkspaceIdRegulatorySourcesRoute:
     AppWorkspacesWorkspaceIdRegulatorySourcesRoute,
   AppWorkspacesWorkspaceIdSupportBotRoute:

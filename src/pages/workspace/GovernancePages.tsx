@@ -5,12 +5,93 @@ import { api, SEVERITY_STYLE, TIER_LABEL, wsPath } from '../../lib/workspaceApi'
 import { ALL_DOMAINS, GOVERNANCE_DOMAINS } from '../../lib/governanceDomains'
 import { Accordion, Badge, Button, Card, CardContent, Input, Select, Table, Tbody, Td, Th, Thead, Tabs } from '../../components/ui'
 import { EditFields, ErrorLine, Header, State, StatusPill, useAction, useApi } from './shared'
+import { activeItems, catalogueFor, HEALTH_SECURITY_LABELS, REVIEW_DOMAINS, type HealthSecurityType } from '../../lib/health-security'
+
+const CATALOGUE_TYPES = ['NPHI', 'JEE', 'JEE_SUB', 'SPAR']
+function healthSecurityDomains(a: any): { value: string; label: string }[] | null {
+  if (a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') return REVIEW_DOMAINS
+  const cat = catalogueFor(a.assessmentType)
+  return cat ? activeItems(cat, a.innovationSupport).map(i => ({ value: i.id, label: `${i.id} ${i.name}` })) : null
+}
+
+function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
+  const cat = catalogueFor(a.assessmentType)!
+  const locked = a.status !== 'draft'
+  const sections = cat.sections.filter(s => a.innovationSupport || !s.extended)
+  const [section, setSection] = useState(sections[0].id)
+  const [draft, setDraft] = useState<Record<string, { score: string; evidence: boolean; na: boolean; naReason: string }>>({})
+  const { run, error } = useAction(reload)
+  const saved = new Map<string, any>(a.scores.map((s: any) => [s.domain, s]))
+  const intro = sections.find(s => s.id === section)?.intro
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-slate-500">{cat.version} · <a className="underline" href={cat.source.url} target="_blank" rel="noreferrer">{cat.source.title}</a>{cat.evidenceCap !== null && ` · Scores without evidence count at most ${cat.evidenceCap}`} · Not applicable needs a reason.</p>
+      <label className="block max-w-xl text-sm"><span className="font-medium text-slate-700">Section</span>
+        <select className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={section} onChange={e => setSection(e.target.value)}>
+          {sections.map(s => <option key={s.id} value={s.id}>{s.name} ({cat.items.filter(i => i.sectionId === s.id && saved.has(i.id)).length}/{cat.items.filter(i => i.sectionId === s.id).length})</option>)}
+        </select></label>
+      {intro && <p className="text-sm text-slate-600">{intro}</p>}
+      {locked && <p className="rounded bg-blue-50 p-2 text-sm text-blue-700">This assessment is locked ({a.status.replace('_', ' ')}).</p>}
+      <ErrorLine error={error} />
+      {cat.items.filter(i => i.sectionId === section).map(i => {
+        const s = saved.get(i.id)
+        const d = draft[i.id] ?? { score: s && !s.notApplicable ? String(s.tierLevel) : '', evidence: !!s?.evidenceUploaded, na: !!s?.notApplicable, naReason: s?.naReason ?? '' }
+        const set = (x: Partial<typeof d>) => setDraft({ ...draft, [i.id]: { ...d, ...x } })
+        return (
+          <Card key={i.id}><CardContent className="space-y-2">
+            <p className="font-semibold text-slate-800">{i.id} · {i.name} {i.critical && <Badge className="bg-rose-100 text-rose-700">critical</Badge>}</p>
+            {i.description && <p className="text-sm text-slate-600">{i.description}</p>}
+            <fieldset disabled={locked} className="flex flex-wrap items-end gap-3">
+              {!d.na && <div className="w-64"><Select placeholder="Not scored" label="Level" value={d.score} onChange={score => set({ score })} options={cat.levels.map((l, n) => ({ value: String(n + 1), label: l }))} /></div>}
+              {!d.na && <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.evidence} onChange={e => set({ evidence: e.target.checked })} /> Evidence held</label>}
+              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>
+              {d.na && <div className="min-w-[260px] flex-1"><Input label="Reason it does not apply" value={d.naReason} onChange={e => set({ naReason: e.target.value })} /></div>}
+              <Button size="sm" disabled={d.na ? !d.naReason : !d.score} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(i.sectionId)}/${encodeURIComponent(i.id)}`), { method: 'PUT',
+                body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceUploaded: d.evidence } }))}>Save</Button>
+              {s && <StatusPill value={s.notApplicable ? 'not_applicable' : 'completed'} />}
+            </fieldset>
+          </CardContent></Card>
+        )
+      })}
+    </div>
+  )
+}
+
+function CatalogueScorecard({ workspaceId, a }: { workspaceId: string; a: any }) {
+  const sc = useApi<any>(wsPath(workspaceId, `/assessments/${a.id}/scorecard`))
+  const { run, error } = useAction()
+  if (!sc.data) return <State loading={sc.loading} error={sc.error} />
+  const d = sc.data
+  return (
+    <div className="space-y-4">
+      <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{d.catalogue.disclaimer}</p>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Overall</p><p className="text-3xl font-bold text-emerald-900">{d.overall === null ? '—' : `${d.overall}%`}</p><p className="text-sm">mean of section scores</p></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Completeness</p><p className="text-3xl font-bold text-emerald-900">{d.completeness}%</p></div>
+        {d.sdg && <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">SDG 3.d.1</p><p className="text-3xl font-bold text-emerald-900">{d.sdg.value === null ? '—' : `${d.sdg.value}%`}</p><p className="text-xs">{d.sdg.indicator}</p></div>}
+      </div>
+      <Card><CardContent><div className="h-80"><ResponsiveContainer width="100%" height="100%">
+        <BarChart data={d.sections.map((s: any) => ({ section: s.name.length > 28 ? `${s.name.slice(0, 26)}…` : s.name, percent: s.percent ?? 0 }))}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="section" tick={{ fontSize: 9 }} interval={0} angle={-25} textAnchor="end" height={90} /><YAxis domain={[0, 100]} /><Bar dataKey="percent" fill="#10b981" /></BarChart>
+      </ResponsiveContainer></div></CardContent></Card>
+      {d.critical.length > 0 && <p className="text-sm"><b>Critical items:</b> {d.critical.map((c: any) => `${c.id} ${c.effective ?? '—'}/5`).join(' · ')}</p>}
+      <h3 className="font-semibold">Priorities (levels 1–2)</h3>
+      <ErrorLine error={error} />
+      {d.priorities.length ? <Table><Thead><tr><Th>Item</Th><Th>Level</Th><Th>Action</Th></tr></Thead>
+        <Tbody>{d.priorities.map((p: any) => <tr key={p.id}><Td><b>{p.id}</b> {p.name}</Td><Td>{p.effective}/5</Td>
+          <Td><Button size="sm" variant="ghost" onClick={() => run(() => api(wsPath(workspaceId, '/cap'), { method: 'POST', body: { sourceType: 'manual', findingDescription: `${d.catalogue.id}${a.reportingPeriod ? ` ${a.reportingPeriod}` : ''} · ${p.id} ${p.name}: level ${p.effective}/5`, severity: p.effective === 1 ? 'high' : 'medium', correctiveAction: `Raise ${p.name} to at least level 3` } }))}>Raise CAP</Button></Td></tr>)}</Tbody></Table>
+        : <p className="text-sm text-slate-600">No items at level 1 or 2.</p>}
+      <p className="text-sm text-slate-600">Open findings — {Object.entries(d.findingsBySeverity).map(([k, v]) => `${k}: ${v}`).join(' · ')}</p>
+    </div>
+  )
+}
 
 export function AssessmentsListPage({ workspaceId }: { workspaceId: string }) {
   const list = useApi<any[]>(wsPath(workspaceId, '/assessments'))
   const [type, setType] = useState('G2G')
   const [reportingPeriod, setReportingPeriod] = useState('')
   const [innovationSupport, setInnovationSupport] = useState(false)
+  const [extendedScope, setExtendedScope] = useState(false)
+  const hs = useApi<any>(wsPath(workspaceId, '/health-security/catalogue'))
   const { run, error, busy } = useAction(list.reload)
   return (
     <div className="space-y-6">
@@ -18,14 +99,17 @@ export function AssessmentsListPage({ workspaceId }: { workspaceId: string }) {
       <div className="flex items-end gap-3">
         <div className="w-72"><Select label="Framework" value={type} onChange={setType} options={[
           { value: 'CRAFT', label: 'CRAFT Governance Scorecard (10 pillars)' }, ...['G2G', 'ISO', 'COSO'].map(v => ({ value: v, label: `${v} (shared domain scoring)` })),
+          ...(hs.data?.available ?? []).map((t: string) => ({ value: t, label: hs.data.labels[t] })),
         ]} /></div>
         <div className="w-40"><Input label="Reporting period" value={reportingPeriod} onChange={e => setReportingPeriod(e.target.value)} /></div>
-        <Button disabled={busy} onClick={() => run(() => api(wsPath(workspaceId, '/assessments'), { method: 'POST', body: { assessmentType: type, reportingPeriod, innovationSupport: type === 'CRAFT' && innovationSupport } }))}>New assessment</Button>
+        <Button disabled={busy} onClick={() => run(() => api(wsPath(workspaceId, '/assessments'), { method: 'POST', body: { assessmentType: type, reportingPeriod, innovationSupport: type === 'CRAFT' && innovationSupport, extendedScope: type === 'NPHI' && extendedScope } }))}>New assessment</Button>
       </div>
       {type === 'CRAFT' && <label className="flex max-w-3xl items-start gap-2 text-sm">
         <input type="checkbox" className="mt-1" checked={innovationSupport} onChange={e => setInnovationSupport(e.target.checked)} />
         <span>This institution funds or supports innovation (incubator, accelerator, startup competition, innovation funder). Adds founder-protection criteria: fair contracting, IP safeguards for every participant, accessible dispute resolution and demonstrable safeguard accountability.</span>
       </label>}
+      {type === 'NPHI' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={extendedScope} onChange={e => setExtendedScope(e.target.checked)} /> {hs.data?.catalogues.NPHI.extendedScopeLabel}</label>}
+      {hs.data && !hs.data.available.length && <p className="text-xs text-slate-500">Health-security assessments (NPHI, JEE, SPAR, subnational JEE) appear here for organisations registered as a national public health institute or a subnational government in Organization settings.</p>}
       <ErrorLine error={error} />
       <State loading={list.loading} error={list.error} />
       <Table>
@@ -180,6 +264,8 @@ function CraftScorecard({ workspaceId, a }: { workspaceId: string; a: any }) {
 
 function ScoringWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
   if (a.assessmentType === 'CRAFT') return <CraftWizard workspaceId={workspaceId} a={a} reload={reload} />
+  if (CATALOGUE_TYPES.includes(a.assessmentType)) return <CatalogueWizard workspaceId={workspaceId} a={a} reload={reload} />
+  if (a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') return <p className="rounded bg-slate-50 p-3 text-sm text-slate-700">{a.assessmentType === 'AAR' ? 'After-action reviews' : 'Simulation exercises'} record what worked and what did not as findings against the JEE technical areas. Use the Findings tab, then raise corrective actions.</p>
   return <DomainWizard workspaceId={workspaceId} a={a} reload={reload} />
 }
 
@@ -218,15 +304,16 @@ function DomainWizard({ workspaceId, a, reload }: { workspaceId: string; a: any;
 
 function FindingsTab({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
   const { criteria } = useCraftCatalogue(workspaceId, a)
-  const domains = a.assessmentType === 'CRAFT' ? criteria.map((c: any) => ({ value: c.id, label: `${c.id} ${c.name}` })) : ALL_DOMAINS.map(d => ({ value: d.domain, label: d.domain }))
-  const [f, setF] = useState({ domain: a.assessmentType === 'CRAFT' ? 'LDR-1' : ALL_DOMAINS[0].domain, severity: 'medium', description: '', sensitive: false, ownerAssignment: '', dueDate: '', recommendation: '', evidenceLink: '' })
+  const hsDomains = healthSecurityDomains(a)
+  const domains = a.assessmentType === 'CRAFT' ? criteria.map((c: any) => ({ value: c.id, label: `${c.id} ${c.name}` })) : hsDomains ?? ALL_DOMAINS.map(d => ({ value: d.domain, label: d.domain }))
+  const [f, setF] = useState({ domain: a.assessmentType === 'CRAFT' ? 'LDR-1' : hsDomains?.[0].value ?? ALL_DOMAINS[0].domain, severity: 'medium', description: '', sensitive: false, ownerAssignment: '', dueDate: '', recommendation: '', evidenceLink: '' })
   const { run, error } = useAction(reload)
   const locked = a.status === 'approved'
   return (
     <div className="space-y-4">
       {!locked && (
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-60"><Select label={a.assessmentType === 'CRAFT' ? 'Criterion' : 'Domain'} value={f.domain} onChange={domain => setF({ ...f, domain })} options={domains} /></div>
+          <div className="w-60"><Select label={a.assessmentType === 'CRAFT' || hsDomains ? 'Criterion / area' : 'Domain'} value={f.domain} onChange={domain => setF({ ...f, domain })} options={domains} /></div>
           <div className="w-36"><Select label="Severity" value={f.severity} onChange={severity => setF({ ...f, severity })} options={['critical', 'high', 'medium', 'low'].map(v => ({ value: v, label: v }))} /></div>
           <div className="min-w-[240px] flex-1"><Input label="Description" value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></div>
           <Input label="Owner assignment" value={f.ownerAssignment} onChange={e => setF({ ...f, ownerAssignment: e.target.value })} />
@@ -296,8 +383,8 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
   const act = (what: string) => run(() => api(wsPath(workspaceId, `/assessments/${assessmentId}/${what}`), { method: 'POST', body: { comments } }))
   return (
     <div className="space-y-6">
-      <Header title={d.assessmentType === 'CRAFT' ? `CRAFT Governance Scorecard v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}` : `${d.assessmentType} assessment v${d.version}`}
-        subtitle={d.assessmentType === 'CRAFT' ? 'Ten-pillar CRAFT methodology (CRAFT-GS 1.0). Not a certification, credit rating, assurance opinion or official score of any governance code.' : 'Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification.'} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
+      <Header title={d.assessmentType === 'CRAFT' ? `CRAFT Governance Scorecard v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}` : `${HEALTH_SECURITY_LABELS[d.assessmentType as HealthSecurityType] ?? `${d.assessmentType} assessment`} v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}`}
+        subtitle={d.assessmentType === 'CRAFT' ? 'Ten-pillar CRAFT methodology (CRAFT-GS 1.0). Not a certification, credit rating, assurance opinion or official score of any governance code.' : catalogueFor(d.assessmentType)?.disclaimer ?? (d.assessmentType === 'AAR' || d.assessmentType === 'SIMEX' ? 'IHR Monitoring and Evaluation Framework: findings by JEE technical area.' : 'Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification.')} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <ErrorLine error={error} />
       {tab === 'overview' && (
@@ -310,7 +397,7 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
       )}
       {tab === 'wizard' && <ScoringWizard workspaceId={workspaceId} a={d} reload={a.reload} />}
       {tab === 'findings' && <FindingsTab workspaceId={workspaceId} a={d} reload={a.reload} />}
-      {tab === 'scorecard' && (d.assessmentType === 'CRAFT' ? <CraftScorecard workspaceId={workspaceId} a={d} /> : <ScorecardTab workspaceId={workspaceId} assessmentId={assessmentId} />)}
+      {tab === 'scorecard' && (d.assessmentType === 'CRAFT' ? <CraftScorecard workspaceId={workspaceId} a={d} /> : CATALOGUE_TYPES.includes(d.assessmentType) ? <CatalogueScorecard workspaceId={workspaceId} a={d} /> : d.assessmentType === 'AAR' || d.assessmentType === 'SIMEX' ? <p className="text-sm text-slate-600">{d.findingsCount} finding(s) recorded. See the Findings tab.</p> : <ScorecardTab workspaceId={workspaceId} assessmentId={assessmentId} />)}
       {tab === 'review' && (
         <Card><CardContent className="space-y-3">
           <p className="text-sm text-slate-600">Status: <StatusPill value={d.status} />. Edits are locked while in review. Approval requires the admin role and a reviewer other than the creator.</p>
