@@ -58,6 +58,67 @@ export function EsgRequirementsPage({ workspaceId }: { workspaceId: string }) {
   )
 }
 
+function Dependencies({ plan, items, save }: { plan: any; items: any[]; save: (ids: number[]) => void }) {
+  const [sel, setSel] = useState<number[]>(plan.dependsOn ?? [])
+  const others = items.filter(i => i.planId !== plan.id)
+  const changed = [...sel].sort().join(',') !== [...(plan.dependsOn ?? [])].sort().join(',')
+  return (
+    <Card><CardContent className="space-y-2">
+      <h2 className="font-semibold">Depends on</h2>
+      <p className="text-xs text-slate-500">This work cannot finish until the selected items are complete. Cycles are refused.</p>
+      {!others.length && <p className="text-sm text-slate-500">No other plans yet.</p>}
+      <div className="max-h-64 space-y-1 overflow-y-auto">{others.map(i => (
+        <label key={i.planId} className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={sel.includes(i.planId)}
+          onChange={e => setSel(e.target.checked ? [...sel, i.planId] : sel.filter(x => x !== i.planId))} /> <span><b>{i.requirementId}</b> {i.text}</span></label>))}</div>
+      <Button size="sm" disabled={!changed} onClick={() => save(sel)}>Save dependencies</Button>
+    </CardContent></Card>
+  )
+}
+
+const money = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 })
+
+function DependencyGraph({ items, critical }: { items: any[]; critical: number[] }) {
+  const byId = new Map(items.map(i => [i.planId, i]))
+  const depth = new Map<number, number>()
+  const visit = (id: number, guard: Set<number>): number => {
+    if (depth.has(id)) return depth.get(id)!
+    if (guard.has(id)) return 0
+    guard.add(id)
+    const ds = (byId.get(id)?.dependsOn ?? []).filter((d: number) => byId.has(d))
+    const v = ds.length ? Math.max(...ds.map((d: number) => visit(d, guard) + 1)) : 0
+    depth.set(id, v); return v
+  }
+  items.forEach(i => visit(i.planId, new Set()))
+  const linked = items.filter(i => i.dependsOn?.length || items.some(o => o.dependsOn?.includes(i.planId)))
+  if (!linked.length) return <p className="text-sm text-slate-500">No dependencies recorded yet. Add them on each plan’s page.</p>
+  const cols = new Map<number, any[]>()
+  for (const i of linked) cols.set(depth.get(i.planId)!, [...(cols.get(depth.get(i.planId)!) ?? []), i])
+  const W = 170, H = 44, GX = 60, GY = 16
+  const pos = new Map<number, { x: number; y: number }>()
+  for (const [c, list] of cols) list.forEach((i, r) => pos.set(i.planId, { x: c * (W + GX), y: r * (H + GY) }))
+  const width = (Math.max(...cols.keys()) + 1) * (W + GX), height = Math.max(...[...cols.values()].map(l => l.length)) * (H + GY)
+  const color = (s: string) => (s === 'completed' ? '#10b981' : s === 'in_progress' ? '#f59e0b' : '#94a3b8')
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-3">
+      <svg width={width} height={height} role="img" aria-label="Dependency graph">
+        <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#64748b" /></marker></defs>
+        {linked.flatMap(i => (i.dependsOn ?? []).filter((d: number) => pos.has(d)).map((d: number) => {
+          const a = pos.get(d)!, b = pos.get(i.planId)!
+          const crit = critical.includes(d) && critical.includes(i.planId)
+          return <line key={`${d}-${i.planId}`} x1={a.x + W} y1={a.y + H / 2} x2={b.x - 2} y2={b.y + H / 2} stroke={crit ? '#e11d48' : '#64748b'} strokeWidth={crit ? 2.5 : 1.2} markerEnd="url(#arrow)" />
+        }))}
+        {linked.map(i => { const p = pos.get(i.planId)!; return (
+          <g key={i.planId} transform={`translate(${p.x},${p.y})`}>
+            <rect width={W} height={H} rx={6} fill="white" stroke={critical.includes(i.planId) ? '#e11d48' : color(i.status)} strokeWidth={critical.includes(i.planId) ? 2.5 : 1.5} />
+            <text x={8} y={18} fontSize={12} fontWeight={600}>{i.requirementId}</text>
+            <text x={8} y={34} fontSize={10} fill="#475569">{(i.workstream || 'Unassigned').slice(0, 26)} · {i.status.replace('_', ' ')}</text>
+          </g>) })}
+      </svg>
+      <p className="mt-1 text-xs text-slate-500">Arrows point from a prerequisite to the work that depends on it. Red marks the critical path.</p>
+    </div>
+  )
+}
+
 export function EsgRoadmapPage({ workspaceId }: { workspaceId: string }) {
   const rm = useApi<any>(wsPath(workspaceId, '/esg-roadmap'))
   const items: any[] = rm.data?.items ?? []
@@ -69,6 +130,19 @@ export function EsgRoadmapPage({ workspaceId }: { workspaceId: string }) {
       <Header title="ESG roadmap" back={dash(workspaceId)} />
       <State loading={rm.loading} error={rm.error} />
       <div className="grid gap-3 md:grid-cols-3">{Object.entries(rm.data?.byCategory ?? {}).map(([k, v]: any) => <Tile key={k} label={`${k} (${v.total})`} value={`${v.percent}%`} />)}</div>
+      {rm.data?.analysis && (() => { const a = rm.data.analysis; const label = (id: number) => items.find(i => i.planId === id)?.requirementId ?? id; return <>
+        <h2 className="text-lg font-semibold">Workstreams and budget</h2>
+        <Table><Thead><tr><Th>Workstream</Th><Th>Items</Th><Th>Complete</Th><Th>Budget</Th><Th>Actual</Th><Th>Variance</Th></tr></Thead>
+          <Tbody>{a.workstreams.map((w: any) => <tr key={w.name}><Td>{w.name}</Td><Td>{w.tasks}</Td><Td>{w.percent}%</Td>
+            <Td>{money(w.budgetEstimate)} {w.currencies.join('/')}</Td><Td>{money(w.budgetActual)}</Td>
+            <Td className={w.variance > 0 ? 'text-rose-700' : ''}>{money(w.variance)}{w.currencies.length > 1 && <span className="text-xs text-amber-700"> (mixed currencies)</span>}</Td></tr>)}</Tbody></Table>
+        {a.totals.length > 0 && <p className="text-sm">Totals: {a.totals.map((t: any) => `${t.currency} ${money(t.estimate)} budget, ${money(t.actual)} spent (${t.variance > 0 ? 'over' : 'under'} by ${money(Math.abs(t.variance))})`).join(' · ')}{a.unbudgeted > 0 && ` · ${a.unbudgeted} item(s) without a budget`}</p>}
+        <h2 className="text-lg font-semibold">Dependencies</h2>
+        <p className="text-sm">Critical path ({a.criticalPath.days} days): {a.criticalPath.taskIds.map(label).join(' → ') || '—'}</p>
+        {a.blocked.length > 0 && <p role="alert" className="rounded bg-amber-50 p-2 text-sm text-amber-800">Blocked: {a.blocked.map((b: any) => `${label(b.taskId)} is in progress but waits on ${b.waitingOn.map(label).join(', ')}`).join('; ')}</p>}
+        {a.conflicts.length > 0 && <ul className="list-disc pl-5 text-sm text-rose-700">{a.conflicts.map((c: any) => <li key={`${c.taskId}-${c.dependsOn}`}>Schedule conflict: {c.message}</li>)}</ul>}
+        <DependencyGraph items={items} critical={a.criticalPath.taskIds} />
+      </> })()}
       <div className="space-y-2">{items.map(i => {
         const start = i.start ? new Date(i.start).getTime() : min
         const end = new Date(i.end ?? i.deadline ?? start).getTime()
@@ -102,7 +176,12 @@ export function EsgPlanPage({ workspaceId, requirementId }: { workspaceId: strin
         { name: 'owner', label: 'Owner' },
         { name: 'timelineStart', label: 'Timeline start', type: 'date' }, { name: 'timelineEnd', label: 'Timeline end', type: 'date' },
         { name: 'evidenceCount', label: 'Evidence count (manual inventory)', type: 'number' },
+        { name: 'workstream', label: 'Workstream (e.g. Governance, Data and systems, Climate risk)' },
+        { name: 'budgetEstimate', label: 'Budget estimate', type: 'number' }, { name: 'budgetActual', label: 'Actual spend to date', type: 'number' },
+        { name: 'budgetCurrency', label: 'Currency (ISO code, e.g. NGN, KES, USD)' },
       ]} save={async body => { await api(wsPath(workspaceId, `/esg-plans/${plan.id}`), { method: 'PUT', body }); await rm.reload(); await roadmap.reload() }} />
+      {roadmap.data && <Dependencies key={`deps-${plan.id}-${(plan.dependsOn ?? []).join(',')}`} plan={plan} items={roadmap.data.items}
+        save={dependsOn => update({ dependsOn })} />}
       <State loading={roadmap.loading} error={roadmap.error} />
       {roadmap.data?.items?.find((i: any) => i.planId === plan.id)?.milestones?.map((m: any) => <Card key={m.id}><CardContent className="space-y-3">
         <h2 className="font-semibold">Milestone {m.milestoneNum}</h2>
