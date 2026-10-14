@@ -63,7 +63,7 @@ describe('health-security assessments', () => {
 
   it('lets subnational governments self-assess with the subnational JEE only', async () => {
     expectStatus(await as(OWNER).put(`/orgs/${orgId}`, { type: 'subnational' }), 200)
-    assert.deepEqual(expectStatus(await as(VIEWER).get(`${P()}/health-security/catalogue`), 200).body.available, ['JEE_SUB', 'AAR', 'SIMEX'])
+    assert.deepEqual(expectStatus(await as(VIEWER).get(`${P()}/health-security/catalogue`), 200).body.available, ['PSP', 'JEE_SUB', 'AAR', 'SIMEX'])
     assert.equal((await create('SPAR')).status, 403)
     assert.equal((await create('NPHI')).status, 403)
     const s = expectStatus(await create('JEE_SUB', { reportingPeriod: 'Kano State 2026' }), 201).body.id
@@ -72,5 +72,21 @@ describe('health-security assessments', () => {
     const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${s}/scorecard`), 200).body
     assert.equal(sc.sections.find((x: any) => x.id === 'sub').percent, 60)
     assert.equal(sc.sections.find((x: any) => x.id === 'other').total, 2, 'PoE excluded as not applicable')
+  })
+
+  it('offers the public-sector performance assessment to public bodies only', async () => {
+    const denied = await create('PSP')
+    assert.equal(denied.status, 403)
+    assert.match(denied.body.error, /government body/)
+    expectStatus(await as(OWNER).put(`/orgs/${orgId}`, { type: 'government' }), 200)
+    assert.deepEqual(expectStatus(await as(VIEWER).get(`${P()}/health-security/catalogue`), 200).body.available, ['PSP'])
+    assert.equal((await create('SPAR')).status, 403, 'a ministry is not an NPHI')
+    const psp = expectStatus(await create('PSP', { reportingPeriod: 'FY2026' }), 201).body.id
+    expectStatus(await score(psp, 'pfm', 'PEFA7', { score: 4, evidenceUploaded: true }), 200)
+    expectStatus(await score(psp, 'eval', 'DAC2', { score: 3, evidenceUploaded: true }), 200)
+    assert.equal((await score(psp, 'pfm', 'DAC1', { score: 3 })).status, 400)
+    const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${psp}/scorecard`), 200).body
+    assert.equal(sc.sections.find((x: any) => x.id === 'pfm').percent, 80)
+    assert.equal(sc.overall, 70)
   })
 })

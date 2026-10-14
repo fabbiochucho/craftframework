@@ -38,4 +38,11 @@ test('NPHI runs a SPAR self-assessment and sees the health-security overview', a
   await page.getByRole('main').getByRole('link', { name: 'Health security (NPHI, JEE, SPAR, IHR)' }).click()
   await expect(page.getByRole('cell', { name: 'Legal instruments' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '80%' })).toBeVisible()
+
+  // Framework mapping: the SPAR average contributes to SDG 3.d.
+  await page.goto(dashboard)
+  await page.getByRole('main').getByRole('link', { name: 'Framework mapping (SDGs, Agenda 2063, APRM)' }).click()
+  await page.getByLabel('SDG goal').selectOption('3')
+  await expect(page.getByRole('cell', { name: 'SPAR average (SDG indicator 3.d.1)' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: /Leadership, Board Effectiveness/ })).toHaveCount(0)
 })
