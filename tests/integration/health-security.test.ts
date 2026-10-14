@@ -48,8 +48,8 @@ describe('health-security assessments', () => {
     expectStatus(await score(spar, 'C3', 'C3.1', { score: 5 }), 200)
     const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${spar}/scorecard`), 200).body
     assert.equal(sc.sections.find((s: any) => s.id === 'C1').percent, 70)
-    assert.equal(sc.overall, 85)
-    assert.equal(sc.sdg.value, 85)
+    assert.equal(sc.overall, 8, 'WHO method: unanswered indicators count as zero')
+    assert.equal(sc.sdg.value, 8)
 
     // NPHI with the Centre of Excellence scope; evidence cap of 2.
     const plain = expectStatus(await create('NPHI'), 201).body.id
