@@ -21,8 +21,9 @@ test('org design review diagnoses structure and produces the organisational anal
     await page.getByRole('group', { name: new RegExp(name) }).getByText('5', { exact: true }).click()
   }
   await page.getByRole('button', { name: 'Save section' }).click()
+  await expect(page.getByText('Unsaved changes')).toHaveCount(0)
   const diag = page.getByRole('complementary', { name: 'Diagnosis' })
-  await expect(diag.getByText('Professional bureaucracy', { exact: true })).toBeVisible()
+  await expect(diag.locator('b', { hasText: 'Professional bureaucracy' })).toBeVisible()
 
   await page.getByRole('button', { name: /7\. Design evaluation/ }).click()
   await page.getByLabel(/People test: Does the design reflect/).selectOption('fail')

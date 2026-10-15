@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { section11Disclosures } from '../../db/schema.js'
-import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // /api/section11 — persisted verification state for the Section 11 Vault
@@ -15,6 +15,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       const orgId = new URL(req.url).searchParams.get('orgId')

@@ -67,25 +67,31 @@ export function OrgDesignPage({ workspaceId, reviewId }: { workspaceId: string; 
               {s.id !== 'rubric' && <span className="text-xs text-slate-500">{pct(s.id)}%</span>}
             </button>))}
         </nav>
-        <SectionForm key={`${tab}-${r.updatedAt}`} section={section} values={r.data?.[tab] ?? {}} disabled={frozen}
-          save={values => run(() => api(wsPath(workspaceId, `/org-design/${reviewId}/sections/${tab}`), { method: 'PUT', body: values }))} busy={busy} />
+        <SectionForm key={tab} section={section} values={r.data?.[tab] ?? {}} disabled={frozen}
+          save={values => api(wsPath(workspaceId, `/org-design/${reviewId}/sections/${tab}`), { method: 'PUT', body: values })} onSaved={rv.reload} />
         <DiagnosisPanel d={d} />
       </div>
     </div>
   )
 }
 
-function SectionForm({ section, values, disabled, save, busy }: { section: Section; values: Record<string, any>; disabled: boolean; busy: boolean; save: (v: Record<string, unknown>) => void }) {
+function SectionForm({ section, values, disabled, save, onSaved }: { section: Section; values: Record<string, any>; disabled: boolean; save: (v: Record<string, unknown>) => Promise<unknown>; onSaved: () => void | Promise<void> }) {
   const [v, setV] = useState<Record<string, any>>(values)
   const [dirty, setDirty] = useState(false)
+  const { run, error, busy } = useAction(onSaved)
   const set = (k: string, x: unknown) => { setV({ ...v, [k]: x }); setDirty(true) }
-  const submit = () => save(Object.fromEntries(section.fields.filter(f => f.key in v).map(f => [f.key, v[f.key] === '' ? null : v[f.key]])))
+  // Clear the unsaved flag only when the save succeeds; edits stay in place either way.
+  const submit = () => run(async () => {
+    await save(Object.fromEntries(section.fields.filter(f => f.key in v).map(f => [f.key, v[f.key] === '' ? null : v[f.key]])))
+    setDirty(false)
+  })
   return (
     <Card><CardContent className="space-y-4">
       <div><h2 className="text-lg font-semibold">{section.title}</h2><p className="text-sm text-slate-600">{section.intro}</p>
         {section.suggestedWords && <p className="text-xs text-slate-500">Suggested length in the report: {section.suggestedWords[0]}–{section.suggestedWords[1]} words.</p>}</div>
       {section.id === 'tests' && <p className="rounded bg-slate-50 p-2 text-xs text-slate-600">Fit tests: market advantage, parenting advantage, people, feasibility. Good-design tests: specialist cultures, difficult links, redundant hierarchy, accountability, flexibility.</p>}
       {section.fields.map(f => <FieldInput key={f.key} field={f} value={v[f.key]} onChange={x => set(f.key, x)} disabled={disabled} />)}
+      <ErrorLine error={error} />
       {!disabled && <div className="sticky bottom-0 flex gap-2 bg-white py-2"><Button disabled={busy || !dirty} onClick={submit}>Save section</Button>{dirty && <span className="self-center text-xs text-amber-700">Unsaved changes</span>}</div>}
     </CardContent></Card>
   )

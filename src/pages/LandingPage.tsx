@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
   Shield, ArrowRight, FileSpreadsheet, MapPinned, FileWarning, EyeOff,
   CheckCircle2, Fingerprint, Globe2, Eye, Network,
-  Landmark, HeartHandshake, Building2,
+  Landmark, HeartHandshake, Building2, Gauge,
 } from 'lucide-react'
 import { Button, Reveal } from '../components/ui'
 import { BRAND, BLINDSPOTS, LIFECYCLE, PANAFRICAN_BADGES, ARCHETYPES } from '../lib/data'
@@ -47,17 +47,21 @@ export function LandingPage() {
             {BRAND.tagline}
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-4">
-            <Link to="/auth">
+            <Link to="/pre-assessment">
               <Button size="lg">
+                <Gauge className="h-5 w-5" /> Take the 2-minute Readiness Check
+              </Button>
+            </Link>
+            <Link to="/auth">
+              <Button size="lg" variant="outline">
                 <Shield className="h-5 w-5" /> Register Your Institution
               </Button>
             </Link>
-            <Link to="/methodology">
-              <Button size="lg" variant="ghost" className="text-emerald-700 hover:bg-emerald-50">
-                Explore the Methodology <ArrowRight className="h-4 w-4" />
-              </Button>
+            <Link to="/methodology" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:underline">
+              Explore the Methodology <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
+          <p className="mt-3 text-sm text-slate-500">Free, no sign-up: ten questions, an instant readiness band and the next steps for your institution.</p>
           <p className="mt-8 font-mono text-xs uppercase tracking-widest text-slate-400">
             {BRAND.product} · {BRAND.framework}
           </p>
@@ -95,6 +99,16 @@ export function LandingPage() {
       </section>
 
       {/* Organizational archetypes */}
+      <section className="mx-auto max-w-7xl px-6 pb-12">
+        <div className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 sm:flex-row sm:items-center">
+          <div>
+            <p className="font-display text-xl font-bold text-emerald-900">Not sure where your institution stands?</p>
+            <p className="text-sm text-slate-600">The 2-minute Readiness Check gives an instant band and your first three priorities.</p>
+          </div>
+          <Link to="/pre-assessment"><Button><Gauge className="h-4 w-4" /> Start the Readiness Check</Button></Link>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-7xl px-6 pb-4">
         <Reveal>
           <p className="text-sm font-semibold uppercase tracking-wider text-emerald-600">One framework, three institutional realities</p>
@@ -226,6 +240,8 @@ export function LandingPage() {
         </div>
       </section>
 
+      <ForAudiences />
+
       {/* CTA */}
       <section className="bg-emerald-600">
         <div className="mx-auto max-w-7xl px-6 py-16 text-center">
@@ -233,13 +249,43 @@ export function LandingPage() {
           <p className="mx-auto mt-3 max-w-xl text-emerald-100">
             Register your institution and run your first readiness assessment in minutes.
           </p>
-          <Link to="/auth" className="mt-8 inline-block">
-            <Button size="lg" className="bg-white text-emerald-700 hover:bg-slate-100 focus:ring-white">
-              Register Your Institution <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link to="/pre-assessment">
+              <Button size="lg" className="bg-white text-emerald-700 hover:bg-slate-100 focus:ring-white">
+                Take the Readiness Check <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Link to="/auth">
+              <Button size="lg" variant="outline" className="border-white text-white hover:bg-emerald-700">
+                Register Your Institution
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
     </div>
+  )
+}
+
+const AUDIENCES = [
+  { to: '/for/public-health-institutes', title: 'National public health institutes', body: 'NPHI development (Africa CDC), WHO JEE and SPAR, after-action reviews and a crosswalk across all three.' },
+  { to: '/for/government', title: 'Government and public bodies', body: 'APRM areas, national performance contracts, PEFA public finance pillars, OECD-DAC evaluation and SDG / Agenda 2063 alignment.' },
+  { to: '/for/esg-reporting', title: 'ESG reporting in 54 African countries', body: 'IFRS S1/S2 readiness, exchange and regulator rules for every African country, and a report quality checklist.' },
+] as const
+
+function ForAudiences() {
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-16">
+      <h2 className="font-display text-3xl font-bold text-emerald-900">Built for your institution</h2>
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        {AUDIENCES.map(a => (
+          <Link key={a.to} to={a.to} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-emerald-400 hover:shadow-md">
+            <h3 className="font-display text-lg font-bold text-emerald-900">{a.title}</h3>
+            <p className="mt-2 text-sm text-slate-600">{a.body}</p>
+            <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 group-hover:underline">Learn more <ArrowRight className="h-4 w-4" /></span>
+          </Link>
+        ))}
+      </div>
+    </section>
   )
 }
