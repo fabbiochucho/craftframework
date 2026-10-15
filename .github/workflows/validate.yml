@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: 22.23.3
           cache: npm
+      # Match Dependabot's npm 11: npm 10 also wants waddler's optional
+      # @electric-sql/pglite peer, which npm 11 lockfiles leave out.
+      - run: npm install -g npm@11.16.0
       - run: npm ci
       # npm scripts resolve the lockfile-pinned Deno before Netlify's downloader,
       # whose fallback (2.2.4) cannot accept edge-functions-dev's --allow-scripts.
@@ -66,6 +69,9 @@ jobs:
         with:
           node-version: 22.23.3
           cache: npm
+      # Match Dependabot's npm 11: npm 10 also wants waddler's optional
+      # @electric-sql/pglite peer, which npm 11 lockfiles leave out.
+      - run: npm install -g npm@11.16.0
       - run: npm ci --ignore-scripts
       # Gate on what ships. The remaining high advisories (braces, node-forge,
       # sharp) only arrive via @netlify/vite-plugin-tanstack-start's local-dev
