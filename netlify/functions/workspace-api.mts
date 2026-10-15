@@ -10,7 +10,7 @@ import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
-  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks,
+  supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks, userMfa,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
@@ -37,7 +37,16 @@ import {
   NINE_TESTS, ORG_DESIGN_VERSION, RUBRIC, RUBRIC_PASS, SECTIONS as ORG_SECTIONS, type OrgData,
 } from '../../src/lib/org-design.js'
 import { renderOrgDoc } from '../lib/org-design-report.js'
+import { renderSVG } from 'uqr'
 import { analysePlan, findCycle, type PlanTask } from '../../src/lib/plan-graph.js'
+import { nphiForEmail } from '../../src/lib/nphi-registry.js'
+import { escalationFor, ESCALATION_LEVELS, findDuplicateGroups, maxSeverity } from '../lib/cap-tools.js'
+import {
+  generateRecoveryCodes, generateSecret, hashRecoveryCode, MFA_COOKIE, MFA_SESSION_HOURS, mfaCookieHeader, mfaSessionKey, mfaUserKey, otpauthUri,
+  readCookie, signMfaSession, verifyMfaSession, verifyTotp,
+} from '../lib/mfa.js'
+import { exportResponse } from '../lib/export-formats.js'
+import { catalogueScorecardDoc, craftScorecardDoc, domainScorecardDoc, planExportDoc, qaExportDoc, roadmapExportDoc } from '../lib/export-docs.js'
 import {
   catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
   isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
@@ -333,6 +342,41 @@ function intParam(v: string): number {
 }
 const json = (data: unknown, status = 200) => Response.json(data, { status })
 
+// --- Multi-factor sign-in ---------------------------------------------------------------------------
+async function loadMfa(email: string) {
+  const [row] = await db.select().from(userMfa).where(eq(userMfa.userKey, mfaUserKey(email)))
+  return row ?? null
+}
+const mfaVerified = (req: Request, email: string) => verifyMfaSession(readCookie(req.headers.get('cookie'), MFA_COOKIE), email, Date.now(), mfaSessionKey())
+function withMfaSession(res: Response, email: string): Response {
+  const token = signMfaSession(email, Date.now() + MFA_SESSION_HOURS * 3_600_000, mfaSessionKey())
+  res.headers.append('Set-Cookie', mfaCookieHeader(token, MFA_SESSION_HOURS * 3600))
+  return res
+}
+// Account-level security events go to the platform audit log (category Auth).
+async function auditUser(_c: Ctx, email: string, details: { mfa: string }) {
+  await db.insert(auditLogs).values({ actor: email, action: `multi-factor sign-in ${details.mfa.replace(/_/g, ' ')}`, target: 'account', category: 'Auth' })
+}
+
+/** Checks a TOTP or recovery code for an enabled user; records the step or burns the recovery code. */
+async function checkSecondFactor(c: Ctx, row: typeof userMfa.$inferSelect, email: string): Promise<'totp' | 'recovery'> {
+  const now = Date.now()
+  if (isRateLimitedCount(await incrementRateLimit(`mfa:${email}`, now), 10)) throw new HttpError(429, 'Too many attempts; wait a minute and try again')
+  if (typeof c.body.code === 'string' && c.body.code.trim()) {
+    const step = verifyTotp(decryptField(row.secret!), c.body.code, now, row.lastStep)
+    if (step === null) throw new HttpError(401, 'Invalid or already used code')
+    await db.update(userMfa).set({ lastStep: step, updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    return 'totp'
+  }
+  if (typeof c.body.recoveryCode === 'string' && c.body.recoveryCode.trim()) {
+    const h = hashRecoveryCode(c.body.recoveryCode)
+    if (!row.recoveryCodes.includes(h)) throw new HttpError(401, 'Invalid or already used recovery code')
+    await db.update(userMfa).set({ recoveryCodes: row.recoveryCodes.filter((x) => x !== h), updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    return 'recovery'
+  }
+  throw bad('code or recoveryCode required')
+}
+
 async function audit(
   c: Ctx, orgId: number, wsId: number | null, resourceType: string, resourceId: string | number | null,
   action: 'create' | 'read' | 'update' | 'delete', details: Record<string, unknown> = {},
@@ -477,6 +521,16 @@ async function ensureEsgCatalogue(orgId: number, wsId: number) {
 // unlock the health-security assessments (src/lib/health-security.ts).
 const ORG_TYPES = ['government', 'ngo', 'private', 'nphi', 'subnational'] as const
 
+// Setting an organisation's type to NPHI: verified straight away when the admin's email is on a
+// registered NPHI domain, otherwise queued for a platform operator. Other types need no verification.
+function typeVerificationFor(type: string, email: string) {
+  if (type !== 'nphi') return { typeVerification: 'not_required', typeVerificationMethod: null, typeVerifiedBy: null, typeVerifiedAt: null, typeVerificationNote: '' }
+  const match = nphiForEmail(email)
+  return match
+    ? { typeVerification: 'verified', typeVerificationMethod: 'email_domain', typeVerifiedBy: `system:${match.matchedDomain}`, typeVerifiedAt: new Date(), typeVerificationNote: `Admin email on the registered domain of ${match.name}` }
+    : { typeVerification: 'pending', typeVerificationMethod: null, typeVerifiedBy: null, typeVerifiedAt: null, typeVerificationNote: `Requested by ${email}` }
+}
+
 function catalogueResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean; naReason: string }[]): Responses {
   return Object.fromEntries(scores.map((s) => [s.domain, { score: s.notApplicable ? null : s.tierLevel, evidence: s.evidenceUploaded, notApplicable: s.notApplicable, naReason: s.naReason }]))
 }
@@ -573,7 +627,7 @@ function declaredDocumentKind(v: unknown): string | null {
 // Root cause, expected outcome, resources, dependencies and residual risk on a CAP.
 function capDetailFields(body: Record<string, any>) {
   const out: Record<string, string> = {}
-  for (const k of ['rootCause', 'expectedOutcome', 'resources', 'dependencies', 'residualRisk'] as const) {
+  for (const k of ['rootCause', 'expectedOutcome', 'resources', 'dependencies', 'residualRisk', 'immediateCorrection', 'preventiveAction'] as const) {
     if (body[k] !== undefined) out[k] = str(body[k], k, 4000, false)
   }
   return out
@@ -585,15 +639,87 @@ async function loadSecPlan(orgId: number, wsId: number) {
   const reqs = await db.select().from(esgRequirements).where(and(eq(esgRequirements.orgId, orgId), eq(esgRequirements.frameworkId, fw.id))).orderBy(asc(esgRequirements.requirementId))
   const plans = reqs.length ? await db.select().from(esgImplementationPlans).where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId), inArray(esgImplementationPlans.requirementId, reqs.map((r) => r.id)))) : []
   const ms = plans.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, plans.map((p) => p.id)))).orderBy(asc(esgMilestones.milestoneNum)) : []
-  const rows: (PlanRow & { requirementDbId: number; planId: number | null })[] = reqs.map((r) => {
+  const rows: (PlanRow & { requirementDbId: number; planId: number | null; workstream: string; dependsOn: number[]; budgetEstimate: number | null; budgetActual: number | null; budgetCurrency: string })[] = reqs.map((r) => {
     const p = plans.find((x) => x.requirementId === r.id)
     return {
       requirementDbId: r.id, planId: p?.id ?? null, requirementId: r.requirementId, requirementText: r.requirementText,
       owner: p?.owner ?? null, status: p?.status ?? 'not_started', timelineStart: p?.timelineStart ?? null, timelineEnd: p?.timelineEnd ?? null,
+      workstream: p?.workstream ?? '', dependsOn: p?.dependsOn ?? [], budgetEstimate: p?.budgetEstimate == null ? null : Number(p.budgetEstimate),
+      budgetActual: p?.budgetActual == null ? null : Number(p.budgetActual), budgetCurrency: p?.budgetCurrency ?? '',
       milestones: p ? ms.filter((m) => m.planId === p.id).map((m) => ({ milestoneNum: m.milestoneNum, description: m.description, targetDate: m.targetDate, status: m.status, completionEvidenceLink: m.completionEvidenceLink })) : [],
     }
   })
   return { fw, rows, settings: fw.settings as Partial<PlanSettings> }
+}
+
+async function scorecardData(orgId: number, a: typeof governanceAssessments.$inferSelect) {
+    const [scores, findings] = await Promise.all([
+      db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
+      db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
+    ])
+    if (a.assessmentType === 'CRAFT') {
+      const { findingsBySeverity } = buildScorecard([], findings)
+      const opts = { innovationSupport: a.innovationSupport }
+      const responses = craftResponses(scores)
+      const vals = await db.select().from(governanceValidations).where(and(eq(governanceValidations.orgId, orgId), eq(governanceValidations.assessmentId, a.id))).orderBy(asc(governanceValidations.id))
+      const validations = vals.map((v) => ({ ...v, ...validationDelta(responses, v.scores as ValidatorScores, opts) }))
+      return ({ assessment: a, findingsBySeverity, validations, ...craftScorecard(responses, undefined, opts) })
+    }
+    const cat = catalogueByType(a.assessmentType)
+    if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
+      const { findingsBySeverity } = buildScorecard([], findings)
+      return ({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
+    }
+    return ({ assessment: a, ...buildScorecard(scores, findings) })
+}
+
+async function buildRoadmap(orgId: number, wsId: number) {
+    const rows = await db.select({ plan: esgImplementationPlans, req: esgRequirements }).from(esgImplementationPlans)
+      .innerJoin(esgRequirements, eq(esgRequirements.id, esgImplementationPlans.requirementId))
+      .where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId)))
+    const planIds = rows.map((r) => r.plan.id)
+    const ms = planIds.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, planIds))) : []
+    const money = (v: string | null) => (v === null ? null : Number(v))
+    const items = rows.map(({ plan, req }) => {
+      const mine = ms.filter((m) => m.planId === plan.id)
+      const done = mine.filter((m) => m.status === 'completed').length
+      return {
+        planId: plan.id, requirementId: req.requirementId, text: req.requirementText, category: req.category,
+        deadline: req.implementationDeadline, start: plan.timelineStart, end: plan.timelineEnd, status: plan.status,
+        workstream: plan.workstream, dependsOn: plan.dependsOn, budgetEstimate: money(plan.budgetEstimate), budgetActual: money(plan.budgetActual), budgetCurrency: plan.budgetCurrency,
+        milestones: mine, percentComplete: plan.status === 'completed' ? 100 : mine.length ? Math.round((done / mine.length) * 100) : 0,
+      }
+    }).sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'))
+    const byCategory: Record<string, { total: number; percent: number }> = {}
+    for (const i of items) {
+      const e = (byCategory[i.category] ??= { total: 0, percent: 0 })
+      e.total++
+      e.percent += i.percentComplete
+    }
+    for (const e of Object.values(byCategory)) e.percent = Math.round(e.percent / e.total)
+    const analysis = analysePlan(items.map((i): PlanTask => ({ id: i.planId, label: i.requirementId, workstream: i.workstream, status: i.status, start: i.start, end: i.end ?? i.deadline,
+      dependsOn: i.dependsOn, budgetEstimate: i.budgetEstimate, budgetActual: i.budgetActual, budgetCurrency: i.budgetCurrency })))
+  return { items, byCategory, analysis }
+}
+
+// Raise CAPs to the escalation level their severity and days overdue call for (never lowers a level).
+async function applyEscalations(caps: (typeof capRecords.$inferSelect)[], actor: string, c: Ctx | null, wsId: number | null) {
+  const now = today()
+  let n = 0
+  for (const cap of caps) {
+    const e = escalationFor(cap, now)
+    if (e.level <= cap.escalationLevel) continue
+    await db.update(capRecords).set({ escalationLevel: e.level, escalatedAt: new Date(), escalatedTo: ESCALATION_LEVELS[e.level], escalationReason: e.reason }).where(eq(capRecords.id, cap.id))
+    if (c) await audit(c, cap.orgId, wsId, 'cap', cap.id, 'update', { escalationLevel: e.level, reason: e.reason, by: actor })
+    else await db.insert(wsAuditLog).values({ orgId: cap.orgId, workspaceId: cap.workspaceId, actorId: actor, resourceType: 'cap', resourceId: String(cap.id), action: 'update', details: { escalationLevel: e.level, reason: e.reason } })
+    n++
+  }
+  return n
+}
+
+async function exportMeta(orgId: number, author: string) {
+  const [org] = await db.select({ name: wsOrganizations.name }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+  return { organisation: org?.name ?? '', generatedOn: today(), author }
 }
 
 // --- report snapshot --------------------------------------------------------------------------------
@@ -697,6 +823,70 @@ const routes: Route[] = [
     approveErasureRequest(c, caller, intParam(c.p[0])) },
 
   // ---------------------------- 2.1 Organizations ----------------------------
+  // ---------------------------- Multi-factor sign-in ----------------------------
+  { method: 'GET', pattern: '/mfa/status', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    const required = await db.select({ id: wsOrganizations.id, name: wsOrganizations.name }).from(wsOrgMembers)
+      .innerJoin(wsOrganizations, eq(wsOrganizations.id, wsOrgMembers.orgId)).where(and(memberEmailFilter(caller.email), eq(wsOrganizations.requireMfa, true)))
+    return json({ enabled: !!row?.enabled, verified: !!row?.enabled && mfaVerified(c.req, caller.email), recoveryCodesLeft: row?.recoveryCodes.length ?? 0, requiredBy: required })
+  } },
+  { method: 'POST', pattern: '/mfa/enroll', access: 'authed', handler: async (_c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is already on; turn it off first to change authenticator')
+    const secret = generateSecret()
+    await db.insert(userMfa).values({ userKey: mfaUserKey(caller.email), pendingSecret: encryptField(secret) })
+      .onConflictDoUpdate({ target: userMfa.userKey, set: { pendingSecret: encryptField(secret), updatedAt: new Date() } })
+    const uri = otpauthUri('CRAFT', caller.email, secret)
+    return json({ secret, otpauthUri: uri, qrSvg: `data:image/svg+xml;base64,${Buffer.from(renderSVG(uri)).toString('base64')}` })
+  } },
+  { method: 'POST', pattern: '/mfa/enroll/confirm', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.pendingSecret) throw new HttpError(409, 'Start enrolment first')
+    if (isRateLimitedCount(await incrementRateLimit(`mfa:${caller.email}`, Date.now()), 10)) throw new HttpError(429, 'Too many attempts; wait a minute and try again')
+    const secret = decryptField(row.pendingSecret)
+    const step = verifyTotp(secret, String(c.body.code ?? ''), Date.now())
+    if (step === null) throw new HttpError(401, 'That code does not match; check the time on your phone and try again')
+    const codes = generateRecoveryCodes()
+    await db.update(userMfa).set({ secret: encryptField(secret), pendingSecret: null, enabled: true, enabledAt: new Date(), lastStep: step, recoveryCodes: codes.map(hashRecoveryCode), updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    await auditUser(c, caller.email, { mfa: 'enabled' })
+    return withMfaSession(json({ enabled: true, recoveryCodes: codes }), caller.email)
+  } },
+  { method: 'POST', pattern: '/mfa/verify', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is not on for this account')
+    const how = await checkSecondFactor(c, row, caller.email)
+    if (how === 'recovery') await auditUser(c, caller.email, { mfa: 'recovery_code_used' })
+    return withMfaSession(json({ verified: true, method: how }), caller.email)
+  } },
+  { method: 'POST', pattern: '/mfa/recovery-codes', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is not on for this account')
+    await checkSecondFactor(c, row, caller.email)
+    const codes = generateRecoveryCodes()
+    await db.update(userMfa).set({ recoveryCodes: codes.map(hashRecoveryCode), updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    await auditUser(c, caller.email, { mfa: 'recovery_codes_regenerated' })
+    return json({ recoveryCodes: codes })
+  } },
+  { method: 'POST', pattern: '/mfa/disable', access: 'authed', handler: async (c, { caller }) => {
+    const row = await loadMfa(caller.email)
+    if (!row?.enabled) throw new HttpError(409, 'Multi-factor sign-in is not on for this account')
+    const [req] = await db.select({ name: wsOrganizations.name }).from(wsOrgMembers).innerJoin(wsOrganizations, eq(wsOrganizations.id, wsOrgMembers.orgId))
+      .where(and(memberEmailFilter(caller.email), eq(wsOrganizations.requireMfa, true))).limit(1)
+    if (req) throw new HttpError(409, `${req.name} requires multi-factor sign-in for its members`)
+    await checkSecondFactor(c, row, caller.email)
+    await db.update(userMfa).set({ enabled: false, secret: null, pendingSecret: null, recoveryCodes: [], lastStep: -1, updatedAt: new Date() }).where(eq(userMfa.userKey, row.userKey))
+    await auditUser(c, caller.email, { mfa: 'disabled' })
+    const res = json({ enabled: false })
+    res.headers.append('Set-Cookie', mfaCookieHeader('', 0))
+    return res
+  } },
+  { method: 'PUT', pattern: '/orgs/:org/security', access: 'admin', scope: 'org', handler: async (c, { orgId, caller }) => {
+    if (typeof c.body.requireMfa !== 'boolean') throw bad('requireMfa must be boolean')
+    if (c.body.requireMfa && !(await loadMfa(caller.email))?.enabled) throw new HttpError(409, 'Turn on multi-factor sign-in for your own account before requiring it for everyone')
+    const [u] = await db.update(wsOrganizations).set({ requireMfa: c.body.requireMfa }).where(eq(wsOrganizations.id, orgId)).returning()
+    await audit(c, orgId, null, 'org', orgId, 'update', { requireMfa: c.body.requireMfa })
+    return json(exposeOrganization(u))
+  } },
   { method: 'GET', pattern: '/orgs', access: 'authed', handler: async (_c, { caller }) => {
     const rows = await db.select({ org: wsOrganizations, role: wsOrgMembers.role }).from(wsOrgMembers)
       .innerJoin(wsOrganizations, eq(wsOrganizations.id, wsOrgMembers.orgId))
@@ -707,7 +897,7 @@ const routes: Route[] = [
     if (!isVerifiedOrgEmailDomain(caller.email)) throw new HttpError(403, 'An organizational (non-consumer) email domain is required to create an organization')
     const type = oneOf(c.body.type, 'type', ORG_TYPES, 'private')
     const [org] = await db.insert(wsOrganizations).values({
-      name: str(c.body.name, 'name', 200), type, country: str(c.body.country, 'country', 100, false),
+      name: str(c.body.name, 'name', 200), type, ...typeVerificationFor(type, caller.email), country: str(c.body.country, 'country', 100, false),
       region: str(c.body.region, 'region', 100, false), contactEmail: encryptField(str(c.body.contactEmail, 'contactEmail', 200, false) || caller.email),
       contactPhone: encryptField(str(c.body.contactPhone, 'contactPhone', 50, false)),
     }).returning()
@@ -716,10 +906,17 @@ const routes: Route[] = [
     await audit(c, org.id, ws.id, 'org', org.id, 'create', { name: org.name })
     return json({ ...exposeOrganization(org), role: 'owner', defaultWorkspaceId: ws.id }, 201)
   } },
-  { method: 'PUT', pattern: '/orgs/:org', access: 'admin', scope: 'org', handler: async (c, { orgId }) => {
+  { method: 'PUT', pattern: '/orgs/:org', access: 'admin', scope: 'org', handler: async (c, { orgId, caller }) => {
     const set: Record<string, unknown> = {}
     if (c.body.name !== undefined) set.name = str(c.body.name, 'name', 200)
-    if (c.body.type !== undefined) set.type = oneOf(c.body.type, 'type', ORG_TYPES)
+    if (c.body.type !== undefined) {
+      set.type = oneOf(c.body.type, 'type', ORG_TYPES)
+      const [cur] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+      if (cur?.type !== set.type) {
+        Object.assign(set, typeVerificationFor(set.type as string, caller.email))
+        await audit(c, orgId, null, 'org', orgId, 'update', { type: set.type, typeVerification: set.typeVerification })
+      }
+    }
     for (const k of ['country', 'region', 'contactEmail', 'contactPhone'] as const) if (c.body[k] !== undefined) {
       const value = str(c.body[k], k, 200, false)
       set[k] = k === 'contactEmail' || k === 'contactPhone' ? encryptField(value) : value
@@ -762,6 +959,34 @@ const routes: Route[] = [
     await audit(c, orgId, null, 'org', orgId, 'delete', { memberHash: m.userIdHash ?? 'legacy' })
     return json({ ok: true })
   } },
+  // NPHI verification: re-check by email domain (any org admin), or decide manually (platform operator).
+  { method: 'POST', pattern: '/orgs/:org/type-verification/check', access: 'admin', scope: 'org', handler: async (c, { orgId, caller }) => {
+    const [org] = await db.select().from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+    if (org.type !== 'nphi') throw bad('only national public health institutes need verification')
+    if (org.typeVerification === 'verified') return json(exposeOrganization(org))
+    const v = typeVerificationFor('nphi', caller.email)
+    if (v.typeVerification !== 'verified') throw new HttpError(409, 'Your email is not on a registered NPHI domain; a CRAFT operator will review the request')
+    const [u] = await db.update(wsOrganizations).set(v).where(eq(wsOrganizations.id, orgId)).returning()
+    await audit(c, orgId, null, 'org', orgId, 'update', { typeVerification: 'verified', method: 'email_domain' })
+    return json(exposeOrganization(u))
+  } },
+  { method: 'GET', pattern: '/admin/type-verifications', access: 'authed', handler: async (_c, { caller }) => {
+    if (caller.role !== 'super_admin') throw new HttpError(403, 'Forbidden')
+    const rows = await db.select().from(wsOrganizations).where(eq(wsOrganizations.type, 'nphi')).orderBy(desc(wsOrganizations.id))
+    return json(rows.map(exposeOrganization))
+  } },
+  { method: 'POST', pattern: '/admin/type-verifications/:org', access: 'authed', handler: async (c, { caller }) => {
+    if (caller.role !== 'super_admin') throw new HttpError(403, 'Forbidden')
+    const orgId = intParam(c.p[0])
+    const decision = oneOf(c.body.decision, 'decision', ['verified', 'rejected'] as const)
+    const note = str(c.body.note, 'note', 1000)
+    const [org] = await db.select().from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+    if (!org) throw new HttpError(404, 'Not found')
+    if (org.type !== 'nphi') throw bad('organisation is not registered as an NPHI')
+    const [u] = await db.update(wsOrganizations).set({ typeVerification: decision, typeVerificationMethod: 'manual', typeVerifiedBy: caller.email, typeVerifiedAt: new Date(), typeVerificationNote: note }).where(eq(wsOrganizations.id, orgId)).returning()
+    await audit(c, orgId, null, 'org', orgId, 'update', { typeVerification: decision, method: 'manual', by: caller.email })
+    return json(exposeOrganization(u))
+  } },
   { method: 'GET', pattern: '/orgs/:org/workspaces', access: 'viewer', scope: 'org', handler: async (_c, { orgId }) =>
     json(await db.select().from(workspaces).where(eq(workspaces.orgId, orgId)).orderBy(desc(workspaces.id))) },
   { method: 'POST', pattern: '/orgs/:org/workspaces', access: 'admin', scope: 'org', handler: async (c, { orgId }) => {
@@ -781,8 +1006,11 @@ const routes: Route[] = [
     if (c.body.innovationSupport !== undefined && typeof c.body.innovationSupport !== 'boolean') throw bad('innovationSupport must be boolean')
     if (c.body.extendedScope !== undefined && typeof c.body.extendedScope !== 'boolean') throw bad('extendedScope must be boolean')
     if ((RESTRICTED_TYPES as readonly string[]).includes(assessmentType)) {
-      const [org] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
-      if (!assessmentTypesFor(org?.type ?? '').includes(assessmentType)) {
+      const [org] = await db.select({ type: wsOrganizations.type, typeVerification: wsOrganizations.typeVerification }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+      if (org?.type === 'nphi' && org.typeVerification !== 'verified' && !assessmentTypesFor('nphi', false).includes(assessmentType)) {
+        throw new HttpError(403, `${RESTRICTED_LABELS[assessmentType]} needs a verified national public health institute (verification is ${org.typeVerification})`)
+      }
+      if (!assessmentTypesFor(org?.type ?? '', org?.typeVerification === 'verified').includes(assessmentType)) {
         const who = assessmentType === 'PSP' ? 'a government body, subnational government or national public health institute'
           : `a national public health institute${isHealthSecurityType(assessmentType) && healthSecurityTypesFor('subnational').includes(assessmentType) ? ' or a subnational government' : ''}`
         throw new HttpError(403, `${RESTRICTED_LABELS[assessmentType]} is available only to organisations registered as ${who}`)
@@ -893,26 +1121,20 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { finding: f.id, fields: Object.keys(set) })
     return json({ ...f, description: decryptField(f.description) })
   } },
-  { method: 'GET', pattern: `${A}/scorecard`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+  { method: 'GET', pattern: `${A}/scorecard`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) =>
+    json(await scorecardData(orgId, await loadAssessment(orgId, wsId, intParam(c.p[1])))) },
+  { method: 'GET', pattern: `${A}/scorecard/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
-    const [scores, findings] = await Promise.all([
-      db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
-      db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
-    ])
-    if (a.assessmentType === 'CRAFT') {
-      const { findingsBySeverity } = buildScorecard([], findings)
-      const opts = { innovationSupport: a.innovationSupport }
-      const responses = craftResponses(scores)
-      const vals = await db.select().from(governanceValidations).where(and(eq(governanceValidations.orgId, orgId), eq(governanceValidations.assessmentId, a.id))).orderBy(asc(governanceValidations.id))
-      const validations = vals.map((v) => ({ ...v, ...validationDelta(responses, v.scores as ValidatorScores, opts) }))
-      return json({ assessment: a, findingsBySeverity, validations, ...craftScorecard(responses, undefined, opts) })
-    }
-    const cat = catalogueByType(a.assessmentType)
-    if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
-      const { findingsBySeverity } = buildScorecard([], findings)
-      return json({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
-    }
-    return json({ assessment: a, ...buildScorecard(scores, findings) })
+    const d: any = await scorecardData(orgId, a)
+    const meta = await exportMeta(orgId, caller.email)
+    const doc = a.assessmentType === 'CRAFT' ? craftScorecardDoc(d, a, meta)
+      : catalogueByType(a.assessmentType) ? catalogueScorecardDoc(d, { ...a, label: RESTRICTED_LABELS[a.assessmentType] ?? a.assessmentType }, meta)
+      : a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX' ? null
+      : domainScorecardDoc(d, a, meta)
+    if (!doc) throw bad('after-action reviews and simulation exercises have no scorecard to export')
+    const format = c.url.searchParams.get('format') ?? 'xlsx'
+    await audit(c, orgId, wsId, 'assessment', a.id, 'read', { scorecardExport: format })
+    return (await exportResponse(doc, format, `${a.assessmentType.toLowerCase()}-scorecard-v${a.version}`)) ?? (() => { throw bad('format must be xlsx or pdf') })()
   } },
   { method: 'GET', pattern: `${W}/craft-scorecard/catalogue`, access: 'viewer', scope: 'workspace', handler: async () =>
     json({ pillars: Object.values(GOVERNANCE_PILLARS), criteria: GOVERNANCE_CRITERIA }) },
@@ -1083,33 +1305,12 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'org', plan.id, 'update', { esgPlan: true, fields: Object.keys(set) })
     return json(plan)
   } },
-  { method: 'GET', pattern: `${W}/esg-roadmap`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
-    const rows = await db.select({ plan: esgImplementationPlans, req: esgRequirements }).from(esgImplementationPlans)
-      .innerJoin(esgRequirements, eq(esgRequirements.id, esgImplementationPlans.requirementId))
-      .where(and(eq(esgImplementationPlans.orgId, orgId), eq(esgImplementationPlans.workspaceId, wsId)))
-    const planIds = rows.map((r) => r.plan.id)
-    const ms = planIds.length ? await db.select().from(esgMilestones).where(and(eq(esgMilestones.orgId, orgId), inArray(esgMilestones.planId, planIds))) : []
-    const money = (v: string | null) => (v === null ? null : Number(v))
-    const items = rows.map(({ plan, req }) => {
-      const mine = ms.filter((m) => m.planId === plan.id)
-      const done = mine.filter((m) => m.status === 'completed').length
-      return {
-        planId: plan.id, requirementId: req.requirementId, text: req.requirementText, category: req.category,
-        deadline: req.implementationDeadline, start: plan.timelineStart, end: plan.timelineEnd, status: plan.status,
-        workstream: plan.workstream, dependsOn: plan.dependsOn, budgetEstimate: money(plan.budgetEstimate), budgetActual: money(plan.budgetActual), budgetCurrency: plan.budgetCurrency,
-        milestones: mine, percentComplete: plan.status === 'completed' ? 100 : mine.length ? Math.round((done / mine.length) * 100) : 0,
-      }
-    }).sort((a, b) => (a.deadline ?? '9999').localeCompare(b.deadline ?? '9999'))
-    const byCategory: Record<string, { total: number; percent: number }> = {}
-    for (const i of items) {
-      const e = (byCategory[i.category] ??= { total: 0, percent: 0 })
-      e.total++
-      e.percent += i.percentComplete
-    }
-    for (const e of Object.values(byCategory)) e.percent = Math.round(e.percent / e.total)
-    const analysis = analysePlan(items.map((i): PlanTask => ({ id: i.planId, label: i.requirementId, workstream: i.workstream, status: i.status, start: i.start, end: i.end ?? i.deadline,
-      dependsOn: i.dependsOn, budgetEstimate: i.budgetEstimate, budgetActual: i.budgetActual, budgetCurrency: i.budgetCurrency })))
-    return json({ items, byCategory, analysis })
+  { method: 'GET', pattern: `${W}/esg-roadmap`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => json(await buildRoadmap(orgId, wsId)) },
+  { method: 'GET', pattern: `${W}/esg-roadmap/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const { items, analysis } = await buildRoadmap(orgId, wsId)
+    const format = c.url.searchParams.get('format') ?? 'xlsx'
+    await audit(c, orgId, wsId, 'org', wsId, 'read', { roadmapExport: format })
+    return (await exportResponse(roadmapExportDoc(items, analysis, await exportMeta(orgId, caller.email)), format, 'esg-roadmap')) ?? (() => { throw bad('format must be xlsx or pdf') })()
   } },
 
   // ---------------------------- 2.3b SEC Nigeria IFRS S1/S2 plan generator ----------------------------
@@ -1156,10 +1357,12 @@ const routes: Route[] = [
     const fresh = await loadSecPlan(orgId, wsId)
     return json({ created, updated, settings: fresh.settings, rows: fresh.rows }, created ? 201 : 200)
   } },
-  { method: 'GET', pattern: `${W}/esg-planner/sec-ng/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+  { method: 'GET', pattern: `${W}/esg-planner/sec-ng/export`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const { rows, settings } = await loadSecPlan(orgId, wsId)
     if (!settings.entityType) throw new HttpError(409, 'Generate the plan before exporting it')
     await audit(c, orgId, wsId, 'org', wsId, 'read', { secPlanExport: c.url.searchParams.get('format') ?? 'doc' })
+    const office = await exportResponse(planExportDoc(settings, rows, await exportMeta(orgId, caller.email)), c.url.searchParams.get('format') ?? '', 'ifrs-s1-s2-implementation-plan')
+    if (office) return office
     if (c.url.searchParams.get('format') === 'csv') {
       return new Response(planCsv(rows, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="ifrs-s1-s2-implementation-plan.csv"' } })
     }
@@ -1317,14 +1520,17 @@ const routes: Route[] = [
     const format = c.url.searchParams.get('format') === 'csv' ? 'csv' : 'doc'
     await audit(c, orgId, wsId, 'org', p.id, 'read', { qaExport: format, frozen: p.status === 'final' })
     const name = `esg-report-qa-${p.label.replace(/[^\w.-]+/g, '_')}`
+    const reportId = `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`
+    const office = await exportResponse(qaExportDoc(view, await exportMeta(orgId, caller.email), reportId), c.url.searchParams.get('format') ?? '', name)
+    if (office) return office
     if (format === 'csv') return new Response(qaCsv(view, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.csv"` } })
     return new Response(renderQaDoc(view, today(), { reportId: `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email }), { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })
   } },
 
   // ---------------------- Health security (NPHI, JEE, SPAR, subnational JEE, AAR, SimEx) ----------------------
   { method: 'GET', pattern: `${W}/health-security/catalogue`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId }) => {
-    const [org] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
-    return json({ orgType: org?.type ?? null, available: assessmentTypesFor(org?.type ?? ''), labels: RESTRICTED_LABELS, catalogues: ASSESSMENT_CATALOGUES, reviewDomains: REVIEW_DOMAINS, crosswalk: CROSSWALK })
+    const [org] = await db.select({ type: wsOrganizations.type, typeVerification: wsOrganizations.typeVerification }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+    return json({ orgType: org?.type ?? null, typeVerification: org?.typeVerification ?? null, available: assessmentTypesFor(org?.type ?? '', org?.typeVerification === 'verified'), labels: RESTRICTED_LABELS, catalogues: ASSESSMENT_CATALOGUES, reviewDomains: REVIEW_DOMAINS, crosswalk: CROSSWALK })
   } },
   { method: 'GET', pattern: `${W}/health-security/overview`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
     const all = await db.select().from(governanceAssessments).where(and(eq(governanceAssessments.orgId, orgId), eq(governanceAssessments.workspaceId, wsId), inArray(governanceAssessments.assessmentType, ['NPHI', 'JEE', 'SPAR', 'JEE_SUB'])))
@@ -1476,6 +1682,14 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'cap', cap.id, 'create', { sourceType, sourceId })
     return json(cap, 201)
   } },
+  { method: 'GET', pattern: `${W}/cap/duplicates`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const caps = await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId)))
+    return json(findDuplicateGroups(caps).map((g) => ({ ...g, caps: g.ids.map((id) => { const c = caps.find((x) => x.id === id)!; return { id, findingDescription: c.findingDescription, severity: c.severity, sourceType: c.sourceType, sourceId: c.sourceId, status: c.status } }) })))
+  } },
+  { method: 'POST', pattern: `${W}/cap/escalations/run`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+    const caps = await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId)))
+    return json({ escalated: await applyEscalations(caps, 'system', c, wsId) })
+  } },
   { method: 'GET', pattern: `${W}/cap/:id`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
     const actions = await db.select().from(actionItems).where(and(eq(actionItems.orgId, orgId), eq(actionItems.capId, cap.id))).orderBy(asc(actionItems.sequenceNum))
@@ -1489,6 +1703,7 @@ const routes: Route[] = [
   { method: 'PUT', pattern: `${W}/cap/:id`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
     if (cap.status === 'completed') throw new HttpError(409, 'CAP is closed')
+    if (cap.status === 'merged') throw new HttpError(409, `CAP was merged into CAP #${cap.mergedInto}`)
     const set: Record<string, unknown> = {}
     if (c.body.assignedTo !== undefined) set.assignedTo = str(c.body.assignedTo, 'assignedTo', 200, false) || null
     if (c.body.dueDate !== undefined) set.dueDate = dateOrNull(c.body.dueDate, 'dueDate')
@@ -1502,8 +1717,46 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'cap', cap.id, 'update', { fields: Object.keys(set), comment: comment || undefined })
     return json(u)
   } },
+  { method: 'POST', pattern: `${W}/cap/:id/merge`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    // Merge duplicates into this CAP. Each duplicate is kept as a 'merged' record pointing here; this CAP keeps their
+    // provenance (source, description, severity), takes the highest severity, and gains their evidence links.
+    const primary = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (primary.status === 'completed' || primary.status === 'merged') throw new HttpError(409, 'Merge into an open CAP')
+    if (!Array.isArray(c.body.duplicateIds) || !c.body.duplicateIds.length || c.body.duplicateIds.length > 50 || !c.body.duplicateIds.every((x: unknown) => Number.isInteger(x))) throw bad('duplicateIds must be a list of CAP ids')
+    const ids = [...new Set(c.body.duplicateIds as number[])]
+    if (ids.includes(primary.id)) throw bad('a CAP cannot be merged into itself')
+    const dups = await db.select().from(capRecords).where(and(eq(capRecords.orgId, orgId), eq(capRecords.workspaceId, wsId), inArray(capRecords.id, ids)))
+    if (dups.length !== ids.length) throw bad('every duplicate must be a CAP in this workspace')
+    const closed = dups.filter((d) => d.status === 'completed' || d.status === 'merged')
+    if (closed.length) throw new HttpError(409, `Already closed or merged: ${closed.map((d) => `#${d.id}`).join(', ')}`)
+    const at = new Date().toISOString()
+    const provenance = dups.flatMap((d) => [{ capId: d.id, sourceType: d.sourceType, sourceId: d.sourceId, findingDescription: d.findingDescription, severity: d.severity, mergedAt: at, mergedBy: caller.email }, ...(d.mergedFrom ?? [])])
+    await db.update(capRecords).set({ status: 'merged', mergedInto: primary.id }).where(inArray(capRecords.id, ids))
+    const [u] = await db.update(capRecords).set({ mergedFrom: [...(primary.mergedFrom ?? []), ...provenance], severity: maxSeverity([primary.severity, ...dups.map((d) => d.severity)]) }).where(eq(capRecords.id, primary.id)).returning()
+    const links = await db.select().from(evidenceLinks).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.targetType, 'cap'), inArray(evidenceLinks.targetId, ids)))
+    const existing = new Set((await db.select({ e: evidenceLinks.evidenceId }).from(evidenceLinks).where(and(eq(evidenceLinks.orgId, orgId), eq(evidenceLinks.targetType, 'cap'), eq(evidenceLinks.targetId, primary.id)))).map((x) => x.e))
+    for (const l of links) if (!existing.has(l.evidenceId)) {
+      existing.add(l.evidenceId)
+      const { id: _id, ...rest } = l
+      await db.insert(evidenceLinks).values({ ...rest, targetId: primary.id })
+    }
+    for (const d of dups) await audit(c, orgId, wsId, 'cap', d.id, 'update', { mergedInto: primary.id, by: caller.email })
+    await audit(c, orgId, wsId, 'cap', primary.id, 'update', { merged: ids, by: caller.email })
+    return json(u)
+  } },
+  { method: 'POST', pattern: `${W}/cap/:id/escalate`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (cap.status === 'completed' || cap.status === 'merged') throw new HttpError(409, 'Only open CAPs can be escalated')
+    if (cap.escalationLevel >= 3) throw new HttpError(409, 'Already escalated to the board or governing body')
+    const reason = str(c.body.reason, 'reason', 1000)
+    const to = str(c.body.to, 'to', 200, false) || ESCALATION_LEVELS[cap.escalationLevel + 1]
+    const [u] = await db.update(capRecords).set({ escalationLevel: cap.escalationLevel + 1, escalatedAt: new Date(), escalatedTo: to, escalationReason: reason }).where(eq(capRecords.id, cap.id)).returning()
+    await audit(c, orgId, wsId, 'cap', cap.id, 'update', { escalationLevel: u.escalationLevel, escalatedTo: to, by: caller.email, manual: true })
+    return json(u)
+  } },
   { method: 'POST', pattern: `${W}/cap/:id/actions`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (cap.status === 'merged') throw new HttpError(409, `CAP was merged into CAP #${cap.mergedInto}`)
     if (cap.status === 'completed') throw new HttpError(409, 'CAP is closed')
     const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(actionItems).where(and(eq(actionItems.orgId, orgId), eq(actionItems.capId, cap.id)))
     const [a] = await db.insert(actionItems).values({
@@ -1559,6 +1812,7 @@ const routes: Route[] = [
   } },
   { method: 'POST', pattern: `${W}/cap/:id/close`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const cap = await loadCap(orgId, wsId, intParam(c.p[1]))
+    if (cap.status === 'merged') throw new HttpError(409, `CAP was merged into CAP #${cap.mergedInto}`)
     if (cap.status === 'completed') throw new HttpError(409, 'CAP already closed')
     const actions = await db.select().from(actionItems).where(and(eq(actionItems.orgId, orgId), eq(actionItems.capId, cap.id)))
     const blockers = capCloseBlockers(actions)
@@ -2047,6 +2301,12 @@ export default async (req: Request) => {
         if (body === null || typeof body !== 'object' || Array.isArray(body)) throw bad('JSON object body required')
       }
       const ctx: Ctx = { req, url, p: m, body, caller, ip }
+      // Multi-factor sign-in: an enrolled user needs a current MFA session for everything except the /mfa routes.
+      let mfaRow: typeof userMfa.$inferSelect | null = null
+      if (caller && !r.pattern.startsWith('/mfa/')) {
+        mfaRow = await loadMfa(caller.email)
+        if (mfaRow?.enabled && !mfaVerified(req, caller.email)) return finish(json({ error: 'mfa_required' }, 401))
+      }
       let orgId = 0, wsId = 0, role: OrgRole = 'viewer'
       if (r.access !== 'public' && r.access !== 'authed') {
         if (r.scope === 'workspace') {
@@ -2057,6 +2317,11 @@ export default async (req: Request) => {
         } else {
           orgId = intParam(m[0])
           role = await requireOrgAccess(caller!, orgId, r.access)
+        }
+        // Organisations that require MFA refuse members who have not turned it on.
+        if (!mfaRow?.enabled && !(r.scope === 'org' && r.pattern === '/orgs/:org' && req.method === 'GET')) {
+          const [org] = await db.select({ requireMfa: wsOrganizations.requireMfa }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+          if (org?.requireMfa) return finish(json({ error: 'mfa_enrollment_required' }, 403))
         }
       }
       return finish(await r.handler(ctx, { caller: caller!, orgId, wsId, role }))
@@ -2070,5 +2335,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = {
-  path: ['/api/orgs', '/api/orgs/*', '/api/workspaces/*', '/api/support-bot/*', '/api/privacy/*'],
+  path: ['/api/orgs', '/api/orgs/*', '/api/workspaces/*', '/api/support-bot/*', '/api/privacy/*', '/api/mfa/*'],
 }
