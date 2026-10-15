@@ -13,7 +13,7 @@ export default {
       const result = await verifyTurnstile(token, secret)
       // ponytail: fails open if Cloudflare is unreachable, so an outage does not stop all sign-ups.
       if (result === 'fail') return event.deny()
-      if (result === 'unavailable') logger.error('identity-validate', 'Turnstile unavailable; sign-up allowed')
+      if (result === 'unavailable') logger.error('identity-validate', 'Turnstile unavailable or TURNSTILE_SECRET_KEY rejected; sign-up allowed')
     }
     return { user: { userMetadata } }
   },
