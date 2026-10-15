@@ -93,11 +93,11 @@ export function CodeOfConductPage() {
         </Reveal>
 
         <Reveal delay={220}>
-          <div className="mt-6 flex items-start gap-4 rounded-2xl bg-emerald-900 p-8 text-emerald-50 shadow-sm">
+          <div className="mt-6 flex items-start gap-4 rounded-2xl bg-emerald-900 p-6 text-emerald-50 shadow-sm sm:p-8">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-800 text-amber-400">
               <Mail className="h-6 w-6" />
             </div>
-            <div>
+            <div className="min-w-0 [overflow-wrap:anywhere]">
               <h2 className="font-display text-2xl font-bold text-white">Reporting</h2>
               <p className="mt-3 leading-relaxed text-emerald-100">
                 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported

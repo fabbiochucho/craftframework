@@ -25,3 +25,12 @@ test('every policy page is served with security headers and is linked from the f
   expect(body).toMatch(/^Contact: mailto:/m)
   expect(new Date(/^Expires: (.+)$/m.exec(body)![1]).getTime()).toBeGreaterThan(Date.now())
 })
+
+test('policy pages do not scroll sideways on a 320px phone', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  for (const [path] of PAGES) {
+    await page.goto(path)
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(overflow, path).toBeLessThanOrEqual(0)
+  }
+})

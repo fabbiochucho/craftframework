@@ -198,7 +198,7 @@ export function TermsPage() {
                   </div>
                   <div className="min-w-0">
                     <h2 className="font-display text-lg font-bold text-emerald-900 sm:text-xl">{c.title}</h2>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-[15px]">{c.body}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600 [overflow-wrap:anywhere] sm:text-[15px]">{c.body}</p>
                   </div>
                 </div>
               </Reveal>
