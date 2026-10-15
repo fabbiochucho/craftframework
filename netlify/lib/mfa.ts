@@ -1,7 +1,7 @@
 // Multi-factor sign-in: TOTP (RFC 6238, SHA-1, 30-second steps, 6 digits — what authenticator
 // apps expect), one-time recovery codes, and the signed MFA session cookie that proves a code was
 // entered. Self-check: `node netlify/lib/mfa.test.ts`.
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, createHmac, hkdfSync, randomBytes, timingSafeEqual } from 'node:crypto'
 
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
 export function base32Encode(buf: Buffer): string {
@@ -87,8 +87,10 @@ export function verifyMfaSession(token: string | undefined | null, email: string
 let devKey: Buffer | null = null
 /** Signing key: MFA_SESSION_SECRET, else derived from FIELD_ENCRYPTION_KEY; random per process only outside production. */
 export function mfaSessionKey(): Buffer {
-  if (process.env.MFA_SESSION_SECRET) return createHash('sha256').update(process.env.MFA_SESSION_SECRET).digest()
-  if (process.env.FIELD_ENCRYPTION_KEY) return createHmac('sha256', process.env.FIELD_ENCRYPTION_KEY).update('craft-mfa-session').digest()
+  // HKDF (RFC 5869) derives a dedicated 32-byte signing key from the configured secret.
+  const derive = (secret: string) => Buffer.from(hkdfSync('sha256', secret, 'craft-mfa-session-salt', 'craft-mfa-session', 32))
+  if (process.env.MFA_SESSION_SECRET) return derive(process.env.MFA_SESSION_SECRET)
+  if (process.env.FIELD_ENCRYPTION_KEY) return derive(process.env.FIELD_ENCRYPTION_KEY)
   if (process.env.NODE_ENV === 'production') throw new Error('MFA_SESSION_SECRET or FIELD_ENCRYPTION_KEY is required in production')
   return (devKey ??= randomBytes(32))
 }
