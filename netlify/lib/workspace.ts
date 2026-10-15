@@ -94,7 +94,7 @@ export function effectiveCapStatus(
   dueDate: string | null | undefined,
   now: Date = new Date(),
 ): string {
-  if (status === 'completed') return status
+  if (status === 'completed' || status === 'merged') return status
   if (dueDate && dueDate < now.toISOString().slice(0, 10)) return 'overdue'
   return status
 }
@@ -137,12 +137,15 @@ export function capLifecycle(
 }
 
 export function summarizeCaps(
-  caps: { status: string; severity: string; dueDate: string | null; createdAt: Date; completionDate: Date | null; effectivenessStatus?: string; reopenedCount?: number }[],
+  all: { status: string; severity: string; dueDate: string | null; createdAt: Date; completionDate: Date | null; effectivenessStatus?: string; reopenedCount?: number; escalationLevel?: number }[],
   now: Date = new Date(),
 ) {
   const bySeverity: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 }
-  let open = 0, overdue = 0, completed = 0, closeDays = 0, effectivenessPending = 0, notEffective = 0, reopened = 0
+  let open = 0, overdue = 0, completed = 0, closeDays = 0, effectivenessPending = 0, notEffective = 0, reopened = 0, escalated = 0
+  const merged = all.filter((c) => c.status === 'merged').length
+  const caps = all.filter((c) => c.status !== 'merged') // merged duplicates live on in their surviving CAP
   for (const c of caps) {
+    if ((c.escalationLevel ?? 0) > 0 && c.status !== 'completed') escalated++
     if (c.effectivenessStatus === 'pending') effectivenessPending++
     if (c.effectivenessStatus === 'not_effective') notEffective++
     if ((c.reopenedCount ?? 0) > 0) reopened++
@@ -165,6 +168,8 @@ export function summarizeCaps(
     effectivenessPending,
     notEffective,
     reopened,
+    escalated,
+    merged,
     percentComplete: caps.length ? Math.round((completed / caps.length) * 100) : 0,
     avgDaysToClose: completed ? Math.round((closeDays / completed) * 10) / 10 : 0,
   }

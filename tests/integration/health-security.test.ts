@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { ADMIN, ASSESSOR, OWNER, VIEWER, as, createOrg, expectStatus, truncateAll } from './harness.ts'
 
+const OPERATOR = 'fabbiochucho@gmail.com' // platform super admin
+
 let orgId = 0, wsId = 0
 const P = () => `/workspaces/${wsId}`
 const create = (assessmentType: string, extra: object = {}) => as(ASSESSOR).post(`${P()}/assessments`, { assessmentType, ...extra })
@@ -20,8 +22,22 @@ describe('health-security assessments', () => {
     assert.equal(denied.status, 403)
     assert.match(denied.body.error, /national public health institute/)
     assert.equal((await as(ASSESSOR).put(`/orgs/${orgId}`, { type: 'nphi' })).status, 403, 'only admins change the organisation type')
-    expectStatus(await as(ADMIN).put(`/orgs/${orgId}`, { type: 'nphi' }), 200)
+    const pending = expectStatus(await as(ADMIN).put(`/orgs/${orgId}`, { type: 'nphi' }), 200).body
+    assert.equal(pending.typeVerification, 'pending', 'admin email is not on a registered NPHI domain')
     assert.equal((await as(OWNER).put(`/orgs/${orgId}`, { type: 'martian' })).status, 400)
+    // Unverified: only the public-sector assessment; NPHI-only types are refused with the reason.
+    assert.deepEqual(expectStatus(await as(VIEWER).get(`${P()}/health-security/catalogue`), 200).body.available, ['PSP'])
+    const unverified = await create('SPAR')
+    assert.equal(unverified.status, 403)
+    assert.match(unverified.body.error, /verified national public health institute/)
+    assert.equal((await as(ADMIN).post(`/orgs/${orgId}/type-verification/check`, {})).status, 409, 'no registered domain')
+    // Only a platform operator can verify manually, with a note.
+    assert.equal((await as(OWNER).post(`/admin/type-verifications/${orgId}`, { decision: 'verified', note: 'x' })).status, 403)
+    assert.equal((await as(OPERATOR).post(`/admin/type-verifications/${orgId}`, { decision: 'verified' })).status, 400, 'note required')
+    const queue = expectStatus(await as(OPERATOR).get('/admin/type-verifications'), 200).body
+    assert.ok(queue.some((o: any) => o.id === orgId && o.typeVerification === 'pending'))
+    const verified = expectStatus(await as(OPERATOR).post(`/admin/type-verifications/${orgId}`, { decision: 'verified', note: 'Establishment act checked' }), 200).body
+    assert.equal(verified.typeVerificationMethod, 'manual')
 
     // SPAR: indicator % = level × 20, capacity mean, overall mean of capacities; SDG 3.d.1.
     const spar = expectStatus(await create('SPAR', { reportingPeriod: '2026' }), 201).body.id
@@ -32,8 +48,8 @@ describe('health-security assessments', () => {
     expectStatus(await score(spar, 'C3', 'C3.1', { score: 5 }), 200)
     const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${spar}/scorecard`), 200).body
     assert.equal(sc.sections.find((s: any) => s.id === 'C1').percent, 70)
-    assert.equal(sc.overall, 85)
-    assert.equal(sc.sdg.value, 85)
+    assert.equal(sc.overall, 8, 'WHO method: unanswered indicators count as zero')
+    assert.equal(sc.sdg.value, 8)
 
     // NPHI with the Centre of Excellence scope; evidence cap of 2.
     const plain = expectStatus(await create('NPHI'), 201).body.id
@@ -88,5 +104,20 @@ describe('health-security assessments', () => {
     const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${psp}/scorecard`), 200).body
     assert.equal(sc.sections.find((x: any) => x.id === 'pfm').percent, 80)
     assert.equal(sc.overall, 70)
+  })
+
+  it('verifies an NPHI automatically when the admin uses the institute’s registered email domain', async () => {
+    const dg = 'director@ncdc.gov.ng'
+    const org = expectStatus(await as(dg).post('/orgs', { name: 'NCDC', type: 'nphi', country: 'NG' }), 201).body
+    assert.equal(org.typeVerification, 'verified')
+    assert.equal(org.typeVerificationMethod, 'email_domain')
+    assert.match(org.typeVerificationNote, /Nigeria Centre for Disease Control/)
+    expectStatus(await as(dg).post(`/workspaces/${org.defaultWorkspaceId}/assessments`, { assessmentType: 'SPAR' }), 201)
+    // A look-alike domain is not enough.
+    const fake = expectStatus(await as('x@fakencdc.gov.ng').post('/orgs', { name: 'Fake', type: 'nphi', country: 'NG' }), 201).body
+    assert.equal(fake.typeVerification, 'pending')
+    // Changing away from NPHI and back re-runs verification.
+    expectStatus(await as(dg).put(`/orgs/${org.id}`, { type: 'government' }), 200)
+    assert.equal(expectStatus(await as(dg).put(`/orgs/${org.id}`, { type: 'nphi' }), 200).body.typeVerification, 'verified')
   })
 })

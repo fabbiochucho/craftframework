@@ -1,9 +1,10 @@
-import { Scale, ShieldAlert, FileText, AlertTriangle, Ban, Globe } from 'lucide-react'
+import { Scale, ShieldAlert, FileText, AlertTriangle, Ban, Globe, KeyRound, Lock } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { Reveal } from '../components/ui'
 import { BRAND } from '../lib/data'
 
 // Last substantive revision of these terms. Update when the text changes.
-const EFFECTIVE_DATE = 'June 7, 2026'
+const EFFECTIVE_DATE = '15 October 2026'
 
 interface Clause {
   icon: typeof Scale
@@ -102,8 +103,45 @@ const CLAUSES: Clause[] = [
     ),
   },
   {
+    icon: Ban,
+    title: '7. Acceptable Use',
+    body: (
+      <>
+        Your use of the Service must follow the <Link to="/acceptable-use" className="font-semibold text-emerald-700 underline-offset-2 hover:underline">Acceptable Use Policy</Link>,
+        which forms part of these terms. In particular, you must not present a CRAFT score or report as a
+        certification, rating or audit opinion, upload evidence you know to be false, or access data you have
+        not been granted. We may suspend access that breaches it.
+      </>
+    ),
+  },
+  {
+    icon: KeyRound,
+    title: '8. Accounts & Security',
+    body: (
+      <>
+        You are responsible for keeping your sign-in details and authenticator device secure and for activity
+        under your account. Organisation owners and admins are responsible for who they invite, the roles they
+        grant, whether they require multi-factor sign-in, and the accuracy of their organisation type (for
+        example, national public health institute status, which is verified before restricted assessments
+        unlock). Tell us promptly at {BRAND.contactEmail} about any suspected unauthorised access.
+      </>
+    ),
+  },
+  {
+    icon: Lock,
+    title: '9. Data Protection',
+    body: (
+      <>
+        Our <Link to="/privacy" className="font-semibold text-emerald-700 underline-offset-2 hover:underline">Privacy Policy</Link> explains how we handle personal data. When we
+        process personal data in your organisation's workspaces on its behalf, our 
+        <Link to="/data-processing" className="font-semibold text-emerald-700 underline-offset-2 hover:underline">Data Processing Terms</Link> apply and the providers we use are listed
+        on the <Link to="/subprocessors" className="font-semibold text-emerald-700 underline-offset-2 hover:underline">Sub-processors</Link> page.
+      </>
+    ),
+  },
+  {
     icon: FileText,
-    title: '7. Changes & Governing Terms',
+    title: '10. Changes & Governing Terms',
     body: (
       <>
         The {BRAND.institute} may revise these terms at any time by updating this page; continued use of

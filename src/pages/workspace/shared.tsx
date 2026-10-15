@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { api, STATUS_STYLE } from '../../lib/workspaceApi'
+import { api, downloadApi, STATUS_STYLE } from '../../lib/workspaceApi'
 import { Badge, Button, Input, Select } from '../../components/ui'
 
 // Load JSON from the API on mount (and on `reload`). Browser-only.
@@ -55,8 +55,28 @@ export function Header({ title, subtitle, back }: { title: string; subtitle?: st
   )
 }
 
+// The API answers 'mfa_required' when the account uses multi-factor sign-in and this browser has
+// not entered a code yet, and 'mfa_enrollment_required' when an organisation requires MFA.
+export function MfaPrompt() {
+  const [code, setCode] = useState('')
+  const [recovery, setRecovery] = useState(false)
+  const { run, error, busy } = useAction(() => window.location.reload())
+  return (
+    <form className="max-w-md space-y-3 rounded-lg border border-amber-300 bg-amber-50 p-4" onSubmit={e => { e.preventDefault(); void run(() => api('/mfa/verify', { method: 'POST', body: recovery ? { recoveryCode: code } : { code } })) }}>
+      <p className="font-semibold text-amber-900">Enter your authentication code</p>
+      <p className="text-sm text-amber-900">{recovery ? 'Enter one of your recovery codes. Each works once.' : 'Open your authenticator app and enter the 6-digit code for CRAFT.'}</p>
+      <Input label={recovery ? 'Recovery code' : 'Authentication code'} autoComplete="one-time-code" inputMode={recovery ? 'text' : 'numeric'} value={code} onChange={e => setCode(e.target.value)} />
+      <ErrorLine error={error} />
+      <div className="flex flex-wrap items-center gap-3"><Button type="submit" disabled={busy || !code.trim()}>Verify</Button>
+        <button type="button" className="text-sm underline" onClick={() => { setRecovery(!recovery); setCode('') }}>{recovery ? 'Use the authenticator app' : 'Use a recovery code'}</button></div>
+    </form>
+  )
+}
+
 export function State({ loading, error }: { loading: boolean; error: string | null }) {
   if (loading) return <p className="text-sm text-slate-500">Loading…</p>
+  if (error === 'mfa_required') return <MfaPrompt />
+  if (error === 'mfa_enrollment_required') return <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">This organisation requires multi-factor sign-in. <Link className="underline" to="/app/security">Turn it on in Account security</Link>, then come back.</p>
   if (error) return <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>
   return null
 }
@@ -92,5 +112,19 @@ export function useAction(onDone?: () => void | Promise<void>) {
   return { run, error, busy }
 }
 
+/** Excel (XLSX) and PDF download buttons for an export endpoint that takes ?format=xlsx|pdf. */
+export function ExportButtons({ path, name }: { path: string; name: string }) {
+  const { run, error, busy } = useAction()
+  const sep = path.includes('?') ? '&' : '?'
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Button variant="outline" disabled={busy} onClick={() => run(() => downloadApi(`${path}${sep}format=xlsx`, `${name}.xlsx`))}>Excel (XLSX)</Button>
+      <Button variant="outline" disabled={busy} onClick={() => run(() => downloadApi(`${path}${sep}format=pdf`, `${name}.pdf`))}>PDF</Button>
+      {error && <span role="alert" className="text-sm text-rose-700">{error}</span>}
+    </span>
+  )
+}
+
 export const ErrorLine = ({ error }: { error: string | null }) =>
-  error ? <p role="alert" className="text-sm text-rose-600">{error}</p> : null
+  error === 'mfa_required' || error === 'mfa_enrollment_required' ? <State loading={false} error={error} />
+  : error ? <p role="alert" className="text-sm text-rose-600">{error}</p> : null
