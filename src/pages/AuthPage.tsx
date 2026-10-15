@@ -13,6 +13,7 @@ import { Shield, ArrowRight, MailCheck, Loader2, Eye, EyeOff, Github } from 'luc
 import { Button, Input } from '../components/ui'
 import { Footer } from '../components/Footer'
 import { Logo } from '../components/Logo'
+import { Turnstile } from '../components/Turnstile'
 import { useIdentityRecovery } from '../components/IdentityBridge'
 import { useAuthCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
@@ -62,6 +63,8 @@ export function AuthPage() {
   const [role, setRole] = useState<ViewLevel>('assessor')
   const [status, setStatus] = useState<Status>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [captchaKey, setCaptchaKey] = useState(0)
   // After a successful registration we hold here until the user confirms by email.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
   const [recoveryRequested, setRecoveryRequested] = useState(false)
@@ -145,6 +148,8 @@ export function AuthPage() {
     // raw "invalid_grant: No user found..." can arrive without an AuthError
     // wrapper, so we also match on the message text, not just err.status.
     const status = err instanceof AuthError ? err.status : undefined
+    // identity-validate refuses a sign-up whose security check failed or expired.
+    if (mode === 'register' && status === 401) return 'The security check could not be confirmed. Please complete it again and resubmit.'
     const message = err instanceof Error ? err.message : ''
     if (status === 403) {
       return 'Sign-ups are currently disabled for this site.'
@@ -196,6 +201,11 @@ export function AuthPage() {
       return
     }
 
+    if (mode === 'register' && !captchaToken) {
+      setError('Please complete the security check above the button.')
+      return
+    }
+
     setStatus('submitting')
     try {
       if (mode === 'register') {
@@ -205,6 +215,8 @@ export function AuthPage() {
           // reads it when a brand-new registrant first signs in and provisions
           // their session at this view level (never Super Admin).
           requested_role: role,
+          // Checked and removed by netlify/functions/identity-validate.mts.
+          turnstile_token: captchaToken,
         })
         if (user.confirmedAt) {
           // Autoconfirm is on - the user is already signed in. IdentityBridge
@@ -223,6 +235,7 @@ export function AuthPage() {
     } finally {
       setPassword('')
       setStatus('idle')
+      if (mode === 'register') { setCaptchaToken(''); setCaptchaKey(k => k + 1) }
     }
   }
 
@@ -417,6 +430,8 @@ export function AuthPage() {
                       </button>
                     </div>
                   </div>}
+
+                  {mode === 'register' && <Turnstile key={captchaKey} onToken={setCaptchaToken} />}
 
                   {error && (
                     <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
