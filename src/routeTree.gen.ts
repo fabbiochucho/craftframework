@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AcceptableUseRouteImport } from './routes/acceptable-use'
+import { Route as AccessibilityRouteImport } from './routes/accessibility'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ArchitectureRouteImport } from './routes/architecture'
 import { Route as AssessmentRouteImport } from './routes/assessment'
@@ -20,6 +22,7 @@ import { Route as CodeOfConductRouteImport } from './routes/code-of-conduct'
 import { Route as ComplianceRouteImport } from './routes/compliance'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DataProcessingRouteImport } from './routes/data-processing'
 import { Route as DataRoomRouteImport } from './routes/data-room'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as EvidenceRouteImport } from './routes/evidence'
@@ -41,13 +44,16 @@ import { Route as PreAssessmentRouteImport } from './routes/pre-assessment'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegulatoryComplianceRouteImport } from './routes/regulatory-compliance'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SubprocessorsRouteImport } from './routes/subprocessors'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as VaultsRouteImport } from './routes/vaults'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WallboardRouteImport } from './routes/wallboard'
 import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
 import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
+import { Route as AppSecurityRouteImport } from './routes/app.security'
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
 import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
@@ -83,6 +89,16 @@ import { Route as AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdRevie
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AcceptableUseRoute = AcceptableUseRouteImport.update({
+  id: '/acceptable-use',
+  path: '/acceptable-use',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccessibilityRoute = AccessibilityRouteImport.update({
+  id: '/accessibility',
+  path: '/accessibility',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -133,6 +149,11 @@ const ContactRoute = ContactRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DataProcessingRoute = DataProcessingRouteImport.update({
+  id: '/data-processing',
+  path: '/data-processing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DataRoomRoute = DataRoomRouteImport.update({
@@ -240,9 +261,19 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubprocessorsRoute = SubprocessorsRouteImport.update({
+  id: '/subprocessors',
+  path: '/subprocessors',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -273,6 +304,11 @@ const AcceptTokenRoute = AcceptTokenRouteImport.update({
 const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
   id: '/admin_/portfolio',
   path: '/admin/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSecurityRoute = AppSecurityRouteImport.update({
+  id: '/app/security',
+  path: '/app/security',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentFrameworkIdRoute = AssessmentFrameworkIdRouteImport.update({
@@ -462,6 +498,8 @@ const AppWorkspacesWorkspaceIdGovernanceAssessmentsAssessmentIdReviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acceptable-use': typeof AcceptableUseRoute
+  '/accessibility': typeof AccessibilityRoute
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRouteWithChildren
@@ -472,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/compliance': typeof ComplianceRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/data-processing': typeof DataProcessingRoute
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/evidence': typeof EvidenceRoute
@@ -493,13 +532,16 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
@@ -534,6 +576,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acceptable-use': typeof AcceptableUseRoute
+  '/accessibility': typeof AccessibilityRoute
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRouteWithChildren
@@ -544,6 +588,7 @@ export interface FileRoutesByTo {
   '/compliance': typeof ComplianceRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/data-processing': typeof DataProcessingRoute
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/evidence': typeof EvidenceRoute
@@ -565,13 +610,16 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
@@ -607,6 +655,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/acceptable-use': typeof AcceptableUseRoute
+  '/accessibility': typeof AccessibilityRoute
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRouteWithChildren
@@ -617,6 +667,7 @@ export interface FileRoutesById {
   '/compliance': typeof ComplianceRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/data-processing': typeof DataProcessingRoute
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/evidence': typeof EvidenceRoute
@@ -638,13 +689,16 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
   '/admin_/portfolio': typeof AdminPortfolioRoute
+  '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
@@ -681,6 +735,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/acceptable-use'
+    | '/accessibility'
     | '/admin'
     | '/architecture'
     | '/assessment'
@@ -691,6 +747,7 @@ export interface FileRouteTypes {
     | '/compliance'
     | '/contact'
     | '/dashboard'
+    | '/data-processing'
     | '/data-room'
     | '/demo'
     | '/evidence'
@@ -712,13 +769,16 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
+    | '/security'
     | '/settings'
+    | '/subprocessors'
     | '/terms'
     | '/vaults'
     | '/verify'
     | '/wallboard'
     | '/accept/$token'
     | '/admin/portfolio'
+    | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
     | '/app/org/audit-log'
@@ -753,6 +813,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/acceptable-use'
+    | '/accessibility'
     | '/admin'
     | '/architecture'
     | '/assessment'
@@ -763,6 +825,7 @@ export interface FileRouteTypes {
     | '/compliance'
     | '/contact'
     | '/dashboard'
+    | '/data-processing'
     | '/data-room'
     | '/demo'
     | '/evidence'
@@ -784,13 +847,16 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
+    | '/security'
     | '/settings'
+    | '/subprocessors'
     | '/terms'
     | '/vaults'
     | '/verify'
     | '/wallboard'
     | '/accept/$token'
     | '/admin/portfolio'
+    | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
     | '/app/org/audit-log'
@@ -825,6 +891,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/acceptable-use'
+    | '/accessibility'
     | '/admin'
     | '/architecture'
     | '/assessment'
@@ -835,6 +903,7 @@ export interface FileRouteTypes {
     | '/compliance'
     | '/contact'
     | '/dashboard'
+    | '/data-processing'
     | '/data-room'
     | '/demo'
     | '/evidence'
@@ -856,13 +925,16 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
+    | '/security'
     | '/settings'
+    | '/subprocessors'
     | '/terms'
     | '/vaults'
     | '/verify'
     | '/wallboard'
     | '/accept/$token'
     | '/admin_/portfolio'
+    | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard_/trust-delta'
     | '/app/org/audit-log'
@@ -898,6 +970,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcceptableUseRoute: typeof AcceptableUseRoute
+  AccessibilityRoute: typeof AccessibilityRoute
   AdminRoute: typeof AdminRoute
   ArchitectureRoute: typeof ArchitectureRoute
   AssessmentRoute: typeof AssessmentRouteWithChildren
@@ -908,6 +982,7 @@ export interface RootRouteChildren {
   ComplianceRoute: typeof ComplianceRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
+  DataProcessingRoute: typeof DataProcessingRoute
   DataRoomRoute: typeof DataRoomRoute
   DemoRoute: typeof DemoRoute
   EvidenceRoute: typeof EvidenceRoute
@@ -929,13 +1004,16 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   RegulatoryComplianceRoute: typeof RegulatoryComplianceRoute
   ReportsRoute: typeof ReportsRoute
+  SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
+  SubprocessorsRoute: typeof SubprocessorsRoute
   TermsRoute: typeof TermsRoute
   VaultsRoute: typeof VaultsRoute
   VerifyRoute: typeof VerifyRoute
   WallboardRoute: typeof WallboardRoute
   AcceptTokenRoute: typeof AcceptTokenRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
+  AppSecurityRoute: typeof AppSecurityRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
   AppOrgAuditLogRoute: typeof AppOrgAuditLogRoute
   AppOrgMembersRoute: typeof AppOrgMembersRoute
@@ -975,6 +1053,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acceptable-use': {
+      id: '/acceptable-use'
+      path: '/acceptable-use'
+      fullPath: '/acceptable-use'
+      preLoaderRoute: typeof AcceptableUseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accessibility': {
+      id: '/accessibility'
+      path: '/accessibility'
+      fullPath: '/accessibility'
+      preLoaderRoute: typeof AccessibilityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -1045,6 +1137,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/data-processing': {
+      id: '/data-processing'
+      path: '/data-processing'
+      fullPath: '/data-processing'
+      preLoaderRoute: typeof DataProcessingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/data-room': {
@@ -1194,11 +1293,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subprocessors': {
+      id: '/subprocessors'
+      path: '/subprocessors'
+      fullPath: '/subprocessors'
+      preLoaderRoute: typeof SubprocessorsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -1241,6 +1354,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/portfolio'
       fullPath: '/admin/portfolio'
       preLoaderRoute: typeof AdminPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app/security': {
+      id: '/app/security'
+      path: '/app/security'
+      fullPath: '/app/security'
+      preLoaderRoute: typeof AppSecurityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/assessment/$frameworkId': {
@@ -1477,6 +1597,8 @@ const AssessmentRouteWithChildren = AssessmentRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcceptableUseRoute: AcceptableUseRoute,
+  AccessibilityRoute: AccessibilityRoute,
   AdminRoute: AdminRoute,
   ArchitectureRoute: ArchitectureRoute,
   AssessmentRoute: AssessmentRouteWithChildren,
@@ -1487,6 +1609,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComplianceRoute: ComplianceRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
+  DataProcessingRoute: DataProcessingRoute,
   DataRoomRoute: DataRoomRoute,
   DemoRoute: DemoRoute,
   EvidenceRoute: EvidenceRoute,
@@ -1508,13 +1631,16 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   RegulatoryComplianceRoute: RegulatoryComplianceRoute,
   ReportsRoute: ReportsRoute,
+  SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
+  SubprocessorsRoute: SubprocessorsRoute,
   TermsRoute: TermsRoute,
   VaultsRoute: VaultsRoute,
   VerifyRoute: VerifyRoute,
   WallboardRoute: WallboardRoute,
   AcceptTokenRoute: AcceptTokenRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
+  AppSecurityRoute: AppSecurityRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
   AppOrgAuditLogRoute: AppOrgAuditLogRoute,
   AppOrgMembersRoute: AppOrgMembersRoute,

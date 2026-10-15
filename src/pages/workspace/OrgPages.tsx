@@ -9,7 +9,45 @@ export const ORG_TYPE_OPTIONS = [
   { value: 'government', label: 'Government (national ministry, department or agency)' }, { value: 'subnational', label: 'Subnational government (state, county or province)' },
   { value: 'nphi', label: 'National public health institute (NPHI)' }, { value: 'ngo', label: 'NGO' }, { value: 'private', label: 'Private' },
 ]
-type Org = { id: number; name: string; type: string; country: string; region: string; contactEmail: string; role: string }
+type Org = { requireMfa?: boolean; id: number; name: string; type: string; country: string; region: string; contactEmail: string; role: string; typeVerification?: string; typeVerificationMethod?: string | null; typeVerifiedBy?: string | null; typeVerificationNote?: string }
+
+const VERIFY_STYLE: Record<string, string> = { verified: 'bg-emerald-100 text-emerald-800', pending: 'bg-amber-100 text-amber-800', rejected: 'bg-rose-100 text-rose-700' }
+
+function NphiVerification({ org, reload }: { org: Org; reload: () => void }) {
+  const { run, error, busy } = useAction(reload)
+  if (org.type !== 'nphi') return null
+  const st = org.typeVerification ?? 'pending'
+  return (
+    <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+      <p>NPHI verification: <span className={`rounded px-2 py-0.5 text-xs font-medium ${VERIFY_STYLE[st] ?? ''}`}>{st}</span>
+        {org.typeVerificationMethod && <span className="text-xs text-slate-600"> · {org.typeVerificationMethod === 'email_domain' ? 'by institute email domain' : `confirmed by ${org.typeVerifiedBy}`}</span>}</p>
+      {org.typeVerificationNote && <p className="text-xs text-slate-600">{org.typeVerificationNote}</p>}
+      {st !== 'verified' && <p className="text-xs text-slate-600">NPHI, JEE, SPAR and IHR assessments unlock once the organisation is verified. An admin whose email is on the institute’s official domain is verified at once; otherwise a CRAFT operator reviews the request.</p>}
+      {st !== 'verified' && ['owner', 'admin'].includes(org.role) && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api(`/orgs/${org.id}/type-verification/check`, { method: 'POST', body: {} }))}>Verify with my institute email</Button>}
+      <ErrorLine error={error} />
+    </div>
+  )
+}
+
+function TypeVerificationQueue() {
+  const list = useApi<Org[]>('/admin/type-verifications')
+  const [note, setNote] = useState<Record<number, string>>({})
+  const { run, error, busy } = useAction(list.reload)
+  if (!list.data) return <State loading={list.loading} error={list.error} />
+  return (
+    <Card><CardContent className="space-y-3">
+      <h2 className="font-semibold">NPHI verification queue (platform operator)</h2>
+      <ErrorLine error={error} />
+      <Table><Thead><tr><Th>Organisation</Th><Th>Country</Th><Th>Status</Th><Th>Note</Th><Th>Decision</Th></tr></Thead>
+        <Tbody>{list.data.map(o => (
+          <tr key={o.id}><Td>{o.name}</Td><Td>{o.country}</Td><Td><span className={`rounded px-2 py-0.5 text-xs ${VERIFY_STYLE[o.typeVerification ?? ''] ?? ''}`}>{o.typeVerification}</span></Td>
+            <Td className="text-xs">{o.typeVerificationNote}</Td>
+            <Td><div className="flex flex-wrap gap-2"><Input aria-label={`Decision note for ${o.name}`} placeholder="Evidence checked (required)" value={note[o.id] ?? ''} onChange={e => setNote({ ...note, [o.id]: e.target.value })} />
+              <Button size="sm" disabled={busy || !note[o.id]} onClick={() => run(() => api(`/admin/type-verifications/${o.id}`, { method: 'POST', body: { decision: 'verified', note: note[o.id] } }))}>Verify</Button>
+              <Button size="sm" variant="destructive" disabled={busy || !note[o.id]} onClick={() => run(() => api(`/admin/type-verifications/${o.id}`, { method: 'POST', body: { decision: 'rejected', note: note[o.id] } }))}>Reject</Button></div></Td></tr>))}</Tbody></Table>
+    </CardContent></Card>
+  )
+}
 
 function useOrg() {
   const { currentUser } = useAuthCtx()
@@ -52,9 +90,10 @@ export function OrgSettingsPage() {
   const { org, selector, loading, error, reload } = useOrg()
   const [f, setF] = useState<Partial<Org> | null>(null)
   useEffect(() => { setF(null) }, [org?.id])
+  const isOperator = useAuthCtx().currentUser?.role === 'super_admin'
   const { run, error: saveErr, busy } = useAction(reload)
   if (loading || error) return <State loading={loading} error={error} />
-  if (!org) return <CreateOrg onDone={reload} />
+  if (!org) return <div className="space-y-6"><CreateOrg onDone={reload} />{isOperator && <TypeVerificationQueue />}</div>
   const v = { ...org, ...f }
   const canEdit = org.role === 'owner' || org.role === 'admin'
   return (
@@ -65,13 +104,20 @@ export function OrgSettingsPage() {
       <Input label="Name" disabled={!canEdit} value={v.name} onChange={e => setF({ ...f, name: e.target.value })} />
       <Select label="Organisation type" value={v.type} onChange={type => canEdit && setF({ ...f, type })} options={ORG_TYPE_OPTIONS} />
       {(v.type === 'nphi' || v.type === 'subnational') && <p className="text-xs text-slate-600">Unlocks the health-security assessments: {v.type === 'nphi' ? 'NPHI development, JEE, SPAR, subnational JEE, after-action reviews and simulation exercises' : 'subnational JEE-style self-assessment, after-action reviews and simulation exercises'}.</p>}
+      <NphiVerification org={org} reload={reload} />
       <Input label="Country" disabled={!canEdit} value={v.country} onChange={e => setF({ ...f, country: e.target.value })} />
       <Input label="Region" disabled={!canEdit} value={v.region} onChange={e => setF({ ...f, region: e.target.value })} />
       <Input label="Contact email" disabled={!canEdit} value={v.contactEmail} onChange={e => setF({ ...f, contactEmail: e.target.value })} />
       <ErrorLine error={saveErr} />
       {canEdit && <Button disabled={busy || !f} onClick={() => run(() => api(`/orgs/${org.id}`, { method: 'PUT', body: f }))}>Save</Button>}
       </div>
+      <Card><CardContent className="space-y-2 text-sm">
+        <h2 className="font-semibold">Security</h2>
+        <p>Multi-factor sign-in for members: <b>{org.requireMfa ? 'required' : 'optional'}</b>. <Link className="text-emerald-700 underline" to="/app/security">Your account security</Link></p>
+        {canEdit && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => api(`/orgs/${org.id}/security`, { method: 'PUT', body: { requireMfa: !org.requireMfa } }))}>{org.requireMfa ? 'Stop requiring multi-factor sign-in' : 'Require multi-factor sign-in for all members'}</Button>}
+      </CardContent></Card>
       <PrivacyControls key={`privacy-${org.id}`} org={org} />
+      {isOperator && <TypeVerificationQueue />}
     </div>
   )
 }

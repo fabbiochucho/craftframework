@@ -244,18 +244,26 @@ Methodology · Help & Glossary · User Guide · Frameworks catalogue · Institut
 
 ## 10. Known gaps and roadmap
 
-**Planned / not yet built**
-- Planner workstreams, dependency graph and budget fields; cross-framework requirement mapping.
-- XLSX/PDF export for the scorecard, planner and QA modules (Word/CSV exist today).
-- Multi-factor sign-in. The application doesn't provide it today.
-- CAP: immediate correction versus preventive action as separate fields; merging duplicate findings with provenance kept; escalation workflow.
-- Consolidation of legacy and workspace data models (reviewed evidence import tooling exists; a full migration does not).
+**Delivered 12–15 October 2026** (merged; the batch from 15 October ships in one deploy once hosting is restored)
+- ESG report quality checklist covers all 54 African countries (CRAFT-QA 1.3), with securities regulators, exchanges, disclosure rules and regional blocs; Regulatory sources register for re-verification.
+- Health security for verified national public health institutes: NPHI development (Africa CDC framework 2.0), WHO JEE 3rd edition, WHO SPAR 2nd edition (WHO scoring, level summaries with page references), subnational JEE-style self-assessment, after-action reviews and simulation exercises, crosswalk. NPHI status is verified by institute email domain or by a platform operator.
+- Public-sector performance assessment (APRM areas, national performance systems, PEFA pillars, OECD-DAC criteria, Agenda 2063/SDG alignment) and a framework map to SDG targets, Agenda 2063 goals and APRM areas.
+- Organisational design & diagnosis (Mintzberg, Handy, Deal and Kennedy, Morgan, Goold and Campbell's nine tests) with an organisational analysis report.
+- Planner workstreams, dependencies (cycle-checked), critical path, budgets by currency and a dependency graph.
+- XLSX and PDF exports for scorecards, planner, roadmap and ESG report QA.
+- CAP: immediate correction and preventive action, duplicate merging with provenance, escalation (manual, rule-based and daily).
+- Multi-factor sign-in (authenticator app, recovery codes) and an organisation policy to require it.
+- Evidence content check with in-browser OCR; security headers on pages.
 
-**Governance and validation next steps**
-1. Plan external validation of the CRAFT-GS methodology.
-2. Confirm the founder-protection overlay wording with legal and programme partners.
-3. Re-verify regulatory sources before each reporting cycle (SEC, FRCN, ICPAK, ICAG, ZICA, NBAA, PAAB, ICPAR, JSE); verify the South Africa position.
-4. Complete the provider operations checklist: credential rotation, sender verification for report and escalation email, encryption backfill verification.
+**Still open**
+- Consolidation of legacy and workspace data models — plan: `docs/governance/legacy-consolidation-plan.md`. Until then, legacy pages are not behind multi-factor sign-in.
+- Public pages for the new audiences (NPHIs, government performance, 54-country ESG) and the site recommendations in `docs/governance/site-review-2026-10.md`.
+
+**Governance and validation next steps** (documents in `docs/governance/`)
+1. External validation of CRAFT-GS — plan: `craft-gs-external-validation-plan.md`.
+2. Founder-protection wording with legal and programme partners — review pack: `founder-protection-review-pack.md`.
+3. Re-verify regulatory sources before each reporting cycle, including the South Africa position — procedure: `regulatory-source-reverification.md`, using the Regulatory sources page.
+4. Provider operations — checklist: `provider-operations-checklist.md` (hosting credits, credential rotation including `MFA_SESSION_SECRET`, sender verification, encryption backfill verification).
 
 **Suggested 30–60–90 day pilot for adopters**
 | Days | Focus | Outputs |
@@ -272,7 +280,8 @@ Methodology · Help & Glossary · User Guide · Frameworks catalogue · Institut
 - **Regulatory drift** — rule packs carry verification dates and need re-checking each cycle.
 - **Operational dependencies** — email delivery, field encryption keys and analytics depend on provider configuration. Features return explicit "not configured" states rather than failing silently.
 - **Data sensitivity** — users should not upload sensitive personal data without approval. Sensitive findings are encrypted and referenced, not copied, into CAPs.
-- **Dual model complexity** — legacy and workspace models coexist until a reviewed consolidation is done.
+- **Dual model complexity** — legacy and workspace models coexist until a reviewed consolidation is done; legacy pages do not yet enforce multi-factor sign-in.
+- **Hosting capacity** — the site went offline on 14 October 2026 when the Netlify account's usage credits ran out; see the provider operations checklist.
 
 ---
 
