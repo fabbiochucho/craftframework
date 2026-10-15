@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { BRAND } from '../lib/data'
-import { Mail, PolicyLayout, type PolicySection } from '../components/PolicyLayout'
+import { DpoClause, DpoMail, PolicyLayout, type PolicySection } from '../components/PolicyLayout'
 
 // Last substantive revision of this policy. Update when the text changes.
 export const PRIVACY_EFFECTIVE_DATE = '15 October 2026'
@@ -8,7 +8,7 @@ export const PRIVACY_EFFECTIVE_DATE = '15 October 2026'
 const SECTIONS: PolicySection[] = [
   { title: 'Who we are and our role', body: <>
     <p>{BRAND.product} is operated by the DiBadili Institute. For your account (name, email, sign-in and security records) we are the <b>controller</b>. For the information an organisation puts into its workspace — assessments, findings, plans, evidence and reports — the <b>organisation is the controller</b> and we act as its <b>processor</b> under our <Link to="/data-processing" className="text-emerald-700 underline">Data Processing Terms</Link>.</p>
-    <p>Data protection contact: <Mail />.</p>
+    <p>Our Data Protection Officer is the contact for all privacy matters: <DpoMail /> (see the DPO section above).</p>
   </> },
   { title: 'Data we collect', body: <ul>
     <li><b>Account data:</b> name, email address, organisation memberships and roles.</li>
@@ -37,7 +37,7 @@ const SECTIONS: PolicySection[] = [
     <ul>
       <li>Download a copy of your data from the platform (privacy export).</li>
       <li>Ask for erasure from within your organisation; another organisation admin or owner approves it.</li>
-      <li>Or write to <Mail />. We respond to verified requests within 30 days.</li>
+      <li>Or contact our Data Protection Officer at <DpoMail />. We respond to verified requests within 30 days.</li>
     </ul>
     <p>Where workspace data belongs to an organisation, we pass requests about it to that organisation as controller.</p>
   </> },
@@ -56,11 +56,11 @@ const SECTIONS: PolicySection[] = [
   </tbody></table><p>Support-chat analytics (PostHog, EU) is off unless you opt in; it keeps no cookies or browser storage and records only the type of support event, never message content.</p></> },
   { title: 'Security', body: <p>We protect data with encryption in transit (HTTPS with HSTS), field-level encryption of sensitive fields at rest, role-based access per organisation and workspace, optional and organisation-enforceable multi-factor sign-in, segregation-of-duties checks, rate limiting, strict security headers and audit logs. See <Link to="/security" className="text-emerald-700 underline">Security</Link> for details and how to report a vulnerability.</p> },
   { title: 'Children', body: <p>{BRAND.product} is for organisations and professionals. It is not directed at children and we do not knowingly collect children’s personal data.</p> },
-  { title: 'Complaints', body: <p>Please contact us first at <Mail />. You may also complain to your data protection authority, for example the Nigeria Data Protection Commission, Kenya’s Office of the Data Protection Commissioner, South Africa’s Information Regulator, Ghana’s Data Protection Commission, Uganda’s Personal Data Protection Office, Rwanda’s National Cyber Security Authority, or your EU or UK supervisory authority.</p> },
+  { title: 'Complaints', body: <p>Please contact our Data Protection Officer first at <DpoMail />. You may also complain to your data protection authority, for example the Nigeria Data Protection Commission, Kenya’s Office of the Data Protection Commissioner, South Africa’s Information Regulator, Ghana’s Data Protection Commission, Uganda’s Personal Data Protection Office, Rwanda’s National Cyber Security Authority, or your EU or UK supervisory authority.</p> },
   { title: 'Changes', body: <p>We update this policy when our processing changes and change the effective date above. Material changes are highlighted at the top of this page.</p> },
 ]
 
 export function PrivacyPage() {
-  return <PolicyLayout title="Privacy Policy" effective={PRIVACY_EFFECTIVE_DATE} sections={SECTIONS}
+  return <PolicyLayout title="Privacy Policy" effective={PRIVACY_EFFECTIVE_DATE} sections={SECTIONS} notice={<DpoClause />}
     intro={<>What personal data {BRAND.product} collects, why, who it is shared with, how long it is kept and the rights you have over it.</>} />
 }
