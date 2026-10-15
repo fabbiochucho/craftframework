@@ -63,6 +63,7 @@ const SUB: PolicySection[] = [
   { title: 'Current sub-processors', body: <table><thead><tr><th>Provider</th><th>Purpose</th><th>Data involved</th><th>When</th></tr></thead><tbody>
     <tr><td>Netlify</td><td>Hosting, serverless functions, sign-in (Identity), file storage (Blobs) and the Postgres database</td><td>All platform data</td><td>Always</td></tr>
     <tr><td>SendGrid (Twilio)</td><td>Scheduled reports and escalation email</td><td>Recipient email, report content</td><td>When reports or escalations are sent</td></tr>
+    <tr><td>Cloudflare (Turnstile)</td><td>Security check that stops automated sign-ups</td><td>IP address and browser signals during the check; no cookies for tracking</td><td>When you register an account</td></tr>
     <tr><td>Resend</td><td>Invitations, reminders and compliance-deadline alerts</td><td>Recipient email, message content</td><td>When these emails are sent</td></tr>
     <tr><td>Anthropic (through Netlify’s AI gateway)</td><td>Translating interface text into other languages</td><td>Interface text shown on screen</td><td>When you choose a language other than English</td></tr>
     <tr><td>PostHog (EU)</td><td>Optional analytics of support-chat events</td><td>Event type only; no message content or identity</td><td>Only if you opt in</td></tr>
