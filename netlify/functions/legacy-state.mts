@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
-import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { encryptField, decryptField } from '../lib/crypto.js'
 import { logger } from '../lib/logger.js'
 
@@ -18,6 +18,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
     if (req.method === 'GET') {
       const params = new URL(req.url).searchParams
       const orgId = params.get('orgId')

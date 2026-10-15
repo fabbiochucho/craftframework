@@ -10,6 +10,7 @@ import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
 import { SessionTimer } from './SessionTimer'
 import { ComplianceDeadlineBadge } from './ComplianceDeadlineBadge'
+import { MfaPrompt } from '../pages/workspace/shared'
 import { useOfflineSecurity } from '../hooks/use-offline-security'
 import { BRAND, getAccreditation, computeOrgScore } from '../lib/data'
 import {
@@ -18,6 +19,26 @@ import {
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
   Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText,
 } from 'lucide-react'
+
+// The legacy /api endpoints answer 401 'mfa_required' when the account uses multi-factor sign-in
+// and this browser has not entered a code. Many callers fire and forget, so watch every /api
+// response once here instead of in each caller; the prompt reloads the page once verified.
+function useLegacyMfaRequired() {
+  const [needed, setNeeded] = useState(false)
+  useEffect(() => {
+    const original = window.fetch
+    window.fetch = async (...args) => {
+      const res = await original(...args)
+      const url = String(args[0] instanceof Request ? args[0].url : args[0])
+      if (res.status === 401 && (url.startsWith('/api/') || url.startsWith(`${location.origin}/api/`))) {
+        void res.clone().json().then(b => { if (b?.error === 'mfa_required') setNeeded(true) }).catch(() => {})
+      }
+      return res
+    }
+    return () => { window.fetch = original }
+  }, [])
+  return needed
+}
 
 // ICARF v4.0 - a single, unified workspace. The core assessment process (v3
 // lineage) and the explicit framework integrations (Pact OMT/OCA, Global Fund PR
@@ -61,6 +82,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouterState()
   const navigate = useNavigate()
   const pathname = router.location.pathname
+  const mfaNeeded = useLegacyMfaRequired()
 
   useEffect(() => {
     let cancelled = false
@@ -365,7 +387,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           )}
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 p-6">{mfaNeeded ? <MfaPrompt /> : children}</main>
           <Footer />
         </div>
       </div>

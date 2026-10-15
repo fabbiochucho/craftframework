@@ -1,7 +1,7 @@
 import type { Config } from '@netlify/functions'
 import { db } from '../../db/index.js'
 import { accessGrants } from '../../db/schema.js'
-import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // /api/issue-access-grant — issues a TIME-BOUND, READ-ONLY specialized ecosystem
@@ -67,6 +67,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     const body = await req.json()
     const orgId = String(body.orgId ?? '').trim()

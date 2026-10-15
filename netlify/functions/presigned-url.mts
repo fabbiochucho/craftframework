@@ -1,6 +1,6 @@
 import type { Context, Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
-import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { ALLOWED_EXTENSIONS, UPLOAD_WINDOW_SECONDS, extensionOf } from '../lib/uploads.js'
 import { logger } from '../lib/logger.js'
 
@@ -36,6 +36,8 @@ export default async (req: Request, context: Context) => {
 
   const caller = await resolveCaller()
   if (!caller) return unauthorized()
+  const mfaBlock = await mfaRequired(req, caller)
+  if (mfaBlock) return mfaBlock
 
   let body: PresignRequest
   try {

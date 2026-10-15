@@ -1,6 +1,6 @@
 import type { Context } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
-import { resolveCaller, canAccessOrg, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { MAX_UPLOAD_BYTES } from '../lib/uploads.js'
 import { stripImageMetadata } from '../lib/stripImageMetadata.js'
 import { logger } from '../lib/logger.js'
@@ -35,6 +35,8 @@ export default async (req: Request, _context: Context) => {
 
   const caller = await resolveCaller()
   if (!caller) return unauthorized()
+  const mfaBlock = await mfaRequired(req, caller)
+  if (mfaBlock) return mfaBlock
 
   const key = new URL(req.url).searchParams.get('key')
   if (!key) {

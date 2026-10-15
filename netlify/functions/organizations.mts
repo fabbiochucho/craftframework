@@ -6,7 +6,7 @@ import {
   organizations, responses, capacityActions, complianceItems, auditLogs,
   accessGrants, users,
 } from '../../db/schema.js'
-import { canAccessOrg, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { canAccessOrg, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 const orgFieldsSchema = z.object({
@@ -29,6 +29,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       // Non-admins may only ever list their own administered institutions, so the
