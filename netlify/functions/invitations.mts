@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { desc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { invitations } from '../../db/schema.js'
-import { resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // /api/invitations — short-lived, tokenised invitations. A firm invites a client
@@ -36,6 +36,8 @@ export default async (req: Request) => {
       }
       const caller = await resolveCaller()
       if (!caller) return unauthorized()
+      const mfaBlock = await mfaRequired(req, caller)
+      if (mfaBlock) return mfaBlock
       if (inviter) {
         const target = inviter.trim().toLowerCase()
         if (target !== caller.email && caller.role !== 'super_admin') return forbidden()
@@ -64,6 +66,8 @@ export default async (req: Request) => {
     if (req.method === 'POST') {
       const caller = await resolveCaller()
       if (!caller) return unauthorized()
+      const mfaBlock = await mfaRequired(req, caller)
+      if (mfaBlock) return mfaBlock
       const body = await req.json()
       const email = String(body.email ?? '').trim().toLowerCase()
       if (!email) return Response.json({ error: 'email required' }, { status: 400 })

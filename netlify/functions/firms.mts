@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { firmMembers, firms } from '../../db/schema.js'
-import { resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 async function isFirmMember(email: string, firmId: string): Promise<boolean> {
@@ -30,6 +30,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       const params = new URL(req.url).searchParams

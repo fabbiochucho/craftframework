@@ -1,6 +1,6 @@
 import type { Config } from '@netlify/functions'
 import { seedQuestions } from '../../src/lib/dbSeed.js'
-import { resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // POST /api/seed — (re)seed the question bank into the database. Idempotent;
@@ -12,6 +12,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
     if (caller.role !== 'super_admin') return forbidden()
     const seeded = await seedQuestions()
     return Response.json({ ok: true, questions: seeded })

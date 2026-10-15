@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { accessGrants, firmMembers, portfolioOrgs, portfolios } from '../../db/schema.js'
-import { type Caller, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { type Caller, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // Whether the caller owns/administers this portfolio: its reviewer or creator of
@@ -33,6 +33,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       // A non-admin may only read their own portfolios: the reviewer scope is

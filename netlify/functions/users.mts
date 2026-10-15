@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { users } from '../../db/schema.js'
 import type { UserRow } from '../../db/schema.js'
-import { isSuperAdmin, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 function isAdmin(role: string): boolean {
@@ -100,6 +100,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       const email = new URL(req.url).searchParams.get('email')

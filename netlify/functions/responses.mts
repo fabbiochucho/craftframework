@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responses } from '../../db/schema.js'
-import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // /api/responses — per-organization assessment scores. The canonical store for
@@ -15,6 +15,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       const params = new URL(req.url).searchParams
