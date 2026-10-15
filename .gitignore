@@ -16,3 +16,6 @@ videos/**/snapshots/
 
 # Copied from node_modules by scripts/copy-ocr-assets.mjs
 public/ocr/
+
+# HyperFrames render previews (generated)
+**/.hyperframes/preview/
