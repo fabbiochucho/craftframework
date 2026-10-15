@@ -19,7 +19,7 @@ const CLAUSES: Clause[] = [
     body: (
       <>
         By accessing or using {BRAND.product} ({BRAND.framework}), the “Service”, operated by the Di Badili
-        Leadership Sustainability Initiative (trading as DiBadili Institute, also known as Become Change
+        Leadership Sustainability Initiative (Operating as DiBadili Institute, also known as Become Change
         Institute), P.O. Box 2550, Festac Town, Lagos, Nigeria, you agree to be bound by these Terms of Service. If you do not agree with any
         part of these terms, you must not use the Service. These terms apply to all visitors, demo users,
         registered institutions, and team members invited to a workspace.
