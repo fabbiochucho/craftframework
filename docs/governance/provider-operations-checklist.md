@@ -10,8 +10,8 @@ The site was offline on 14 October 2026 because the account's usage credits ran 
 
 - [ ] Choose a plan or credit top-up that covers normal traffic, scheduled functions and deploys; enable auto top-up if acceptable
 - [ ] Set a usage alert well below the limit (e.g. 70%)
-- [ ] Turn off deploy previews for pull requests unless needed; batch merges into fewer production deploys
-- [ ] Know the scheduled functions: daily — `evidence-expiry-alerts`, `compliance-alerts`, `universal-obligations-alerts`, `weekly-reports`, `cap-escalations`; hourly — `support-escalation-retry` (about 720 runs a month; consider every 6 hours if credits are tight)
+- [x] Deploy previews for pull requests turned off (15 October 2026); batch merges into fewer production deploys
+- [ ] Know the scheduled functions: daily — `evidence-expiry-alerts`, `compliance-alerts`, `universal-obligations-alerts`, `weekly-reports`, `cap-escalations`; every 4 hours — `support-escalation-retry` (about 180 runs a month; changed from hourly on 15 October 2026); daily — `encryption-backfill`
 - [ ] Decide whether the Vercel preview deployments are still needed (they duplicate builds)
 
 ## 2. Credential rotation
