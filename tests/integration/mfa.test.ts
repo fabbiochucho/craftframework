@@ -68,4 +68,18 @@ describe('multi-factor sign-in', () => {
     assert.equal(off.status, 409)
     assert.match(off.body.error, /requires multi-factor sign-in/)
   })
+
+  it('applies to the legacy endpoints too', async () => {
+    const legacy = (await import(new URL('../../netlify/functions/legacy-state.mts', import.meta.url).href)).default
+    const call = (cookie = '') => {
+      ;(globalThis as any).__craftTestIdentity = { email: OWNER }
+      return legacy(new Request('http://localhost/api/legacy-state?orgId=x&key=roca:answers', { headers: cookie ? { cookie } : {} }))
+    }
+    assert.notEqual((await call()).status, 401, 'not enrolled: no second factor needed')
+    const { cookie } = await enroll(OWNER)
+    const blocked = await call()
+    assert.equal(blocked.status, 401)
+    assert.equal((await blocked.json()).error, 'mfa_required')
+    assert.notEqual((await call(cookie)).status, 401)
+  })
 })

@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions'
-import { resolveCaller, unauthorized } from '../lib/auth.js'
+import { resolveCaller, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // /api/send-invite — dispatch the branded welcome email for an invitation.
@@ -21,6 +21,8 @@ export default async (req: Request) => {
     // arbitrary addresses through this workspace's Resend account.
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     const body = await req.json()
     const to = String(body.to ?? '').trim()

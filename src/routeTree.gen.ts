@@ -56,6 +56,9 @@ import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
 import { Route as AppSecurityRouteImport } from './routes/app.security'
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
+import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
+import { Route as ForGovernmentRouteImport } from './routes/for.government'
+import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
 import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
 import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
@@ -321,6 +324,22 @@ const DashboardTrustDeltaRoute = DashboardTrustDeltaRouteImport.update({
   path: '/dashboard/trust-delta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForEsgReportingRoute = ForEsgReportingRouteImport.update({
+  id: '/for/esg-reporting',
+  path: '/for/esg-reporting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForGovernmentRoute = ForGovernmentRouteImport.update({
+  id: '/for/government',
+  path: '/for/government',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForPublicHealthInstitutesRoute =
+  ForPublicHealthInstitutesRouteImport.update({
+    id: '/for/public-health-institutes',
+    path: '/for/public-health-institutes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppOrgAuditLogRoute = AppOrgAuditLogRouteImport.update({
   id: '/app/org/audit-log',
   path: '/app/org/audit-log',
@@ -544,6 +563,9 @@ export interface FileRoutesByFullPath {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
+  '/for/esg-reporting': typeof ForEsgReportingRoute
+  '/for/government': typeof ForGovernmentRoute
+  '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
@@ -622,6 +644,9 @@ export interface FileRoutesByTo {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
+  '/for/esg-reporting': typeof ForEsgReportingRoute
+  '/for/government': typeof ForGovernmentRoute
+  '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
@@ -701,6 +726,9 @@ export interface FileRoutesById {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
+  '/for/esg-reporting': typeof ForEsgReportingRoute
+  '/for/government': typeof ForGovernmentRoute
+  '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
@@ -781,6 +809,9 @@ export interface FileRouteTypes {
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
+    | '/for/esg-reporting'
+    | '/for/government'
+    | '/for/public-health-institutes'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
@@ -859,6 +890,9 @@ export interface FileRouteTypes {
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
+    | '/for/esg-reporting'
+    | '/for/government'
+    | '/for/public-health-institutes'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
@@ -937,6 +971,9 @@ export interface FileRouteTypes {
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard_/trust-delta'
+    | '/for/esg-reporting'
+    | '/for/government'
+    | '/for/public-health-institutes'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
@@ -1015,6 +1052,9 @@ export interface RootRouteChildren {
   AdminPortfolioRoute: typeof AdminPortfolioRoute
   AppSecurityRoute: typeof AppSecurityRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
+  ForEsgReportingRoute: typeof ForEsgReportingRoute
+  ForGovernmentRoute: typeof ForGovernmentRoute
+  ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
   AppOrgAuditLogRoute: typeof AppOrgAuditLogRoute
   AppOrgMembersRoute: typeof AppOrgMembersRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRoute
@@ -1377,6 +1417,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardTrustDeltaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/for/esg-reporting': {
+      id: '/for/esg-reporting'
+      path: '/for/esg-reporting'
+      fullPath: '/for/esg-reporting'
+      preLoaderRoute: typeof ForEsgReportingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for/government': {
+      id: '/for/government'
+      path: '/for/government'
+      fullPath: '/for/government'
+      preLoaderRoute: typeof ForGovernmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for/public-health-institutes': {
+      id: '/for/public-health-institutes'
+      path: '/for/public-health-institutes'
+      fullPath: '/for/public-health-institutes'
+      preLoaderRoute: typeof ForPublicHealthInstitutesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/org/audit-log': {
       id: '/app/org/audit-log'
       path: '/app/org/audit-log'
@@ -1642,6 +1703,9 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPortfolioRoute: AdminPortfolioRoute,
   AppSecurityRoute: AppSecurityRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
+  ForEsgReportingRoute: ForEsgReportingRoute,
+  ForGovernmentRoute: ForGovernmentRoute,
+  ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,
   AppOrgAuditLogRoute: AppOrgAuditLogRoute,
   AppOrgMembersRoute: AppOrgMembersRoute,
   AppOrgSettingsRoute: AppOrgSettingsRoute,

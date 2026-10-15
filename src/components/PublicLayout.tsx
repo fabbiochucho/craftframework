@@ -8,6 +8,7 @@ import { Footer } from './Footer'
 import { Logo } from './Logo'
 import { LanguageToggle } from './LanguageToggle'
 import { useI18n } from '../lib/i18n'
+import { useAuthCtx } from '../lib/context'
 
 const navLinks = [
   { to: '/', labelKey: 'nav.home', fallback: 'Home' },
@@ -21,6 +22,7 @@ const navLinks = [
 
 // Public storefront chrome (Zone 1) - no auth required.
 export function PublicLayout({ children }: { children: React.ReactNode }) {
+  const { currentUser } = useAuthCtx()
   const [open, setOpen] = useState(false)
   const router = useRouterState()
   const pathname = router.location.pathname
@@ -59,11 +61,17 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
           <div className="ml-auto hidden items-center gap-2 lg:flex">
             <LanguageToggle tone="light" />
-            <Link to="/auth">
-              <Button variant="ghost" size="sm">
-                {t('nav.signIn', 'Sign in')}
-              </Button>
-            </Link>
+            {currentUser ? (
+              <Link to="/app/workspaces">
+                <Button variant="ghost" size="sm">{t('nav.platform', 'Platform')}</Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button variant="ghost" size="sm">
+                  {t('nav.signIn', 'Sign in')}
+                </Button>
+              </Link>
+            )}
             <Link to="/auth">
               <Button size="sm">
                 <Shield className="h-4 w-4" /> {t('nav.register', 'Register Your Institution')}
@@ -91,9 +99,9 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 {t(l.labelKey, l.fallback)}
               </Link>
             ))}
-            <Link to="/auth" onClick={() => setOpen(false)} className="mt-1 block">
+            <Link to={currentUser ? '/app/workspaces' : '/auth'} onClick={() => setOpen(false)} className="mt-1 block">
               <Button variant="ghost" size="sm" className="w-full justify-center">
-                {t('nav.signIn', 'Sign in')}
+                {currentUser ? t('nav.platform', 'Platform') : t('nav.signIn', 'Sign in')}
               </Button>
             </Link>
             <Link to="/auth" onClick={() => setOpen(false)} className="mt-2 block">

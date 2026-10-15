@@ -18,8 +18,9 @@
 import { getUser } from '@netlify/identity'
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
-import { accessGrants, organizations, users } from '../../db/schema.js'
+import { accessGrants, organizations, userMfa, users } from '../../db/schema.js'
 import { grantAllows, SPECIALIZED_READONLY_ROLES } from './access-policy.js'
+import { MFA_COOKIE, mfaSessionKey, mfaUserKey, readCookie, verifyMfaSession } from './mfa.js'
 
 const SUPER_ADMIN_EMAILS = ['fabbiochucho@gmail.com']
 
@@ -117,6 +118,14 @@ export async function canAccessOrg(caller: Caller, orgId: string, access: 'read'
   if (access === 'write' && (caller.readOnly || SPECIALIZED_READONLY_ROLES.has(caller.role))) return false
   if (!caller.readOnly && (caller.role === 'super_admin' || (orgId === caller.orgId && !SPECIALIZED_READONLY_ROLES.has(caller.role)))) return true
   return (await filterAuthorizedOrgIds(caller, [orgId], access)).length > 0
+}
+
+// Legacy endpoints apply the same rule as workspace-api: a user who turned on multi-factor sign-in
+// needs a current MFA session. Returns the 401 to send, or null when the caller may continue.
+export async function mfaRequired(req: Request, caller: Caller): Promise<Response | null> {
+  const [row] = await db.select({ enabled: userMfa.enabled }).from(userMfa).where(eq(userMfa.userKey, mfaUserKey(caller.email)))
+  if (!row?.enabled || verifyMfaSession(readCookie(req.headers.get('cookie'), MFA_COOKIE), caller.email, Date.now(), mfaSessionKey())) return null
+  return Response.json({ error: 'mfa_required' }, { status: 401 })
 }
 
 export const unauthorized = () => Response.json({ error: 'Unauthorized' }, { status: 401 })

@@ -4,6 +4,7 @@ import { and, asc, eq, or } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responseNotes, users } from '../../db/schema.js'
 import { logger } from '../lib/logger.js'
+import { mfaRequired } from '../lib/auth.js'
 
 // ============================================================================
 // /api/response-notes — threaded, multi-author rationale on assessment answers.
@@ -75,6 +76,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       const params = new URL(req.url).searchParams
