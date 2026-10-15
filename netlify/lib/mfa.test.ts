@@ -1,6 +1,6 @@
 // Self-check — run directly with `node netlify/lib/mfa.test.ts`.
 import assert from 'node:assert/strict'
-import { base32Decode, base32Encode, generateRecoveryCodes, generateSecret, hashRecoveryCode, otpauthUri, signMfaSession, totp, verifyMfaSession, verifyTotp } from './mfa.ts'
+import { base32Decode, base32Encode, generateRecoveryCodes, generateSecret, hashRecoveryCode, mfaSessionKey, otpauthUri, signMfaSession, totp, verifyMfaSession, verifyTotp } from './mfa.ts'
 
 // RFC 6238 appendix B test vectors (SHA-1 secret "12345678901234567890"), last 6 digits.
 const rfc = base32Encode(Buffer.from('12345678901234567890'))
@@ -36,4 +36,12 @@ assert.ok(!verifyMfaSession(tok, 'a@b.org', now + 2000, key), 'expired')
 assert.ok(!verifyMfaSession(tok, 'a@b.org', now, Buffer.alloc(32, 8)), 'other key')
 assert.ok(!verifyMfaSession(`${tok.split('.')[0]}x.${tok.split('.')[1]}`, 'a@b.org', now, key), 'tampered payload')
 assert.ok(!verifyMfaSession('garbage', 'a@b.org', now, key))
+// Signing key: derived with HKDF, stable for the same secret, different for another.
+process.env.MFA_SESSION_SECRET = 'test-secret-one'
+const k1 = mfaSessionKey(), k1b = mfaSessionKey()
+process.env.MFA_SESSION_SECRET = 'test-secret-two'
+assert.equal(k1.length, 32)
+assert.ok(k1.equals(k1b))
+assert.ok(!k1.equals(mfaSessionKey()))
+delete process.env.MFA_SESSION_SECRET
 console.log('mfa.test.ts: all assertions passed')
