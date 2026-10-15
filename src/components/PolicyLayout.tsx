@@ -23,7 +23,7 @@ export function DpoClause() {
   return (
     <section id="dpo" aria-labelledby="dpo-heading" className="scroll-mt-24 rounded-2xl border-2 border-emerald-600 bg-emerald-50 p-6 shadow-sm sm:p-8">
       <h2 id="dpo-heading" className="font-display text-lg font-bold text-emerald-900 sm:text-xl">{d.heading}</h2>
-      <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+      <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-700 [overflow-wrap:anywhere] sm:text-[15px]">
         <p>{d.intro}</p>
         <p>{d.lead}</p>
         <ul className="ml-5 list-disc space-y-1">{d.details.map(([k, v]) => <li key={k}>{k}: {value(k, v)}</li>)}</ul>
@@ -60,7 +60,7 @@ export function PolicyLayout({ kicker = 'Legal', title, intro, effective, sectio
           {sections.map((s, i) => (
             <section key={s.title} id={`s${i + 1}`} className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <h2 className="font-display text-lg font-bold text-emerald-900 sm:text-xl">{i + 1}. {s.title}</h2>
-              <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-700 sm:text-[15px] [&_li]:ml-5 [&_li]:list-disc [&_table]:w-full [&_td]:border [&_td]:border-slate-200 [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-slate-200 [&_th]:bg-emerald-50 [&_th]:p-2 [&_th]:text-left">{s.body}</div>
+              <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-700 [overflow-wrap:anywhere] sm:text-[15px] [&_li]:ml-5 [&_li]:list-disc [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_table]:w-full [&_td]:border [&_td]:border-slate-200 [&_td]:p-2 [&_td]:align-top [&_th]:border [&_th]:border-slate-200 [&_th]:bg-emerald-50 [&_th]:p-2 [&_th]:text-left">{s.body}</div>
             </section>
           ))}
         </div>
