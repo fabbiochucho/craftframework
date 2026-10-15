@@ -18,4 +18,4 @@ videos/**/snapshots/
 public/ocr/
 
 # HyperFrames render previews (generated)
-.hyperframes/preview/
+**/.hyperframes/preview/
