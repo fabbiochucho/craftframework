@@ -39,7 +39,7 @@ Prepared 15 October 2026 from Netlify Analytics (19 September – 14 October 202
 5. **Security headers were missing on pages** (fixed in October): CSP, X-Frame-Options and HSTS are now sent on server-rendered pages, and the footer logo is served locally.
 6. **The site went offline on 14 October** because the Netlify account's usage credits were used up. Every page returned 503. This is the single biggest risk to visitors and is covered in the provider operations checklist.
 7. **The new platform (`/app/...`) is not linked from the public navigation.** Visitors who sign in land on the legacy dashboard (`/dashboard`), which is why it still gets traffic. The new modules (NPHI, JEE/SPAR, organisational design, ESG checklist) are hard to find.
-8. **Legacy and workspace models still run side by side** (see the consolidation plan). Multi-factor sign-in protects the workspace platform; the legacy pages still use password-only sign-in.
+8. **Legacy and workspace models still run side by side** (see the consolidation plan). Multi-factor sign-in now covers both: since October 2026 the legacy `/api` endpoints refuse an enrolled user without a current MFA session, and the legacy pages show the code prompt.
 
 ## Recommendations
 

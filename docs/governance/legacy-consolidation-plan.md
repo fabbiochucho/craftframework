@@ -15,7 +15,7 @@ CRAFT runs two models side by side.
 | Compliance | `compliance_items`, `financial_triangulations` | ESG checklist (`qa_periods`), planner, regulatory sources |
 | Audit | `audit_logs` | `ws_audit_log` |
 | API | ~20 Netlify functions (`responses`, `questions`, `organizations`, `compliance`, …) | One function: `workspace-api` |
-| Security | Netlify Identity password; role from `users` | Same identity plus **multi-factor sign-in**, org MFA policy, NPHI verification |
+| Security | Netlify Identity password; role from `users` | Same identity plus **multi-factor sign-in**, org MFA policy, NPHI verification (legacy endpoints also enforce a user's own MFA since October 2026) |
 
 Usage: in the review period `/dashboard` had 42 views and `/app/workspaces` 5, so most signed-in users still land on legacy pages. Tooling already exists to import reviewed legacy evidence into the workspace evidence registry (`netlify/lib/evidence-consolidation.ts`, manifest with SHA-256 checks and reviewer).
 
