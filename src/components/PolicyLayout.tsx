@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { BRAND } from '../lib/data'
+import { DPO_CLAUSE } from '../lib/dpo'
 
 export interface PolicySection { title: string; body: React.ReactNode }
 
@@ -14,10 +15,30 @@ export const POLICY_LINKS: { to: string; label: string }[] = [
   { to: '/code-of-conduct', label: 'Code of Conduct' },
 ]
 
+/** The DPO appointment and contact clause, rendered verbatim. */
+export function DpoClause() {
+  const d = DPO_CLAUSE
+  const value = (k: string, v: string) => k === 'Official Contact Email' ? <a href={`mailto:${v}`} className="font-semibold text-emerald-700 underline">{v}</a>
+    : k === 'Contact Phone Number' ? <a href={`tel:${v}`} className="font-semibold text-emerald-700 underline">{v}</a> : v
+  return (
+    <section id="dpo" aria-labelledby="dpo-heading" className="scroll-mt-24 rounded-2xl border-2 border-emerald-600 bg-emerald-50 p-6 shadow-sm sm:p-8">
+      <h2 id="dpo-heading" className="font-display text-lg font-bold text-emerald-900 sm:text-xl">{d.heading}</h2>
+      <div className="mt-3 space-y-3 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
+        <p>{d.intro}</p>
+        <p>{d.lead}</p>
+        <ul className="ml-5 list-disc space-y-1">{d.details.map(([k, v]) => <li key={k}>{k}: {value(k, v)}</li>)}</ul>
+        <p>{d.closing}</p>
+      </div>
+    </section>
+  )
+}
+
+export const DpoMail = () => <a href={`mailto:${DPO_CLAUSE.email}`} className="font-semibold text-emerald-700 underline-offset-2 hover:underline">{DPO_CLAUSE.email}</a>
+
 export const Mail = () => <a href={`mailto:${BRAND.contactEmail}`} className="font-semibold text-emerald-700 underline-offset-2 hover:underline">{BRAND.contactEmail}</a>
 
 /** Shared layout for legal and trust pages: header, effective date, numbered sections and links to the other policies. */
-export function PolicyLayout({ kicker = 'Legal', title, intro, effective, sections }: { kicker?: string; title: string; intro: React.ReactNode; effective: string; sections: PolicySection[] }) {
+export function PolicyLayout({ kicker = 'Legal', title, intro, effective, sections, notice }: { kicker?: string; title: string; intro: React.ReactNode; effective: string; sections: PolicySection[]; notice?: React.ReactNode }) {
   return (
     <div>
       <section className="bg-gradient-to-br from-emerald-900 to-slate-900 py-16 text-white">
@@ -31,9 +52,11 @@ export function PolicyLayout({ kicker = 'Legal', title, intro, effective, sectio
       <section className="mx-auto max-w-4xl px-6 py-12">
         <nav aria-label="On this page" className="mb-8 rounded-xl border border-slate-200 bg-white p-4 text-sm">
           <p className="mb-2 font-semibold text-slate-700">On this page</p>
+          {notice && <p className="mb-1"><a className="text-emerald-700 hover:underline" href="#dpo">Data Protection Officer (DPO) Appointment &amp; Contact</a></p>}
           <ol className="list-decimal space-y-1 pl-5">{sections.map((s, i) => <li key={s.title}><a className="text-emerald-700 hover:underline" href={`#s${i + 1}`}>{s.title}</a></li>)}</ol>
         </nav>
         <div className="space-y-5">
+          {notice}
           {sections.map((s, i) => (
             <section key={s.title} id={`s${i + 1}`} className="scroll-mt-24 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <h2 className="font-display text-lg font-bold text-emerald-900 sm:text-xl">{i + 1}. {s.title}</h2>
