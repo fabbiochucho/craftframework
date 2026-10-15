@@ -8,7 +8,7 @@ export const canOcr = (mime: string) => mime === 'application/pdf' || /^image\/(
 
 async function pdfPages(file: Blob): Promise<HTMLCanvasElement[]> {
   const { getDocumentProxy } = await import('unpdf')
-  const pdf = await getDocumentProxy(new Uint8Array(await file.arrayBuffer()), { isEvalSupported: false, disableFontFace: true })
+  const pdf = await getDocumentProxy(new Uint8Array(await file.arrayBuffer()), { disableFontFace: true })
   const pages: HTMLCanvasElement[] = []
   for (let n = 1; n <= Math.min(pdf.numPages, MAX_PDF_PAGES); n++) {
     const page = await pdf.getPage(n)

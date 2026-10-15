@@ -39,14 +39,14 @@ All are linked from the footer and from each other, allowed in `robots.txt` and 
 ## Recommendations still open
 
 1. **Bot protection on sign-up and sign-in.** Sign-up goes straight to Netlify Identity, which has no CAPTCHA. Options: Cloudflare Turnstile or hCaptcha in front of the sign-up form (needs a site key and a CSP update for the provider), or switch Identity registration to invite-only. Organisation creation already requires an organisational email domain.
-2. **Legacy pages and MFA.** Multi-factor sign-in protects the workspace platform; legacy dashboard pages still use password-only sign-in until consolidation (see `legacy-consolidation-plan.md`).
+2. **Legacy pages and MFA.** Done (October 2026): the legacy `/api` endpoints apply the same MFA rule as the workspace platform, and the legacy pages show the code prompt. The organisation-level "require MFA" policy applies to workspace organisations only, until consolidation (see `legacy-consolidation-plan.md`).
 3. **Password length.** The app requires 8 characters (Netlify Identity's minimum). Consider 12+ for operators and admins, with MFA required for them.
 4. **Third-party sub-processor contracts.** Confirm that DPAs and transfer clauses are in place with Netlify, SendGrid (Twilio), Resend, Anthropic/Netlify AI Gateway, PostHog and GitHub, and confirm the data locations to list on the Sub-processors page.
 5. **Vercel.** Preview deployments are also built on Vercel. Confirm they never receive production data or secrets; if they do, Vercel must be listed as a sub-processor.
 
 ## For legal confirmation (deliberately not invented on the pages)
 
-- **Legal entity details:** the registered name of the DiBadili Institute entity, registration number and registered address to state as controller.
+- **Legal entity details:** confirmed 15 October 2026 — Di Badili Leadership Sustainability Initiative, P.O. Box 2550, Festac Town, Lagos, Nigeria; now stated in the Privacy Policy and Terms. Registration number still to add if required.
 - **Data protection officer:** appointed — Abiola Oshunniyi, dpo@becomechange.institute (clause published verbatim on the privacy policy, 15 October 2026). Still to confirm: South Africa information officer registration and Kenya ODPC registration if those markets are served.
 - **Clause wording:** the domain in the DPO clause was corrected to abiolaoshunniyi.lovable.app on the DPO's confirmation (15 October 2026); the clause was also updated with the trading name, NeuRafiki and "P.O. Box 2550".
 - **Regulatory registrations:**

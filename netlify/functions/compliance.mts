@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { complianceItems } from '../../db/schema.js'
-import { canAccessOrg, resolveCaller, forbidden, unauthorized } from '../lib/auth.js'
+import { canAccessOrg, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 
 // /api/compliance — the unified Obligations & Reporting Calendar. Queried by the
@@ -12,6 +12,8 @@ export default async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
+    const mfaBlock = await mfaRequired(req, caller)
+    if (mfaBlock) return mfaBlock
 
     if (req.method === 'GET') {
       const orgId = new URL(req.url).searchParams.get('orgId')

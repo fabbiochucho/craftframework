@@ -7,7 +7,7 @@ export const PRIVACY_EFFECTIVE_DATE = '15 October 2026'
 
 const SECTIONS: PolicySection[] = [
   { title: 'Who we are and our role', body: <>
-    <p>{BRAND.product} is operated by the DiBadili Institute. For your account (name, email, sign-in and security records) we are the <b>controller</b>. For the information an organisation puts into its workspace — assessments, findings, plans, evidence and reports — the <b>organisation is the controller</b> and we act as its <b>processor</b> under our <Link to="/data-processing" className="text-emerald-700 underline">Data Processing Terms</Link>.</p>
+    <p>{BRAND.product} is operated by the Di Badili Leadership Sustainability Initiative (Operating as DiBadili Institute, also known as Become Change Institute), P.O. Box 2550, Festac Town, Lagos, Nigeria (“we”). For your account (name, email, sign-in and security records) we are the <b>controller</b>. For the information an organisation puts into its workspace — assessments, findings, plans, evidence and reports — the <b>organisation is the controller</b> and we act as its <b>processor</b> under our <Link to="/data-processing" className="text-emerald-700 underline">Data Processing Terms</Link>.</p>
     <p>Our Data Protection Officer is the contact for all privacy matters: <DpoMail /> (see the DPO section above).</p>
   </> },
   { title: 'Data we collect', body: <ul>

@@ -35,7 +35,8 @@ export function decryptFieldWithKeys(value: string, keys: Record<string, Buffer>
 function configuredKeys(): { activeVersion: string; keys: Record<string, Buffer> } | null {
   const active = process.env.FIELD_ENCRYPTION_KEY
   if (!active) {
-    if (process.env.NODE_ENV === 'production') throw new Error('FIELD_ENCRYPTION_KEY is required in production')
+    // Netlify functions do not set NODE_ENV; CONTEXT identifies a production deploy there.
+    if (process.env.NODE_ENV === 'production' || process.env.CONTEXT === 'production') throw new Error('FIELD_ENCRYPTION_KEY is required in production')
     return null
   }
   const activeVersion = process.env.FIELD_ENCRYPTION_KEY_VERSION || VERSION

@@ -20,6 +20,7 @@ Allow: /data-processing
 Allow: /subprocessors
 Allow: /security
 Allow: /accessibility
+Allow: /for/
 Allow: /.well-known/security.txt
 Disallow: /
 
