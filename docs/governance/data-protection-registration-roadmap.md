@@ -1,6 +1,6 @@
 # Data protection registration roadmap
 
-Prepared 15 October 2026 for the Di Badili Leadership Sustainability Initiative (trading as DiBadili Institute, also known as Become Change Institute), P.O. Box 2550, Festac Town, Lagos, Nigeria. DPO: Abiola Oshunniyi, dpo@becomechange.institute.
+Prepared 15 October 2026 for the Di Badili Leadership Sustainability Initiative (Operating as DiBadili Institute, also known as Become Change Institute), P.O. Box 2550, Festac Town, Lagos, Nigeria. DPO: Abiola Oshunniyi, dpo@becomechange.institute.
 
 This is a planning summary, not legal advice. Confirm thresholds and fees with the regulator or a licensed Data Protection Compliance Organisation (DPCO) before filing.
 
