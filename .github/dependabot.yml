@@ -12,6 +12,8 @@ updates:
       # 1.x removes the brand icons (GitHub, LinkedIn, Facebook, Instagram) used on public pages.
       - dependency-name: lucide-react
         update-types: [version-update:semver-major]
+      # Netlify edge-functions-dev passes --allow-scripts, which Deno 2.9 rejects.
+      - dependency-name: deno
   - package-ecosystem: github-actions
     directory: /
     schedule:
