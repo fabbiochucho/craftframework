@@ -47,7 +47,8 @@ All are linked from the footer and from each other, allowed in `robots.txt` and 
 ## For legal confirmation (deliberately not invented on the pages)
 
 - **Legal entity details:** the registered name of the DiBadili Institute entity, registration number and registered address to state as controller.
-- **Data protection officer / information officer:** whether to designate one and publish their contact (the pages currently use craftframework@becomechange.institute).
+- **Data protection officer:** appointed — Abiola Oshunniyi, dpo@becomechange.institute (clause published verbatim on the privacy policy, 15 October 2026). Still to confirm: South Africa information officer registration and Kenya ODPC registration if those markets are served.
+- **Clause wording:** the verbatim DPO clause lists "abiolaoshunniyi.loveable.app"; the live domain is abiolaoshunniyi.lovable.app. Correct the clause text with the DPO's approval.
 - **Regulatory registrations:**
   - Nigeria — whether CRAFT is a data controller or processor "of major importance" requiring registration with the Nigeria Data Protection Commission, and annual compliance audit filing;
   - Kenya — registration with the Office of the Data Protection Commissioner;
