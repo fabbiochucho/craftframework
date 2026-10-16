@@ -705,6 +705,9 @@ export const validations = pgTable(
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
     statusChangedBy: text('status_changed_by'),
     supersededBy: text('superseded_by'),
+    // Public verification (PR 6): random CRAFT-V-XXXXXXXX, and what the organisation chooses to publish.
+    verificationId: text('verification_id'),
+    publicOptions: jsonb('public_options').$type<{ registrationNumber?: string; showRungHistory?: boolean; showQualifications?: boolean; devmapperUrl?: string }>().notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('validations_org_idx').on(t.orgId, t.framework), index('validations_engagement_idx').on(t.engagementId)],
@@ -763,6 +766,32 @@ export const validationNotifications = pgTable(
     sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique('validation_notifications_unique').on(t.validationId, t.kind, t.dueOn, t.offsetDays, t.recipient)],
+)
+
+export const validationStatements = pgTable('validation_statements', {
+  validationId: text('validation_id').primaryKey().references(() => validations.id, { onDelete: 'cascade' }),
+  pdfBase64: text('pdf_base64').notNull(),
+  sha256: text('sha256').notNull(),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const validationConcerns = pgTable(
+  'validation_concerns',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    // 'inaccurate' | 'conduct' | 'material_event' | 'other'
+    category: text('category').notNull(),
+    message: text('message').notNull(),
+    contactName: text('contact_name').notNull().default(''),
+    contactEmail: text('contact_email').notNull().default(''),
+    // 'new' | 'in_review' | 'closed'
+    status: text('status').notNull().default('new'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    handledBy: text('handled_by'),
+    handledAt: timestamp('handled_at', { withTimezone: true }),
+  },
+  (t) => [index('validation_concerns_validation_idx').on(t.validationId)],
 )
 
 // --- response_notes ---------------------------------------------------------

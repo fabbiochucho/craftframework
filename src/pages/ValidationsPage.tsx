@@ -16,6 +16,8 @@ type Event = {
   deadlineOn: string; late: boolean; status: string; orgResponse: string; decisionNote: string
 }
 type Detail = Summary & {
+  verificationId: string; publicUrl: string; pdfSha256: string | null
+  publicOptions: { registrationNumber?: string; showRungHistory?: boolean; showQualifications?: boolean; devmapperUrl?: string }
   validityMonths: number; validityReason: string; statusReason: string | null; surveillance: null | { dueAt: string; doneAt: string | null }
   followUp: { mode: FollowUpMode; dueOn: string | null; overdue: boolean; broughtForward: boolean; history: Array<{ dueOn: string; result: string; note: string }>; tracked: string[] }
   events: Event[]; history: Array<{ at: string; action: string }>; eventTypes: Array<{ key: string; star: boolean; label: string }>; canReport: boolean
@@ -51,6 +53,7 @@ export function ValidationsPage() {
       </div>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       {items && !items.length && <p className="text-sm text-slate-500">No validation has been issued yet.</p>}
+      <Concerns />
       <ul className="grid gap-3 md:grid-cols-2">
         {items?.map((v) => (
           <li key={v.id}>
@@ -97,6 +100,15 @@ export function ValidationDetailPage({ id }: { id: string }) {
       {msg && <p role="status" className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-700'}`}>{msg.text}</p>}
 
       <Card>
+        <CardHeader><CardTitle>Public verification</CardTitle><p className="text-sm text-slate-500">Anyone with the ID (or the QR code on the statement) can check this validation's status. They never see scores, evidence, comments or contact details.</p></CardHeader>
+        <CardContent className="space-y-2 text-sm text-slate-700">
+          <p>Verification ID <strong className="font-mono">{d.verificationId}</strong> · <a className="text-emerald-700 underline" href={`/validation/${d.verificationId}`} target="_blank" rel="noreferrer">open the public page</a> · <a className="text-emerald-700 underline" href={`/api/public/validation/${d.verificationId}/statement.pdf`}>statement PDF</a></p>
+          {d.pdfSha256 && <p className="break-all font-mono text-xs text-slate-500">PDF SHA-256 {d.pdfSha256}</p>}
+          {d.can.org && <PublicOptions d={d} onSave={(b) => act(send('/public', 'PUT', b), 'Public page options saved')} />}
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle>Follow-up</CardTitle><p className="text-sm text-slate-500">A follow-up re-checks only the qualified or blocking indicators ({d.followUp.tracked.join(', ') || 'none'}). The CIP can bring a check forward; it never extends validity.</p></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-slate-700">
@@ -126,6 +138,23 @@ export function ValidationDetailPage({ id }: { id: string }) {
         <CardContent><ol className="space-y-1 text-sm text-slate-600">{d.history.map((h, i) => <li key={i}>{fmt(h.at)} — {h.action}</li>)}</ol></CardContent>
       </Card>
       {closed && <p className="text-xs text-slate-500">This validation is closed.</p>}
+    </div>
+  )
+}
+
+function PublicOptions({ d, onSave }: { d: Detail; onSave: (b: unknown) => void }) {
+  const [reg, setReg] = useState(d.publicOptions.registrationNumber ?? '')
+  const [hist, setHist] = useState(!!d.publicOptions.showRungHistory)
+  const [quals, setQuals] = useState(!!d.publicOptions.showQualifications)
+  const [dm, setDm] = useState(d.publicOptions.devmapperUrl ?? '')
+  return (
+    <div className="space-y-2 border-t border-slate-100 pt-3">
+      <h4 className="text-sm font-semibold text-slate-700">What the public page also shows (your choice)</h4>
+      <Input label="Registration number (shown on the page)" value={reg} onChange={(e) => setReg(e.target.value)} />
+      <label className="flex items-center gap-2"><input type="checkbox" checked={hist} onChange={(e) => setHist(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Rung history</label>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={quals} onChange={(e) => setQuals(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Qualifications summary</label>
+      <Input label="DevMapper link (https only)" value={dm} onChange={(e) => setDm(e.target.value)} />
+      <Button size="sm" onClick={() => onSave({ registrationNumber: reg, showRungHistory: hist, showQualifications: quals, devmapperUrl: dm })}>Save</Button>
     </div>
   )
 }
@@ -202,6 +231,29 @@ function LeadControls({ act, send }: { act: (fn: () => Promise<Detail>, ok: stri
           <Button size="sm" variant="outline" disabled={!until || !why.trim()} onClick={() => void act(send('/shorten', 'PUT', { expiresOn: until, reason: why }), 'Validity shortened')}>Shorten validity</Button>
           <Button size="sm" variant="outline" disabled={!why.trim()} onClick={() => { if (window.confirm('Withdraw this validation? This cannot be undone.')) void act(send('/withdraw', 'POST', { reason: why }), 'Validation withdrawn') }}>Withdraw</Button>
         </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// Platform admin only: concerns raised from public verification pages.
+function Concerns() {
+  const [rows, setRows] = useState<Array<{ id: string; verificationId: string; organization: string; category: string; message: string; contactName: string; contactEmail: string; status: string; createdAt: string }>>([])
+  const load = () => api('/api/validations/concerns').then(setRows, () => setRows([]))
+  useEffect(() => { void load() }, [])
+  if (!rows.length) return null
+  return (
+    <Card>
+      <CardHeader><CardTitle>Concerns raised from public pages</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {rows.map((c) => (
+          <div key={c.id} className="space-y-1 border-b border-slate-100 pb-3 text-sm last:border-0">
+            <p className="font-medium">{c.verificationId} · {c.organization} <Badge variant="outline" className="ml-1 text-slate-600">{c.category}</Badge> <Badge variant="outline" className="text-slate-600">{c.status}</Badge></p>
+            <p className="text-slate-700">{c.message}</p>
+            {(c.contactName || c.contactEmail) && <p className="text-xs text-slate-500">{[c.contactName, c.contactEmail].filter(Boolean).join(' · ')}</p>}
+            <div className="flex gap-2">{(['in_review', 'closed'] as const).map((st) => <Button key={st} size="sm" variant="outline" onClick={() => void api(`/api/validations/concerns/${c.id}`, { method: 'PUT', json: { status: st } }).then(load)}>{st === 'in_review' ? 'Mark in review' : 'Close'}</Button>)}</div>
+          </div>
+        ))}
       </CardContent>
     </Card>
   )
