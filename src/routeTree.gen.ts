@@ -51,6 +51,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SubprocessorsRouteImport } from './routes/subprocessors'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrainingRouteImport } from './routes/training'
+import { Route as ValidationsRouteImport } from './routes/validations'
 import { Route as VaultsRouteImport } from './routes/vaults'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WallboardRouteImport } from './routes/wallboard'
@@ -65,6 +66,7 @@ import { Route as ForGovernmentRouteImport } from './routes/for.government'
 import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
 import { Route as TrainingAssessmentRouteImport } from './routes/training_.assessment'
 import { Route as TrainingManageRouteImport } from './routes/training_.manage'
+import { Route as ValidationsIdRouteImport } from './routes/validations_.$id'
 import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
 import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
@@ -308,6 +310,11 @@ const TrainingRoute = TrainingRouteImport.update({
   path: '/training',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ValidationsRoute = ValidationsRouteImport.update({
+  id: '/validations',
+  path: '/validations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VaultsRoute = VaultsRouteImport.update({
   id: '/vaults',
   path: '/vaults',
@@ -377,6 +384,11 @@ const TrainingAssessmentRoute = TrainingAssessmentRouteImport.update({
 const TrainingManageRoute = TrainingManageRouteImport.update({
   id: '/training_/manage',
   path: '/training/manage',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ValidationsIdRoute = ValidationsIdRouteImport.update({
+  id: '/validations_/$id',
+  path: '/validations/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppOrgAuditLogRoute = AppOrgAuditLogRouteImport.update({
@@ -612,6 +624,7 @@ export interface FileRoutesByFullPath {
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
+  '/validations': typeof ValidationsRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
@@ -626,6 +639,7 @@ export interface FileRoutesByFullPath {
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
+  '/validations/$id': typeof ValidationsIdRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
@@ -702,6 +716,7 @@ export interface FileRoutesByTo {
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
+  '/validations': typeof ValidationsRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
@@ -716,6 +731,7 @@ export interface FileRoutesByTo {
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
+  '/validations/$id': typeof ValidationsIdRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
@@ -793,6 +809,7 @@ export interface FileRoutesById {
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
+  '/validations': typeof ValidationsRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
@@ -807,6 +824,7 @@ export interface FileRoutesById {
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
   '/training_/assessment': typeof TrainingAssessmentRoute
   '/training_/manage': typeof TrainingManageRoute
+  '/validations_/$id': typeof ValidationsIdRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
@@ -885,6 +903,7 @@ export interface FileRouteTypes {
     | '/subprocessors'
     | '/terms'
     | '/training'
+    | '/validations'
     | '/vaults'
     | '/verify'
     | '/wallboard'
@@ -899,6 +918,7 @@ export interface FileRouteTypes {
     | '/for/public-health-institutes'
     | '/training/assessment'
     | '/training/manage'
+    | '/validations/$id'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
@@ -975,6 +995,7 @@ export interface FileRouteTypes {
     | '/subprocessors'
     | '/terms'
     | '/training'
+    | '/validations'
     | '/vaults'
     | '/verify'
     | '/wallboard'
@@ -989,6 +1010,7 @@ export interface FileRouteTypes {
     | '/for/public-health-institutes'
     | '/training/assessment'
     | '/training/manage'
+    | '/validations/$id'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
@@ -1065,6 +1087,7 @@ export interface FileRouteTypes {
     | '/subprocessors'
     | '/terms'
     | '/training'
+    | '/validations'
     | '/vaults'
     | '/verify'
     | '/wallboard'
@@ -1079,6 +1102,7 @@ export interface FileRouteTypes {
     | '/for/public-health-institutes'
     | '/training_/assessment'
     | '/training_/manage'
+    | '/validations_/$id'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
@@ -1156,6 +1180,7 @@ export interface RootRouteChildren {
   SubprocessorsRoute: typeof SubprocessorsRoute
   TermsRoute: typeof TermsRoute
   TrainingRoute: typeof TrainingRoute
+  ValidationsRoute: typeof ValidationsRoute
   VaultsRoute: typeof VaultsRoute
   VerifyRoute: typeof VerifyRoute
   WallboardRoute: typeof WallboardRoute
@@ -1169,6 +1194,7 @@ export interface RootRouteChildren {
   ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
   TrainingAssessmentRoute: typeof TrainingAssessmentRoute
   TrainingManageRoute: typeof TrainingManageRoute
+  ValidationsIdRoute: typeof ValidationsIdRoute
   AppOrgAuditLogRoute: typeof AppOrgAuditLogRoute
   AppOrgMembersRoute: typeof AppOrgMembersRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRoute
@@ -1498,6 +1524,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrainingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/validations': {
+      id: '/validations'
+      path: '/validations'
+      fullPath: '/validations'
+      preLoaderRoute: typeof ValidationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vaults': {
       id: '/vaults'
       path: '/vaults'
@@ -1594,6 +1627,13 @@ declare module '@tanstack/react-router' {
       path: '/training/manage'
       fullPath: '/training/manage'
       preLoaderRoute: typeof TrainingManageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/validations_/$id': {
+      id: '/validations_/$id'
+      path: '/validations/$id'
+      fullPath: '/validations/$id'
+      preLoaderRoute: typeof ValidationsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/org/audit-log': {
@@ -1890,6 +1930,7 @@ const rootRouteChildren: RootRouteChildren = {
   SubprocessorsRoute: SubprocessorsRoute,
   TermsRoute: TermsRoute,
   TrainingRoute: TrainingRoute,
+  ValidationsRoute: ValidationsRoute,
   VaultsRoute: VaultsRoute,
   VerifyRoute: VerifyRoute,
   WallboardRoute: WallboardRoute,
@@ -1903,6 +1944,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,
   TrainingAssessmentRoute: TrainingAssessmentRoute,
   TrainingManageRoute: TrainingManageRoute,
+  ValidationsIdRoute: ValidationsIdRoute,
   AppOrgAuditLogRoute: AppOrgAuditLogRoute,
   AppOrgMembersRoute: AppOrgMembersRoute,
   AppOrgSettingsRoute: AppOrgSettingsRoute,
