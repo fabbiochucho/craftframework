@@ -6,7 +6,7 @@ import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
   accessGrants, auditLogs, engagementDeclarations, engagementMembers, firms, organizations, validationDebriefs, validationEngagements,
-  validationQualifications, validationReviews, validationScores, validations, validatorProfiles,
+  validationCipActions, validationQualifications, validationReviews, validationScores, validations, validatorProfiles,
   type EngagementMemberRow, type ValidationEngagementRow, type ValidationReviewRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
@@ -19,6 +19,7 @@ import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 import { FOLLOW_UP_MODES, issuedValidity, validityProblems } from '../../src/lib/validationLifecycle.js'
 import { generateVerificationId } from '../../src/lib/validationStatement.js'
 import { ensureStatement } from '../lib/public-validation.js'
+import { recordStatusHistory, sendDebriefNotice, syncCheckpoints } from '../lib/validation-lifecycle.js'
 import {
   canonicalJson, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indicatorsInScope, levelsAchieved, METHODS,
   OUTCOMES, SUFFICIENCY, trustDelta, type Outcome,
@@ -191,6 +192,13 @@ export default async (req: Request) => {
         await tx.update(validationReviews).set({ status: 'debrief', updatedAt: new Date() }).where(eq(validationReviews.id, row.id))
         await tx.insert(auditLogs).values({ actor: caller.email, action: 'opened the debrief', target: row.id, category: 'Validation', orgId: e.orgId })
         return json({ ok: true })
+      }).then(async (res) => {
+        // Tell the organisation (outside the transaction; a mail failure never undoes the debrief, the daily run retries it).
+        if (res.status === 200) {
+          const sent = await sendDebriefNotice(r.id)
+          await audit(caller.email, `debrief opened; organisation notice ${sent === 'accepted' ? 'sent' : sent === 'skipped' ? 'not needed' : 'queued for retry'}`, r.id, e.orgId)
+        }
+        return res
       })
     }
 
@@ -285,9 +293,15 @@ export default async (req: Request) => {
             validityMonths: issued.months, validityReason: choice?.reason ?? '', expiresAt: issued.expiresAt, surveillanceDueAt: issued.surveillanceDueAt,
             verificationId: generateVerificationId(), trackedIndicators: tracked, followUpMode: p.data.followUpMode ?? 'milestone', followUpSetBy: caller.email, followUpSetAt: now,
           })
+          await recordStatusHistory(tx as never, issuedId, null, 'current', 'Validation issued', caller.email, now)
+          // Each qualification becomes an improvement action for the organisation to own, date and prove.
+          for (const q of quals) {
+            await tx.insert(validationCipActions).values({ id: `cip_${crypto.randomUUID()}`, validationId: issuedId, orgId: e.orgId, text: q.text, indicatorIds: q.indicatorIds, qualificationId: q.id, createdBy: caller.email })
+          }
           for (const old of previous) {
             await tx.update(validations).set({ status: 'superseded', statusReason: 'Superseded by a newer validation', statusChangedAt: now, statusChangedBy: caller.email, supersededBy: issuedId })
               .where(eq(validations.id, old.id))
+            await recordStatusHistory(tx as never, old.id, 'current', 'superseded', 'Superseded by a newer validation', caller.email, now)
             await tx.insert(auditLogs).values({ actor: caller.email, action: 'superseded by a newer validation', target: old.id, category: 'Validation', orgId: e.orgId })
           }
           await tx.insert(auditLogs).values({ actor: caller.email, action: `issued validation: ${issued.months} months, expires ${issued.expiresAt.toISOString().slice(0, 10)}${issued.surveillanceDueAt ? `, surveillance ${issued.surveillanceDueAt.toISOString().slice(0, 10)}` : ''}`, target: issuedId, category: 'Validation', orgId: e.orgId })
@@ -300,7 +314,10 @@ export default async (req: Request) => {
         await reconcileEngagement(id)
         // Issue the statement PDF now so its SHA-256 is fixed at issue. Best effort: the public page makes it on first view if this fails.
         const [issued] = await db.select().from(validations).where(eq(validations.reviewId, r.id))
-        if (issued) await ensureStatement(issued).catch((err) => logger.error('/api/validation-reviews', 'statement PDF failed', err))
+        if (issued) {
+          await syncCheckpoints(issued).catch((err) => logger.error('/api/validation-reviews', 'checkpoints failed', err))
+          await ensureStatement(issued).catch((err) => logger.error('/api/validation-reviews', 'statement PDF failed', err))
+        }
       }
       return result
     }
