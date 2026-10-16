@@ -4,13 +4,15 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
-  auditLogs, firmMembers, firms, organizations, orgDirectoryProfiles, validatorCredentials, validatorProfiles,
+  accessGrants, auditLogs, firmMembers, firms, organizations, orgDirectoryProfiles, orgListingProposals, validatorCredentials, validatorProfiles,
   type FirmRow, type ValidatorProfileRow,
 } from '../../db/schema.js'
+import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { decryptField } from '../lib/crypto.js'
 import { logger } from '../lib/logger.js'
 import { badgesFor } from '../lib/training.js'
+import { reconcileValidator } from '../lib/engagement-access.js'
 import { currentRung } from '../../src/lib/capitalReadiness.js'
 import {
   ADMIN_ACCREDITATION_ACTIONS, cleanList, credentialLabel, effectiveAccreditation, matchesQuery, validatorLevel,
@@ -26,7 +28,11 @@ import {
 //   PUT    me/validator               create / edit own validator profile
 //   POST   me/credentials             add a professional membership (self-declared)
 //   DELETE me/credentials/:id         remove one of own memberships
-//   PUT    me/organization            own organisation's opt-in listing
+//   PUT    me/organization            own organisation's opt-in listing (own staff only)
+//   POST   proposals                  a consultant with an access grant PROPOSES a listing (not live)
+//   GET    proposals                  proposals the caller made
+//   POST   proposals/:id/approve|reject   the organisation's own staff decide
+//   DELETE proposals/:id              the proposer withdraws a pending proposal
 //   GET    search?type=&q=&country=   validators | firms | funders | organizations
 //   GET    validators/:id | firms/:id | organizations/:id   brief profiles
 //   PUT    admin/validators/:id       platform admin: suspend / reinstate only (reason required)
@@ -51,10 +57,21 @@ const orgListingSchema = z.object({ listed: z.boolean(), summary: z.string().max
 // A platform admin can only suspend or reinstate, with a reason. Accreditation is earned
 // through the training programme (/api/training); `.strict()` rejects any attempt to send
 // 'accredited', pilot flags or an accredited_until here.
+const proposalSchema = z.object({ orgId: z.string().trim().min(1).max(200), summary: z.string().trim().min(1).max(1000) })
+const approveSchema = z.object({ summary: z.string().trim().min(1).max(1000).optional() })
+const rejectSchema = z.object({ reason: z.string().trim().max(1000).optional() })
 const accreditationSchema = z.object({
   status: z.enum(ADMIN_ACCREDITATION_ACTIONS),
   reason: z.string().trim().min(1).max(1000),
 }).strict()
+
+// Who may look up opted-in organisations: funding partners, and registered validators
+// (so a validator can request an engagement with an organisation that opted in).
+async function mayBrowseOrganizations(email: string, isAdmin: boolean): Promise<boolean> {
+  if (isAdmin || (await isFunderStaff(email))) return true
+  const [v] = await db.select({ id: validatorProfiles.id }).from(validatorProfiles).where(eq(validatorProfiles.email, email))
+  return !!v
+}
 
 async function isFunderStaff(email: string): Promise<boolean> {
   const [row] = await db.select({ id: firms.id }).from(firmMembers)
@@ -144,10 +161,13 @@ export default async (req: Request) => {
         .where(and(eq(firmMembers.email, caller.email), eq(firmMembers.status, 'invited'), isNotNull(firms.kind)))
       const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, caller.orgId))
       const [listing] = await db.select().from(orgDirectoryProfiles).where(eq(orgDirectoryProfiles.orgId, caller.orgId))
+      const proposals = org ? await db.select().from(orgListingProposals)
+        .where(and(eq(orgListingProposals.orgId, caller.orgId), eq(orgListingProposals.status, 'pending'))) : []
       return json({
         email: caller.email,
         isAdmin,
         isFunder: memberships.some((m) => m.firm.kind === 'funding_partner'),
+        canBrowseOrganizations: await mayBrowseOrganizations(caller.email, isAdmin),
         validator: validator ? {
           ...validatorCard(validator, [], (await badgesFor([validator.email])).get(validator.email)), email: validator.email, bio: validator.bio, frameworks: validator.frameworks,
           languages: validator.languages, accreditationReason: validator.accreditationReason,
@@ -156,6 +176,8 @@ export default async (req: Request) => {
         firms: memberships.map((m) => ({ ...firmCard(m.firm, 0), role: m.role })),
         invitations,
         organization: org ? { name: org.name, id: listing?.id ?? null, listed: listing?.listed ?? false, summary: listing?.summary ?? '' } : null,
+        // Pending listing proposals for the caller's own organisation (decided by its staff).
+        proposals: proposals.map((p) => ({ id: p.id, proposedBy: p.proposedBy, summary: p.summary, createdAt: p.createdAt })),
       })
     }
 
@@ -208,6 +230,76 @@ export default async (req: Request) => {
       return json({ ok: true })
     }
 
+    if (a === 'proposals') {
+      if (req.method === 'GET' && !b) {
+        const mine = await db.select({
+          id: orgListingProposals.id, orgName: organizations.name, summary: orgListingProposals.summary, status: orgListingProposals.status,
+          reason: orgListingProposals.reason, createdAt: orgListingProposals.createdAt,
+        }).from(orgListingProposals).innerJoin(organizations, eq(organizations.id, orgListingProposals.orgId))
+          .where(eq(orgListingProposals.proposedBy, caller.email))
+        return json(mine)
+      }
+      if (req.method === 'POST' && !b) {
+        const p = proposalSchema.safeParse(await readBody())
+        if (!p.success) return bad('An organisation and a draft summary are required')
+        const { orgId, summary } = p.data
+        // An outside consultant only: the organisation's own staff list it directly, and a
+        // time-limited validator / regulator grant is not a consultant relationship.
+        if (orgId === caller.orgId) return bad('List your own organisation directly')
+        if (SPECIALIZED_READONLY_ROLES.has(caller.role) || !(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
+        const [grant] = await db.select({ role: accessGrants.role }).from(accessGrants)
+          .where(and(eq(accessGrants.orgId, orgId), eq(accessGrants.grantee, caller.email)))
+        if (grant?.role && SPECIALIZED_READONLY_ROLES.has(grant.role)) return forbidden()
+        const [org] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, orgId))
+        if (!org) return notFound()
+        const id = `olp_${crypto.randomUUID()}`
+        // The partial unique index allows one pending proposal per organisation.
+        const inserted = await db.insert(orgListingProposals).values({ id, orgId, proposedBy: caller.email, summary })
+          .onConflictDoNothing().returning({ id: orgListingProposals.id })
+        if (!inserted.length) return json({ error: 'This organisation already has a pending proposal' }, 409)
+        await audit(caller.email, 'proposed directory listing', id, 'Directory', orgId)
+        return json({ id }, 201)
+      }
+      if (b && ((req.method === 'POST' && (c === 'approve' || c === 'reject')) || (req.method === 'DELETE' && !c))) {
+        const [prop] = await db.select().from(orgListingProposals).where(eq(orgListingProposals.id, b))
+        // Proposals are visible only to the proposer and the organisation's own staff.
+        const own = !!prop && prop.orgId === caller.orgId
+        if (!prop || (!own && prop.proposedBy !== caller.email)) return notFound()
+        if (req.method === 'DELETE') {
+          if (prop.proposedBy !== caller.email) return forbidden()
+          const done = await db.update(orgListingProposals).set({ status: 'withdrawn', decidedBy: caller.email, decidedAt: new Date() })
+            .where(and(eq(orgListingProposals.id, b), eq(orgListingProposals.status, 'pending'))).returning({ id: orgListingProposals.id })
+          if (!done.length) return json({ error: 'Proposal is no longer pending' }, 409)
+          await audit(caller.email, 'withdrew directory listing proposal', b, 'Directory', prop.orgId)
+          return json({ ok: true })
+        }
+        // Only the organisation's own staff (write access to their own tenant) decide.
+        if (!own || !(await canAccessOrg(caller, prop.orgId, 'write'))) return forbidden()
+        const decidedAt = new Date()
+        if (c === 'approve') {
+          const p = approveSchema.safeParse((await readBody()) ?? {})
+          if (!p.success) return bad('Invalid summary')
+          const summary = p.data.summary ?? prop.summary
+          const done = await db.update(orgListingProposals).set({ status: 'approved', decidedBy: caller.email, decidedAt })
+            .where(and(eq(orgListingProposals.id, b), eq(orgListingProposals.status, 'pending'))).returning({ id: orgListingProposals.id })
+          if (!done.length) return json({ error: 'Proposal is no longer pending' }, 409)
+          const fields = { listed: true, summary, updatedBy: caller.email, updatedAt: decidedAt }
+          await db.insert(orgDirectoryProfiles).values({ id: `od_${crypto.randomUUID()}`, orgId: prop.orgId, ...fields })
+            .onConflictDoUpdate({ target: orgDirectoryProfiles.orgId, set: fields })
+          await audit(caller.email, `approved directory listing proposed by ${prop.proposedBy}`, b, 'Directory', prop.orgId)
+          return json({ ok: true })
+        }
+        const p = rejectSchema.safeParse((await readBody()) ?? {})
+        if (!p.success) return bad('Invalid reason')
+        const reason = p.data.reason || null
+        const done = await db.update(orgListingProposals).set({ status: 'rejected', decidedBy: caller.email, decidedAt, reason })
+          .where(and(eq(orgListingProposals.id, b), eq(orgListingProposals.status, 'pending'))).returning({ id: orgListingProposals.id })
+        if (!done.length) return json({ error: 'Proposal is no longer pending' }, 409)
+        await audit(caller.email, `rejected directory listing proposed by ${prop.proposedBy}${reason ? ` (${reason})` : ''}`, b, 'Directory', prop.orgId)
+        return json({ ok: true })
+      }
+    }
+
     if (route === 'GET search') {
       const type = url.searchParams.get('type') ?? 'validators'
       const q = (url.searchParams.get('q') ?? '').slice(0, 200)
@@ -231,7 +323,7 @@ export default async (req: Request) => {
         return json(hits.map((f) => firmCard(f, sizes.get(f.id) ?? 0)))
       }
       if (type === 'organizations') {
-        if (!isAdmin && !(await isFunderStaff(caller.email))) return forbidden()
+        if (!(await mayBrowseOrganizations(caller.email, isAdmin))) return forbidden()
         const all = await listedOrganizations()
         return json(all.filter((o) => (!country || o.country.toLowerCase() === country) && matchesQuery([o.name, o.country, o.sector, o.summary], q)))
       }
@@ -265,7 +357,7 @@ export default async (req: Request) => {
     }
 
     if (req.method === 'GET' && a === 'organizations' && b && !c) {
-      if (!isAdmin && !(await isFunderStaff(caller.email))) return forbidden()
+      if (!(await mayBrowseOrganizations(caller.email, isAdmin))) return forbidden()
       const [o] = await listedOrganizations(b)
       return o ? json(o) : notFound()
     }
@@ -294,6 +386,8 @@ export default async (req: Request) => {
         accreditationStatus: status, accreditationReason: p.data.reason, accreditationChangedBy: caller.email, accreditationChangedAt: new Date(),
       }).where(eq(validatorProfiles.id, c)).returning()
       await audit(caller.email, `accreditation: ${p.data.status === 'suspended' ? 'suspended' : 'reinstated'} (${p.data.reason})`, c, 'Accreditation')
+      // A validator who is no longer accredited loses access carried by independent-validation seats.
+      await reconcileValidator(row.email)
       return json({ ok: true, accreditation: effectiveAccreditation(row) })
     }
 
