@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ClipboardCheck } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { METHOD_LABEL, METHODS, OUTCOME_LABEL, OUTCOMES, SUFFICIENCY, type Method, type Outcome } from '../lib/validationReview'
+import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
 
 // Validator system PR 3: the review itself. Every rule (who may score, when the
 // debrief is open, what freezes) is enforced by /api/validation-reviews.
@@ -154,6 +155,9 @@ function Close({ v, act, call }: { v: View; act: Act; call: Call }) {
   const [q, setQ] = useState({ text: '', ids: '' })
   const [outcome, setOutcome] = useState<string>('')
   const [summary, setSummary] = useState('')
+  const [months, setMonths] = useState('')
+  const [reason, setReason] = useState('')
+  const [mode, setMode] = useState('milestone')
   return (
     <>
       {v.status === 'draft' && (
@@ -186,7 +190,18 @@ function Close({ v, act, call }: { v: View; act: Act; call: Call }) {
           {v.problems!.length > 0 && <ul className="list-disc pl-5 text-sm text-amber-800">{v.problems!.map((p) => <li key={p}>{p}</li>)}</ul>}
           <Select label="Outcome" placeholder="Choose…" options={OUTCOMES.map((o) => ({ value: o, label: OUTCOME_LABEL[o] }))} value={outcome} onChange={setOutcome} />
           <Input label="Summary (optional)" value={summary} onChange={(e) => setSummary(e.target.value)} />
-          <Button disabled={!outcome} onClick={() => { if (window.confirm('Finalise and freeze this review? This cannot be undone.')) void act(call('/finalise', 'POST', { outcome, summary }), 'Review finalised and frozen') }}>Finalise and freeze</Button>
+          {outcome !== '' && outcome !== 'not_validated' && (
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Input label={`Validity in months (blank = ${outcome === 'validated' ? 12 : 6}; 24 for rung 5+ with no qualifications)`} type="number" value={months} onChange={(e) => setMonths(e.target.value)} />
+              <Input label="Named risk (needed for a shorter period)" value={reason} onChange={(e) => setReason(e.target.value)} />
+              <Select label="Follow-up schedule" options={FOLLOW_UP_MODES.map((m) => ({ value: m, label: FOLLOW_UP_LABEL[m] }))} value={mode} onChange={setMode} />
+            </div>
+          )}
+          <Button disabled={!outcome} onClick={() => {
+            if (window.confirm('Finalise and freeze this review? This cannot be undone.')) {
+              void act(call('/finalise', 'POST', { outcome, summary, ...(outcome !== 'not_validated' ? { followUpMode: mode, ...(months ? { validityMonths: Number(months), validityReason: reason } : {}) } : {}) }), 'Review finalised and frozen')
+            }
+          }}>Finalise and freeze</Button>
         </CardContent>
       </Card>
     </>
@@ -233,6 +248,7 @@ function Frozen({ v }: { v: View }) {
           <p>Self-assessed rung then: {s.selfRung} · Team: {s.team.map((t: any) => `${t.name} (${t.role})`).join(', ')}</p>
           {s.outcomeSummary && <p>{s.outcomeSummary}</p>}
           <p className="break-all font-mono text-xs text-slate-500">SHA-256 of the frozen record: {v.sha256}</p>
+          {v.outcome !== 'not_validated' && <Link to="/validations" className="text-sm font-semibold text-emerald-700 hover:underline">See its validity, follow-ups and status →</Link>}
         </CardContent>
       </Card>
       {s.qualifications.length > 0 && (
