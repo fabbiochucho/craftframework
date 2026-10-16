@@ -182,6 +182,8 @@ describe('validation lifecycle', () => {
   it('the CIP can bring a follow-up forward but never extends validity', async () => {
     await issue({ outcome: 'validated_with_qualifications', qualify: [IDS[1]] })
     const v = await onlyValidation()
+    // This test covers the organisation's general CIP (capacity_actions); the validation's own actions are tested in validation-cip.test.ts.
+    await rows('DELETE FROM validation_cip_actions')
     const before = (await val(ALICE, 'GET', `/${v.id}`)).body
     // Milestone action due after the validity ends: the point is capped at expiry.
     await rows(`INSERT INTO capacity_actions(org_id,risk_id,question_id,due_date,status) VALUES('org_a','R1','${IDS[1]}','2031-01-01','In-Progress')`)
