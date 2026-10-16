@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ClipboardCheck } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { METHOD_LABEL, METHODS, OUTCOME_LABEL, OUTCOMES, SUFFICIENCY, type Method, type Outcome } from '../lib/validationReview'
+import { FOLLOW_UP_KINDS, FOLLOW_UP_LABEL, STANDARD_MONTHS } from '../lib/validity'
 
 // Validator system PR 3: the review itself. Every rule (who may score, when the
 // debrief is open, what freezes) is enforced by /api/validation-reviews.
@@ -154,6 +155,15 @@ function Close({ v, act, call }: { v: View; act: Act; call: Call }) {
   const [q, setQ] = useState({ text: '', ids: '' })
   const [outcome, setOutcome] = useState<string>('')
   const [summary, setSummary] = useState('')
+  const [validity, setValidity] = useState<'standard' | 'extended' | 'shorter'>('standard')
+  const [months, setMonths] = useState('')
+  const [reason, setReason] = useState('')
+  const [followUp, setFollowUp] = useState<string>('milestone')
+  const std = outcome ? STANDARD_MONTHS[outcome as Outcome] : 0
+  const finaliseBody = {
+    outcome, summary, followUp,
+    ...(outcome === 'not_validated' || validity === 'standard' ? {} : validity === 'extended' ? { validityMonths: 24 } : { validityMonths: Number(months), validityReason: reason }),
+  }
   return (
     <>
       {v.status === 'draft' && (
@@ -186,7 +196,23 @@ function Close({ v, act, call }: { v: View; act: Act; call: Call }) {
           {v.problems!.length > 0 && <ul className="list-disc pl-5 text-sm text-amber-800">{v.problems!.map((p) => <li key={p}>{p}</li>)}</ul>}
           <Select label="Outcome" placeholder="Choose…" options={OUTCOMES.map((o) => ({ value: o, label: OUTCOME_LABEL[o] }))} value={outcome} onChange={setOutcome} />
           <Input label="Summary (optional)" value={summary} onChange={(e) => setSummary(e.target.value)} />
-          <Button disabled={!outcome} onClick={() => { if (window.confirm('Finalise and freeze this review? This cannot be undone.')) void act(call('/finalise', 'POST', { outcome, summary }), 'Review finalised and frozen') }}>Finalise and freeze</Button>
+          {outcome && outcome !== 'not_validated' && (
+            <>
+              <Select label="Validity" value={validity} onChange={(x) => setValidity(x as typeof validity)} options={[
+                { value: 'standard', label: `${std} months (standard)` },
+                ...(outcome === 'validated' ? [{ value: 'extended', label: '24 months with a surveillance check at month 12 (rung 5+, no qualifications)' }] : []),
+                { value: 'shorter', label: 'Shorter, for a named risk' },
+              ]} />
+              {validity === 'shorter' && (
+                <div className="grid gap-2 sm:grid-cols-[8rem_1fr]">
+                  <Input label="Months" type="number" value={months} onChange={(e) => setMonths(e.target.value)} />
+                  <Input label="The risk that justifies it" value={reason} onChange={(e) => setReason(e.target.value)} />
+                </div>
+              )}
+              <Select label="Follow-up schedule (the organisation then agrees it)" value={followUp} onChange={setFollowUp} options={FOLLOW_UP_KINDS.map((k) => ({ value: k, label: FOLLOW_UP_LABEL[k] }))} />
+            </>
+          )}
+          <Button disabled={!outcome} onClick={() => { if (window.confirm('Finalise and freeze this review? This cannot be undone.')) void act(call('/finalise', 'POST', finaliseBody), 'Review finalised and frozen') }}>Finalise and freeze</Button>
         </CardContent>
       </Card>
     </>
@@ -217,8 +243,10 @@ function OrgRow({ r, act, call }: { r: Row; act: Act; call: Call }) {
 
 function Frozen({ v }: { v: View }) {
   const s = v.snapshot
+  const { id } = { id: s.engagement.id as string }
   return (
     <>
+      <Link to="/engagements/$id/validity" params={{ id }} className="inline-block text-sm font-semibold text-emerald-700 hover:underline">Validity, follow-up and material events →</Link>
       <Card className="border-emerald-200">
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">

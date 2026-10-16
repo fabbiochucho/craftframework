@@ -71,6 +71,7 @@ import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
 import { Route as AppWorkspacesIndexRouteImport } from './routes/app.workspaces.index'
 import { Route as DirectoryKindIdRouteImport } from './routes/directory_.$kind.$id'
 import { Route as EngagementsIdReviewRouteImport } from './routes/engagements_.$id.review'
+import { Route as EngagementsIdValidityRouteImport } from './routes/engagements_.$id.validity'
 import { Route as TrainingModuleModuleIdRouteImport } from './routes/training_.module.$moduleId'
 import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
 import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
@@ -409,6 +410,11 @@ const EngagementsIdReviewRoute = EngagementsIdReviewRouteImport.update({
   path: '/review',
   getParentRoute: () => EngagementsIdRoute,
 } as any)
+const EngagementsIdValidityRoute = EngagementsIdValidityRouteImport.update({
+  id: '/validity',
+  path: '/validity',
+  getParentRoute: () => EngagementsIdRoute,
+} as any)
 const TrainingModuleModuleIdRoute = TrainingModuleModuleIdRouteImport.update({
   id: '/training_/module/$moduleId',
   path: '/training/module/$moduleId',
@@ -631,6 +637,7 @@ export interface FileRoutesByFullPath {
   '/app/org/settings': typeof AppOrgSettingsRoute
   '/directory/$kind/$id': typeof DirectoryKindIdRoute
   '/engagements/$id/review': typeof EngagementsIdReviewRoute
+  '/engagements/$id/validity': typeof EngagementsIdValidityRoute
   '/training/module/$moduleId': typeof TrainingModuleModuleIdRoute
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
@@ -721,6 +728,7 @@ export interface FileRoutesByTo {
   '/app/org/settings': typeof AppOrgSettingsRoute
   '/directory/$kind/$id': typeof DirectoryKindIdRoute
   '/engagements/$id/review': typeof EngagementsIdReviewRoute
+  '/engagements/$id/validity': typeof EngagementsIdValidityRoute
   '/training/module/$moduleId': typeof TrainingModuleModuleIdRoute
   '/app/workspaces': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
@@ -812,6 +820,7 @@ export interface FileRoutesById {
   '/app/org/settings': typeof AppOrgSettingsRoute
   '/directory_/$kind/$id': typeof DirectoryKindIdRoute
   '/engagements_/$id/review': typeof EngagementsIdReviewRoute
+  '/engagements_/$id/validity': typeof EngagementsIdValidityRoute
   '/training_/module/$moduleId': typeof TrainingModuleModuleIdRoute
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
@@ -904,6 +913,7 @@ export interface FileRouteTypes {
     | '/app/org/settings'
     | '/directory/$kind/$id'
     | '/engagements/$id/review'
+    | '/engagements/$id/validity'
     | '/training/module/$moduleId'
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
@@ -994,6 +1004,7 @@ export interface FileRouteTypes {
     | '/app/org/settings'
     | '/directory/$kind/$id'
     | '/engagements/$id/review'
+    | '/engagements/$id/validity'
     | '/training/module/$moduleId'
     | '/app/workspaces'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
@@ -1084,6 +1095,7 @@ export interface FileRouteTypes {
     | '/app/org/settings'
     | '/directory_/$kind/$id'
     | '/engagements_/$id/review'
+    | '/engagements_/$id/validity'
     | '/training_/module/$moduleId'
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
@@ -1638,6 +1650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EngagementsIdReviewRouteImport
       parentRoute: typeof EngagementsIdRoute
     }
+    '/engagements_/$id/validity': {
+      id: '/engagements_/$id/validity'
+      path: '/validity'
+      fullPath: '/engagements/$id/validity'
+      preLoaderRoute: typeof EngagementsIdValidityRouteImport
+      parentRoute: typeof EngagementsIdRoute
+    }
     '/training_/module/$moduleId': {
       id: '/training_/module/$moduleId'
       path: '/training/module/$moduleId'
@@ -1837,10 +1856,12 @@ const AssessmentRouteWithChildren = AssessmentRoute._addFileChildren(
 
 interface EngagementsIdRouteChildren {
   EngagementsIdReviewRoute: typeof EngagementsIdReviewRoute
+  EngagementsIdValidityRoute: typeof EngagementsIdValidityRoute
 }
 
 const EngagementsIdRouteChildren: EngagementsIdRouteChildren = {
   EngagementsIdReviewRoute: EngagementsIdReviewRoute,
+  EngagementsIdValidityRoute: EngagementsIdValidityRoute,
 }
 
 const EngagementsIdRouteWithChildren = EngagementsIdRoute._addFileChildren(

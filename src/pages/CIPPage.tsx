@@ -14,6 +14,48 @@ import { cn } from '../lib/utils'
 
 const DEFAULT_STATUS: RiskStatus = 'To-be-Initiated'
 
+type ValidationFollowUp = {
+  engagementId: string; verificationId: string; status: string; outcome: string; expiresAt: string | null
+  actions: Array<{ id: string; text: string; owner: string | null; dueDate: string | null; status: string }>
+  checkpoints: Array<{ id: string; kind: string; dueAt: string; state: string }>
+}
+
+// Follow-up actions from independent validations (validator system): owner, due date and proof of completion
+// are managed on the validation's own page, where the schedule and material events live.
+function ValidationFollowUps({ orgId }: { orgId: string }) {
+  const [rows, setRows] = useState<ValidationFollowUp[]>([])
+  useEffect(() => {
+    let live = true
+    fetch(`/api/validation-lifecycle/org/${encodeURIComponent(orgId)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null)).then((b) => { if (live && b?.validations) setRows(b.validations) }).catch(() => undefined)
+    return () => { live = false }
+  }, [orgId])
+  const open = rows.filter((v) => v.actions.length > 0)
+  if (!open.length) return null
+  return (
+    <Card>
+      <CardHeader><CardTitle>Validation follow-up</CardTitle></CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        {open.map((v) => {
+          const next = v.checkpoints.find((c) => c.state === 'pending')
+          return (
+            <div key={v.verificationId}>
+              <p className="font-semibold text-slate-800">
+                <Link to="/engagements/$id/validity" params={{ id: v.engagementId }} className="font-mono text-emerald-700 hover:underline">{v.verificationId}</Link>
+                {' '}· {v.actions.filter((a) => a.status === 'done').length} of {v.actions.length} actions done
+                {next ? ` · follow-up due ${new Date(next.dueAt).toISOString().slice(0, 10)}` : ''}
+              </p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-slate-700">
+                {v.actions.map((a) => <li key={a.id}>{a.text} — {a.owner ?? 'no owner'}, due {a.dueDate ?? '—'} · {a.status === 'done' ? 'done' : 'open'}</li>)}
+              </ul>
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function CIPPage() {
   const { currentOrg } = useWorkspace()
   const { scores } = useScoresCtx()
@@ -46,6 +88,7 @@ export function CIPPage() {
 
   return (
     <div className="space-y-6">
+      {currentOrg && <ValidationFollowUps orgId={currentOrg.id} />}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">

@@ -623,10 +623,157 @@ export const validationReviews = pgTable('validation_reviews', {
   snapshotSha256: text('snapshot_sha256'),
   finalisedAt: timestamp('finalised_at', { withTimezone: true }),
   finalisedBy: text('finalised_by'),
+  // Set once the organisation has been emailed that the debrief is open (PR 5).
+  debriefNotifiedAt: timestamp('debrief_notified_at', { withTimezone: true }),
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// --- validations (PR 5) -----------------------------------------------------
+// One row per finalised review: the issued validation with its public verification
+// id, validity, status and follow-up schedule. The frozen result stays in
+// validation_reviews.snapshot. expires_at only ever moves EARLIER after issue;
+// the CIP can bring a check forward but never extend validity (src/lib/validity.ts).
+export const validations = pgTable(
+  'validations',
+  {
+    id: text('id').primaryKey(),
+    reviewId: text('review_id').notNull().unique().references(() => validationReviews.id, { onDelete: 'cascade' }),
+    engagementId: text('engagement_id').notNull().unique().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    framework: text('framework').notNull(),
+    verificationId: text('verification_id').notNull().unique(),
+    outcome: text('outcome').notNull(),
+    validatedRung: integer('validated_rung'),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull(),
+    validityMonths: integer('validity_months').notNull(),
+    // 'standard' | 'extended' | 'shorter'
+    validityChoice: text('validity_choice').notNull().default('standard'),
+    validityReason: text('validity_reason').notNull().default(''),
+    surveillance: boolean('surveillance').notNull().default(false),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    // 'current' | 'follow_up_overdue' | 'suspended' | 'expired' | 'withdrawn' | 'superseded'
+    status: text('status').notNull().default('current'),
+    statusChangedAt: timestamp('status_changed_at', { withTimezone: true }).notNull().defaultNow(),
+    withdrawnReason: text('withdrawn_reason'),
+    supersededBy: text('superseded_by'),
+    scopeNote: text('scope_note').notNull().default(''),
+    // 'milestone' | 'fixed_3' | 'fixed_6' | 'end_of_plan'
+    followUpKind: text('follow_up_kind').notNull().default('milestone'),
+    followUpValidatorOk: boolean('follow_up_validator_ok').notNull().default(false),
+    followUpOrgOk: boolean('follow_up_org_ok').notNull().default(false),
+    followUpIndicators: jsonb('follow_up_indicators').$type<string[]>().notNull().default([]),
+    funderCipConsent: boolean('funder_cip_consent').notNull().default(false),
+    funderCipConsentBy: text('funder_cip_consent_by'),
+    funderCipConsentAt: timestamp('funder_cip_consent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validations_org_idx').on(t.orgId, t.framework), index('validations_status_idx').on(t.status)],
+)
+
+export const validationStatusHistory = pgTable(
+  'validation_status_history',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    fromStatus: text('from_status'),
+    toStatus: text('to_status').notNull(),
+    reason: text('reason').notNull().default(''),
+    actor: text('actor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validation_status_history_validation_idx').on(t.validationId, t.createdAt)],
+)
+
+export const validationCheckpoints = pgTable(
+  'validation_checkpoints',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    // 'surveillance' | 'follow_up'
+    kind: text('kind').notNull(),
+    dueAt: timestamp('due_at', { withTimezone: true }).notNull(),
+    indicatorIds: jsonb('indicator_ids').$type<string[]>().notNull().default([]),
+    // 'pending' | 'done'
+    state: text('state').notNull().default('pending'),
+    // 'confirmed' | 'not_confirmed'
+    result: text('result'),
+    note: text('note').notNull().default(''),
+    doneAt: timestamp('done_at', { withTimezone: true }),
+    doneBy: text('done_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validation_checkpoints_validation_idx').on(t.validationId)],
+)
+
+export const validationReminders = pgTable(
+  'validation_reminders',
+  {
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    // 'expiry' or a checkpoint id
+    point: text('point').notNull(),
+    daysBefore: integer('days_before').notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.validationId, t.point, t.daysBefore] })],
+)
+
+export const materialEvents = pgTable(
+  'material_events',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    eventType: text('event_type').notNull(),
+    starred: boolean('starred').notNull().default(false),
+    description: text('description').notNull(),
+    occurredOn: date('occurred_on', { mode: 'string' }).notNull(),
+    reportedBy: text('reported_by').notNull(),
+    // 'organization' | 'programme_team'
+    reportedBySide: text('reported_by_side').notNull(),
+    reportedAt: timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+    reportDue: date('report_due', { mode: 'string' }).notNull(),
+    late: boolean('late').notNull().default(false),
+    // 'pending_review' | 'reinstated' | 're_scoped' | 'withdrawn'
+    status: text('status').notNull().default('pending_review'),
+    resolvedBy: text('resolved_by'),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+    resolutionNote: text('resolution_note').notNull().default(''),
+    orgResponse: text('org_response').notNull().default(''),
+    orgRespondedBy: text('org_responded_by'),
+    orgRespondedAt: timestamp('org_responded_at', { withTimezone: true }),
+    // A disagreement goes to the Independent Review Panel (cases: PR 7).
+    contestedAt: timestamp('contested_at', { withTimezone: true }),
+    contestedBy: text('contested_by'),
+    contestReason: text('contest_reason').notNull().default(''),
+  },
+  (t) => [index('material_events_validation_idx').on(t.validationId, t.status)],
+)
+
+export const validationCipActions = pgTable(
+  'validation_cip_actions',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    indicatorIds: jsonb('indicator_ids').$type<string[]>().notNull().default([]),
+    owner: text('owner'),
+    dueDate: date('due_date', { mode: 'string' }),
+    // 'open' | 'done'
+    status: text('status').notNull().default('open'),
+    proof: text('proof').notNull().default(''),
+    doneAt: timestamp('done_at', { withTimezone: true }),
+    doneBy: text('done_by'),
+    qualificationId: text('qualification_id'),
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validation_cip_actions_validation_idx').on(t.validationId), index('validation_cip_actions_org_idx').on(t.orgId)],
+)
 
 export const validationScores = pgTable(
   'validation_scores',
@@ -726,6 +873,10 @@ export type ValidatorProfileRow = typeof validatorProfiles.$inferSelect
 export type ValidatorCredentialRow = typeof validatorCredentials.$inferSelect
 export type ValidationEngagementRow = typeof validationEngagements.$inferSelect
 export type ValidationReviewRow = typeof validationReviews.$inferSelect
+export type ValidationRow = typeof validations.$inferSelect
+export type MaterialEventRow = typeof materialEvents.$inferSelect
+export type CipActionRow = typeof validationCipActions.$inferSelect
+export type CheckpointRow = typeof validationCheckpoints.$inferSelect
 export type EngagementMemberRow = typeof engagementMembers.$inferSelect
 export type ResponseNoteRow = typeof responseNotes.$inferSelect
 
