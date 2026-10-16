@@ -6,7 +6,7 @@ const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
 
 // Unsigned, runtime-generated session token. Only the test API server reads it;
 // the production function verifies real Netlify Identity sessions instead.
-function fakeSession(email: string) {
+export function fakeSession(email: string) {
   const exp = Math.floor(Date.now() / 1000) + 3600
   const token = `${b64({ alg: 'none', typ: 'JWT' })}.${b64({ sub: `e2e-${email}`, email, exp })}.`
   return { token, exp }

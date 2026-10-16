@@ -623,6 +623,8 @@ export const validationReviews = pgTable('validation_reviews', {
   snapshotSha256: text('snapshot_sha256'),
   finalisedAt: timestamp('finalised_at', { withTimezone: true }),
   finalisedBy: text('finalised_by'),
+  // Set once the organisation was emailed that the debrief is open.
+  debriefNotifiedAt: timestamp('debrief_notified_at', { withTimezone: true }),
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -768,6 +770,84 @@ export const validationNotifications = pgTable(
   (t) => [unique('validation_notifications_unique').on(t.validationId, t.kind, t.dueOn, t.offsetDays, t.recipient)],
 )
 
+// --- CIP follow-up, funder consent, status history and checkpoints -----------------------
+// The organisation's improvement actions for a validation. A done action always has an
+// owner, a due date and proof (also enforced by a CHECK). They drive the follow-up schedule:
+// the CIP can bring a check forward, never extend validity (src/lib/validationLifecycle.ts).
+export const validationCipActions = pgTable(
+  'validation_cip_actions',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    indicatorIds: jsonb('indicator_ids').$type<string[]>().notNull().default([]),
+    owner: text('owner'),
+    dueDate: date('due_date', { mode: 'string' }),
+    // 'open' | 'done'
+    status: text('status').notNull().default('open'),
+    proof: text('proof').notNull().default(''),
+    doneAt: timestamp('done_at', { withTimezone: true }),
+    doneBy: text('done_by'),
+    // The qualification this action answers, when it was created from one.
+    qualificationId: text('qualification_id'),
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validation_cip_actions_validation_idx').on(t.validationId), index('validation_cip_actions_org_idx').on(t.orgId)],
+)
+
+// The organisation lets a funding partner see schedule and progress (counts, dates, status), nothing more.
+export const validationFunderConsents = pgTable(
+  'validation_funder_consents',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    funderFirmId: text('funder_firm_id').notNull().references(() => firms.id, { onDelete: 'cascade' }),
+    grantedBy: text('granted_by').notNull(),
+    grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    revokedBy: text('revoked_by'),
+  },
+  (t) => [unique('validation_funder_consents_unique').on(t.validationId, t.funderFirmId), index('validation_funder_consents_firm_idx').on(t.funderFirmId)],
+)
+
+export const validationStatusHistory = pgTable(
+  'validation_status_history',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    fromStatus: text('from_status'),
+    toStatus: text('to_status').notNull(),
+    reason: text('reason').notNull().default(''),
+    actor: text('actor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validation_status_history_validation_idx').on(t.validationId, t.createdAt)],
+)
+
+export const validationCheckpoints = pgTable(
+  'validation_checkpoints',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    // 'surveillance' | 'follow_up'
+    kind: text('kind').notNull(),
+    dueOn: date('due_on', { mode: 'string' }).notNull(),
+    indicatorIds: jsonb('indicator_ids').$type<string[]>().notNull().default([]),
+    // 'pending' | 'done'
+    state: text('state').notNull().default('pending'),
+    // 'confirmed' | 'concerns'
+    result: text('result'),
+    note: text('note').notNull().default(''),
+    doneAt: timestamp('done_at', { withTimezone: true }),
+    doneBy: text('done_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('validation_checkpoints_unique').on(t.validationId, t.kind, t.dueOn), index('validation_checkpoints_validation_idx').on(t.validationId)],
+)
+
 export const validationStatements = pgTable('validation_statements', {
   validationId: text('validation_id').primaryKey().references(() => validations.id, { onDelete: 'cascade' }),
   pdfBase64: text('pdf_base64').notNull(),
@@ -849,6 +929,8 @@ export type ValidatorCredentialRow = typeof validatorCredentials.$inferSelect
 export type ValidationEngagementRow = typeof validationEngagements.$inferSelect
 export type ValidationReviewRow = typeof validationReviews.$inferSelect
 export type ValidationRow = typeof validations.$inferSelect
+export type CipActionRow = typeof validationCipActions.$inferSelect
+export type CheckpointRow = typeof validationCheckpoints.$inferSelect
 export type ValidationEventRow = typeof validationEvents.$inferSelect
 export type EngagementMemberRow = typeof engagementMembers.$inferSelect
 export type ResponseNoteRow = typeof responseNotes.$inferSelect
