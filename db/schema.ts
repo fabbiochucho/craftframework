@@ -601,6 +601,77 @@ export const orgListingProposals = pgTable(
   ],
 )
 
+// --- validation_reviews -----------------------------------------------------
+// Validator system PR 3. One review per engagement: the validator's own 0-5
+// scores per indicator, method, fieldwork dates, optional debrief, outcome and
+// qualifications. Finalising freezes a snapshot (and its SHA-256); later
+// self-score changes never alter it, and a finalised review is never edited.
+export const validationReviews = pgTable('validation_reviews', {
+  id: text('id').primaryKey(),
+  engagementId: text('engagement_id').notNull().unique().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+  // 'document_review' | 'sample_testing' | 'interviews' | 'site_visit' | 'combined'
+  method: text('method'),
+  fieldworkStart: date('fieldwork_start', { mode: 'string' }),
+  fieldworkEnd: date('fieldwork_end', { mode: 'string' }),
+  // 'draft' | 'debrief' | 'finalised'
+  status: text('status').notNull().default('draft'),
+  // 'validated' | 'validated_with_qualifications' | 'not_validated'
+  outcome: text('outcome'),
+  outcomeSummary: text('outcome_summary').notNull().default(''),
+  validatedRung: integer('validated_rung'),
+  snapshot: jsonb('snapshot').$type<Record<string, unknown>>(),
+  snapshotSha256: text('snapshot_sha256'),
+  finalisedAt: timestamp('finalised_at', { withTimezone: true }),
+  finalisedBy: text('finalised_by'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const validationScores = pgTable(
+  'validation_scores',
+  {
+    reviewId: text('review_id').notNull().references(() => validationReviews.id, { onDelete: 'cascade' }),
+    indicatorId: text('indicator_id').notNull(),
+    score: integer('score').notNull(),
+    // 'sufficient' | 'partial' | 'insufficient'
+    sufficiency: text('sufficiency').notNull().default('sufficient'),
+    comment: text('comment').notNull().default(''),
+    evidenceRef: text('evidence_ref').notNull().default(''),
+    scoredBy: text('scored_by').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.reviewId, t.indicatorId] })],
+)
+
+export const validationDebriefs = pgTable(
+  'validation_debriefs',
+  {
+    reviewId: text('review_id').notNull().references(() => validationReviews.id, { onDelete: 'cascade' }),
+    indicatorId: text('indicator_id').notNull(),
+    orgResponse: text('org_response').notNull().default(''),
+    respondedBy: text('responded_by'),
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
+    negotiatedScore: integer('negotiated_score'),
+    negotiatedBy: text('negotiated_by'),
+    negotiatedAt: timestamp('negotiated_at', { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.reviewId, t.indicatorId] })],
+)
+
+export const validationQualifications = pgTable(
+  'validation_qualifications',
+  {
+    id: text('id').primaryKey(),
+    reviewId: text('review_id').notNull().references(() => validationReviews.id, { onDelete: 'cascade' }),
+    text: text('text').notNull(),
+    indicatorIds: jsonb('indicator_ids').$type<string[]>().notNull().default([]),
+    createdBy: text('created_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validation_qualifications_review_idx').on(t.reviewId)],
+)
+
 // --- response_notes ---------------------------------------------------------
 // Threaded, multi-author commentary on an assessment answer: one row per note,
 // scoped by (org_id, question_id) and OWNED by its author. Unlike the single
@@ -654,6 +725,7 @@ export type FirmMemberRow = typeof firmMembers.$inferSelect
 export type ValidatorProfileRow = typeof validatorProfiles.$inferSelect
 export type ValidatorCredentialRow = typeof validatorCredentials.$inferSelect
 export type ValidationEngagementRow = typeof validationEngagements.$inferSelect
+export type ValidationReviewRow = typeof validationReviews.$inferSelect
 export type EngagementMemberRow = typeof engagementMembers.$inferSelect
 export type ResponseNoteRow = typeof responseNotes.$inferSelect
 
