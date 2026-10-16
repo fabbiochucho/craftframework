@@ -6,7 +6,7 @@ import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
   accessGrants, auditLogs, engagementDeclarations, engagementMembers, firms, organizations, validationDebriefs, validationEngagements,
-  validationQualifications, validationReviews, validationScores, validatorProfiles,
+  validationQualifications, validationReviews, validationScores, validations, validatorProfiles,
   type EngagementMemberRow, type ValidationEngagementRow, type ValidationReviewRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
@@ -16,6 +16,7 @@ import { reconcileEngagement, sweepEngagements } from '../lib/engagement-access.
 import { logger } from '../lib/logger.js'
 import { engagementLabel, GRANT_ROLE, type EngagementScope, type EngagementType } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
+import { FOLLOW_UP_MODES, issuedValidity, validityProblems } from '../../src/lib/validationLifecycle.js'
 import {
   canonicalJson, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indicatorsInScope, levelsAchieved, METHODS,
   OUTCOMES, SUFFICIENCY, trustDelta, type Outcome,
@@ -31,7 +32,7 @@ import {
 //   PUT    /:id/negotiated/:indicator   lead: record the negotiated score, or null to clear (debrief only)
 //   POST   /:id/qualifications          lead: add a qualification linked to indicators
 //   DELETE /:id/qualifications/:qid     lead: remove one
-//   POST   /:id/finalise                lead: outcome + freeze (snapshot + SHA-256); revokes every team grant
+//   POST   /:id/finalise                lead: outcome + validity + freeze (snapshot + SHA-256); issues the validation (PR 5); revokes every team grant
 //
 // A reviewer sees the organisation's self-scores only while their grant is active and unexpired.
 // Once finalised nothing here can change the review.
@@ -57,7 +58,14 @@ const scoreSchema = z.object({
 const responseSchema = z.object({ response: z.string().trim().min(1).max(4000) })
 const negotiatedSchema = z.object({ score: z.number().int().min(0).max(5).nullable() })
 const qualificationSchema = z.object({ text: z.string().trim().min(1).max(2000), indicatorIds: z.array(z.string().max(40)).min(1).max(60) })
-const finaliseSchema = z.object({ outcome: z.enum(OUTCOMES), summary: z.string().max(4000).optional() })
+const finaliseSchema = z.object({
+  outcome: z.enum(OUTCOMES),
+  summary: z.string().max(4000).optional(),
+  // Validity (PR 5): default 12 months (6 with qualifications); 24 for rung 5+ without qualifications; shorter with a named risk.
+  validityMonths: z.number().int().min(1).max(24).optional(),
+  validityReason: z.string().trim().max(1000).optional(),
+  followUpMode: z.enum(FOLLOW_UP_MODES).optional(),
+})
 
 type Ctx = {
   e: ValidationEngagementRow
@@ -248,6 +256,9 @@ export default async (req: Request) => {
         const self = await selfScores(e.orgId, fw.scoresKey, ids)
         const final = finalScores(validatorScores, negotiated)
         const rung = impliedRung(fw, final, scope)
+        const choice = p.data.validityMonths != null ? { months: p.data.validityMonths, reason: p.data.validityReason ?? '' } : null
+        const validityIssues = validityProblems(p.data.outcome, rung, choice)
+        if (validityIssues.length) return bad('This review cannot be finalised yet', { problems: validityIssues })
         const achieved = levelsAchieved(fw, final, scope)
         const now = new Date()
         const snapshot = JSON.parse(JSON.stringify(await buildSnapshot({ e, members, fw, scope, row, scoreRows, debriefRows, quals, self, final, validatorScores, negotiated, rung, achieved, outcome: p.data.outcome, summary: p.data.summary ?? '', finalisedAt: now, finalisedByEmail: caller.email })))
@@ -258,8 +269,29 @@ export default async (req: Request) => {
           snapshot, snapshotSha256: sha, finalisedAt: now, finalisedBy: caller.email, updatedAt: now,
         }).where(eq(validationReviews.id, row.id))
         await tx.update(validationEngagements).set({ status: 'finalised', updatedAt: now }).where(eq(validationEngagements.id, id))
+        let issuedId: string | null = null
+        if (p.data.outcome !== 'not_validated') {
+          // The issued validation: validity, follow-up schedule, and the indicators a follow-up re-checks
+          // (the qualified ones plus those holding back the next rung). It supersedes the previous current one.
+          const issued = issuedValidity(p.data.outcome, now, choice?.months)
+          const tracked = [...new Set([...quals.flatMap((q) => q.indicatorIds), ...fw.blocking(cleanScores(final, ids))])]
+          issuedId = `val_${crypto.randomUUID()}`
+          const previous = await tx.select({ id: validations.id }).from(validations)
+            .where(and(eq(validations.orgId, e.orgId), eq(validations.framework, fw.key), eq(validations.status, 'current')))
+          await tx.insert(validations).values({
+            id: issuedId, reviewId: row.id, engagementId: id, orgId: e.orgId, framework: fw.key, outcome: p.data.outcome, validatedRung: rung, issuedAt: now,
+            validityMonths: issued.months, validityReason: choice?.reason ?? '', expiresAt: issued.expiresAt, surveillanceDueAt: issued.surveillanceDueAt,
+            trackedIndicators: tracked, followUpMode: p.data.followUpMode ?? 'milestone', followUpSetBy: caller.email, followUpSetAt: now,
+          })
+          for (const old of previous) {
+            await tx.update(validations).set({ status: 'superseded', statusReason: 'Superseded by a newer validation', statusChangedAt: now, statusChangedBy: caller.email, supersededBy: issuedId })
+              .where(eq(validations.id, old.id))
+            await tx.insert(auditLogs).values({ actor: caller.email, action: 'superseded by a newer validation', target: old.id, category: 'Validation', orgId: e.orgId })
+          }
+          await tx.insert(auditLogs).values({ actor: caller.email, action: `issued validation: ${issued.months} months, expires ${issued.expiresAt.toISOString().slice(0, 10)}${issued.surveillanceDueAt ? `, surveillance ${issued.surveillanceDueAt.toISOString().slice(0, 10)}` : ''}`, target: issuedId, category: 'Validation', orgId: e.orgId })
+        }
         await tx.insert(auditLogs).values({ actor: caller.email, action: `finalised review: ${p.data.outcome}${p.data.outcome === 'not_validated' ? '' : `, rung ${rung}`} (sha256 ${sha.slice(0, 12)}…)`, target: row.id, category: 'Validation', orgId: e.orgId })
-        return json({ ok: true, outcome: p.data.outcome, validatedRung: p.data.outcome === 'not_validated' ? null : rung, sha256: sha })
+        return json({ ok: true, outcome: p.data.outcome, validatedRung: p.data.outcome === 'not_validated' ? null : rung, sha256: sha, validationId: issuedId })
       })
       // The engagement is finalised: every team member's access ends now.
       if (result.status === 200) await reconcileEngagement(id)
