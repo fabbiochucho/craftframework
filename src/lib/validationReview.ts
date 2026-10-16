@@ -7,7 +7,7 @@
 // ("Review, outcome and freeze").
 // ============================================================================
 
-import { currentRung, LADDER_INDICATORS, LADDER_LEVELS, levelAchieved, levelScore } from './capitalReadiness.ts'
+import { blockingIndicators, currentRung, LADDER_INDICATORS, LADDER_LEVELS, levelAchieved, levelScore } from './capitalReadiness.ts'
 import { optimismBias } from './frameworks.ts'
 import type { EngagementScope } from './engagements.ts'
 
@@ -41,6 +41,8 @@ export type FrameworkDef = {
   rung: (scores: Record<string, number>) => number
   levelScore: (level: number, scores: Record<string, number>) => number
   levelAchieved: (level: number, scores: Record<string, number>) => boolean
+  /** Indicators (ids) holding back the next rung for these scores. */
+  blocking: (scores: Record<string, number>) => string[]
 }
 
 export const FRAMEWORKS: Record<string, FrameworkDef> = {
@@ -49,6 +51,7 @@ export const FRAMEWORKS: Record<string, FrameworkDef> = {
     levels: LADDER_LEVELS.map((l) => ({ level: l.level, name: l.name })),
     indicators: LADDER_INDICATORS.map((i) => ({ id: i.id, level: i.level, domain: i.domain, question: i.question })),
     rung: currentRung, levelScore, levelAchieved,
+    blocking: (scores) => blockingIndicators(scores).map((i) => i.id),
   },
 }
 

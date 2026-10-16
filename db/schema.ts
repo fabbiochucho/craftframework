@@ -672,6 +672,99 @@ export const validationQualifications = pgTable(
   (t) => [index('validation_qualifications_review_idx').on(t.reviewId)],
 )
 
+// --- validations (lifecycle) --------------------------------------------------
+// Validator system PR 5. The issued validation that a finalised review produces:
+// its validity, follow-up schedule and stored status decisions. 'Follow-up
+// overdue' and 'expired' are never stored: they follow the calendar
+// (src/lib/validationLifecycle.ts). Reviews and snapshots stay frozen.
+export const validations = pgTable(
+  'validations',
+  {
+    id: text('id').primaryKey(),
+    reviewId: text('review_id').notNull().unique().references(() => validationReviews.id, { onDelete: 'cascade' }),
+    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    framework: text('framework').notNull(),
+    // 'validated' | 'validated_with_qualifications'
+    outcome: text('outcome').notNull(),
+    validatedRung: integer('validated_rung').notNull(),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull(),
+    validityMonths: integer('validity_months').notNull(),
+    validityReason: text('validity_reason').notNull().default(''),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    surveillanceDueAt: timestamp('surveillance_due_at', { withTimezone: true }),
+    surveillanceDoneAt: timestamp('surveillance_done_at', { withTimezone: true }),
+    trackedIndicators: jsonb('tracked_indicators').$type<string[]>().notNull().default([]),
+    // 'milestone' | 'fixed_3' | 'fixed_6' | 'end_of_plan'
+    followUpMode: text('follow_up_mode').notNull().default('milestone'),
+    followUpSetBy: text('follow_up_set_by'),
+    followUpSetAt: timestamp('follow_up_set_at', { withTimezone: true }),
+    // 'current' | 'suspended' | 'withdrawn' | 'superseded'
+    status: text('status').notNull().default('current'),
+    statusReason: text('status_reason'),
+    statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
+    statusChangedBy: text('status_changed_by'),
+    supersededBy: text('superseded_by'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validations_org_idx').on(t.orgId, t.framework), index('validations_engagement_idx').on(t.engagementId)],
+)
+
+export const validationEvents = pgTable(
+  'validation_events',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    eventKey: text('event_key').notNull(),
+    details: text('details').notNull().default(''),
+    occurredOn: date('occurred_on', { mode: 'string' }).notNull(),
+    reportedAt: timestamp('reported_at', { withTimezone: true }).notNull().defaultNow(),
+    reportedBy: text('reported_by').notNull(),
+    // 'organization' | 'programme'
+    reportedBySide: text('reported_by_side').notNull(),
+    deadlineOn: date('deadline_on', { mode: 'string' }).notNull(),
+    late: boolean('late').notNull().default(false),
+    // 'open' | 'reinstated' | 're_scoped' | 'withdrawn'
+    status: text('status').notNull().default('open'),
+    orgResponse: text('org_response').notNull().default(''),
+    orgRespondedAt: timestamp('org_responded_at', { withTimezone: true }),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionNote: text('decision_note').notNull().default(''),
+  },
+  (t) => [index('validation_events_validation_idx').on(t.validationId)],
+)
+
+export const validationFollowUps = pgTable(
+  'validation_follow_ups',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    dueOn: date('due_on', { mode: 'string' }).notNull(),
+    // 'confirmed' | 'concerns'
+    result: text('result').notNull(),
+    note: text('note').notNull().default(''),
+    completedBy: text('completed_by').notNull(),
+    completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('validation_follow_ups_due_unique').on(t.validationId, t.dueOn)],
+)
+
+export const validationNotifications = pgTable(
+  'validation_notifications',
+  {
+    id: serial('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    // 'follow_up' | 'expiry' | 'surveillance'
+    kind: text('kind').notNull(),
+    dueOn: date('due_on', { mode: 'string' }).notNull(),
+    offsetDays: integer('offset_days').notNull(),
+    recipient: text('recipient').notNull(),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('validation_notifications_unique').on(t.validationId, t.kind, t.dueOn, t.offsetDays, t.recipient)],
+)
+
 // --- response_notes ---------------------------------------------------------
 // Threaded, multi-author commentary on an assessment answer: one row per note,
 // scoped by (org_id, question_id) and OWNED by its author. Unlike the single
@@ -726,6 +819,8 @@ export type ValidatorProfileRow = typeof validatorProfiles.$inferSelect
 export type ValidatorCredentialRow = typeof validatorCredentials.$inferSelect
 export type ValidationEngagementRow = typeof validationEngagements.$inferSelect
 export type ValidationReviewRow = typeof validationReviews.$inferSelect
+export type ValidationRow = typeof validations.$inferSelect
+export type ValidationEventRow = typeof validationEvents.$inferSelect
 export type EngagementMemberRow = typeof engagementMembers.$inferSelect
 export type ResponseNoteRow = typeof responseNotes.$inferSelect
 
