@@ -35,7 +35,7 @@ export type WordingInput = { type: 'independent_validation' | 'funder_review'; f
 
 /** The three paragraphs of the standard wording (spec, verbatim). `means` differs for a funder review. */
 export function standardWording(i: WordingInput): { means: string; doesNot: string; changes: string } {
-  const fw = `${i.frameworkName} (${i.frameworkVersion.replace(/^ICARF /, 'ICARF ')})`
+  const fw = `${i.frameworkName} (${i.frameworkVersion})`
   const means = i.type === 'funder_review'
     ? `Staff of ${i.funderName ?? 'the funding partner'} have reviewed the organisation's self-assessment and supporting evidence against the ${fw}. The reviewers are employed by the funder and are not independent of it. Any qualifications listed form part of this conclusion.`
     : `An accredited validator, independent of the organisation, has reviewed the organisation's self-assessment and supporting evidence against the ${fw}, using the method and scope stated above, ` +
