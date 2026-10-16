@@ -23,25 +23,30 @@ export const FIRM_KINDS = ['validator_firm', 'funding_partner'] as const
 export type FirmKind = (typeof FIRM_KINDS)[number]
 
 export const ACCREDITATION_STATUSES = ['registered', 'accredited', 'suspended'] as const
+// What a platform admin may set: suspend, or reinstate (never grants accreditation).
+export const ADMIN_ACCREDITATION_ACTIONS = ['suspended', 'registered'] as const
 export type AccreditationStatus = (typeof ACCREDITATION_STATUSES)[number]
 
 export function natureOptions(kind: FirmKind): readonly string[] {
   return kind === 'funding_partner' ? FUNDER_TYPES : FIRM_NATURES
 }
 
-// What the directory shows. Suspension always wins; the platform-admin
-// "pilot-accredited" switch counts as accredited until the online assessment
-// (PR 7) is live.
-export function effectiveAccreditation(v: { accreditationStatus: string; pilotAccredited: boolean }): 'registered' | 'accredited' | 'pilot-accredited' | 'suspended' {
+// What the directory shows. Accreditation is earned only through the training
+// programme (PR 4): it exists solely as `accredited_until`, set server-side when all
+// three assessment parts are passed and extended by annual renewal. Past that date it
+// shows as "lapsed" (no badge). Suspension always wins. There is no manual or pilot
+// accreditation, so the old `pilotAccredited` switch and a bare 'accredited' status
+// no longer count.
+export type EffectiveAccreditation = 'registered' | 'accredited' | 'lapsed' | 'suspended'
+export function effectiveAccreditation(v: { accreditationStatus: string; accreditedUntil?: Date | string | null }, now = new Date()): EffectiveAccreditation {
   if (v.accreditationStatus === 'suspended') return 'suspended'
-  if (v.accreditationStatus === 'accredited') return 'accredited'
-  return v.pilotAccredited ? 'pilot-accredited' : 'registered'
+  if (!v.accreditedUntil) return 'registered'
+  return new Date(v.accreditedUntil).getTime() > now.getTime() ? 'accredited' : 'lapsed'
 }
 
 // Levels from the spec. Senior / Lead need validation history (later PRs).
-export function validatorLevel(v: { accreditationStatus: string; pilotAccredited: boolean }): 'Associate' | 'Validator' {
-  const a = effectiveAccreditation(v)
-  return a === 'accredited' || a === 'pilot-accredited' ? 'Validator' : 'Associate'
+export function validatorLevel(v: { accreditationStatus: string; accreditedUntil?: Date | string | null }, now = new Date()): 'Associate' | 'Validator' {
+  return effectiveAccreditation(v, now) === 'accredited' ? 'Validator' : 'Associate'
 }
 
 export function credentialLabel(c: { verifiedAt: Date | string | null }): 'verified' | 'self-declared' {

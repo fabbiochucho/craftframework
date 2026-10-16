@@ -427,7 +427,7 @@ export const firmMembers = pgTable(
 // --- validator_profiles -----------------------------------------------------
 // A person's validator profile (open onboarding). The public id is used in
 // directory URLs so the email (a contact detail) is never exposed.
-// Accreditation is changed only by a platform admin, with a recorded reason.
+// A platform admin can only suspend / reinstate (recorded reason); accreditation itself is earned (accredited_until).
 export const validatorProfiles = pgTable('validator_profiles', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
@@ -443,6 +443,9 @@ export const validatorProfiles = pgTable('validator_profiles', {
   pilotAccredited: boolean('pilot_accredited').notNull().default(false),
   accreditationChangedBy: text('accreditation_changed_by'),
   accreditationChangedAt: timestamp('accreditation_changed_at', { withTimezone: true }),
+  // Training and accreditation (PR 4): set ONLY server-side, by passing the programme
+  // (now + 1 year) or by annual renewal. Null = never accredited. Past = lapsed.
+  accreditedUntil: timestamp('accredited_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
@@ -1168,3 +1171,180 @@ export const rateLimits = pgTable(
   },
   (t) => [primaryKey({ columns: [t.key, t.windowStart] })],
 )
+
+// --- validator training and accreditation (PR 4) ------------------------------
+// Programme content is DATA the CRAFT programme team edits without a code change.
+// Seeded once from src/lib/trainingSeed.ts (the 2026-10-16 training-content spec).
+
+// Who may edit content / mark besides the platform admin: 'programme_team' edits and marks;
+// 'lead_validator' only marks (until Lead Validator can be derived from validation history).
+export const trainingStaff = pgTable('training_staff', {
+  email: text('email').primaryKey(),
+  role: text('role').notNull(),
+  addedBy: text('added_by').notNull(),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const trainingSettings = pgTable('training_settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+})
+
+export type TrainingExercise = Record<string, unknown> & { type: string; title: string }
+export type TrainingScenario = { prompt: string; choices: Array<{ text: string; consequence: string; feedback: string; best: boolean }> }
+
+export const trainingModules = pgTable('training_modules', {
+  id: text('id').primaryKey(),
+  position: integer('position').notNull(),
+  title: text('title').notNull(),
+  outcome: text('outcome').notNull().default(''),
+  script: text('script').notNull().default(''),
+  // Unlisted video on youtube.com/@DiBadiliTV; null until recorded (the script is shown).
+  youtubeUrl: text('youtube_url'),
+  // Bumped when the script or video changes; renewal needs the current revision re-watched.
+  revision: integer('revision').notNull().default(1),
+  exercises: jsonb('exercises').$type<TrainingExercise[]>().notNull().default([]),
+  scenario: jsonb('scenario').$type<TrainingScenario | null>(),
+  reflectionPrompt: text('reflection_prompt').notNull().default(''),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const trainingQuestions = pgTable('training_questions', {
+  id: text('id').primaryKey(),
+  moduleId: text('module_id'),
+  topic: text('topic').notNull().default(''),
+  prompt: text('prompt').notNull(),
+  options: jsonb('options').$type<string[]>().notNull(),
+  correctIndex: integer('correct_index').notNull(),
+  explanation: text('explanation').notNull().default(''),
+  forCheck: boolean('for_check').notNull().default(false),
+  forExam: boolean('for_exam').notNull().default(false),
+  active: boolean('active').notNull().default(true),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const trainingCases = pgTable('training_cases', {
+  id: text('id').primaryKey(),
+  position: integer('position').notNull(),
+  title: text('title').notNull(),
+  topic: text('topic').notNull().default(''),
+  prompt: text('prompt').notNull(),
+  modelAnswer: text('model_answer').notNull().default(''),
+  active: boolean('active').notNull().default(true),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const trainingCapstones = pgTable('training_capstones', {
+  id: text('id').primaryKey(),
+  position: integer('position').notNull(),
+  title: text('title').notNull(),
+  brief: text('brief').notNull(),
+  evidence: jsonb('evidence').$type<Array<{ title: string; body: string }>>().notNull().default([]),
+  referenceScores: jsonb('reference_scores').$type<Record<string, number>>().notNull().default({}),
+  modelAnswer: text('model_answer').notNull().default(''),
+  rubric: jsonb('rubric').$type<Array<{ key: string; name: string; weight: string; mustMeet: boolean; meets: string }>>().notNull(),
+  active: boolean('active').notNull().default(true),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const trainingCalibrationItems = pgTable('training_calibration_items', {
+  id: text('id').primaryKey(),
+  statement: text('statement').notNull(),
+  referenceScore: integer('reference_score').notNull(),
+  active: boolean('active').notNull().default(true),
+})
+
+export const trainingBadges = pgTable('training_badges', {
+  key: text('key').primaryKey(),
+  position: integer('position').notNull(),
+  name: text('name').notNull(),
+  criteria: text('criteria').notNull().default(''),
+  active: boolean('active').notNull().default(true),
+})
+
+// A completed step: 'watch' | 'try' | 'decide' | 'check' | 'reflect' (plus 'try:<n>' per exercise).
+export const trainingProgress = pgTable('training_progress', {
+  email: text('email').notNull(),
+  moduleId: text('module_id').notNull(),
+  step: text('step').notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }).notNull().defaultNow(),
+  revision: integer('revision').notNull().default(1),
+  detail: jsonb('detail').$type<Record<string, unknown>>().notNull().default({}),
+}, (t) => [primaryKey({ columns: [t.email, t.moduleId, t.step] })])
+
+export const trainingActivity = pgTable('training_activity', {
+  email: text('email').notNull(),
+  day: date('day').notNull(),
+}, (t) => [primaryKey({ columns: [t.email, t.day] })])
+
+export const trainingDrills = pgTable('training_drills', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull(),
+  purpose: text('purpose').notNull(),
+  within: integer('within').notNull(),
+  total: integer('total').notNull(),
+  pct: integer('pct').notNull(),
+  takenAt: timestamp('taken_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('training_drills_email_idx').on(t.email)])
+
+export const trainingExamAttempts = pgTable('training_exam_attempts', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  deadline: timestamp('deadline', { withTimezone: true }).notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  questionIds: jsonb('question_ids').$type<string[]>().notNull(),
+  answers: jsonb('answers').$type<Record<string, number>>().notNull().default({}),
+  // 'in_progress' | 'submitted' | 'expired'
+  status: text('status').notNull().default('in_progress'),
+  score: integer('score'),
+  total: integer('total').notNull(),
+  passed: boolean('passed').notNull().default(false),
+  // Set when the bank had fewer than 40 questions and all were drawn.
+  note: text('note'),
+}, (t) => [index('training_exam_attempts_email_idx').on(t.email)])
+
+// A written case (kind 'case', contentId = case id) or a capstone (kind 'capstone').
+export const trainingSubmissions = pgTable('training_submissions', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  kind: text('kind').notNull(),
+  contentId: text('content_id').notNull(),
+  attempt: integer('attempt').notNull(),
+  body: jsonb('body').$type<Record<string, unknown>>().notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+  // 'pending' | 'passed' | 'failed'
+  status: text('status').notNull().default('pending'),
+  resultPercent: numeric('result_percent', { precision: 5, scale: 1 }),
+}, (t) => [unique('training_submissions_attempt_unique').on(t.email, t.kind, t.contentId, t.attempt), index('training_submissions_status_idx').on(t.status)])
+
+export const trainingMarks = pgTable('training_marks', {
+  id: serial('id').primaryKey(),
+  submissionId: text('submission_id').notNull().references(() => trainingSubmissions.id, { onDelete: 'cascade' }),
+  marker: text('marker').notNull(),
+  // case: { percent }; capstone: { criteria: { key: 0..3 } }
+  scores: jsonb('scores').$type<Record<string, unknown>>().notNull(),
+  comment: text('comment').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique('training_marks_submission_marker_unique').on(t.submissionId, t.marker)])
+
+export const trainingCpd = pgTable('training_cpd', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull(),
+  hours: numeric('hours', { precision: 5, scale: 1 }).notNull(),
+  activity: text('activity').notNull(),
+  occurredOn: date('occurred_on').notNull(),
+  notes: text('notes').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('training_cpd_email_idx').on(t.email)])
+
+export const trainingDeclarations = pgTable('training_declarations', {
+  id: serial('id').primaryKey(),
+  email: text('email').notNull(),
+  clients: text('clients').notNull().default(''),
+  signedAt: timestamp('signed_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('training_declarations_email_idx').on(t.email)])

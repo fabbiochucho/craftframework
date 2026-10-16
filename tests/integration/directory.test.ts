@@ -86,12 +86,12 @@ describe('validator directory', () => {
     assert.equal((await rows("SELECT org_id FROM org_directory_profiles"))[0].org_id, 'org_b')
   })
 
-  it('only a platform admin verifies credentials or changes accreditation', async () => {
+  it('only a platform admin verifies credentials, suspends or reinstates', async () => {
     const valId = await makeValidator()
     const cred = (await call(VAL, 'POST', 'directory/me/credentials', { body: 'ACCA', membershipNumber: 'A-1' })).body.id
     for (const user of [VAL, ALICE]) {
       assert.equal((await call(user, 'PUT', `directory/admin/credentials/${cred}`, { verified: true })).status, 403)
-      assert.equal((await call(user, 'PUT', `directory/admin/validators/${valId}`, { pilotAccredited: true, reason: 'self' })).status, 403)
+      assert.equal((await call(user, 'PUT', `directory/admin/validators/${valId}`, { status: 'suspended', reason: 'self' })).status, 403)
     }
     let profile = await call(ALICE, 'GET', `directory/validators/${valId}`)
     assert.equal(profile.body.credentials[0].status, 'self-declared')
@@ -99,11 +99,17 @@ describe('validator directory', () => {
     assert.equal(profile.body.accreditationReason, undefined, 'reason is admin-only')
 
     assert.equal((await call(ADMIN, 'PUT', `directory/admin/credentials/${cred}`, { verified: true })).status, 200)
-    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { pilotAccredited: true, reason: 'Pilot cohort' })).status, 200)
     profile = await call(ALICE, 'GET', `directory/validators/${valId}`)
     assert.equal(profile.body.credentials[0].status, 'verified')
-    assert.equal(profile.body.accreditation, 'pilot-accredited')
-    assert.equal(profile.body.level, 'Validator')
+
+    // The admin can only suspend or reinstate: no manual or pilot accreditation, by any field.
+    for (const body of [{ status: 'accredited', reason: 'Pilot cohort' }, { pilotAccredited: true, reason: 'Pilot cohort' },
+      { status: 'suspended', accreditedUntil: '2099-01-01', reason: 'x' }, { accreditedUntil: '2099-01-01', reason: 'x' }]) {
+      assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, body)).status, 400, JSON.stringify(body))
+    }
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'registered', reason: 'Reinstating' })).body.accreditation, 'registered', 'reinstating never grants accreditation')
+    assert.equal((await rows('SELECT accredited_until FROM validator_profiles'))[0].accredited_until, null)
+    assert.equal((await call(ALICE, 'GET', `directory/validators/${valId}`)).body.level, 'Associate')
 
     assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'suspended' })).status, 400, 'reason required')
     assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'suspended', reason: 'Complaint upheld' })).status, 200)
