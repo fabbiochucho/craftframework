@@ -2,13 +2,18 @@
 import assert from 'node:assert/strict'
 import { cleanList, credentialLabel, effectiveAccreditation, matchesQuery, natureOptions, validatorLevel, FUNDER_TYPES } from './validatorDirectory.ts'
 
-assert.equal(effectiveAccreditation({ accreditationStatus: 'registered', pilotAccredited: false }), 'registered')
-assert.equal(effectiveAccreditation({ accreditationStatus: 'registered', pilotAccredited: true }), 'pilot-accredited')
-assert.equal(effectiveAccreditation({ accreditationStatus: 'accredited', pilotAccredited: true }), 'accredited')
-assert.equal(effectiveAccreditation({ accreditationStatus: 'suspended', pilotAccredited: true }), 'suspended', 'suspension beats the pilot switch')
-assert.equal(validatorLevel({ accreditationStatus: 'registered', pilotAccredited: false }), 'Associate')
-assert.equal(validatorLevel({ accreditationStatus: 'registered', pilotAccredited: true }), 'Validator')
-assert.equal(validatorLevel({ accreditationStatus: 'suspended', pilotAccredited: true }), 'Associate')
+const now = new Date('2026-10-16T12:00:00Z')
+const future = new Date('2027-10-16T12:00:00Z')
+const past = new Date('2026-10-01T12:00:00Z')
+assert.equal(effectiveAccreditation({ accreditationStatus: 'registered', accreditedUntil: null }, now), 'registered')
+assert.equal(effectiveAccreditation({ accreditationStatus: 'accredited', accreditedUntil: future }, now), 'accredited')
+assert.equal(effectiveAccreditation({ accreditationStatus: 'accredited', accreditedUntil: past }, now), 'lapsed', 'past accredited_until is lapsed')
+assert.equal(effectiveAccreditation({ accreditationStatus: 'accredited', accreditedUntil: null }, now), 'registered', 'a bare status is not accreditation')
+assert.equal(effectiveAccreditation({ accreditationStatus: 'suspended', accreditedUntil: future }, now), 'suspended', 'suspension wins')
+assert.equal(validatorLevel({ accreditationStatus: 'registered', accreditedUntil: null }, now), 'Associate')
+assert.equal(validatorLevel({ accreditationStatus: 'accredited', accreditedUntil: future }, now), 'Validator')
+assert.equal(validatorLevel({ accreditationStatus: 'accredited', accreditedUntil: past }, now), 'Associate')
+assert.equal(validatorLevel({ accreditationStatus: 'suspended', accreditedUntil: future }, now), 'Associate')
 
 assert.equal(credentialLabel({ verifiedAt: null }), 'self-declared')
 assert.equal(credentialLabel({ verifiedAt: new Date() }), 'verified')
