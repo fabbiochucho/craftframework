@@ -26,6 +26,7 @@ import { Route as DataProcessingRouteImport } from './routes/data-processing'
 import { Route as DataRoomRouteImport } from './routes/data-room'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DirectoryRouteImport } from './routes/directory'
+import { Route as EngagementsRouteImport } from './routes/engagements'
 import { Route as EvidenceRouteImport } from './routes/evidence'
 import { Route as FinanceTriangulationRouteImport } from './routes/finance-triangulation'
 import { Route as FindingsRouteImport } from './routes/findings'
@@ -57,6 +58,7 @@ import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
 import { Route as AppSecurityRouteImport } from './routes/app.security'
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
+import { Route as EngagementsIdRouteImport } from './routes/engagements_.$id'
 import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
 import { Route as ForGovernmentRouteImport } from './routes/for.government'
 import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
@@ -174,6 +176,11 @@ const DemoRoute = DemoRouteImport.update({
 const DirectoryRoute = DirectoryRouteImport.update({
   id: '/directory',
   path: '/directory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EngagementsRoute = EngagementsRouteImport.update({
+  id: '/engagements',
+  path: '/engagements',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EvidenceRoute = EvidenceRouteImport.update({
@@ -329,6 +336,11 @@ const AssessmentFrameworkIdRoute = AssessmentFrameworkIdRouteImport.update({
 const DashboardTrustDeltaRoute = DashboardTrustDeltaRouteImport.update({
   id: '/dashboard_/trust-delta',
   path: '/dashboard/trust-delta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EngagementsIdRoute = EngagementsIdRouteImport.update({
+  id: '/engagements_/$id',
+  path: '/engagements/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForEsgReportingRoute = ForEsgReportingRouteImport.update({
@@ -545,6 +557,7 @@ export interface FileRoutesByFullPath {
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/directory': typeof DirectoryRoute
+  '/engagements': typeof EngagementsRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
   '/findings': typeof FindingsRoute
@@ -576,6 +589,7 @@ export interface FileRoutesByFullPath {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
+  '/engagements/$id': typeof EngagementsIdRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
@@ -628,6 +642,7 @@ export interface FileRoutesByTo {
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/directory': typeof DirectoryRoute
+  '/engagements': typeof EngagementsRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
   '/findings': typeof FindingsRoute
@@ -659,6 +674,7 @@ export interface FileRoutesByTo {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
+  '/engagements/$id': typeof EngagementsIdRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
@@ -712,6 +728,7 @@ export interface FileRoutesById {
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/directory': typeof DirectoryRoute
+  '/engagements': typeof EngagementsRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
   '/findings': typeof FindingsRoute
@@ -743,6 +760,7 @@ export interface FileRoutesById {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
+  '/engagements_/$id': typeof EngagementsIdRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
@@ -797,6 +815,7 @@ export interface FileRouteTypes {
     | '/data-room'
     | '/demo'
     | '/directory'
+    | '/engagements'
     | '/evidence'
     | '/finance-triangulation'
     | '/findings'
@@ -828,6 +847,7 @@ export interface FileRouteTypes {
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
+    | '/engagements/$id'
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
@@ -880,6 +900,7 @@ export interface FileRouteTypes {
     | '/data-room'
     | '/demo'
     | '/directory'
+    | '/engagements'
     | '/evidence'
     | '/finance-triangulation'
     | '/findings'
@@ -911,6 +932,7 @@ export interface FileRouteTypes {
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
+    | '/engagements/$id'
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
@@ -963,6 +985,7 @@ export interface FileRouteTypes {
     | '/data-room'
     | '/demo'
     | '/directory'
+    | '/engagements'
     | '/evidence'
     | '/finance-triangulation'
     | '/findings'
@@ -994,6 +1017,7 @@ export interface FileRouteTypes {
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard_/trust-delta'
+    | '/engagements_/$id'
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
@@ -1047,6 +1071,7 @@ export interface RootRouteChildren {
   DataRoomRoute: typeof DataRoomRoute
   DemoRoute: typeof DemoRoute
   DirectoryRoute: typeof DirectoryRoute
+  EngagementsRoute: typeof EngagementsRoute
   EvidenceRoute: typeof EvidenceRoute
   FinanceTriangulationRoute: typeof FinanceTriangulationRoute
   FindingsRoute: typeof FindingsRoute
@@ -1077,6 +1102,7 @@ export interface RootRouteChildren {
   AdminPortfolioRoute: typeof AdminPortfolioRoute
   AppSecurityRoute: typeof AppSecurityRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
+  EngagementsIdRoute: typeof EngagementsIdRoute
   ForEsgReportingRoute: typeof ForEsgReportingRoute
   ForGovernmentRoute: typeof ForGovernmentRoute
   ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
@@ -1231,6 +1257,13 @@ declare module '@tanstack/react-router' {
       path: '/directory'
       fullPath: '/directory'
       preLoaderRoute: typeof DirectoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/engagements': {
+      id: '/engagements'
+      path: '/engagements'
+      fullPath: '/engagements'
+      preLoaderRoute: typeof EngagementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/evidence': {
@@ -1448,6 +1481,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard/trust-delta'
       fullPath: '/dashboard/trust-delta'
       preLoaderRoute: typeof DashboardTrustDeltaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/engagements_/$id': {
+      id: '/engagements_/$id'
+      path: '/engagements/$id'
+      fullPath: '/engagements/$id'
+      preLoaderRoute: typeof EngagementsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/for/esg-reporting': {
@@ -1714,6 +1754,7 @@ const rootRouteChildren: RootRouteChildren = {
   DataRoomRoute: DataRoomRoute,
   DemoRoute: DemoRoute,
   DirectoryRoute: DirectoryRoute,
+  EngagementsRoute: EngagementsRoute,
   EvidenceRoute: EvidenceRoute,
   FinanceTriangulationRoute: FinanceTriangulationRoute,
   FindingsRoute: FindingsRoute,
@@ -1744,6 +1785,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminPortfolioRoute: AdminPortfolioRoute,
   AppSecurityRoute: AppSecurityRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
+  EngagementsIdRoute: EngagementsIdRoute,
   ForEsgReportingRoute: ForEsgReportingRoute,
   ForGovernmentRoute: ForGovernmentRoute,
   ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,
