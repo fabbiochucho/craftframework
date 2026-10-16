@@ -22,6 +22,7 @@ type Me = {
   firms: Array<FirmProfile & { role: string }>
   invitations: Array<{ id: string; name: string; kind: FirmKind }>
   organization: null | { name: string; id: string | null; listed: boolean; summary: string }
+  proposals: Array<{ id: string; proposedBy: string; summary: string; createdAt: string }>
 }
 type FirmProfile = {
   id: string; kind: FirmKind; name: string; nature: string; summary: string; competencies: string[]
@@ -154,6 +155,7 @@ function MyProfiles({ me, reload }: { me: Me; reload: () => void }) {
       {me.firms.map((f) => <FirmForm key={f.id} firm={f} reload={reload} />)}
       <FirmForm reload={reload} />
       <OrgListing me={me} reload={reload} />
+      <ProposalsCard />
     </div>
   )
 }
@@ -304,6 +306,86 @@ function OrgListing({ me, reload }: { me: Me; reload: () => void }) {
           try { await api('/api/directory/me/organization', { method: 'PUT', json: { listed, summary } }); setMsg({ ok: true, text: listed ? 'Listed' : 'Not listed' }); reload() } catch (e: any) { setMsg({ ok: false, text: e.message }) }
         }}>Save listing</Button>
         <Status msg={msg} />
+        {me.proposals.length > 0 && (
+          <div className="space-y-3 border-t border-slate-100 pt-3">
+            <h4 className="text-sm font-semibold text-slate-700">Proposed listings awaiting your decision</h4>
+            <p className="text-xs text-slate-500">A consultant with access to your organisation suggested this listing. It is not live until you approve it.</p>
+            {me.proposals.map((p) => <ProposalDecision key={p.id} proposal={p} reload={reload} />)}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ProposalDecision({ proposal, reload }: { proposal: Me['proposals'][number]; reload: () => void }) {
+  const [summary, setSummary] = useState(proposal.summary)
+  const [reason, setReason] = useState('')
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const decide = async (action: 'approve' | 'reject') => {
+    try {
+      await api(`/api/directory/proposals/${proposal.id}/${action}`, { method: 'POST', json: action === 'approve' ? { summary } : { reason } })
+      reload()
+    } catch (e: any) { setMsg({ ok: false, text: e.message }) }
+  }
+  return (
+    <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3">
+      <p className="text-xs text-slate-600">Proposed by {proposal.proposedBy}</p>
+      <Textarea label="Summary (you can edit it before approving)" value={summary} onChange={setSummary} rows={2} />
+      <Input label="Reason for rejecting (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" disabled={!summary.trim()} onClick={() => void decide('approve')}>Approve and list</Button>
+        <Button size="sm" variant="outline" onClick={() => void decide('reject')}>Reject</Button>
+      </div>
+      <Status msg={msg} />
+    </div>
+  )
+}
+
+// A consultant with an active access grant proposes a listing for a client organisation.
+function ProposalsCard() {
+  const [orgs, setOrgs] = useState<string[]>([])
+  const [mine, setMine] = useState<Array<{ id: string; orgName: string; summary: string; status: string; reason: string | null }>>([])
+  const [orgId, setOrgId] = useState('')
+  const [summary, setSummary] = useState('')
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const load = () => {
+    void api<Me>('/api/directory/me').then(async (m) => {
+      const grants = await api<Array<{ orgId: string; status: string }>>(`/api/access-grants?grantee=${encodeURIComponent(m.email)}`).catch(() => [])
+      setOrgs([...new Set(grants.filter((g) => g.status === 'active').map((g) => g.orgId))])
+    }, () => {})
+    void api('/api/directory/proposals').then(setMine, () => {})
+  }
+  useEffect(load, [])
+  if (!orgs.length && !mine.length) return null
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Propose a listing for a client organisation</CardTitle>
+        <p className="text-sm text-slate-500">You can only suggest a draft summary. The organisation's own staff decide whether it goes live.</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {orgs.length > 0 && (
+          <form className="grid gap-3" onSubmit={(e) => {
+            e.preventDefault()
+            void api('/api/directory/proposals', { method: 'POST', json: { orgId, summary } })
+              .then(() => { setMsg({ ok: true, text: 'Proposal sent to the organisation' }); setSummary(''); load() }, (err) => setMsg({ ok: false, text: err.message }))
+          }}>
+            <Select label="Organisation" placeholder="Choose…" options={orgs.map((o) => ({ value: o, label: o }))} value={orgId} onChange={setOrgId} />
+            <Textarea label="Draft summary" value={summary} onChange={setSummary} rows={2} />
+            <div><Button type="submit" disabled={!orgId || !summary.trim()}>Send proposal</Button></div>
+          </form>
+        )}
+        <Status msg={msg} />
+        <ul className="space-y-1 text-sm">
+          {mine.map((p) => (
+            <li key={p.id} className="flex flex-wrap items-center gap-2">
+              {p.orgName} <Badge variant="outline" className="text-slate-600">{p.status}</Badge>
+              {p.reason && <span className="text-xs text-slate-500">“{p.reason}”</span>}
+              {p.status === 'pending' && <Button size="sm" variant="ghost" onClick={() => void api(`/api/directory/proposals/${p.id}`, { method: 'DELETE' }).then(load)}>Withdraw</Button>}
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   )
