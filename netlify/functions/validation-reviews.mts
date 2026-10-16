@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto'
 import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
   accessGrants, auditLogs, engagementDeclarations, engagementMembers, firms, organizations, validationDebriefs, validationEngagements,
   validationCipActions, validationQualifications, validationReviews, validationScores, validations, validatorProfiles,
@@ -11,7 +10,6 @@ import {
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { grantAllows } from '../lib/access-policy.js'
-import { decryptField } from '../lib/crypto.js'
 import { reconcileEngagement, sweepEngagements } from '../lib/engagement-access.js'
 import { logger } from '../lib/logger.js'
 import { engagementLabel, GRANT_ROLE, type EngagementScope, type EngagementType } from '../../src/lib/engagements.js'
@@ -19,6 +17,7 @@ import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 import { FOLLOW_UP_MODES, issuedValidity, validityProblems } from '../../src/lib/validationLifecycle.js'
 import { generateVerificationId } from '../../src/lib/validationStatement.js'
 import { ensureStatement } from '../lib/public-validation.js'
+import { loadSelfScores } from '../lib/validator-quality.js'
 import { recordStatusHistory, sendDebriefNotice, syncCheckpoints } from '../lib/validation-lifecycle.js'
 import {
   canonicalJson, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indicatorsInScope, levelsAchieved, METHODS,
@@ -80,11 +79,7 @@ type Ctx = {
   lead: boolean
 }
 
-async function selfScores(orgId: string, key: string, ids: Set<string>): Promise<Record<string, number>> {
-  const [row] = await db.select().from(legacyWorkspaceState).where(and(eq(legacyWorkspaceState.orgId, orgId), eq(legacyWorkspaceState.key, key)))
-  if (!row) return {}
-  try { return cleanScores(JSON.parse(decryptField(row.value)), ids) } catch { return {} }
-}
+const selfScores = loadSelfScores
 
 export default async (req: Request) => {
   try {

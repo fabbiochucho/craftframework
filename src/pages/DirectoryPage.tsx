@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { BadgeCheck, Search } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs } from '../components/ui'
+import { ValidatorFeedback } from '../components/ValidatorFeedback'
 import { FIRM_KINDS, natureOptions, type FirmKind } from '../lib/validatorDirectory'
 
 // Validator system PR 1: the signed-in three-way directory (validators,
@@ -431,6 +432,7 @@ export function DirectoryProfilePage({ kind, id }: { kind: string; id: string })
           {tags('Languages', p.languages)}
           {tags('Focus sectors', p.sectors)}
           {p.ticketSize && <p className="text-sm"><span className="font-medium text-slate-700">Ticket size:</span> {p.ticketSize}</p>}
+          {kind === 'firms' && p.rating?.count > 0 && <p className="text-sm text-slate-600">Rated {p.rating.average} out of 5 from {p.rating.count} {p.rating.count === 1 ? 'rating' : 'ratings'} of its validators’ work</p>}
           {kind === 'firms' && <p className="text-sm text-slate-600">{p.teamSize} {p.kind === 'funding_partner' ? 'staff' : 'team members'}</p>}
           {p.team?.length > 0 && (
             <ul className="text-sm">{p.team.map((t: any) => <li key={t.id}><Link to="/directory/$kind/$id" params={{ kind: 'validators', id: t.id }} className="text-emerald-700 hover:underline">{t.name}</Link></li>)}</ul>
@@ -455,6 +457,7 @@ export function DirectoryProfilePage({ kind, id }: { kind: string; id: string })
           )}
         </CardContent>
       </Card>
+      {kind === 'validators' && p.quality && <ValidatorFeedback quality={p.quality} isAdmin={isAdmin} onChanged={load} />}
       {isAdmin && kind === 'validators' && <AccreditationAdmin profile={p} onDone={load} />}
     </div>
   )
