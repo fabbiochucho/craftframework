@@ -21,15 +21,15 @@ CREATE TABLE IF NOT EXISTS "validator_profiles" (
 	"frameworks" jsonb DEFAULT '[]' NOT NULL,
 	"countries" jsonb DEFAULT '[]' NOT NULL,
 	"languages" jsonb DEFAULT '[]' NOT NULL,
-	"accreditation_status" text DEFAULT 'registered' NOT NULL
-		CHECK ("accreditation_status" IN ('registered', 'accredited', 'suspended')),
-	"accreditation_reason" text,
-	"pilot_accredited" boolean DEFAULT false NOT NULL,
-	"accreditation_changed_by" text,
-	"accreditation_changed_at" timestamp with time zone,
+	"status" text DEFAULT 'active' NOT NULL CHECK ("status" IN ('active', 'suspended')),
+	"status_reason" text,
+	"status_changed_by" text,
+	"status_changed_at" timestamp with time zone,
+	-- Set only by completing the CRAFT training; renewed annually.
+	"accredited_until" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "validator_profiles_suspension_reason" CHECK ("accreditation_status" <> 'suspended' OR coalesce("accreditation_reason", '') <> '')
+	CONSTRAINT "validator_profiles_suspension_reason" CHECK ("status" <> 'suspended' OR coalesce("status_reason", '') <> '')
 );
 
 CREATE TABLE IF NOT EXISTS "validator_credentials" (

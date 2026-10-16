@@ -427,7 +427,8 @@ export const firmMembers = pgTable(
 // --- validator_profiles -----------------------------------------------------
 // A person's validator profile (open onboarding). The public id is used in
 // directory URLs so the email (a contact detail) is never exposed.
-// Accreditation is changed only by a platform admin, with a recorded reason.
+// Accreditation is earned only through the CRAFT training (sets accredited_until,
+// renewed annually); a platform admin can only suspend / reinstate, with a reason.
 export const validatorProfiles = pgTable('validator_profiles', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
@@ -437,12 +438,12 @@ export const validatorProfiles = pgTable('validator_profiles', {
   frameworks: jsonb('frameworks').$type<string[]>().notNull().default([]),
   countries: jsonb('countries').$type<string[]>().notNull().default([]),
   languages: jsonb('languages').$type<string[]>().notNull().default([]),
-  // 'registered' | 'accredited' | 'suspended'
-  accreditationStatus: text('accreditation_status').notNull().default('registered'),
-  accreditationReason: text('accreditation_reason'),
-  pilotAccredited: boolean('pilot_accredited').notNull().default(false),
-  accreditationChangedBy: text('accreditation_changed_by'),
-  accreditationChangedAt: timestamp('accreditation_changed_at', { withTimezone: true }),
+  // 'active' | 'suspended'
+  status: text('status').notNull().default('active'),
+  statusReason: text('status_reason'),
+  statusChangedBy: text('status_changed_by'),
+  statusChangedAt: timestamp('status_changed_at', { withTimezone: true }),
+  accreditedUntil: timestamp('accredited_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
