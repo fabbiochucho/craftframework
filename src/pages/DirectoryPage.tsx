@@ -195,7 +195,7 @@ function ValidatorForm({ me, reload }: { me: Me; reload: () => void }) {
         {v && (
           <div className="border-t border-slate-100 pt-3">
             <h4 className="text-sm font-semibold text-slate-700">Professional memberships</h4>
-            <p className="text-xs text-slate-500">Shown as self-declared until the CRAFT programme team checks the body's public register.</p>
+            <p className="text-xs text-slate-500">Membership numbers are shown on your public profile so anyone can check them on the body's register. They show as self-declared until the CRAFT programme team verifies them.</p>
             <ul className="mt-2 space-y-1">
               {v.credentials.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-2 text-sm">
