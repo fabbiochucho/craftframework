@@ -25,6 +25,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as DataProcessingRouteImport } from './routes/data-processing'
 import { Route as DataRoomRouteImport } from './routes/data-room'
 import { Route as DemoRouteImport } from './routes/demo'
+import { Route as DirectoryRouteImport } from './routes/directory'
 import { Route as EvidenceRouteImport } from './routes/evidence'
 import { Route as FinanceTriangulationRouteImport } from './routes/finance-triangulation'
 import { Route as FindingsRouteImport } from './routes/findings'
@@ -63,6 +64,7 @@ import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
 import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
 import { Route as AppWorkspacesIndexRouteImport } from './routes/app.workspaces.index'
+import { Route as DirectoryKindIdRouteImport } from './routes/directory_.$kind.$id'
 import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
 import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
 import { Route as AppWorkspacesWorkspaceIdFrameworkMapRouteImport } from './routes/app.workspaces.$workspaceId.framework-map'
@@ -167,6 +169,11 @@ const DataRoomRoute = DataRoomRouteImport.update({
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DirectoryRoute = DirectoryRouteImport.update({
+  id: '/directory',
+  path: '/directory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EvidenceRoute = EvidenceRouteImport.update({
@@ -360,6 +367,11 @@ const AppWorkspacesIndexRoute = AppWorkspacesIndexRouteImport.update({
   path: '/app/workspaces/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DirectoryKindIdRoute = DirectoryKindIdRouteImport.update({
+  id: '/directory_/$kind/$id',
+  path: '/directory/$kind/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppWorkspacesWorkspaceIdComplianceDashboardRoute =
   AppWorkspacesWorkspaceIdComplianceDashboardRouteImport.update({
     id: '/app/workspaces/$workspaceId/compliance-dashboard',
@@ -532,6 +544,7 @@ export interface FileRoutesByFullPath {
   '/data-processing': typeof DataProcessingRoute
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
+  '/directory': typeof DirectoryRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
   '/findings': typeof FindingsRoute
@@ -569,6 +582,7 @@ export interface FileRoutesByFullPath {
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
+  '/directory/$kind/$id': typeof DirectoryKindIdRoute
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -613,6 +627,7 @@ export interface FileRoutesByTo {
   '/data-processing': typeof DataProcessingRoute
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
+  '/directory': typeof DirectoryRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
   '/findings': typeof FindingsRoute
@@ -650,6 +665,7 @@ export interface FileRoutesByTo {
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
+  '/directory/$kind/$id': typeof DirectoryKindIdRoute
   '/app/workspaces': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -695,6 +711,7 @@ export interface FileRoutesById {
   '/data-processing': typeof DataProcessingRoute
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
+  '/directory': typeof DirectoryRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
   '/findings': typeof FindingsRoute
@@ -732,6 +749,7 @@ export interface FileRoutesById {
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
+  '/directory_/$kind/$id': typeof DirectoryKindIdRoute
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -778,6 +796,7 @@ export interface FileRouteTypes {
     | '/data-processing'
     | '/data-room'
     | '/demo'
+    | '/directory'
     | '/evidence'
     | '/finance-triangulation'
     | '/findings'
@@ -815,6 +834,7 @@ export interface FileRouteTypes {
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
+    | '/directory/$kind/$id'
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
@@ -859,6 +879,7 @@ export interface FileRouteTypes {
     | '/data-processing'
     | '/data-room'
     | '/demo'
+    | '/directory'
     | '/evidence'
     | '/finance-triangulation'
     | '/findings'
@@ -896,6 +917,7 @@ export interface FileRouteTypes {
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
+    | '/directory/$kind/$id'
     | '/app/workspaces'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
@@ -940,6 +962,7 @@ export interface FileRouteTypes {
     | '/data-processing'
     | '/data-room'
     | '/demo'
+    | '/directory'
     | '/evidence'
     | '/finance-triangulation'
     | '/findings'
@@ -977,6 +1000,7 @@ export interface FileRouteTypes {
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
+    | '/directory_/$kind/$id'
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
@@ -1022,6 +1046,7 @@ export interface RootRouteChildren {
   DataProcessingRoute: typeof DataProcessingRoute
   DataRoomRoute: typeof DataRoomRoute
   DemoRoute: typeof DemoRoute
+  DirectoryRoute: typeof DirectoryRoute
   EvidenceRoute: typeof EvidenceRoute
   FinanceTriangulationRoute: typeof FinanceTriangulationRoute
   FindingsRoute: typeof FindingsRoute
@@ -1058,6 +1083,7 @@ export interface RootRouteChildren {
   AppOrgAuditLogRoute: typeof AppOrgAuditLogRoute
   AppOrgMembersRoute: typeof AppOrgMembersRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRoute
+  DirectoryKindIdRoute: typeof DirectoryKindIdRoute
   AppWorkspacesIndexRoute: typeof AppWorkspacesIndexRoute
   AppWorkspacesWorkspaceIdComplianceDashboardRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   AppWorkspacesWorkspaceIdDashboardRoute: typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -1198,6 +1224,13 @@ declare module '@tanstack/react-router' {
       path: '/demo'
       fullPath: '/demo'
       preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/directory': {
+      id: '/directory'
+      path: '/directory'
+      fullPath: '/directory'
+      preLoaderRoute: typeof DirectoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/evidence': {
@@ -1466,6 +1499,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/directory_/$kind/$id': {
+      id: '/directory_/$kind/$id'
+      path: '/directory/$kind/$id'
+      fullPath: '/directory/$kind/$id'
+      preLoaderRoute: typeof DirectoryKindIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/workspaces/$workspaceId/compliance-dashboard': {
       id: '/app/workspaces/$workspaceId/compliance-dashboard'
       path: '/app/workspaces/$workspaceId/compliance-dashboard'
@@ -1673,6 +1713,7 @@ const rootRouteChildren: RootRouteChildren = {
   DataProcessingRoute: DataProcessingRoute,
   DataRoomRoute: DataRoomRoute,
   DemoRoute: DemoRoute,
+  DirectoryRoute: DirectoryRoute,
   EvidenceRoute: EvidenceRoute,
   FinanceTriangulationRoute: FinanceTriangulationRoute,
   FindingsRoute: FindingsRoute,
@@ -1709,6 +1750,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppOrgAuditLogRoute: AppOrgAuditLogRoute,
   AppOrgMembersRoute: AppOrgMembersRoute,
   AppOrgSettingsRoute: AppOrgSettingsRoute,
+  DirectoryKindIdRoute: DirectoryKindIdRoute,
   AppWorkspacesIndexRoute: AppWorkspacesIndexRoute,
   AppWorkspacesWorkspaceIdComplianceDashboardRoute:
     AppWorkspacesWorkspaceIdComplianceDashboardRoute,

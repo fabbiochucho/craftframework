@@ -17,7 +17,7 @@ import {
   LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
-  Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText,
+  Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact,
 } from 'lucide-react'
 
 // The legacy /api endpoints answer 401 'mfa_required' when the account uses multi-factor sign-in
@@ -64,6 +64,7 @@ const workspaceNav = [
 const orgNav = [
   { to: '/settings', label: 'Settings & Team', icon: Settings },
   { to: '/app/org/members', label: 'Org Members & RBAC', icon: Users },
+  { to: '/directory', label: 'Validator Directory', icon: Contact },
   { to: '/audit-log', label: 'Audit Log', icon: ScrollText },
   { to: '/help', label: 'Help & Glossary', icon: HelpCircle },
   { to: '/guide', label: 'User Guide', icon: BookOpen },
