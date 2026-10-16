@@ -42,14 +42,14 @@ const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean)
 const joined = (l?: string[] | null) => (l ?? []).join(', ')
 const KIND_LABEL: Record<FirmKind, string> = { validator_firm: 'Validator firm', funding_partner: 'Funding partner' }
 const ACCREDITATION_STYLE: Record<string, string> = {
-  accredited: 'bg-emerald-100 text-emerald-800', 'pilot-accredited': 'bg-indigo-100 text-indigo-800',
+  accredited: 'bg-emerald-100 text-emerald-800', lapsed: 'bg-amber-100 text-amber-800',
   registered: 'bg-slate-100 text-slate-700', suspended: 'bg-rose-100 text-rose-800',
 }
 
 function Accreditation({ value, level }: { value: string; level?: string }) {
   return (
     <span className="inline-flex flex-wrap gap-1">
-      <Badge className={ACCREDITATION_STYLE[value] ?? ''}>{value === 'pilot-accredited' ? 'Pilot-accredited' : value[0].toUpperCase() + value.slice(1)}</Badge>
+      <Badge className={ACCREDITATION_STYLE[value] ?? ''}>{value === 'lapsed' ? 'Accreditation lapsed' : value[0].toUpperCase() + value.slice(1)}</Badge>
       {level && <Badge variant="outline" className="text-slate-600">{level}</Badge>}
     </span>
   )
@@ -170,7 +170,7 @@ function ValidatorForm({ me, reload }: { me: Me; reload: () => void }) {
     <Card>
       <CardHeader>
         <CardTitle>My validator profile</CardTitle>
-        <p className="text-sm text-slate-500">Anyone can register as a validator. Accreditation is earned (training and assessment) or granted by the CRAFT programme team for the pilot.</p>
+        <p className="text-sm text-slate-500">Anyone can register as a validator. The accreditation badge comes only from completing the CRAFT training, and is renewed every year.</p>
         {v && <div className="mt-2"><Accreditation value={v.accreditation} level={v.level} /></div>}
       </CardHeader>
       <CardContent className="space-y-3">
@@ -189,7 +189,7 @@ function ValidatorForm({ me, reload }: { me: Me; reload: () => void }) {
         {v && (
           <div className="border-t border-slate-100 pt-3">
             <h4 className="text-sm font-semibold text-slate-700">Professional memberships</h4>
-            <p className="text-xs text-slate-500">Shown as self-declared until the CRAFT programme team checks the body's public register.</p>
+            <p className="text-xs text-slate-500">Membership numbers are shown on your public profile so anyone can check them on the body's register. They show as self-declared until the CRAFT programme team verifies them.</p>
             <ul className="mt-2 space-y-1">
               {v.credentials.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center gap-2 text-sm">
@@ -372,29 +372,25 @@ export function DirectoryProfilePage({ kind, id }: { kind: string; id: string })
 }
 
 function AccreditationAdmin({ profile, onDone }: { profile: any; onDone: () => void }) {
-  const [status, setStatus] = useState<string>(profile.accreditationStatus)
-  const [pilot, setPilot] = useState<boolean>(profile.pilotAccredited)
   const [reason, setReason] = useState('')
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const suspended = profile.status === 'suspended'
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Accreditation (platform admin)</CardTitle>
-        {profile.accreditationReason && <p className="text-sm text-slate-500">Last recorded reason: {profile.accreditationReason}</p>}
+        <CardTitle>Validator status (platform admin)</CardTitle>
+        <p className="text-sm text-slate-500">Accreditation comes only from completing the CRAFT training. You can suspend or reinstate a validator; suspended validators stay visible with a badge.</p>
+        {profile.statusReason && <p className="text-sm text-slate-500">Last recorded reason: {profile.statusReason}</p>}
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
-        <Select label="Status" options={['registered', 'accredited', 'suspended'].map((s) => ({ value: s, label: s }))} value={status} onChange={setStatus} />
-        <label className="flex items-center gap-2 self-end text-sm font-medium text-slate-700">
-          <input type="checkbox" checked={pilot} onChange={(e) => setPilot(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Pilot-accredited
-        </label>
-        <div className="sm:col-span-2"><Textarea label="Reason (recorded in the audit log)" value={reason} onChange={setReason} rows={2} /></div>
+      <CardContent className="grid gap-3">
+        <Textarea label="Reason (recorded in the audit log)" value={reason} onChange={setReason} rows={2} />
         <div>
-          <Button disabled={!reason.trim()} onClick={async () => {
+          <Button variant={suspended ? 'outline' : 'destructive'} disabled={!reason.trim()} onClick={async () => {
             try {
-              await api(`/api/directory/admin/validators/${profile.id}`, { method: 'PUT', json: { status, pilotAccredited: pilot, reason } })
-              setMsg({ ok: true, text: 'Accreditation updated' }); setReason(''); onDone()
+              await api(`/api/directory/admin/validators/${profile.id}`, { method: 'PUT', json: { action: suspended ? 'reinstate' : 'suspend', reason } })
+              setMsg({ ok: true, text: suspended ? 'Validator reinstated' : 'Validator suspended' }); setReason(''); onDone()
             } catch (e: any) { setMsg({ ok: false, text: e.message }) }
-          }}>Record change</Button>
+          }}>{suspended ? 'Reinstate validator' : 'Suspend validator'}</Button>
         </div>
         <Status msg={msg} />
       </CardContent>

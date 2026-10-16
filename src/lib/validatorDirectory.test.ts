@@ -2,13 +2,16 @@
 import assert from 'node:assert/strict'
 import { cleanList, credentialLabel, effectiveAccreditation, matchesQuery, natureOptions, validatorLevel, FUNDER_TYPES } from './validatorDirectory.ts'
 
-assert.equal(effectiveAccreditation({ accreditationStatus: 'registered', pilotAccredited: false }), 'registered')
-assert.equal(effectiveAccreditation({ accreditationStatus: 'registered', pilotAccredited: true }), 'pilot-accredited')
-assert.equal(effectiveAccreditation({ accreditationStatus: 'accredited', pilotAccredited: true }), 'accredited')
-assert.equal(effectiveAccreditation({ accreditationStatus: 'suspended', pilotAccredited: true }), 'suspended', 'suspension beats the pilot switch')
-assert.equal(validatorLevel({ accreditationStatus: 'registered', pilotAccredited: false }), 'Associate')
-assert.equal(validatorLevel({ accreditationStatus: 'registered', pilotAccredited: true }), 'Validator')
-assert.equal(validatorLevel({ accreditationStatus: 'suspended', pilotAccredited: true }), 'Associate')
+const now = new Date('2026-10-16T00:00:00Z')
+const future = '2027-10-16T00:00:00Z', past = '2026-10-15T00:00:00Z'
+assert.equal(effectiveAccreditation({ status: 'active', accreditedUntil: null }, now), 'registered', 'no badge until the training is done')
+assert.equal(effectiveAccreditation({ status: 'active', accreditedUntil: future }, now), 'accredited')
+assert.equal(effectiveAccreditation({ status: 'active', accreditedUntil: past }, now), 'lapsed', 'annual renewal missed')
+assert.equal(effectiveAccreditation({ status: 'suspended', accreditedUntil: future }, now), 'suspended', 'suspension beats accreditation')
+assert.equal(validatorLevel({ status: 'active', accreditedUntil: null }, now), 'Associate')
+assert.equal(validatorLevel({ status: 'active', accreditedUntil: future }, now), 'Validator')
+assert.equal(validatorLevel({ status: 'active', accreditedUntil: past }, now), 'Associate')
+assert.equal(validatorLevel({ status: 'suspended', accreditedUntil: future }, now), 'Associate')
 
 assert.equal(credentialLabel({ verifiedAt: null }), 'self-declared')
 assert.equal(credentialLabel({ verifiedAt: new Date() }), 'verified')

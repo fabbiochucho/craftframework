@@ -86,33 +86,39 @@ describe('validator directory', () => {
     assert.equal((await rows("SELECT org_id FROM org_directory_profiles"))[0].org_id, 'org_b')
   })
 
-  it('only a platform admin verifies credentials or changes accreditation', async () => {
+  it('only a platform admin verifies credentials or suspends; nobody grants accreditation by hand', async () => {
     const valId = await makeValidator()
     const cred = (await call(VAL, 'POST', 'directory/me/credentials', { body: 'ACCA', membershipNumber: 'A-1' })).body.id
     for (const user of [VAL, ALICE]) {
       assert.equal((await call(user, 'PUT', `directory/admin/credentials/${cred}`, { verified: true })).status, 403)
-      assert.equal((await call(user, 'PUT', `directory/admin/validators/${valId}`, { pilotAccredited: true, reason: 'self' })).status, 403)
+      assert.equal((await call(user, 'PUT', `directory/admin/validators/${valId}`, { action: 'reinstate', reason: 'self' })).status, 403)
     }
     let profile = await call(ALICE, 'GET', `directory/validators/${valId}`)
     assert.equal(profile.body.credentials[0].status, 'self-declared')
     assert.equal(profile.body.accreditation, 'registered')
-    assert.equal(profile.body.accreditationReason, undefined, 'reason is admin-only')
+    assert.equal(profile.body.statusReason, undefined, 'reason is admin-only')
 
     assert.equal((await call(ADMIN, 'PUT', `directory/admin/credentials/${cred}`, { verified: true })).status, 200)
-    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { pilotAccredited: true, reason: 'Pilot cohort' })).status, 200)
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'accredited', reason: 'Trusted' })).status, 400, 'no manual accreditation')
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { pilotAccredited: true, reason: 'Pilot' })).status, 400, 'no pilot switch')
     profile = await call(ALICE, 'GET', `directory/validators/${valId}`)
     assert.equal(profile.body.credentials[0].status, 'verified')
-    assert.equal(profile.body.accreditation, 'pilot-accredited')
-    assert.equal(profile.body.level, 'Validator')
+    assert.equal(profile.body.credentials[0].membershipNumber, 'A-1', 'membership numbers are public')
+    assert.equal(profile.body.accreditation, 'registered', 'no badge until the training is done')
+    assert.equal(profile.body.level, 'Associate')
 
-    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'suspended' })).status, 400, 'reason required')
-    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'suspended', reason: 'Complaint upheld' })).status, 200)
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { action: 'suspend' })).status, 400, 'reason required')
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { action: 'suspend', reason: 'Complaint upheld' })).status, 200)
     assert.equal((await call(ALICE, 'GET', `directory/validators/${valId}`)).body.accreditation, 'suspended')
-    assert.equal((await call(ADMIN, 'GET', `directory/validators/${valId}`)).body.accreditationReason, 'Complaint upheld')
+    assert.equal((await call(ADMIN, 'GET', `directory/validators/${valId}`)).body.statusReason, 'Complaint upheld')
     const log = await rows("SELECT actor, action FROM audit_logs WHERE category='Accreditation' ORDER BY id")
-    assert.equal(log.length, 3)
+    assert.equal(log.length, 2)
     assert.ok(log.every((l: any) => l.actor === ADMIN))
-    assert.match(log[2].action, /suspended.*Complaint upheld/)
+    assert.match(log[1].action, /suspended.*Complaint upheld/)
+    const found = (await call(ALICE, 'GET', 'directory/search?type=validators')).body.find((r: any) => r.id === valId)
+    assert.equal(found?.accreditation, 'suspended', 'suspended validators stay searchable, with a badge')
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { action: 'reinstate', reason: 'Panel: complaint dismissed on appeal' })).status, 200)
+    assert.equal((await call(ALICE, 'GET', `directory/validators/${valId}`)).body.accreditation, 'registered', 'reinstating does not grant accreditation')
     // Re-declaring a membership never inherits a verification.
     await call(VAL, 'DELETE', `directory/me/credentials/${cred}`)
     await call(VAL, 'POST', 'directory/me/credentials', { body: 'ACCA', membershipNumber: 'A-2' })

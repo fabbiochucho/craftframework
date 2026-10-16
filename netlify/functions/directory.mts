@@ -12,7 +12,7 @@ import { decryptField } from '../lib/crypto.js'
 import { logger } from '../lib/logger.js'
 import { currentRung } from '../../src/lib/capitalReadiness.js'
 import {
-  ACCREDITATION_STATUSES, cleanList, credentialLabel, effectiveAccreditation, matchesQuery, validatorLevel,
+  cleanList, credentialLabel, effectiveAccreditation, matchesQuery, validatorLevel,
 } from '../../src/lib/validatorDirectory.js'
 
 // /api/directory — the validator system's three-way directory (spec PR 1).
@@ -28,7 +28,7 @@ import {
 //   PUT    me/organization            own organisation's opt-in listing
 //   GET    search?type=&q=&country=   validators | firms | funders | organizations
 //   GET    validators/:id | firms/:id | organizations/:id   brief profiles
-//   PUT    admin/validators/:id       platform admin: accreditation (reason required)
+//   PUT    admin/validators/:id       platform admin: suspend / reinstate (reason required)
 //   PUT    admin/credentials/:id      platform admin: verify / unverify a membership
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
@@ -47,9 +47,10 @@ const validatorSchema = z.object({
 })
 const credentialSchema = z.object({ body: z.string().trim().min(1).max(120), membershipNumber: z.string().trim().min(1).max(120) })
 const orgListingSchema = z.object({ listed: z.boolean(), summary: z.string().max(1000).optional() })
-const accreditationSchema = z.object({
-  status: z.enum(ACCREDITATION_STATUSES).optional(),
-  pilotAccredited: z.boolean().optional(),
+// Accreditation itself is never set by hand: it comes only from completing the
+// CRAFT training (PR 7). Admins can suspend or reinstate, with a reason.
+const statusSchema = z.object({
+  action: z.enum(['suspend', 'reinstate']),
   reason: z.string().trim().min(1).max(1000),
 })
 
@@ -144,7 +145,7 @@ export default async (req: Request) => {
         isFunder: memberships.some((m) => m.firm.kind === 'funding_partner'),
         validator: validator ? {
           ...validatorCard(validator, []), email: validator.email, bio: validator.bio, frameworks: validator.frameworks,
-          languages: validator.languages, accreditationReason: validator.accreditationReason,
+          languages: validator.languages, statusReason: validator.statusReason, accreditedUntil: validator.accreditedUntil,
           credentials: credentials.map((cr) => ({ id: cr.id, body: cr.body, membershipNumber: cr.membershipNumber, status: credentialLabel(cr) })),
         } : null,
         firms: memberships.map((m) => ({ ...firmCard(m.firm, 0), role: m.role })),
@@ -239,7 +240,7 @@ export default async (req: Request) => {
       return json({
         ...validatorCard(v, firmList), bio: v.bio, frameworks: v.frameworks, languages: v.languages,
         credentials: creds.map((cr) => ({ id: cr.id, body: cr.body, membershipNumber: cr.membershipNumber, status: credentialLabel(cr) })),
-        ...(isAdmin ? { accreditationStatus: v.accreditationStatus, pilotAccredited: v.pilotAccredited, accreditationReason: v.accreditationReason } : {}),
+        ...(isAdmin ? { status: v.status, statusReason: v.statusReason, accreditedUntil: v.accreditedUntil } : {}),
       })
     }
 
@@ -276,17 +277,14 @@ export default async (req: Request) => {
         await audit(caller.email, p.data.verified ? 'verified membership' : 'marked membership self-declared', c, 'Accreditation')
         return json({ ok: true })
       }
-      const p = accreditationSchema.safeParse(await readBody())
-      if (!p.success || (p.data.status === undefined && p.data.pilotAccredited === undefined)) return bad('A change and a reason are required')
-      const set = {
-        ...(p.data.status ? { accreditationStatus: p.data.status } : {}),
-        ...(p.data.pilotAccredited !== undefined ? { pilotAccredited: p.data.pilotAccredited } : {}),
-        accreditationReason: p.data.reason, accreditationChangedBy: caller.email, accreditationChangedAt: new Date(),
-      }
-      const updated = await db.update(validatorProfiles).set(set).where(eq(validatorProfiles.id, c)).returning()
+      const p = statusSchema.safeParse(await readBody())
+      if (!p.success) return bad('An action (suspend or reinstate) and a reason are required')
+      const status = p.data.action === 'suspend' ? 'suspended' : 'active'
+      const updated = await db.update(validatorProfiles)
+        .set({ status, statusReason: p.data.reason, statusChangedBy: caller.email, statusChangedAt: new Date() })
+        .where(eq(validatorProfiles.id, c)).returning()
       if (!updated.length) return notFound()
-      const change = [p.data.status && `status ${p.data.status}`, p.data.pilotAccredited !== undefined && `pilot-accredited ${p.data.pilotAccredited ? 'on' : 'off'}`].filter(Boolean).join(', ')
-      await audit(caller.email, `accreditation: ${change} (${p.data.reason})`, c, 'Accreditation')
+      await audit(caller.email, `validator ${status === 'suspended' ? 'suspended' : 'reinstated'} (${p.data.reason})`, c, 'Accreditation')
       return json({ ok: true, accreditation: effectiveAccreditation(updated[0]) })
     }
 
