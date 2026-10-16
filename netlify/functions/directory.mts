@@ -4,8 +4,8 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
-  accessGrants, auditLogs, firmMembers, firms, organizations, orgDirectoryProfiles, orgListingProposals, validatorCredentials, validatorProfiles,
-  type FirmRow, type ValidatorProfileRow,
+  accessGrants, auditLogs, engagementMembers, firmMembers, firms, organizations, orgDirectoryProfiles, orgListingProposals, validatorCredentials, validatorProfiles,
+  type FirmRow, type ValidatorProfileRow, validationEngagements,
 } from '../../db/schema.js'
 import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
@@ -27,6 +27,7 @@ import {
 //
 //   GET    me                         own validator profile, firms, org listing
 //   PUT    me/validator               create / edit own validator profile
+//   DELETE me/validator               delete own validator profile (not while suspended or on a live engagement)
 //   POST   me/credentials             add a professional membership (self-declared)
 //   DELETE me/credentials/:id         remove one of own memberships
 //   PUT    me/organization            own organisation's opt-in listing (own staff only)
@@ -194,6 +195,22 @@ export default async (req: Request) => {
         .onConflictDoUpdate({ target: validatorProfiles.email, set: fields }).returning()
       await audit(caller.email, 'saved validator profile', row.id)
       return json({ id: row.id })
+    }
+
+    if (route === 'DELETE me/validator') {
+      const [v] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.email, caller.email))
+      if (!v) return notFound()
+      // A suspension must not be escaped by deleting and re-registering.
+      if (v.accreditationStatus === 'suspended') return json({ error: 'A suspended profile cannot be deleted; contact the CRAFT programme team' }, 409)
+      const [live] = await db.select({ id: validationEngagements.id }).from(engagementMembers)
+        .innerJoin(validationEngagements, eq(validationEngagements.id, engagementMembers.engagementId))
+        .where(and(eq(engagementMembers.email, caller.email), eq(engagementMembers.status, 'named'), inArray(validationEngagements.status, ['proposed', 'active'])))
+        .limit(1)
+      if (live) return json({ error: 'Leave or finish your current engagements before deleting your profile' }, 409)
+      // Memberships cascade. Finalised validations keep their frozen snapshots.
+      await db.delete(validatorProfiles).where(eq(validatorProfiles.id, v.id))
+      await audit(caller.email, 'deleted validator profile', v.id)
+      return json({ ok: true })
     }
 
     if (a === 'me' && b === 'credentials' && (req.method === 'POST' || req.method === 'DELETE')) {

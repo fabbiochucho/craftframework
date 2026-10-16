@@ -125,6 +125,27 @@ describe('validator directory', () => {
     assert.equal((await call(VAL, 'GET', 'directory/me')).body.validator.credentials[0].status, 'self-declared')
   })
 
+  it('a validator can delete their own profile, but not while suspended or on a live engagement', async () => {
+    const valId = await makeValidator()
+    await call(VAL, 'POST', 'directory/me/credentials', { body: 'ACCA', membershipNumber: 'A-9' })
+    assert.equal((await call(ALICE, 'DELETE', 'directory/me/validator')).status, 404, 'no profile of their own')
+    // Named on a live engagement: refused.
+    await rows(`INSERT INTO validation_engagements(id, org_id, type, created_by, created_by_side, validator_email, org_status, validator_status, funder_status, status, invite_expires_at, activated_at, expires_at)
+      VALUES('eng_live','org_a','independent_validation','${ALICE}','organization','${VAL}','accepted','accepted','not_required','active', now() + interval '1 day', now(), now() + interval '30 days')`)
+    await rows(`INSERT INTO engagement_members(id, engagement_id, email, role, status, org_approved, added_by) VALUES('em_v','eng_live','${VAL}','lead','named',true,'x')`)
+    assert.equal((await call(VAL, 'DELETE', 'directory/me/validator')).status, 409)
+    await rows(`UPDATE validation_engagements SET status='cancelled'`)
+    // Suspended: refused, so a suspension can't be escaped by re-registering.
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'suspended', reason: 'Complaint' })).status, 200)
+    assert.equal((await call(VAL, 'DELETE', 'directory/me/validator')).status, 409)
+    assert.equal((await call(ADMIN, 'PUT', `directory/admin/validators/${valId}`, { status: 'registered', reason: 'Dismissed' })).status, 200)
+    // Otherwise deleted, with its memberships, and audit-logged.
+    assert.equal((await call(VAL, 'DELETE', 'directory/me/validator')).status, 200)
+    assert.equal((await call(ALICE, 'GET', `directory/validators/${valId}`)).status, 404)
+    assert.equal((await rows('SELECT 1 FROM validator_credentials')).length, 0)
+    assert.equal((await rows("SELECT 1 FROM audit_logs WHERE action='deleted validator profile'")).length, 1)
+  })
+
   it('a non-opted-in organisation never appears in search', async () => {
     await makeFunder()
     await makeValidator()

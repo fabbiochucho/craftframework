@@ -168,6 +168,7 @@ function ValidatorForm({ me, reload }: { me: Me; reload: () => void }) {
   const [f, setF] = useState({ name: v?.name ?? '', bio: v?.bio ?? '', competencies: joined(v?.competencies), frameworks: joined(v?.frameworks), countries: joined(v?.countries), languages: joined(v?.languages) })
   const [cred, setCred] = useState({ body: '', membershipNumber: '' })
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     try { await fn(); setMsg({ ok: true, text: ok }); reload() } catch (e: any) { setMsg({ ok: false, text: e.message }) }
   }
@@ -192,6 +193,19 @@ function ValidatorForm({ me, reload }: { me: Me; reload: () => void }) {
           <div className="sm:col-span-2"><Textarea label="Bio" value={f.bio} onChange={(bio) => setF({ ...f, bio })} /></div>
           <div><Button type="submit">{v ? 'Save profile' : 'Create validator profile'}</Button></div>
         </form>
+        {v && (
+          <div className="flex flex-wrap items-center gap-2">
+            {confirmDelete ? (
+              <>
+                <span className="text-sm text-slate-600">Delete your validator profile and memberships? Finalised validations keep their records.</span>
+                <Button type="button" variant="destructive" onClick={() => void act(() => api('/api/directory/me/validator', { method: 'DELETE' }).then(() => setConfirmDelete(false)), 'Profile deleted')}>Yes, delete</Button>
+                <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+              </>
+            ) : (
+              <Button type="button" variant="ghost" onClick={() => setConfirmDelete(true)}>Delete my validator profile</Button>
+            )}
+          </div>
+        )}
         {v && (
           <div className="border-t border-slate-100 pt-3">
             <h4 className="text-sm font-semibold text-slate-700">Professional memberships</h4>
