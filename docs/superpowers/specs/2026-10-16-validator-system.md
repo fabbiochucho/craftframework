@@ -58,6 +58,10 @@ Open onboarding — no approval needed to join.
   Microfinance Bank, Other investor — focus sectors, countries, ticket size (optional), staff members.
 - **Organisation**: brief public profile (name, country, sector, current rung, validation badge), **listed
   only if the organisation opts in**. Never scores, evidence or comments.
+- **Who lists an organisation:** its own staff (users whose CRAFT org is that organisation, with write
+  access) list or unlist it directly. An outside consultant with granted access may only **propose** a
+  listing (draft summary); it goes live only when the organisation's staff approve it, and they can reject
+  it. Proposals, approvals and rejections are audit-logged.
 
 Search and brief profile pages: organisations find validators and funding partners; funding partners find
 validators and opted-in organisations. Signed-in only.
@@ -68,10 +72,14 @@ validators and opted-in organisations. Signed-in only.
   no supervised stage.
 - Only accredited validators issue an **Independent validation**. Anyone else's work is labelled
   **"Review by [name]"**.
-- Platform-admin switch **"pilot-accredited"** for the first trusted validators until the online assessment
-  (PR 7) is live; they take it within 6 months of launch.
-- Platform admin can suspend or reinstate with a recorded reason; renewal every 2 years with CPD; missed
-  renewal suspends until done.
+- **No manual or pilot accreditation.** No badge until the training is completed; completing it sets
+  `accredited_until` one year ahead.
+- **Annual renewal:** each year the validator, and every member of their firm's team, completes the
+  current training videos again. Missed renewal shows "accreditation lapsed" (no badge) until done.
+- Platform admin can only suspend or reinstate, with a recorded reason. Suspended validators stay visible in
+  search with a "Suspended" badge, for transparency; reinstating never grants accreditation.
+- Professional membership numbers are shown on public profiles so anyone can check the body's register; the
+  profile form tells the validator this.
 - Levels: Associate (registered, not accredited) · Validator (passed) · Senior Validator (10+ validations,
   none withdrawn for error, calibration 85%+, 2 years — can re-review, mentor, sit on Review Panels) · Lead
   Validator (Senior 2 years, no upheld complaints — marks scenario cases).
@@ -209,7 +217,7 @@ One well-tested function: for an organisation, the current self-assessed rung, a
 validation if any (label, validated rung and name, outcome, status, validator organisation, validator type,
 engaging party, finalised date, expiry, next verification point, verification ID). No DevMapper endpoints.
 
-## Training and accreditation (PR 7)
+## Training and accreditation (PR 4)
 
 Eight modules, each = its written script (from the doc's Training modules tab) + a slot for an unlisted
 YouTube video on youtube.com/@DiBadiliTV, interactive practice, quizzes, reflection. Then the assessment:
@@ -220,15 +228,17 @@ Badges, levels, CPD tracking. All content stored as data the CRAFT programme tea
 
 1. Profiles and directory: validator, firm (nature, competencies, team), funding partner (types),
    organisation opt-in profile; credentials (self-declared / verified); accreditation status incl.
-   pilot-accredited switch; search and brief profile pages.
+   suspend / reinstate; search and brief profile pages.
 2. Engagements: invite / request, acceptance and organisation consent, named team, per-member
    `craft_validator` grants, independence declarations, labels.
 3. Review and freeze: scoring, Trust Delta, debrief, outcome and qualifications, snapshot. **Pilot point.**
-4. Lifecycle: validity rules, statuses, material events, CIP follow-up schedule, reminders.
-5. Public verification page, statement PDF (QR, SHA-256), report a concern.
-6. Trust and quality: ratings and feedback, validator statistics, re-review flags, Review Panel cases,
+4. Training and accreditation programme (was PR 7, moved up so accredited validators exist for the pilot):
+   modules (written script + YouTube video slot), quizzes, exam, scenarios, sandbox capstone; completing it
+   sets `accredited_until` one year ahead; annual renewal for validators and their firm's team.
+5. Lifecycle: validity rules, statuses, material events, CIP follow-up schedule, reminders.
+6. Public verification page, statement PDF (QR, SHA-256), report a concern.
+7. Trust and quality: ratings and feedback, validator statistics, re-review flags, Review Panel cases,
    suspension; DevMapper summary function; privacy policy and terms updates; docs.
-7. Training and accreditation programme.
 
 Tests per PR: unit tests for the pure logic (rung from validator scores, freezing, every validity rule and
 status transition, CIP can't extend validity); integration tests for permissions (no or expired grant
