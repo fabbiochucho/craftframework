@@ -68,10 +68,14 @@ validators and opted-in organisations. Signed-in only.
   no supervised stage.
 - Only accredited validators issue an **Independent validation**. Anyone else's work is labelled
   **"Review by [name]"**.
-- Platform-admin switch **"pilot-accredited"** for the first trusted validators until the online assessment
-  (PR 7) is live; they take it within 6 months of launch.
-- Platform admin can suspend or reinstate with a recorded reason; renewal every 2 years with CPD; missed
-  renewal suspends until done.
+- **No manual or pilot accreditation.** No badge until the training is completed; completing it sets
+  `accredited_until` one year ahead.
+- **Annual renewal:** each year the validator, and every member of their firm's team, completes the
+  current training videos again. Missed renewal shows "accreditation lapsed" (no badge) until done.
+- Platform admin can only suspend or reinstate, with a recorded reason. Suspended validators stay visible in
+  search with a "Suspended" badge, for transparency; reinstating never grants accreditation.
+- Professional membership numbers are shown on public profiles so anyone can check the body's register; the
+  profile form tells the validator this.
 - Levels: Associate (registered, not accredited) · Validator (passed) · Senior Validator (10+ validations,
   none withdrawn for error, calibration 85%+, 2 years — can re-review, mentor, sit on Review Panels) · Lead
   Validator (Senior 2 years, no upheld complaints — marks scenario cases).
@@ -220,10 +224,12 @@ Badges, levels, CPD tracking. All content stored as data the CRAFT programme tea
 
 1. Profiles and directory: validator, firm (nature, competencies, team), funding partner (types),
    organisation opt-in profile; credentials (self-declared / verified); accreditation status incl.
-   pilot-accredited switch; search and brief profile pages.
+   suspend / reinstate; search and brief profile pages.
 2. Engagements: invite / request, acceptance and organisation consent, named team, per-member
    `craft_validator` grants, independence declarations, labels.
-3. Review and freeze: scoring, Trust Delta, debrief, outcome and qualifications, snapshot. **Pilot point.**
+3. Review and freeze: scoring, Trust Delta, debrief, outcome and qualifications, snapshot. **Pilot point** — but with no
+   manual accreditation, pilot results are labelled "Review by [name]" until PR 7 (training) is live, so
+   PR 7 may be built straight after PR 3.
 4. Lifecycle: validity rules, statuses, material events, CIP follow-up schedule, reminders.
 5. Public verification page, statement PDF (QR, SHA-256), report a concern.
 6. Trust and quality: ratings and feedback, validator statistics, re-review flags, Review Panel cases,
