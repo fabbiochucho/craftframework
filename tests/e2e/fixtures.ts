@@ -22,8 +22,13 @@ export async function forwardApi(context: BrowserContext) {
   await context.route(/\/api\//, async (route: Route) => {
     const req = route.request()
     const url = new URL(req.url())
-    const response = await route.fetch({ url: `${API_ORIGIN}${url.pathname}${url.search}`, headers: await req.allHeaders() })
-    await route.fulfill({ response })
+    try {
+      const response = await route.fetch({ url: `${API_ORIGIN}${url.pathname}${url.search}`, headers: await req.allHeaders() })
+      await route.fulfill({ response })
+    } catch (error) {
+      // A short test can end while a background request is still in flight; that is not a failure.
+      if (!/Test ended|Target page, context or browser has been closed|Request context disposed/.test(String(error))) throw error
+    }
   })
 }
 
