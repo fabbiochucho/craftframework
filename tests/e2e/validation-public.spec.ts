@@ -7,6 +7,7 @@ const API = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 8899}`
 // with no sign-in: what it shows, what it never shows, the PDF hash, and "report a concern".
 test('anyone with the ID can verify a validation; nothing private is shown; a concern can be reported', async ({ page, request }) => {
   await forwardApi(page.context())
+  expect((await request.post(`${API}/__test/reset`)).status()).toBe(204)
   const seeded = await request.post(`${API}/__test/seed-validation`)
   expect(seeded.ok()).toBeTruthy()
   const { verificationId } = await seeded.json() as { verificationId: string }

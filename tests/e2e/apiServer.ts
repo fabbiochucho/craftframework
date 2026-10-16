@@ -43,12 +43,14 @@ for (const name of [
 
 // Public (no sign-in) validation verification endpoints, matched by prefix.
 const publicValidation = (await import(new URL('../../netlify/functions/public-validation.mts', import.meta.url).href)).default
+const validationsHandler = (await import(new URL('../../netlify/functions/validations.mts', import.meta.url).href)).default
+const directoryHandler = (await import(new URL('../../netlify/functions/directory.mts', import.meta.url).href)).default
 
 // Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
 // browser test can open the public verification page of a validation that exists. Returns its ID.
-async function seedValidation(): Promise<string> {
+async function seedValidation(opts: { orgEmail?: string; qualify?: boolean } = {}): Promise<{ verificationId: string; funderEmail: string }> {
   const load = async (n: string) => (await import(new URL(`../../netlify/functions/${n}.mts`, import.meta.url).href)).default
-  const [directory, engagements, reviews] = await Promise.all([load('directory'), load('engagements'), load('validation-reviews')])
+  const [directory, engagements, reviews, firms] = await Promise.all([load('directory'), load('engagements'), load('validation-reviews'), load('firms')])
   const call = async (email: string, h: (r: Request) => Promise<Response>, method: string, path: string, body?: unknown) => {
     const response: Response = await als.run({ id: `e2e-${email}`, email, name: email }, () => h(new Request(`${WEB_ORIGIN}/api/${path}`, {
       method, headers: { 'content-type': 'application/json', origin: WEB_ORIGIN }, body: body === undefined ? undefined : JSON.stringify(body),
@@ -57,10 +59,14 @@ async function seedValidation(): Promise<string> {
     if (!response.ok) throw new Error(`seed ${method} ${path} -> ${response.status} ${text}`)
     return text ? JSON.parse(text) : null
   }
-  const ORG = 'e2e@acme.example'
+  const ORG = opts.orgEmail ?? 'e2e@acme.example'
   const VAL = 'e2e-validator@validators.example'
-  await rows(`INSERT INTO organizations(id,name,country,sector,email) VALUES('org_e2e','Riverbend Cooperative','Kenya','Agriculture','info@riverbend.example')`)
-  await rows(`INSERT INTO users(id,email,org_id,role) VALUES('e2e-org','${ORG}','org_e2e','admin')`)
+  const FUNDER = 'e2e-funder@capital.example'
+  // A browser session's tenant is self_<email>; use it so the page and the server agree on the organisation.
+  const ORG_ID = opts.orgEmail ? `self_${opts.orgEmail.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')}` : 'org_e2e'
+  await rows(`INSERT INTO organizations(id,name,country,sector,email) VALUES('${ORG_ID}','Riverbend Cooperative','Kenya','Agriculture','info@riverbend.example') ON CONFLICT (id) DO NOTHING`)
+  await rows(`INSERT INTO users(id,email,org_id,role) VALUES('e2e-org','${ORG}','${ORG_ID}','admin') ON CONFLICT (email) DO UPDATE SET org_id = EXCLUDED.org_id, role = 'admin'`)
+  await call(FUNDER, firms, 'POST', 'firms', { name: 'Savannah Capital', kind: 'funding_partner', nature: 'DFI' })
   const { id: valId } = await call(VAL, directory, 'PUT', 'directory/me/validator', { name: 'Valerie Okafor' })
   await call(VAL, directory, 'POST', 'directory/me/credentials', { body: 'ICAN', membershipNumber: 'ICAN-4411' })
   await rows("UPDATE validator_profiles SET accreditation_status='accredited', accredited_until = now() + interval '1 year'")
@@ -72,8 +78,9 @@ async function seedValidation(): Promise<string> {
   for (const ind of FRAMEWORKS['capital-readiness'].indicators) {
     await call(VAL, reviews, 'PUT', `validation-reviews/${id}/scores/${ind.id}`, { score: 4, sufficiency: 'sufficient', comment: 'PRIVATE-COMMENT' })
   }
-  await call(VAL, reviews, 'POST', `validation-reviews/${id}/finalise`, { outcome: 'validated' })
-  return (await rows('SELECT verification_id FROM validations'))[0].verification_id
+  if (opts.qualify) await call(VAL, reviews, 'POST', `validation-reviews/${id}/qualifications`, { text: 'Board minutes are incomplete', indicatorIds: [FRAMEWORKS['capital-readiness'].indicators[1].id] })
+  await call(VAL, reviews, 'POST', `validation-reviews/${id}/finalise`, { outcome: opts.qualify ? 'validated_with_qualifications' : 'validated' })
+  return { verificationId: (await rows('SELECT verification_id FROM validations ORDER BY created_at DESC'))[0].verification_id, funderEmail: FUNDER }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -85,8 +92,8 @@ const server = http.createServer(async (req, res) => {
       return
     }
     if (url.pathname === '/__test/seed-validation' && req.method === 'POST') {
-      const verificationId = await seedValidation()
-      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ verificationId }))
+      const seeded = await seedValidation({ orgEmail: url.searchParams.get('org') ?? undefined, qualify: url.searchParams.get('qualify') === '1' })
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(seeded))
       return
     }
     if (url.pathname === '/__test/ready') {
@@ -104,7 +111,10 @@ const server = http.createServer(async (req, res) => {
     headers.set('x-nf-client-connection-ip', '127.0.0.1')
     const body = chunks.length && req.method !== 'GET' && req.method !== 'HEAD' ? Buffer.concat(chunks) : undefined
     const request = new Request(`${WEB_ORIGIN}${req.url}`, { method: req.method, headers, body })
-    const routeHandler = url.pathname.startsWith('/api/public/validation/') ? publicValidation : (legacyHandlers.get(url.pathname) ?? handler)
+    const routeHandler = url.pathname.startsWith('/api/public/validation/') ? publicValidation
+      : url.pathname === '/api/validations' || url.pathname.startsWith('/api/validations/') ? validationsHandler
+        : url.pathname === '/api/directory' || url.pathname.startsWith('/api/directory/') ? directoryHandler
+          : (legacyHandlers.get(url.pathname) ?? handler)
     const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => routeHandler(request))
     const out: Record<string, string> = {}
     response.headers.forEach((v, k) => { out[k] = v })

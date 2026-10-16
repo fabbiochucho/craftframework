@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/validationLifecycle.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  addMonths, addWorkingDays, dueReminders, effectiveExpiry, effectiveStatus, isStarred, issuedValidity, MATERIAL_EVENTS, nextFollowUp,
+  addMonths, checkpointSyncPlan, cipActionProblems, cipDoneProblems, cipProgress, derivedStatusReason, isIsoDate, progressLine, addWorkingDays, dueReminders, effectiveExpiry, effectiveStatus, isStarred, issuedValidity, MATERIAL_EVENTS, nextFollowUp,
   reportingDeadline, statusAfterDecision, validityProblems,
 } from './validationLifecycle.ts'
 
@@ -99,4 +99,37 @@ assert.deepEqual(dueReminders('2026-06-30', [30, 7], d('2026-06-29')), [])
 assert.deepEqual(dueReminders('2026-06-30', [], d('2026-06-25')), [7], 'a job that missed the 30-day mark sends only the 7-day one')
 assert.deepEqual(dueReminders('2026-06-30', [7], d('2026-06-25')), [])
 assert.deepEqual(dueReminders('2026-06-30', [], d('2026-07-01')), [])
+
+// CIP actions: validation actions (indicatorIds, open/done) count alongside the organisation's own CIP.
+const va = (ids: string[], due: string | null, status: string) => ({ indicatorIds: ids, dueDate: due, status })
+let fv = nextFollowUp({ ...common, mode: 'milestone', actions: [va(['A'], '2026-05-01', 'open'), va(['B', 'Z'], '2026-08-15', 'open'), va(['Z'], '2026-12-01', 'open')], now: d('2026-03-01') })
+assert.deepEqual(fv, { dueOn: '2026-08-15', overdue: false, broughtForward: false }, 'an action touching a tracked indicator counts; one touching none does not')
+fv = nextFollowUp({ ...common, mode: 'milestone', actions: [va(['A'], '2026-05-01', 'done'), va(['B'], '2026-08-15', 'done')], now: d('2026-03-01') })
+assert.deepEqual(fv, { dueOn: '2026-03-01', overdue: false, broughtForward: true }, 'done validation actions bring the check forward')
+fv = nextFollowUp({ ...common, mode: 'milestone', actions: [va(['A'], '2026-05-01', 'done'), va(['B'], '2026-08-15', 'open')], now: d('2026-03-01') })
+assert.equal(fv.broughtForward, false, 'one open action keeps the date')
+
+assert.equal(isIsoDate('2026-02-28'), true)
+for (const bad of ['2026-02-30', '2026-13-01', '26-01-01', '', null, 20260101]) assert.equal(isIsoDate(bad), false, String(bad))
+assert.deepEqual(cipActionProblems({ text: 'Adopt a board charter', indicatorIds: ['A'], owner: 'CFO', dueDate: '2026-09-01' }), [])
+assert.deepEqual(cipActionProblems({ text: 'Adopt a board charter', indicatorIds: ['A'] }), [], 'owner and date can be set later')
+assert.equal(cipActionProblems({ text: ' ', indicatorIds: [] }).length, 2)
+assert.match(cipActionProblems({ text: 'x', indicatorIds: ['A'], dueDate: '2026-02-30' })[0], /real date/)
+assert.deepEqual(cipDoneProblems({ owner: 'CFO', dueDate: '2026-09-01', proof: 'Board minutes 2026-08-30' }), [])
+assert.equal(cipDoneProblems({}).length, 3)
+assert.equal(cipDoneProblems({ owner: '  ', dueDate: '2026-09-01', proof: 'minutes' }).length, 1)
+assert.equal(cipDoneProblems({ owner: 'CFO', dueDate: '2026-09-01', proof: 'ok' }).length, 1, 'proof must be more than a token')
+assert.deepEqual(cipProgress([{ status: 'done' }, { status: 'open' }, { status: 'Completed-Validated' }]), { done: 2, total: 3 })
+assert.equal(progressLine({ done: 2, total: 5 }, '2026-03-15', d('2026-01-10')), '2 of 5 actions done, follow-up due 15 March')
+assert.equal(progressLine({ done: 1, total: 1 }, '2027-03-05', d('2026-01-10')), '1 of 1 action done, follow-up due 5 March 2027')
+assert.equal(progressLine({ done: 0, total: 0 }, null), 'No improvement actions yet, no follow-up scheduled')
+
+// Checkpoints: at most one pending point, at the date the schedule wants now.
+assert.deepEqual(checkpointSyncPlan([], '2026-08-15'), { remove: [], add: '2026-08-15' })
+assert.deepEqual(checkpointSyncPlan(['2026-08-15'], '2026-08-15'), { remove: [], add: null })
+assert.deepEqual(checkpointSyncPlan(['2026-05-01'], '2026-08-15'), { remove: ['2026-05-01'], add: '2026-08-15' })
+assert.deepEqual(checkpointSyncPlan(['2026-05-01', '2026-06-01'], null), { remove: ['2026-05-01', '2026-06-01'], add: null })
+assert.equal(derivedStatusReason('expired'), 'The validity period ended')
+assert.equal(derivedStatusReason('expired', '2027-01-10'), 'The validity period ended on 2027-01-10')
+assert.equal(derivedStatusReason('follow_up_overdue', '2026-08-15'), 'A follow-up point (2026-08-15) passed without being recorded')
 console.log('validationLifecycle.test.ts ok')
