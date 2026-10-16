@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ShieldCheck } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
+import { RateYourValidator, ReReviewFlags, ValidatorStatistics } from '../components/ValidatorFeedback'
 import { EVENT_DECISIONS, FOLLOW_UP_LABEL, FOLLOW_UP_MODES, type FollowUpMode } from '../lib/validationLifecycle'
 
 // Validator system PR 5: the issued validation's lifecycle. Every rule is
@@ -59,6 +60,9 @@ export function ValidationsPage() {
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       {items && !items.length && <p className="text-sm text-slate-500">No validation has been issued yet.</p>}
       <Concerns />
+      <ReReviewFlags />
+      <ValidatorStatistics />
+      <RateYourValidator />
       <ul className="grid gap-3 md:grid-cols-2">
         {items?.map((v) => (
           <li key={v.id}>

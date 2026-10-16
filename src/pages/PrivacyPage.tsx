@@ -3,7 +3,7 @@ import { BRAND } from '../lib/data'
 import { DpoClause, DpoMail, PolicyLayout, type PolicySection } from '../components/PolicyLayout'
 
 // Last substantive revision of this policy. Update when the text changes.
-export const PRIVACY_EFFECTIVE_DATE = '15 October 2026'
+export const PRIVACY_EFFECTIVE_DATE = '16 October 2026'
 
 const SECTIONS: PolicySection[] = [
   { title: 'Who we are and our role', body: <>
@@ -14,6 +14,7 @@ const SECTIONS: PolicySection[] = [
     <li><b>Account data:</b> name, email address, organisation memberships and roles.</li>
     <li><b>Security data:</b> sign-in session records, multi-factor sign-in status (the authenticator secret is encrypted; recovery codes are stored only as one-way hashes), rate-limit counters and audit-log entries (who did what, when, and the IP address and browser type of the request).</li>
     <li><b>Workspace data:</b> assessment responses and scores, findings, corrective actions, plans, budgets, ESG report checks, organisational design reviews, health-security assessments, regulatory source checks and uploaded evidence.</li>
+    <li><b>Directory and validation data:</b> if you create a validator, firm, funding-partner or organisation profile, the details you choose to publish in the directory; engagement records (who invited whom, consent, named team members, signed independence declarations); the scores, comments and outcome of an independent validation; ratings and comments given about a validator; and concerns reported from a public verification page, with the contact details the reporter chooses to give.</li>
     <li><b>Support data:</b> messages you send to the support assistant, redacted before storage; an optional contact email.</li>
     <li><b>We do not collect</b> payment card data, and we do not use advertising trackers.</li>
   </ul> },
@@ -24,6 +25,13 @@ const SECTIONS: PolicySection[] = [
     <tr><td>Optional product analytics of support-chat events</td><td>Consent (off unless you opt in)</td></tr>
     <tr><td>Answering requests and complaints; meeting legal duties</td><td>Legal obligation; legitimate interests</td></tr>
   </tbody></table> },
+  { title: 'Independent validation, the directory and public pages', body: <>
+    <p><b>Directory.</b> Profiles are opt-in and show only what you enter. Validator emails and organisation contact details are not shown; profiles use a random identifier in their address.</p>
+    <p><b>Evidence access.</b> A validator sees an organisation’s evidence only if named on the engagement, approved by the organisation, and after signing an independence declaration. Access is read-only, ends on a date, and is logged. When the review is finalised every team member’s access ends.</p>
+    <p><b>Public verification page.</b> Anyone with a validation’s verification ID can see the organisation’s name and country, the rung and outcome, the validator’s name, firm and accreditation, the method and dates, the status, and the next verification point. An organisation may also choose to show its registration number, rung history, qualifications and a DevMapper link. Evidence, scores and comments are never shown. The statement PDF and the verification page carry the same facts. A copy of the page stays accurate only while you check it.</p>
+    <p><b>Ratings and feedback.</b> After a validation is finished, the organisation (and the engaging funding partner, where there is one) may rate the validator once. A rating shows the party, the organisation’s country, the stars, the comment and any reply from the validator, not names or emails; we keep the rater’s email to enforce one rating per party and to deal with abuse. Feedback that is false, abusive or exposes personal data can be removed by the CRAFT programme team; the row and the reason are kept for the record. We also compute statistics from finished validations (for example how often a validator’s scores differ from an organisation’s self-assessment) to decide which validations deserve a second look. These flags are advice to our programme team and, for validations they have been allowed to follow, to funding partners; they are not published.</p>
+    <p><b>Reports of concern.</b> A concern reported from a public page is stored for the CRAFT programme team and, if you gave contact details, used only to reply. Reports are rate-limited and not published. Our lawful basis is legitimate interests in keeping validations accurate, and for engagement records, contract.</p>
+  </> },
   { title: 'How documents are checked', body: <>
     <p>When evidence is uploaded, the server reads the document’s text to check that it matches its name or declared type. The extracted text is <b>not stored</b>; only the result (match, possible mismatch, unreadable) and matched keywords are kept. Scanned documents are read by optical character recognition <b>inside your own browser</b>; only the recognised text is sent for the check, and the image never leaves your device for OCR.</p>
     <p>We do not use workspace data to train AI models, and we do not sell personal data.</p>
