@@ -11,6 +11,7 @@ import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { decryptField } from '../lib/crypto.js'
 import { logger } from '../lib/logger.js'
+import { reconcileValidator } from '../lib/engagement-access.js'
 import { currentRung } from '../../src/lib/capitalReadiness.js'
 import {
   ACCREDITATION_STATUSES, cleanList, credentialLabel, effectiveAccreditation, matchesQuery, validatorLevel,
@@ -60,6 +61,14 @@ const accreditationSchema = z.object({
   pilotAccredited: z.boolean().optional(),
   reason: z.string().trim().min(1).max(1000),
 })
+
+// Who may look up opted-in organisations: funding partners, and registered validators
+// (so a validator can request an engagement with an organisation that opted in).
+async function mayBrowseOrganizations(email: string, isAdmin: boolean): Promise<boolean> {
+  if (isAdmin || (await isFunderStaff(email))) return true
+  const [v] = await db.select({ id: validatorProfiles.id }).from(validatorProfiles).where(eq(validatorProfiles.email, email))
+  return !!v
+}
 
 async function isFunderStaff(email: string): Promise<boolean> {
   const [row] = await db.select({ id: firms.id }).from(firmMembers)
@@ -152,6 +161,7 @@ export default async (req: Request) => {
         email: caller.email,
         isAdmin,
         isFunder: memberships.some((m) => m.firm.kind === 'funding_partner'),
+        canBrowseOrganizations: await mayBrowseOrganizations(caller.email, isAdmin),
         validator: validator ? {
           ...validatorCard(validator, []), email: validator.email, bio: validator.bio, frameworks: validator.frameworks,
           languages: validator.languages, accreditationReason: validator.accreditationReason,
@@ -306,7 +316,7 @@ export default async (req: Request) => {
         return json(hits.map((f) => firmCard(f, sizes.get(f.id) ?? 0)))
       }
       if (type === 'organizations') {
-        if (!isAdmin && !(await isFunderStaff(caller.email))) return forbidden()
+        if (!(await mayBrowseOrganizations(caller.email, isAdmin))) return forbidden()
         const all = await listedOrganizations()
         return json(all.filter((o) => (!country || o.country.toLowerCase() === country) && matchesQuery([o.name, o.country, o.sector, o.summary], q)))
       }
@@ -340,7 +350,7 @@ export default async (req: Request) => {
     }
 
     if (req.method === 'GET' && a === 'organizations' && b && !c) {
-      if (!isAdmin && !(await isFunderStaff(caller.email))) return forbidden()
+      if (!(await mayBrowseOrganizations(caller.email, isAdmin))) return forbidden()
       const [o] = await listedOrganizations(b)
       return o ? json(o) : notFound()
     }
@@ -369,6 +379,8 @@ export default async (req: Request) => {
       if (!updated.length) return notFound()
       const change = [p.data.status && `status ${p.data.status}`, p.data.pilotAccredited !== undefined && `pilot-accredited ${p.data.pilotAccredited ? 'on' : 'off'}`].filter(Boolean).join(', ')
       await audit(caller.email, `accreditation: ${change} (${p.data.reason})`, c, 'Accreditation')
+      // A validator who is no longer accredited loses access carried by independent-validation seats.
+      await reconcileValidator(updated[0].email)
       return json({ ok: true, accreditation: effectiveAccreditation(updated[0]) })
     }
 
