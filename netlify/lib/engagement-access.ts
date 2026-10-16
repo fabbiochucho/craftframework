@@ -109,10 +109,11 @@ export async function sweepEngagements(now = new Date()): Promise<void> {
     await audit('system', 'engagement expired', e.id, e.orgId)
     await reconcileEngagement(e.id, now)
   }
-  // Grants of engagements that lapsed earlier but whose status flip raced a sweep.
-  const stale = await db.select({ id: accessGrants.id, orgId: accessGrants.orgId, grantee: accessGrants.grantee }).from(accessGrants)
-    .where(and(eq(accessGrants.role, GRANT_ROLE), eq(accessGrants.status, 'active'), lte(accessGrants.expiresAt, now)))
-  for (const g of stale) await reconcileGrant(g.orgId, g.grantee, now)
+  // Re-check every active validator grant: engagements that lapsed earlier, and validators whose
+  // accreditation has since lapsed or been suspended (accreditation is time-limited).
+  const active = await db.select({ orgId: accessGrants.orgId, grantee: accessGrants.grantee }).from(accessGrants)
+    .where(and(eq(accessGrants.role, GRANT_ROLE), eq(accessGrants.status, 'active')))
+  for (const g of active) await reconcileGrant(g.orgId, g.grantee, now)
 }
 
 // A validator who is no longer accredited loses the access their independent-validation seats carried.
