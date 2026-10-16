@@ -24,7 +24,9 @@ import {
   date,
   primaryKey,
   numeric,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 export { offlineFrameworks, offlineFrameworkReceipts } from './offline-schema.ts'
 
@@ -475,6 +477,30 @@ export const orgDirectoryProfiles = pgTable('org_directory_profiles', {
   updatedBy: text('updated_by'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// A consultant's PROPOSED directory listing for an organisation they hold an
+// access grant to. Never live until the organisation's own staff approve it;
+// one pending proposal per organisation (partial unique index in the migration).
+export const orgListingProposals = pgTable(
+  'org_listing_proposals',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    proposedBy: text('proposed_by').notNull(),
+    summary: text('summary').notNull().default(''),
+    // 'pending' | 'approved' | 'rejected' | 'withdrawn'
+    status: text('status').notNull().default('pending'),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('org_listing_proposals_org_idx').on(t.orgId),
+    index('org_listing_proposals_proposer_idx').on(t.proposedBy),
+    uniqueIndex('org_listing_proposals_one_pending').on(t.orgId).where(sql`${t.status} = 'pending'`),
+  ],
+)
 
 // --- response_notes ---------------------------------------------------------
 // Threaded, multi-author commentary on an assessment answer: one row per note,

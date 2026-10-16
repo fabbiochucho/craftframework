@@ -31,7 +31,7 @@ export function natureOptions(kind: FirmKind): readonly string[] {
 
 // What the directory shows. Suspension always wins; the platform-admin
 // "pilot-accredited" switch counts as accredited until the online assessment
-// (PR 7) is live.
+// (PR 4) is live.
 export function effectiveAccreditation(v: { accreditationStatus: string; pilotAccredited: boolean }): 'registered' | 'accredited' | 'pilot-accredited' | 'suspended' {
   if (v.accreditationStatus === 'suspended') return 'suspended'
   if (v.accreditationStatus === 'accredited') return 'accredited'
