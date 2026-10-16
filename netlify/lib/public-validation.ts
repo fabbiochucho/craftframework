@@ -22,7 +22,7 @@ import { credentialLabel, effectiveAccreditation } from '../../src/lib/validator
 import { STATUS_LABEL, type Status } from '../../src/lib/validationLifecycle.js'
 import { generateVerificationId, standardWording } from '../../src/lib/validationStatement.js'
 import { FRAMEWORKS, METHOD_LABEL, OUTCOME_LABEL, type Method, type Outcome } from '../../src/lib/validationReview.js'
-import { describeValidation } from './validation-lifecycle.js'
+import { describeValidation, statusHistory } from './validation-lifecycle.js'
 
 export const publicBaseUrl = () => (process.env.PUBLIC_SITE_URL || process.env.URL || 'https://craftframework.becomechange.institute').replace(/\/+$/, '')
 export const publicUrlFor = (verificationId: string) => `${publicBaseUrl()}/validation/${verificationId}`
@@ -106,7 +106,9 @@ export async function buildPublicView(v: ValidationRow, now = new Date()): Promi
     : 'Each named validator declared no ownership, employment or advisory ties to the organisation, and no part in preparing its self-assessment, before seeing any of its results.'
 
   // Latest change: the issue, a recorded status decision, or the calendar reaching expiry / a missed follow-up.
-  const dates = [v.issuedAt, v.statusChangedAt].filter((x): x is Date => !!x)
+  // Decisions and issue come from the history; the calendar's own moves (expired, overdue) carry their real date below, not the day the daily run logged them.
+  const history = (await statusHistory(v.id)).filter((h) => !(h.actor === 'system' && (h.toStatus === 'expired' || h.toStatus === 'follow_up_overdue')))
+  const dates = [v.issuedAt, v.statusChangedAt, ...history.map((h) => h.createdAt)].filter((x): x is Date => !!x)
   if (d.status === 'expired') dates.push(d.expiresAt)
   if (d.status === 'follow_up_overdue' && d.followUp.dueOn) dates.push(new Date(`${d.followUp.dueOn}T00:00:00Z`))
   const lastChangedAt = new Date(Math.max(...dates.map((x) => x.getTime())))

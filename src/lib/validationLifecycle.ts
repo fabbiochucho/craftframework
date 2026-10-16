@@ -90,8 +90,14 @@ export const FOLLOW_UP_LABEL: Record<FollowUpMode, string> = {
   milestone: 'Milestone-based (when the blocking or qualified items are done)', fixed_3: 'Every 3 months', fixed_6: 'Every 6 months', end_of_plan: 'End of the plan',
 }
 
-export type CipAction = { questionId: string | null; dueDate: string | null; status: string }
-const isDone = (a: CipAction) => a.status === 'Completed-Validated'
+/**
+ * A CIP action as the schedule sees it. Validation CIP actions carry `indicatorIds` and a status of
+ * 'open' | 'done'; the organisation's general CIP (capacity_actions) carries one `questionId` and a
+ * RiskStatus. Either counts as done once validated / done.
+ */
+export type CipAction = { questionId?: string | null; indicatorIds?: string[]; dueDate: string | null; status: string }
+const isDone = (a: CipAction) => a.status === 'Completed-Validated' || a.status === 'done'
+const touches = (a: CipAction, tracked: string[]) => (!!a.questionId && tracked.includes(a.questionId)) || (a.indicatorIds ?? []).some((i) => tracked.includes(i))
 const dateOnly = (d: Date) => d.toISOString().slice(0, 10)
 
 export type NextFollowUp = { dueOn: string | null; overdue: boolean; broughtForward: boolean }
@@ -109,7 +115,7 @@ export function nextFollowUp(i: {
   const today = dateOnly(now)
   const cap = dateOnly(i.expiresAt)
   const done = new Set(i.completedDueOn)
-  const mine = i.actions.filter((a) => a.questionId && i.tracked.includes(a.questionId))
+  const mine = i.actions.filter((a) => touches(a, i.tracked))
   let due: string | null = null
   let forward = false
   if (i.mode === 'fixed_3' || i.mode === 'fixed_6') {
@@ -196,4 +202,66 @@ export function dueReminders(dueOn: Date | string, alreadySent: number[], now = 
   const reached = REMINDER_OFFSETS.filter((o) => d <= o)
   const closest = reached.length ? Math.min(...reached) : null
   return closest !== null && !alreadySent.includes(closest) ? [closest] : []
+}
+
+// --- CIP actions (owner, due date, proof of done) -----------------------------------
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+export const isIsoDate = (s: unknown): s is string => typeof s === 'string' && ISO_DATE.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s
+
+/** What stops a CIP action being saved. Owner and due date may be set later, but must be valid if given. */
+export function cipActionProblems(a: { text: string; indicatorIds: string[]; owner?: string | null; dueDate?: string | null }): string[] {
+  const problems: string[] = []
+  if (!a.text.trim()) problems.push('Say what will be done')
+  if (!a.indicatorIds.length) problems.push('Link the action to at least one indicator')
+  if (a.dueDate != null && a.dueDate !== '' && !isIsoDate(a.dueDate)) problems.push('The due date must be a real date (YYYY-MM-DD)')
+  if (a.owner != null && a.owner.length > 200) problems.push('The owner is too long')
+  return problems
+}
+
+/** Marking an action done needs an owner, a due date and proof it was done (the spec's CIP rule 1). */
+export function cipDoneProblems(a: { owner?: string | null; dueDate?: string | null; proof?: string | null }): string[] {
+  const problems: string[] = []
+  if (!a.owner?.trim()) problems.push('Name the owner before marking the action done')
+  if (!a.dueDate || !isIsoDate(a.dueDate)) problems.push('Set the due date before marking the action done')
+  if (!a.proof || a.proof.trim().length < 3) problems.push('Add proof that it was done (a document reference or link)')
+  return problems
+}
+
+export function cipProgress(actions: Array<{ status: string }>): { done: number; total: number } {
+  return { done: actions.filter((a) => a.status === 'done' || a.status === 'Completed-Validated').length, total: actions.length }
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+/** "2 of 5 actions done, follow-up due 15 March" (the spec's wording for a consenting funder). */
+export function progressLine(p: { done: number; total: number }, followUpDue: string | null, now = new Date()): string {
+  const actions = p.total === 0 ? 'No improvement actions yet' : `${p.done} of ${p.total} action${p.total === 1 ? '' : 's'} done`
+  if (!followUpDue) return `${actions}, no follow-up scheduled`
+  const [y, m, d] = followUpDue.split('-').map(Number)
+  return `${actions}, follow-up due ${d} ${MONTHS[m - 1]}${y !== now.getUTCFullYear() ? ` ${y}` : ''}`
+}
+
+// --- Checkpoints --------------------------------------------------------------------
+export const CHECKPOINT_KINDS = ['surveillance', 'follow_up'] as const
+export type CheckpointKind = (typeof CHECKPOINT_KINDS)[number]
+
+/**
+ * Keep exactly the right pending checkpoint: at most one pending point per kind, at the date the
+ * schedule currently wants. Returns the pending dates to remove and the one to add (null = none).
+ */
+export function checkpointSyncPlan(existingPending: string[], wanted: string | null): { remove: string[]; add: string | null } {
+  if (wanted === null) return { remove: [...existingPending], add: null }
+  return { remove: existingPending.filter((d) => d !== wanted), add: existingPending.includes(wanted) ? null : wanted }
+}
+
+/**
+ * Why the shown status changed, for the history the calendar produces (decisions carry their own reason).
+ * `on` is the date it actually happened (the expiry, or the missed follow-up point).
+ */
+export function derivedStatusReason(to: Status, on?: string | null): string {
+  switch (to) {
+    case 'expired': return `The validity period ended${on ? ` on ${on}` : ''}`
+    case 'follow_up_overdue': return `A follow-up point${on ? ` (${on})` : ''} passed without being recorded`
+    case 'current': return 'Back to current: the follow-up was recorded'
+    default: return ''
+  }
 }
