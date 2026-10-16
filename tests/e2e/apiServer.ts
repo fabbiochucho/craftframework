@@ -11,7 +11,7 @@
 // Identity sessions, so no production auth is weakened.
 import http from 'node:http'
 // @ts-ignore -- resolved at runtime by tests/integration/hooks.mjs
-import { applyMigrations, loadHandler, truncateAll } from '../integration/harness.ts'
+import { applyMigrations, loadHandler, rows, truncateAll } from '../integration/harness.ts'
 
 // The app and API are same-origin in production; mirror that for the origin check.
 const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://localhost:3000'
@@ -41,12 +41,52 @@ for (const name of [
   legacyHandlers.set(`/api/${name}`, module.default)
 }
 
+// Public (no sign-in) validation verification endpoints, matched by prefix.
+const publicValidation = (await import(new URL('../../netlify/functions/public-validation.mts', import.meta.url).href)).default
+
+// Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
+// browser test can open the public verification page of a validation that exists. Returns its ID.
+async function seedValidation(): Promise<string> {
+  const load = async (n: string) => (await import(new URL(`../../netlify/functions/${n}.mts`, import.meta.url).href)).default
+  const [directory, engagements, reviews] = await Promise.all([load('directory'), load('engagements'), load('validation-reviews')])
+  const call = async (email: string, h: (r: Request) => Promise<Response>, method: string, path: string, body?: unknown) => {
+    const response: Response = await als.run({ id: `e2e-${email}`, email, name: email }, () => h(new Request(`${WEB_ORIGIN}/api/${path}`, {
+      method, headers: { 'content-type': 'application/json', origin: WEB_ORIGIN }, body: body === undefined ? undefined : JSON.stringify(body),
+    })))
+    const text = await response.text()
+    if (!response.ok) throw new Error(`seed ${method} ${path} -> ${response.status} ${text}`)
+    return text ? JSON.parse(text) : null
+  }
+  const ORG = 'e2e@acme.example'
+  const VAL = 'e2e-validator@validators.example'
+  await rows(`INSERT INTO organizations(id,name,country,sector,email) VALUES('org_e2e','Riverbend Cooperative','Kenya','Agriculture','info@riverbend.example')`)
+  await rows(`INSERT INTO users(id,email,org_id,role) VALUES('e2e-org','${ORG}','org_e2e','admin')`)
+  const { id: valId } = await call(VAL, directory, 'PUT', 'directory/me/validator', { name: 'Valerie Okafor' })
+  await call(VAL, directory, 'POST', 'directory/me/credentials', { body: 'ICAN', membershipNumber: 'ICAN-4411' })
+  await rows("UPDATE validator_profiles SET accreditation_status='accredited', accredited_until = now() + interval '1 year'")
+  const { id } = await call(ORG, engagements, 'POST', 'engagements', { side: 'organization', type: 'independent_validation', validatorId: valId })
+  await call(VAL, engagements, 'POST', `engagements/${id}/respond`, { side: 'validator', decision: 'accept' })
+  await call(VAL, engagements, 'POST', `engagements/${id}/declaration`, { confirmed: true, signedName: 'Valerie Okafor' })
+  await call(VAL, reviews, 'PUT', `validation-reviews/${id}/setup`, { method: 'site_visit', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
+  const { FRAMEWORKS } = await import('../../src/lib/validationReview.ts')
+  for (const ind of FRAMEWORKS['capital-readiness'].indicators) {
+    await call(VAL, reviews, 'PUT', `validation-reviews/${id}/scores/${ind.id}`, { score: 4, sufficiency: 'sufficient', comment: 'PRIVATE-COMMENT' })
+  }
+  await call(VAL, reviews, 'POST', `validation-reviews/${id}/finalise`, { outcome: 'validated' })
+  return (await rows('SELECT verification_id FROM validations'))[0].verification_id
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${PORT}`)
     if (url.pathname === '/__test/reset' && req.method === 'POST') {
       await truncateAll()
       res.writeHead(204).end()
+      return
+    }
+    if (url.pathname === '/__test/seed-validation' && req.method === 'POST') {
+      const verificationId = await seedValidation()
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ verificationId }))
       return
     }
     if (url.pathname === '/__test/ready') {
@@ -64,7 +104,7 @@ const server = http.createServer(async (req, res) => {
     headers.set('x-nf-client-connection-ip', '127.0.0.1')
     const body = chunks.length && req.method !== 'GET' && req.method !== 'HEAD' ? Buffer.concat(chunks) : undefined
     const request = new Request(`${WEB_ORIGIN}${req.url}`, { method: req.method, headers, body })
-    const routeHandler = legacyHandlers.get(url.pathname) ?? handler
+    const routeHandler = url.pathname.startsWith('/api/public/validation/') ? publicValidation : (legacyHandlers.get(url.pathname) ?? handler)
     const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => routeHandler(request))
     const out: Record<string, string> = {}
     response.headers.forEach((v, k) => { out[k] = v })
