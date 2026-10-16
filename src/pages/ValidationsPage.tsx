@@ -9,13 +9,17 @@ import { EVENT_DECISIONS, FOLLOW_UP_LABEL, FOLLOW_UP_MODES, type FollowUpMode } 
 
 type Summary = {
   id: string; organization: string; framework: string; outcome: string; validatedRung: number; status: string; statusLabel: string
-  issuedAt: string; expiresAt: string; nextFollowUp: string | null; can: { org: boolean; lead: boolean }
+  issuedAt: string; expiresAt: string; nextFollowUp: string | null; can: { org: boolean; lead: boolean; funder?: boolean }
 }
 type Event = {
   id: string; key: string; label: string; starred: boolean; details: string; occurredOn: string; reportedAt: string; reportedBySide: string
   deadlineOn: string; late: boolean; status: string; orgResponse: string; decisionNote: string
 }
+type FunderView = Summary & { funderView: true; progressLine: string; progress: { done: number; total: number }; scheduleMode: FollowUpMode; followUpOverdue: boolean; verificationId: string }
+type Checkpoint = { id: string; kind: 'surveillance' | 'follow_up'; dueOn: string; state: 'pending' | 'done'; result: string | null; note: string; doneAt: string | null; indicatorIds: string[] }
 type Detail = Summary & {
+  cip: { actions: Array<{ id: string; text: string; indicatorIds: string[]; owner: string | null; dueDate: string | null; status: string; proof: string; fromQualification: boolean }>; progress: { done: number; total: number }; progressLine: string }
+  checkpoints: Checkpoint[]; statusHistory: Array<{ from: string | null; to: string; reason: string; at: string }>
   verificationId: string; publicUrl: string; pdfSha256: string | null
   publicOptions: { registrationNumber?: string; showRungHistory?: boolean; showQualifications?: boolean; devmapperUrl?: string }
   validityMonths: number; validityReason: string; statusReason: string | null; surveillance: null | { dueAt: string; doneAt: string | null }
@@ -38,6 +42,7 @@ const STATUS_STYLE: Record<string, string> = {
   current: 'bg-emerald-100 text-emerald-800', follow_up_overdue: 'bg-amber-100 text-amber-800', suspended: 'bg-rose-100 text-rose-800',
   expired: 'bg-slate-100 text-slate-700', withdrawn: 'bg-rose-100 text-rose-800', superseded: 'bg-slate-100 text-slate-700',
 }
+const STATUS_LABELS: Record<string, string> = { current: 'Current', follow_up_overdue: 'Follow-up overdue', suspended: 'Suspended', expired: 'Expired', withdrawn: 'Withdrawn', superseded: 'Superseded' }
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : '—')
 
 export function ValidationsPage() {
@@ -71,15 +76,17 @@ export function ValidationsPage() {
 
 export function ValidationDetailPage({ id }: { id: string }) {
   const [d, setD] = useState<Detail | null>(null)
+  const [fv, setFv] = useState<FunderView | null>(null)
   const [error, setError] = useState('')
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-  const load = () => api<Detail>(`/api/validations/${encodeURIComponent(id)}`).then(setD, (e) => setError(e.message))
+  const load = () => api<Detail | FunderView>(`/api/validations/${encodeURIComponent(id)}`).then((r) => ('funderView' in r ? setFv(r) : setD(r)), (e) => setError(e.message))
   useEffect(() => { void load() }, [id])
   const act = async (fn: () => Promise<Detail>, ok: string) => {
     try { setD(await fn()); setMsg({ ok: true, text: ok }) } catch (e: any) { setMsg({ ok: false, text: e.message }) }
   }
   const send = (path: string, method: string, json?: unknown) => () => api<Detail>(`/api/validations/${encodeURIComponent(id)}${path}`, { method, json: json ?? (method === 'GET' ? undefined : {}) })
   if (error) return <p role="alert" className="text-sm text-rose-700">{error}</p>
+  if (fv) return <FunderProgress v={fv} />
   if (!d) return <p className="text-sm text-slate-500">Loading…</p>
   const closed = !['current', 'follow_up_overdue', 'suspended'].includes(d.status) && d.status !== 'expired'
   return (
@@ -123,6 +130,36 @@ export function ValidationDetailPage({ id }: { id: string }) {
       </Card>
 
       <Card>
+        <CardHeader><CardTitle>Improvement plan</CardTitle><p className="text-sm text-slate-500">{d.cip.progressLine}. {d.can.org ? <>Manage owners, due dates and proof on the <Link to="/cip" className="font-semibold text-emerald-700 underline">Capacity Development Plan</Link>.</> : 'Owners, due dates and proof are kept by the organisation.'}</p></CardHeader>
+        <CardContent>
+          {!d.cip.actions.length && <p className="text-sm text-slate-500">No improvement actions yet.</p>}
+          <ul className="space-y-2 text-sm text-slate-700">
+            {d.cip.actions.map((a) => (
+              <li key={a.id}>{a.status === 'done' ? '✓' : '○'} {a.text} <span className="font-mono text-xs text-slate-500">({a.indicatorIds.join(', ')})</span> — {a.owner ?? 'no owner'}, due {fmt(a.dueDate)}{a.status === 'done' && a.proof ? ` · proof: ${a.proof}` : ''}</li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>Checkpoints</CardTitle><p className="text-sm text-slate-500">Follow-up and surveillance points. A follow-up re-checks only the qualified or blocking indicators.</p></CardHeader>
+        <CardContent>
+          {!d.checkpoints.length && <p className="text-sm text-slate-500">No checkpoints are scheduled.</p>}
+          <ul className="space-y-1 text-sm text-slate-700">
+            {d.checkpoints.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{c.kind === 'surveillance' ? 'Surveillance check' : 'Follow-up'}</span> {fmt(c.dueOn)}
+                <Badge className={c.state === 'done' ? 'bg-emerald-100 text-emerald-800' : new Date(c.dueOn) < new Date() ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}>
+                  {c.state === 'done' ? `done${c.result ? `: ${c.result}` : ''}` : new Date(c.dueOn) < new Date() ? 'overdue' : 'pending'}
+                </Badge>
+                {c.note && <span className="text-slate-500">— {c.note}</span>}
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader><CardTitle>Material events</CardTitle><p className="text-sm text-slate-500">The organisation reports within 30 days (5 working days for ★ events). Reporting suspends the validation until the validator reviews it.</p></CardHeader>
         <CardContent className="space-y-4">
           {!d.events.length && <p className="text-sm text-slate-500">None recorded.</p>}
@@ -134,7 +171,15 @@ export function ValidationDetailPage({ id }: { id: string }) {
       {d.can.lead && ['current', 'follow_up_overdue', 'suspended'].includes(d.status) && <LeadControls act={act} send={send} />}
 
       <Card>
-        <CardHeader><CardTitle>History</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Status history</CardTitle><p className="text-sm text-slate-500">Every change of status, in order.</p></CardHeader>
+        <CardContent><ol className="space-y-1 text-sm text-slate-700">
+          {d.statusHistory.map((h, i) => (
+            <li key={i}>{fmt(h.at)} — {h.from ? `${STATUS_LABELS[h.from] ?? h.from} → ` : ''}<strong>{STATUS_LABELS[h.to] ?? h.to}</strong>{h.reason ? ` · ${h.reason}` : ''}</li>
+          ))}
+        </ol></CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle>Activity</CardTitle></CardHeader>
         <CardContent><ol className="space-y-1 text-sm text-slate-600">{d.history.map((h, i) => <li key={i}>{fmt(h.at)} — {h.action}</li>)}</ol></CardContent>
       </Card>
       {closed && <p className="text-xs text-slate-500">This validation is closed.</p>}
@@ -256,5 +301,26 @@ function Concerns() {
         ))}
       </CardContent>
     </Card>
+  )
+}
+
+// A funding partner the organisation consented to: status, schedule and progress as counts and dates, nothing more.
+function FunderProgress({ v }: { v: FunderView }) {
+  return (
+    <div className="space-y-6">
+      <Link to="/validations" className="text-sm text-emerald-700 hover:underline">← Validations</Link>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-2"><h1 className="font-display text-2xl font-bold text-emerald-900">{v.organization}</h1><Badge className={STATUS_STYLE[v.status] ?? ''}>{v.statusLabel}</Badge></div>
+          <p className="text-sm text-slate-600">{v.framework} · rung {v.validatedRung} · {v.outcome === 'validated' ? 'Validated' : 'Validated with qualifications'}</p>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-slate-700">
+          <p className="text-base font-semibold text-slate-900">{v.progressLine}</p>
+          <p>Issued {fmt(v.issuedAt)} · {v.status === 'expired' ? 'expired' : 'expires'} {fmt(v.expiresAt)}</p>
+          <p>Schedule: {FOLLOW_UP_LABEL[v.scheduleMode]}{v.followUpOverdue ? ' · follow-up overdue' : ''}</p>
+          <p className="text-xs text-slate-500">You can see this because {v.organization} consented. It shares progress as counts and dates only, and can withdraw consent at any time. Verification ID <a className="font-mono text-emerald-700 underline" href={`/validation/${v.verificationId}`}>{v.verificationId}</a>.</p>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

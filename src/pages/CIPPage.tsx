@@ -11,6 +11,7 @@ import {
   Table, Thead, Tbody, Th, Td,
 } from '../components/ui'
 import { cn } from '../lib/utils'
+import { ValidationCipCard } from '../components/ValidationCipCard'
 
 const DEFAULT_STATUS: RiskStatus = 'To-be-Initiated'
 
@@ -46,6 +47,7 @@ export function CIPPage() {
 
   return (
     <div className="space-y-6">
+      <ValidationCipCard />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">
