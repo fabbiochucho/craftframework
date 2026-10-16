@@ -64,7 +64,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "deno": "2.5.6",
-    "drizzle-kit": "^1.0.0-beta.22",
+    "drizzle-kit": "^1.0.0-rc.5-5935859",
     "lucide-react": "0.577.0",
     "pg": "^8.23.1",
     "rimraf": "6.1.3",
