@@ -14,6 +14,8 @@ import { grantAllows } from '../lib/access-policy.js'
 import { decryptField } from '../lib/crypto.js'
 import { reconcileEngagement, sweepEngagements } from '../lib/engagement-access.js'
 import { logger } from '../lib/logger.js'
+import { createValidation, notifyDebriefOpen } from '../lib/validation-lifecycle.js'
+import { chooseValidity, DEFAULT_FOLLOW_UP, FOLLOW_UP_KINDS } from '../../src/lib/validity.js'
 import { engagementLabel, GRANT_ROLE, type EngagementScope, type EngagementType } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 import {
@@ -31,7 +33,7 @@ import {
 //   PUT    /:id/negotiated/:indicator   lead: record the negotiated score, or null to clear (debrief only)
 //   POST   /:id/qualifications          lead: add a qualification linked to indicators
 //   DELETE /:id/qualifications/:qid     lead: remove one
-//   POST   /:id/finalise                lead: outcome + freeze (snapshot + SHA-256); revokes every team grant
+//   POST   /:id/finalise                lead: outcome + validity + follow-up schedule + freeze (snapshot + SHA-256); revokes every team grant
 //
 // A reviewer sees the organisation's self-scores only while their grant is active and unexpired.
 // Once finalised nothing here can change the review.
@@ -57,7 +59,12 @@ const scoreSchema = z.object({
 const responseSchema = z.object({ response: z.string().trim().min(1).max(4000) })
 const negotiatedSchema = z.object({ score: z.number().int().min(0).max(5).nullable() })
 const qualificationSchema = z.object({ text: z.string().trim().min(1).max(2000), indicatorIds: z.array(z.string().max(40)).min(1).max(60) })
-const finaliseSchema = z.object({ outcome: z.enum(OUTCOMES), summary: z.string().max(4000).optional() })
+const finaliseSchema = z.object({
+  outcome: z.enum(OUTCOMES), summary: z.string().max(4000).optional(),
+  // PR 5: validity (12 months validated, 6 qualified; 24 at rung 5+ unqualified; shorter for a named risk) and the follow-up schedule.
+  validityMonths: z.number().int().min(1).max(24).optional(), validityReason: z.string().trim().max(1000).optional(),
+  followUp: z.enum(FOLLOW_UP_KINDS).optional(),
+})
 
 type Ctx = {
   e: ValidationEngagementRow
@@ -176,12 +183,15 @@ export default async (req: Request) => {
 
     if (req.method === 'POST' && sub === 'debrief' && who === 'open') {
       const r = await ensure()
-      return await locked(r.id, async (tx, row) => {
+      const opened = await locked(r.id, async (tx, row) => {
         if (row.status !== 'draft') return conflict(row.status === 'finalised' ? 'This review is finalised' : 'The debrief is already open')
         await tx.update(validationReviews).set({ status: 'debrief', updatedAt: new Date() }).where(eq(validationReviews.id, row.id))
         await tx.insert(auditLogs).values({ actor: caller.email, action: 'opened the debrief', target: row.id, category: 'Validation', orgId: e.orgId })
         return json({ ok: true })
       })
+      // Tell the organisation (best effort: the daily run retries anything not yet accepted).
+      if (opened.status === 200) await notifyDebriefOpen(r.id).catch((err) => logger.warn('/api/validation-reviews', 'debrief notice failed', { err: String(err) }))
+      return opened
     }
 
     if (req.method === 'PUT' && sub === 'negotiated' && who) {
@@ -248,6 +258,8 @@ export default async (req: Request) => {
         const self = await selfScores(e.orgId, fw.scoresKey, ids)
         const final = finalScores(validatorScores, negotiated)
         const rung = impliedRung(fw, final, scope)
+        const validity = chooseValidity({ outcome: p.data.outcome, rung: p.data.outcome === 'not_validated' ? null : rung, requestedMonths: p.data.validityMonths, reason: p.data.validityReason })
+        if (!validity.plan) return bad('This review cannot be finalised yet', { problems: [validity.problem] })
         const achieved = levelsAchieved(fw, final, scope)
         const now = new Date()
         const snapshot = JSON.parse(JSON.stringify(await buildSnapshot({ e, members, fw, scope, row, scoreRows, debriefRows, quals, self, final, validatorScores, negotiated, rung, achieved, outcome: p.data.outcome, summary: p.data.summary ?? '', finalisedAt: now, finalisedByEmail: caller.email })))
@@ -258,8 +270,12 @@ export default async (req: Request) => {
           snapshot, snapshotSha256: sha, finalisedAt: now, finalisedBy: caller.email, updatedAt: now,
         }).where(eq(validationReviews.id, row.id))
         await tx.update(validationEngagements).set({ status: 'finalised', updatedAt: now }).where(eq(validationEngagements.id, id))
+        const issued = await createValidation(tx, {
+          reviewId: row.id, engagementId: id, orgId: e.orgId, framework: e.framework, scope, outcome: p.data.outcome, rung, issuedAt: now, plan: validity.plan,
+          followUp: p.data.followUp ?? DEFAULT_FOLLOW_UP, snapshot: snapshot as never, qualificationRows: qualRows.map((q) => ({ id: q.id, text: q.text, indicatorIds: q.indicatorIds })), actor: caller.email,
+        })
         await tx.insert(auditLogs).values({ actor: caller.email, action: `finalised review: ${p.data.outcome}${p.data.outcome === 'not_validated' ? '' : `, rung ${rung}`} (sha256 ${sha.slice(0, 12)}…)`, target: row.id, category: 'Validation', orgId: e.orgId })
-        return json({ ok: true, outcome: p.data.outcome, validatedRung: p.data.outcome === 'not_validated' ? null : rung, sha256: sha })
+        return json({ ok: true, outcome: p.data.outcome, validatedRung: p.data.outcome === 'not_validated' ? null : rung, sha256: sha, verificationId: issued.verificationId, expiresAt: issued.expiresAt })
       })
       // The engagement is finalised: every team member's access ends now.
       if (result.status === 200) await reconcileEngagement(id)

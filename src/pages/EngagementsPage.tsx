@@ -217,6 +217,11 @@ export function EngagementDetailPage({ id }: { id: string }) {
           {e.status === 'finalised' ? 'View the frozen review' : 'Open the review'}
         </Link>
       )}
+      {e.status === 'finalised' && (
+        <Link to="/engagements/$id/validity" params={{ id }} className="inline-block text-sm font-semibold text-emerald-700 hover:underline">
+          Validity, follow-up and material events
+        </Link>
+      )}
       {e.can.respondAs.map((side) => <RespondCard key={side} side={side} onDecide={(decision, reason) => act(() => post('/respond', { side, decision, reason }), decision === 'accept' ? 'Accepted' : 'Declined')} />)}
       <Status msg={msg} />
 
