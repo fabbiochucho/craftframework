@@ -37,7 +37,7 @@ async function api<T = any>(path: string, init?: { method?: string; json?: unkno
 
 const STATUS_STYLE: Record<string, string> = {
   proposed: 'bg-amber-100 text-amber-800', active: 'bg-emerald-100 text-emerald-800', declined: 'bg-rose-100 text-rose-800',
-  cancelled: 'bg-slate-100 text-slate-700', expired: 'bg-slate-100 text-slate-700',
+  cancelled: 'bg-slate-100 text-slate-700', expired: 'bg-slate-100 text-slate-700', finalised: 'bg-indigo-100 text-indigo-800',
 }
 const PARTY_TEXT: Record<string, string> = { pending: 'waiting', accepted: 'accepted', declined: 'declined', not_required: '' }
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString() : '—')
@@ -212,6 +212,11 @@ export function EngagementDetailPage({ id }: { id: string }) {
         </CardContent>
       </Card>
 
+      {(e.status === 'active' || e.status === 'finalised') && (
+        <Link to="/engagements/$id/review" params={{ id }} className="inline-block text-sm font-semibold text-emerald-700 hover:underline">
+          {e.status === 'finalised' ? 'View the frozen review' : 'Open the review'}
+        </Link>
+      )}
       {e.can.respondAs.map((side) => <RespondCard key={side} side={side} onDecide={(decision, reason) => act(() => post('/respond', { side, decision, reason }), decision === 'accept' ? 'Accepted' : 'Declined')} />)}
       <Status msg={msg} />
 
