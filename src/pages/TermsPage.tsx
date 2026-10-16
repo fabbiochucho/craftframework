@@ -163,9 +163,22 @@ const CLAUSES: Clause[] = [
           Directory profiles are opt-in. After a validation is finished, its organisation (and, where one engaged the
           validator, the funding partner) may rate the validator once, from 1 to 5 stars with an optional comment. Do
           not put personal data, accusations about named people or anything you cannot support in a comment. The
-          validator may reply publicly, and the CRAFT programme team may remove feedback that is false, abusive or
-          exposes personal data, recording the reason. Anyone may report a concern from a verification page.
+          validator may reply publicly, and feedback that is false, abusive or exposes personal data may be removed,
+          with the reason recorded. Anyone may report a concern from a verification page.
           The Service is not responsible for the content of a validator’s opinion or of feedback.
+        </p>
+        <p className="mt-3">
+          <strong>Independent Review Panel.</strong> Disputes about a validation’s result or a validator’s conduct,
+          complaints about a validator, contested material events and suspensions, challenges to re-review outcomes
+          and complaints about feedback are heard by an Independent Review Panel: a convenor from the CRAFT programme
+          team and two reviewers from a volunteer roster, none of whom may be a party, be in the validator’s firm, or
+          have worked for or with a party in the last three years. Both sides respond in writing; the panel decides by
+          majority with written reasons, aiming for 30 days from the panel being seated. The panel may dismiss a case,
+          let a validation stand, record an amendment, suspend or withdraw a validation, warn, require retraining of,
+          suspend or remove a validator, and keep or remove feedback. One appeal lies to a fresh panel, within 14 days;
+          its decision is final. Platform administrators have no vote. By taking part you agree that a decision is applied
+          to the validation, the validator’s accreditation and the feedback concerned, and that the written reasons are
+          shared with the parties.
         </p>
       </>
     ),
