@@ -10,7 +10,7 @@
 export const ENGAGEMENT_TYPES = ['independent_validation', 'funder_review'] as const
 export type EngagementType = (typeof ENGAGEMENT_TYPES)[number]
 
-export const ENGAGEMENT_STATUSES = ['proposed', 'active', 'declined', 'cancelled', 'expired'] as const
+export const ENGAGEMENT_STATUSES = ['proposed', 'active', 'declined', 'cancelled', 'expired', 'finalised'] as const
 export type EngagementStatus = (typeof ENGAGEMENT_STATUSES)[number]
 
 // Each party's answer. 'not_required' = the party plays no part in this engagement type.
