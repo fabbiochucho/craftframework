@@ -24,7 +24,9 @@ import {
   date,
   primaryKey,
   numeric,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 export { offlineFrameworks, offlineFrameworkReceipts } from './offline-schema.ts'
 
@@ -479,6 +481,126 @@ export const orgDirectoryProfiles = pgTable('org_directory_profiles', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// --- validation_engagements -------------------------------------------------
+// Validator system PR 2. An engagement ties an organisation's CRAFT results to
+// an independent validation (or a funder's own review). Created by the
+// organisation, a funding partner (with the organisation's consent) or a
+// validator / validator firm; every required party accepts and the
+// organisation always consents. Framework-agnostic: `framework` is a key.
+export const validationEngagements = pgTable(
+  'validation_engagements',
+  {
+    id: text('id').primaryKey(),
+    framework: text('framework').notNull().default('capital-readiness'),
+    scope: jsonb('scope').$type<{ kind: 'whole' } | { kind: 'levels'; levels: number[] }>().notNull().default({ kind: 'whole' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    // 'independent_validation' | 'funder_review'
+    type: text('type').notNull(),
+    createdBy: text('created_by').notNull(),
+    // 'organization' | 'validator' | 'funder'
+    createdBySide: text('created_by_side').notNull(),
+    validatorFirmId: text('validator_firm_id').references(() => firms.id, { onDelete: 'set null' }),
+    // Lead validator when engaged as an individual rather than through a firm.
+    validatorEmail: text('validator_email'),
+    funderFirmId: text('funder_firm_id').references(() => firms.id, { onDelete: 'set null' }),
+    // Each: 'pending' | 'accepted' | 'declined' | 'not_required'
+    orgStatus: text('org_status').notNull().default('pending'),
+    validatorStatus: text('validator_status').notNull().default('pending'),
+    funderStatus: text('funder_status').notNull().default('pending'),
+    orgConsentedBy: text('org_consented_by'),
+    orgConsentedAt: timestamp('org_consented_at', { withTimezone: true }),
+    declinedSide: text('declined_side'),
+    declinedBy: text('declined_by'),
+    declineReason: text('decline_reason'),
+    requiresRereview: boolean('requires_rereview').notNull().default(false),
+    accessDays: integer('access_days').notNull().default(90),
+    // 'proposed' | 'active' | 'declined' | 'cancelled' | 'expired'
+    status: text('status').notNull().default('proposed'),
+    inviteExpiresAt: timestamp('invite_expires_at', { withTimezone: true }).notNull(),
+    activatedAt: timestamp('activated_at', { withTimezone: true }),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    cancelledBy: text('cancelled_by'),
+    cancelReason: text('cancel_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('validation_engagements_org_idx').on(t.orgId),
+    index('validation_engagements_validator_firm_idx').on(t.validatorFirmId),
+    index('validation_engagements_funder_firm_idx').on(t.funderFirmId),
+  ],
+)
+
+// Named team members. Firm membership alone grants nothing: a person gets a
+// time-limited read-only access_grants row only while they are `named`, the
+// organisation has approved them, they signed the declaration and the
+// engagement is active (netlify/lib/engagement-access.ts).
+export const engagementMembers = pgTable(
+  'engagement_members',
+  {
+    id: text('id').primaryKey(),
+    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    // 'lead' | 'member'
+    role: text('role').notNull().default('member'),
+    // 'named' | 'declined' | 'removed'
+    status: text('status').notNull().default('named'),
+    orgApproved: boolean('org_approved').notNull().default(false),
+    addedBy: text('added_by').notNull(),
+    grantId: text('grant_id'),
+    grantedAt: timestamp('granted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('engagement_members_engagement_email_unique').on(t.engagementId, t.email),
+    index('engagement_members_email_idx').on(t.email),
+  ],
+)
+
+// The signed, versioned independence / conflict-of-interest declaration. The
+// full text is stored with each signature so a later wording change never
+// rewrites what was signed.
+export const engagementDeclarations = pgTable(
+  'engagement_declarations',
+  {
+    id: text('id').primaryKey(),
+    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    memberEmail: text('member_email').notNull(),
+    version: text('version').notNull(),
+    text: text('text').notNull(),
+    fundedDisclosure: boolean('funded_disclosure').notNull().default(false),
+    disclosure: text('disclosure').notNull().default(''),
+    signedName: text('signed_name').notNull(),
+    signedAt: timestamp('signed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('engagement_declarations_unique').on(t.engagementId, t.memberEmail, t.version)],
+)
+
+// A consultant's PROPOSED directory listing for an organisation they hold an
+// access grant to. Never live until the organisation's own staff approve it;
+// one pending proposal per organisation (partial unique index in the migration).
+export const orgListingProposals = pgTable(
+  'org_listing_proposals',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    proposedBy: text('proposed_by').notNull(),
+    summary: text('summary').notNull().default(''),
+    // 'pending' | 'approved' | 'rejected' | 'withdrawn'
+    status: text('status').notNull().default('pending'),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    reason: text('reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('org_listing_proposals_org_idx').on(t.orgId),
+    index('org_listing_proposals_proposer_idx').on(t.proposedBy),
+    uniqueIndex('org_listing_proposals_one_pending').on(t.orgId).where(sql`${t.status} = 'pending'`),
+  ],
+)
+
 // --- response_notes ---------------------------------------------------------
 // Threaded, multi-author commentary on an assessment answer: one row per note,
 // scoped by (org_id, question_id) and OWNED by its author. Unlike the single
@@ -531,6 +653,8 @@ export type FirmRow = typeof firms.$inferSelect
 export type FirmMemberRow = typeof firmMembers.$inferSelect
 export type ValidatorProfileRow = typeof validatorProfiles.$inferSelect
 export type ValidatorCredentialRow = typeof validatorCredentials.$inferSelect
+export type ValidationEngagementRow = typeof validationEngagements.$inferSelect
+export type EngagementMemberRow = typeof engagementMembers.$inferSelect
 export type ResponseNoteRow = typeof responseNotes.$inferSelect
 
 // --- section 11 disclosures -------------------------------------------------
