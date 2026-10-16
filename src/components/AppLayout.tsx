@@ -3,6 +3,7 @@ import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { getUser, logout as identityLogout } from '@netlify/identity'
 import { clearOfflineSession, setOfflineSession } from '../lib/offline/session'
 import { cn } from '../lib/utils'
+import { skipsOnboarding } from '../lib/onboardingRoutes'
 import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
 import { Badge, Button } from './ui'
 import { Footer } from './Footer'
@@ -153,8 +154,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     // Excluding the route entirely removes the race instead of trying to win
     // it, and is correct for every caller: nothing under /app/workspaces
     // depends on the legacy entityProfile wizard having run.
-    // The same holds for the rest of the /app/* platform (organization settings and members).
-    if (pathname.startsWith('/app/')) return
+    // The same holds for the rest of the /app/* platform (organization settings and members)
+    // and for the validator system's pages (see skipsOnboarding).
+    if (skipsOnboarding(pathname)) return
     navigate({ to: '/onboarding' })
   }, [authReady, currentUser, onboardingComplete, pathname, navigate, enterDemo])
 
