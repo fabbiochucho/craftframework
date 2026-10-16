@@ -16,7 +16,7 @@ type Me = {
   isFunder: boolean
   validator: null | {
     id: string; name: string; bio: string; competencies: string[]; frameworks: string[]; countries: string[]; languages: string[]
-    accreditation: string; level: string; credentials: Array<{ id: string; body: string; membershipNumber: string; status: string }>
+    accreditation: string; level: string; badges?: Array<{ key: string; name: string }>; credentials: Array<{ id: string; body: string; membershipNumber: string; status: string }>
   }
   firms: Array<FirmProfile & { role: string }>
   invitations: Array<{ id: string; name: string; kind: FirmKind }>
@@ -42,15 +42,17 @@ const list = (s: string) => s.split(',').map((x) => x.trim()).filter(Boolean)
 const joined = (l?: string[] | null) => (l ?? []).join(', ')
 const KIND_LABEL: Record<FirmKind, string> = { validator_firm: 'Validator firm', funding_partner: 'Funding partner' }
 const ACCREDITATION_STYLE: Record<string, string> = {
-  accredited: 'bg-emerald-100 text-emerald-800', 'pilot-accredited': 'bg-indigo-100 text-indigo-800',
+  accredited: 'bg-emerald-100 text-emerald-800', lapsed: 'bg-amber-100 text-amber-800',
   registered: 'bg-slate-100 text-slate-700', suspended: 'bg-rose-100 text-rose-800',
 }
+const ACCREDITATION_LABEL: Record<string, string> = { accredited: 'CRAFT-accredited', lapsed: 'Accreditation lapsed', registered: 'Registered', suspended: 'Suspended' }
 
-function Accreditation({ value, level }: { value: string; level?: string }) {
+function Accreditation({ value, level, badges }: { value: string; level?: string; badges?: Array<{ key: string; name: string }> }) {
   return (
     <span className="inline-flex flex-wrap gap-1">
-      <Badge className={ACCREDITATION_STYLE[value] ?? ''}>{value === 'pilot-accredited' ? 'Pilot-accredited' : value[0].toUpperCase() + value.slice(1)}</Badge>
+      <Badge className={ACCREDITATION_STYLE[value] ?? ''}>{ACCREDITATION_LABEL[value] ?? value}</Badge>
       {level && <Badge variant="outline" className="text-slate-600">{level}</Badge>}
+      {badges?.map((b) => <Badge key={b.key} className="bg-indigo-100 text-indigo-800">{b.name}</Badge>)}
     </span>
   )
 }
@@ -127,7 +129,7 @@ function SearchPanel({ me }: { me: Me }) {
               <p className="mt-0.5 text-sm text-slate-500">
                 {type === 'validators' ? joined(r.firms?.map((f: any) => f.name)) || 'Independent' : type === 'organizations' ? [r.country, r.sector].filter(Boolean).join(' · ') : r.nature}
               </p>
-              {type === 'validators' && <div className="mt-2"><Accreditation value={r.accreditation} level={r.level} /></div>}
+              {type === 'validators' && <div className="mt-2"><Accreditation value={r.accreditation} level={r.level} badges={r.badges} /></div>}
               {type === 'organizations' && r.currentRung != null && <p className="mt-2 text-sm text-slate-600">Capital Readiness rung {r.currentRung} (self-assessed)</p>}
               {(r.competencies?.length || r.countries?.length) ? <p className="mt-2 text-xs text-slate-500">{[joined(r.competencies), joined(r.countries)].filter(Boolean).join(' · ')}</p> : null}
             </Link>
@@ -170,8 +172,8 @@ function ValidatorForm({ me, reload }: { me: Me; reload: () => void }) {
     <Card>
       <CardHeader>
         <CardTitle>My validator profile</CardTitle>
-        <p className="text-sm text-slate-500">Anyone can register as a validator. Accreditation is earned (training and assessment) or granted by the CRAFT programme team for the pilot.</p>
-        {v && <div className="mt-2"><Accreditation value={v.accreditation} level={v.level} /></div>}
+        <p className="text-sm text-slate-500">Anyone can register as a validator. Accreditation is earned only by completing the <Link to="/training" className="text-emerald-700 underline">training and assessment</Link>, and renewed each year. It cannot be granted by anyone.</p>
+        {v && <div className="mt-2"><Accreditation value={v.accreditation} level={v.level} badges={v.badges} /></div>}
       </CardHeader>
       <CardContent className="space-y-3">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => {
@@ -331,7 +333,10 @@ export function DirectoryProfilePage({ kind, id }: { kind: string; id: string })
             {kind === 'validators' ? (p.firms?.length ? p.firms.map((f: any) => f.name).join(', ') : 'Independent validator')
               : kind === 'organizations' ? [p.country, p.sector].filter(Boolean).join(' · ') : `${KIND_LABEL[p.kind as FirmKind]} · ${p.nature}`}
           </p>
-          {kind === 'validators' && <div className="mt-2"><Accreditation value={p.accreditation} level={p.level} /></div>}
+          {kind === 'validators' && <div className="mt-2"><Accreditation value={p.accreditation} level={p.level} badges={p.badges} /></div>}
+          {kind === 'validators' && p.accreditedUntil && p.accreditation !== 'registered' && (
+            <p className="mt-1 text-xs text-slate-500">{p.accreditation === 'lapsed' ? 'Accreditation lapsed on' : 'Accredited until'} {new Date(p.accreditedUntil).toLocaleDateString()}</p>
+          )}
         </CardHeader>
         <CardContent className="space-y-2">
           {(p.bio || p.summary) && <p className="whitespace-pre-line text-sm text-slate-700">{p.bio || p.summary}</p>}
@@ -372,29 +377,25 @@ export function DirectoryProfilePage({ kind, id }: { kind: string; id: string })
 }
 
 function AccreditationAdmin({ profile, onDone }: { profile: any; onDone: () => void }) {
-  const [status, setStatus] = useState<string>(profile.accreditationStatus)
-  const [pilot, setPilot] = useState<boolean>(profile.pilotAccredited)
+  const suspended = profile.accreditation === 'suspended'
   const [reason, setReason] = useState('')
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Accreditation (platform admin)</CardTitle>
+        <CardTitle>Suspension (platform admin)</CardTitle>
+        <p className="text-sm text-slate-500">Accreditation is earned through the training programme and cannot be granted here. You can suspend a validator, or reinstate one (which restores only what they already earned), with a recorded reason.</p>
         {profile.accreditationReason && <p className="text-sm text-slate-500">Last recorded reason: {profile.accreditationReason}</p>}
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
-        <Select label="Status" options={['registered', 'accredited', 'suspended'].map((s) => ({ value: s, label: s }))} value={status} onChange={setStatus} />
-        <label className="flex items-center gap-2 self-end text-sm font-medium text-slate-700">
-          <input type="checkbox" checked={pilot} onChange={(e) => setPilot(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Pilot-accredited
-        </label>
-        <div className="sm:col-span-2"><Textarea label="Reason (recorded in the audit log)" value={reason} onChange={setReason} rows={2} /></div>
+      <CardContent className="grid gap-3">
+        <Textarea label="Reason (recorded in the audit log)" value={reason} onChange={setReason} rows={2} />
         <div>
-          <Button disabled={!reason.trim()} onClick={async () => {
+          <Button disabled={!reason.trim()} variant={suspended ? 'primary' : 'outline'} onClick={async () => {
             try {
-              await api(`/api/directory/admin/validators/${profile.id}`, { method: 'PUT', json: { status, pilotAccredited: pilot, reason } })
-              setMsg({ ok: true, text: 'Accreditation updated' }); setReason(''); onDone()
+              await api(`/api/directory/admin/validators/${profile.id}`, { method: 'PUT', json: { status: suspended ? 'registered' : 'suspended', reason } })
+              setMsg({ ok: true, text: suspended ? 'Reinstated' : 'Suspended' }); setReason(''); onDone()
             } catch (e: any) { setMsg({ ok: false, text: e.message }) }
-          }}>Record change</Button>
+          }}>{suspended ? 'Reinstate' : 'Suspend'}</Button>
         </div>
         <Status msg={msg} />
       </CardContent>

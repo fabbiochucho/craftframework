@@ -49,6 +49,7 @@ import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SubprocessorsRouteImport } from './routes/subprocessors'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TrainingRouteImport } from './routes/training'
 import { Route as VaultsRouteImport } from './routes/vaults'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WallboardRouteImport } from './routes/wallboard'
@@ -60,11 +61,14 @@ import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.tru
 import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
 import { Route as ForGovernmentRouteImport } from './routes/for.government'
 import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
+import { Route as TrainingAssessmentRouteImport } from './routes/training_.assessment'
+import { Route as TrainingManageRouteImport } from './routes/training_.manage'
 import { Route as AppOrgAuditLogRouteImport } from './routes/app.org.audit-log'
 import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
 import { Route as AppWorkspacesIndexRouteImport } from './routes/app.workspaces.index'
 import { Route as DirectoryKindIdRouteImport } from './routes/directory_.$kind.$id'
+import { Route as TrainingModuleModuleIdRouteImport } from './routes/training_.module.$moduleId'
 import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
 import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
 import { Route as AppWorkspacesWorkspaceIdFrameworkMapRouteImport } from './routes/app.workspaces.$workspaceId.framework-map'
@@ -291,6 +295,11 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrainingRoute = TrainingRouteImport.update({
+  id: '/training',
+  path: '/training',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VaultsRoute = VaultsRouteImport.update({
   id: '/vaults',
   path: '/vaults',
@@ -347,6 +356,16 @@ const ForPublicHealthInstitutesRoute =
     path: '/for/public-health-institutes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const TrainingAssessmentRoute = TrainingAssessmentRouteImport.update({
+  id: '/training_/assessment',
+  path: '/training/assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrainingManageRoute = TrainingManageRouteImport.update({
+  id: '/training_/manage',
+  path: '/training/manage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppOrgAuditLogRoute = AppOrgAuditLogRouteImport.update({
   id: '/app/org/audit-log',
   path: '/app/org/audit-log',
@@ -370,6 +389,11 @@ const AppWorkspacesIndexRoute = AppWorkspacesIndexRouteImport.update({
 const DirectoryKindIdRoute = DirectoryKindIdRouteImport.update({
   id: '/directory_/$kind/$id',
   path: '/directory/$kind/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrainingModuleModuleIdRoute = TrainingModuleModuleIdRouteImport.update({
+  id: '/training_/module/$moduleId',
+  path: '/training/module/$moduleId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWorkspacesWorkspaceIdComplianceDashboardRoute =
@@ -568,6 +592,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
+  '/training': typeof TrainingRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
@@ -579,10 +604,13 @@ export interface FileRoutesByFullPath {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/training/assessment': typeof TrainingAssessmentRoute
+  '/training/manage': typeof TrainingManageRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
   '/directory/$kind/$id': typeof DirectoryKindIdRoute
+  '/training/module/$moduleId': typeof TrainingModuleModuleIdRoute
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -651,6 +679,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
+  '/training': typeof TrainingRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
@@ -662,10 +691,13 @@ export interface FileRoutesByTo {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/training/assessment': typeof TrainingAssessmentRoute
+  '/training/manage': typeof TrainingManageRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
   '/directory/$kind/$id': typeof DirectoryKindIdRoute
+  '/training/module/$moduleId': typeof TrainingModuleModuleIdRoute
   '/app/workspaces': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -735,6 +767,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
+  '/training': typeof TrainingRoute
   '/vaults': typeof VaultsRoute
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
@@ -746,10 +779,13 @@ export interface FileRoutesById {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/training_/assessment': typeof TrainingAssessmentRoute
+  '/training_/manage': typeof TrainingManageRoute
   '/app/org/audit-log': typeof AppOrgAuditLogRoute
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
   '/directory_/$kind/$id': typeof DirectoryKindIdRoute
+  '/training_/module/$moduleId': typeof TrainingModuleModuleIdRoute
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   '/app/workspaces/$workspaceId/dashboard': typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -820,6 +856,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/subprocessors'
     | '/terms'
+    | '/training'
     | '/vaults'
     | '/verify'
     | '/wallboard'
@@ -831,10 +868,13 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/training/assessment'
+    | '/training/manage'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
     | '/directory/$kind/$id'
+    | '/training/module/$moduleId'
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
@@ -903,6 +943,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/subprocessors'
     | '/terms'
+    | '/training'
     | '/vaults'
     | '/verify'
     | '/wallboard'
@@ -914,10 +955,13 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/training/assessment'
+    | '/training/manage'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
     | '/directory/$kind/$id'
+    | '/training/module/$moduleId'
     | '/app/workspaces'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
@@ -986,6 +1030,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/subprocessors'
     | '/terms'
+    | '/training'
     | '/vaults'
     | '/verify'
     | '/wallboard'
@@ -997,10 +1042,13 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/training_/assessment'
+    | '/training_/manage'
     | '/app/org/audit-log'
     | '/app/org/members'
     | '/app/org/settings'
     | '/directory_/$kind/$id'
+    | '/training_/module/$moduleId'
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
     | '/app/workspaces/$workspaceId/dashboard'
@@ -1070,6 +1118,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SubprocessorsRoute: typeof SubprocessorsRoute
   TermsRoute: typeof TermsRoute
+  TrainingRoute: typeof TrainingRoute
   VaultsRoute: typeof VaultsRoute
   VerifyRoute: typeof VerifyRoute
   WallboardRoute: typeof WallboardRoute
@@ -1080,10 +1129,13 @@ export interface RootRouteChildren {
   ForEsgReportingRoute: typeof ForEsgReportingRoute
   ForGovernmentRoute: typeof ForGovernmentRoute
   ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
+  TrainingAssessmentRoute: typeof TrainingAssessmentRoute
+  TrainingManageRoute: typeof TrainingManageRoute
   AppOrgAuditLogRoute: typeof AppOrgAuditLogRoute
   AppOrgMembersRoute: typeof AppOrgMembersRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRoute
   DirectoryKindIdRoute: typeof DirectoryKindIdRoute
+  TrainingModuleModuleIdRoute: typeof TrainingModuleModuleIdRoute
   AppWorkspacesIndexRoute: typeof AppWorkspacesIndexRoute
   AppWorkspacesWorkspaceIdComplianceDashboardRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
   AppWorkspacesWorkspaceIdDashboardRoute: typeof AppWorkspacesWorkspaceIdDashboardRoute
@@ -1394,6 +1446,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/training': {
+      id: '/training'
+      path: '/training'
+      fullPath: '/training'
+      preLoaderRoute: typeof TrainingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/vaults': {
       id: '/vaults'
       path: '/vaults'
@@ -1471,6 +1530,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForPublicHealthInstitutesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/training_/assessment': {
+      id: '/training_/assessment'
+      path: '/training/assessment'
+      fullPath: '/training/assessment'
+      preLoaderRoute: typeof TrainingAssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/training_/manage': {
+      id: '/training_/manage'
+      path: '/training/manage'
+      fullPath: '/training/manage'
+      preLoaderRoute: typeof TrainingManageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/org/audit-log': {
       id: '/app/org/audit-log'
       path: '/app/org/audit-log'
@@ -1504,6 +1577,13 @@ declare module '@tanstack/react-router' {
       path: '/directory/$kind/$id'
       fullPath: '/directory/$kind/$id'
       preLoaderRoute: typeof DirectoryKindIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/training_/module/$moduleId': {
+      id: '/training_/module/$moduleId'
+      path: '/training/module/$moduleId'
+      fullPath: '/training/module/$moduleId'
+      preLoaderRoute: typeof TrainingModuleModuleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/workspaces/$workspaceId/compliance-dashboard': {
@@ -1737,6 +1817,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SubprocessorsRoute: SubprocessorsRoute,
   TermsRoute: TermsRoute,
+  TrainingRoute: TrainingRoute,
   VaultsRoute: VaultsRoute,
   VerifyRoute: VerifyRoute,
   WallboardRoute: WallboardRoute,
@@ -1747,10 +1828,13 @@ const rootRouteChildren: RootRouteChildren = {
   ForEsgReportingRoute: ForEsgReportingRoute,
   ForGovernmentRoute: ForGovernmentRoute,
   ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,
+  TrainingAssessmentRoute: TrainingAssessmentRoute,
+  TrainingManageRoute: TrainingManageRoute,
   AppOrgAuditLogRoute: AppOrgAuditLogRoute,
   AppOrgMembersRoute: AppOrgMembersRoute,
   AppOrgSettingsRoute: AppOrgSettingsRoute,
   DirectoryKindIdRoute: DirectoryKindIdRoute,
+  TrainingModuleModuleIdRoute: TrainingModuleModuleIdRoute,
   AppWorkspacesIndexRoute: AppWorkspacesIndexRoute,
   AppWorkspacesWorkspaceIdComplianceDashboardRoute:
     AppWorkspacesWorkspaceIdComplianceDashboardRoute,
