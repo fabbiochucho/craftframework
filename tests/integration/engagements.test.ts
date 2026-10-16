@@ -36,7 +36,7 @@ const grants = () => rows("SELECT grantee, role, level, status, expires_at FROM 
 async function profile(email: string, name: string, accredited: boolean) {
   const r = await call(email, 'PUT', 'directory/me/validator', { name, competencies: ['Audit'] }, directory)
   assert.equal(r.status, 200, r.text)
-  if (accredited) await rows("UPDATE validator_profiles SET accreditation_status='accredited' WHERE email=$1", [email])
+  if (accredited) await rows("UPDATE validator_profiles SET accreditation_status='accredited', accredited_until = now() + interval '1 year' WHERE email=$1", [email])
   return r.body.id as string
 }
 
@@ -185,9 +185,11 @@ describe('validator engagements', () => {
     await eng(VAL, 'POST', `/${id}/respond`, { side: 'validator', decision: 'accept' })
     assert.equal((await eng(VAL, 'POST', `/${id}/members`, { email: NOVICE })).status, 403)
     assert.equal((await eng(ALICE, 'POST', `/${id}/members`, { email: NOVICE })).status, 403)
-    // A pilot-accredited switch is not accreditation either.
+    // Neither is the legacy pilot switch, nor a lapsed accreditation (accredited_until in the past).
     await rows("UPDATE validator_profiles SET pilot_accredited=true WHERE email=$1", [NOVICE])
     assert.equal((await eng(VAL, 'POST', `/${id}/members`, { email: NOVICE })).status, 403)
+    await rows("UPDATE validator_profiles SET accreditation_status='accredited', accredited_until = now() - interval '1 day' WHERE email=$1", [NOVICE])
+    assert.equal((await eng(VAL, 'POST', `/${id}/members`, { email: NOVICE })).status, 403, 'lapsed is not accredited')
     // Suspension after joining removes access.
     await eng(VAL, 'POST', `/${id}/members`, { email: VAL })
     await eng(ALICE, 'POST', `/${id}/members/${VAL}/approve`)
@@ -198,6 +200,17 @@ describe('validator engagements', () => {
     assert.equal(await readOrg(VAL), 403)
     const detail = await eng(ALICE, 'GET', `/${id}`)
     assert.match(detail.body.label.statement, /^Review by Valerie Okafor/)
+  })
+
+  it('access ends when a validator\'s accreditation lapses', async () => {
+    const id = await orgInvitesValidator()
+    await eng(VAL, 'POST', `/${id}/respond`, { side: 'validator', decision: 'accept' })
+    await sign(VAL, id)
+    assert.equal(await readOrg(VAL), 200)
+    await rows("UPDATE validator_profiles SET accredited_until = now() - interval '1 day' WHERE email=$1", [VAL])
+    await eng(ALICE, 'GET', '') // any engagement request re-checks active validator grants
+    assert.equal(await readOrg(VAL), 403)
+    assert.equal((await grants())[0].status, 'revoked')
   })
 
   it('organisations cannot see other organisations\' engagements', async () => {

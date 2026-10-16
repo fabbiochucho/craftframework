@@ -11,10 +11,11 @@ import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { decryptField } from '../lib/crypto.js'
 import { logger } from '../lib/logger.js'
+import { badgesFor } from '../lib/training.js'
 import { reconcileValidator } from '../lib/engagement-access.js'
 import { currentRung } from '../../src/lib/capitalReadiness.js'
 import {
-  ACCREDITATION_STATUSES, cleanList, credentialLabel, effectiveAccreditation, matchesQuery, validatorLevel,
+  ADMIN_ACCREDITATION_ACTIONS, cleanList, credentialLabel, effectiveAccreditation, matchesQuery, validatorLevel,
 } from '../../src/lib/validatorDirectory.js'
 
 // /api/directory — the validator system's three-way directory (spec PR 1).
@@ -34,7 +35,7 @@ import {
 //   DELETE proposals/:id              the proposer withdraws a pending proposal
 //   GET    search?type=&q=&country=   validators | firms | funders | organizations
 //   GET    validators/:id | firms/:id | organizations/:id   brief profiles
-//   PUT    admin/validators/:id       platform admin: accreditation (reason required)
+//   PUT    admin/validators/:id       platform admin: suspend / reinstate only (reason required)
 //   PUT    admin/credentials/:id      platform admin: verify / unverify a membership
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
@@ -53,14 +54,16 @@ const validatorSchema = z.object({
 })
 const credentialSchema = z.object({ body: z.string().trim().min(1).max(120), membershipNumber: z.string().trim().min(1).max(120) })
 const orgListingSchema = z.object({ listed: z.boolean(), summary: z.string().max(1000).optional() })
+// A platform admin can only suspend or reinstate, with a reason. Accreditation is earned
+// through the training programme (/api/training); `.strict()` rejects any attempt to send
+// 'accredited', pilot flags or an accredited_until here.
 const proposalSchema = z.object({ orgId: z.string().trim().min(1).max(200), summary: z.string().trim().min(1).max(1000) })
 const approveSchema = z.object({ summary: z.string().trim().min(1).max(1000).optional() })
 const rejectSchema = z.object({ reason: z.string().trim().max(1000).optional() })
 const accreditationSchema = z.object({
-  status: z.enum(ACCREDITATION_STATUSES).optional(),
-  pilotAccredited: z.boolean().optional(),
+  status: z.enum(ADMIN_ACCREDITATION_ACTIONS),
   reason: z.string().trim().min(1).max(1000),
-})
+}).strict()
 
 // Who may look up opted-in organisations: funding partners, and registered validators
 // (so a validator can request an engagement with an organisation that opted in).
@@ -89,10 +92,13 @@ async function validatorFirmsByEmail(emails: string[]): Promise<Map<string, Arra
   return out
 }
 
-function validatorCard(v: ValidatorProfileRow, firmList: Array<{ id: string; name: string }>) {
+type BadgeList = Array<{ key: string; name: string }>
+function validatorCard(v: ValidatorProfileRow, firmList: Array<{ id: string; name: string }>, badges: BadgeList = []) {
   return {
     id: v.id, name: v.name, competencies: v.competencies, countries: v.countries, firms: firmList,
-    accreditation: effectiveAccreditation(v), level: validatorLevel(v),
+    accreditation: effectiveAccreditation(v), level: validatorLevel(v), accreditedUntil: v.accreditedUntil,
+    // Training badges (learning and accuracy only): Ladder Climber, Evidence Hawk, Clear Conscience, Calibrated, Riverbend Solved.
+    badges: badges.map((x) => ({ key: x.key, name: x.name })),
   }
 }
 
@@ -163,7 +169,7 @@ export default async (req: Request) => {
         isFunder: memberships.some((m) => m.firm.kind === 'funding_partner'),
         canBrowseOrganizations: await mayBrowseOrganizations(caller.email, isAdmin),
         validator: validator ? {
-          ...validatorCard(validator, []), email: validator.email, bio: validator.bio, frameworks: validator.frameworks,
+          ...validatorCard(validator, [], (await badgesFor([validator.email])).get(validator.email)), email: validator.email, bio: validator.bio, frameworks: validator.frameworks,
           languages: validator.languages, accreditationReason: validator.accreditationReason,
           credentials: credentials.map((cr) => ({ id: cr.id, body: cr.body, membershipNumber: cr.membershipNumber, status: credentialLabel(cr) })),
         } : null,
@@ -303,11 +309,12 @@ export default async (req: Request) => {
       if (type === 'validators') {
         const all = await db.select().from(validatorProfiles)
         const firmMap = await validatorFirmsByEmail(all.map((v) => v.email))
-        return json(all
+        const hits = all
           .map((v) => ({ v, firmList: firmMap.get(v.email) ?? [] }))
           .filter(({ v, firmList }) => inCountry(v.countries) &&
             matchesQuery([v.name, v.bio, v.competencies, v.frameworks, v.countries, v.languages, firmList.map((f) => f.name)], q))
-          .map(({ v, firmList }) => validatorCard(v, firmList)))
+        const badgeMap = await badgesFor(hits.map(({ v }) => v.email))
+        return json(hits.map(({ v, firmList }) => validatorCard(v, firmList, badgeMap.get(v.email))))
       }
       if (type === 'firms' || type === 'funders') {
         const all = await db.select().from(firms).where(eq(firms.kind, type === 'firms' ? 'validator_firm' : 'funding_partner'))
@@ -329,9 +336,9 @@ export default async (req: Request) => {
       const creds = await db.select().from(validatorCredentials).where(eq(validatorCredentials.validatorId, v.id))
       const firmList = (await validatorFirmsByEmail([v.email])).get(v.email) ?? []
       return json({
-        ...validatorCard(v, firmList), bio: v.bio, frameworks: v.frameworks, languages: v.languages,
+        ...validatorCard(v, firmList, (await badgesFor([v.email])).get(v.email)), bio: v.bio, frameworks: v.frameworks, languages: v.languages,
         credentials: creds.map((cr) => ({ id: cr.id, body: cr.body, membershipNumber: cr.membershipNumber, status: credentialLabel(cr) })),
-        ...(isAdmin ? { accreditationStatus: v.accreditationStatus, pilotAccredited: v.pilotAccredited, accreditationReason: v.accreditationReason } : {}),
+        ...(isAdmin ? { accreditationStatus: v.accreditationStatus, accreditationReason: v.accreditationReason } : {}),
       })
     }
 
@@ -369,19 +376,19 @@ export default async (req: Request) => {
         return json({ ok: true })
       }
       const p = accreditationSchema.safeParse(await readBody())
-      if (!p.success || (p.data.status === undefined && p.data.pilotAccredited === undefined)) return bad('A change and a reason are required')
-      const set = {
-        ...(p.data.status ? { accreditationStatus: p.data.status } : {}),
-        ...(p.data.pilotAccredited !== undefined ? { pilotAccredited: p.data.pilotAccredited } : {}),
-        accreditationReason: p.data.reason, accreditationChangedBy: caller.email, accreditationChangedAt: new Date(),
-      }
-      const updated = await db.update(validatorProfiles).set(set).where(eq(validatorProfiles.id, c)).returning()
-      if (!updated.length) return notFound()
-      const change = [p.data.status && `status ${p.data.status}`, p.data.pilotAccredited !== undefined && `pilot-accredited ${p.data.pilotAccredited ? 'on' : 'off'}`].filter(Boolean).join(', ')
-      await audit(caller.email, `accreditation: ${change} (${p.data.reason})`, c, 'Accreditation')
+      if (!p.success) return bad('A status of suspended or registered (reinstate) and a reason are required; accreditation itself is earned through the training programme')
+      const [cur] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.id, c))
+      if (!cur) return notFound()
+      // Reinstating restores what the validator already earned (their accredited_until, if any);
+      // it never grants accreditation.
+      const status = p.data.status === 'suspended' ? 'suspended' : cur.accreditedUntil ? 'accredited' : 'registered'
+      const [row] = await db.update(validatorProfiles).set({
+        accreditationStatus: status, accreditationReason: p.data.reason, accreditationChangedBy: caller.email, accreditationChangedAt: new Date(),
+      }).where(eq(validatorProfiles.id, c)).returning()
+      await audit(caller.email, `accreditation: ${p.data.status === 'suspended' ? 'suspended' : 'reinstated'} (${p.data.reason})`, c, 'Accreditation')
       // A validator who is no longer accredited loses access carried by independent-validation seats.
-      await reconcileValidator(updated[0].email)
-      return json({ ok: true, accreditation: effectiveAccreditation(updated[0]) })
+      await reconcileValidator(row.email)
+      return json({ ok: true, accreditation: effectiveAccreditation(row) })
     }
 
     return req.method === 'GET' || req.method === 'PUT' || req.method === 'POST' || req.method === 'DELETE' ? notFound() : new Response('Method Not Allowed', { status: 405 })
