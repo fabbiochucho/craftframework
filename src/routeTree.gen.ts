@@ -42,6 +42,7 @@ import { Route as NarrativeReportRouteImport } from './routes/narrative-report'
 import { Route as ObligationsRouteImport } from './routes/obligations'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OpenSourceRouteImport } from './routes/open-source'
+import { Route as PanelRouteImport } from './routes/panel'
 import { Route as PreAssessmentRouteImport } from './routes/pre-assessment'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegulatoryComplianceRouteImport } from './routes/regulatory-compliance'
@@ -65,6 +66,7 @@ import { Route as EngagementsIdRouteImport } from './routes/engagements_.$id'
 import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
 import { Route as ForGovernmentRouteImport } from './routes/for.government'
 import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
+import { Route as PanelIdRouteImport } from './routes/panel_.$id'
 import { Route as TrainingAssessmentRouteImport } from './routes/training_.assessment'
 import { Route as TrainingManageRouteImport } from './routes/training_.manage'
 import { Route as ValidationVerificationIdRouteImport } from './routes/validation_.$verificationId'
@@ -267,6 +269,11 @@ const OpenSourceRoute = OpenSourceRouteImport.update({
   path: '/open-source',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PanelRoute = PanelRouteImport.update({
+  id: '/panel',
+  path: '/panel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PreAssessmentRoute = PreAssessmentRouteImport.update({
   id: '/pre-assessment',
   path: '/pre-assessment',
@@ -383,6 +390,11 @@ const ForPublicHealthInstitutesRoute =
     path: '/for/public-health-institutes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const PanelIdRoute = PanelIdRouteImport.update({
+  id: '/panel_/$id',
+  path: '/panel/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrainingAssessmentRoute = TrainingAssessmentRouteImport.update({
   id: '/training_/assessment',
   path: '/training/assessment',
@@ -628,6 +640,7 @@ export interface FileRoutesByFullPath {
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
+  '/panel': typeof PanelRoute
   '/pre-assessment': typeof PreAssessmentRoute
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
@@ -651,6 +664,7 @@ export interface FileRoutesByFullPath {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/panel/$id': typeof PanelIdRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
   '/validation/$verificationId': typeof ValidationVerificationIdRoute
@@ -722,6 +736,7 @@ export interface FileRoutesByTo {
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
+  '/panel': typeof PanelRoute
   '/pre-assessment': typeof PreAssessmentRoute
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
@@ -745,6 +760,7 @@ export interface FileRoutesByTo {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/panel/$id': typeof PanelIdRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
   '/validation/$verificationId': typeof ValidationVerificationIdRoute
@@ -817,6 +833,7 @@ export interface FileRoutesById {
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
+  '/panel': typeof PanelRoute
   '/pre-assessment': typeof PreAssessmentRoute
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
@@ -840,6 +857,7 @@ export interface FileRoutesById {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/panel_/$id': typeof PanelIdRoute
   '/training_/assessment': typeof TrainingAssessmentRoute
   '/training_/manage': typeof TrainingManageRoute
   '/validation_/$verificationId': typeof ValidationVerificationIdRoute
@@ -913,6 +931,7 @@ export interface FileRouteTypes {
     | '/obligations'
     | '/onboarding'
     | '/open-source'
+    | '/panel'
     | '/pre-assessment'
     | '/privacy'
     | '/regulatory-compliance'
@@ -936,6 +955,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/panel/$id'
     | '/training/assessment'
     | '/training/manage'
     | '/validation/$verificationId'
@@ -1007,6 +1027,7 @@ export interface FileRouteTypes {
     | '/obligations'
     | '/onboarding'
     | '/open-source'
+    | '/panel'
     | '/pre-assessment'
     | '/privacy'
     | '/regulatory-compliance'
@@ -1030,6 +1051,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/panel/$id'
     | '/training/assessment'
     | '/training/manage'
     | '/validation/$verificationId'
@@ -1101,6 +1123,7 @@ export interface FileRouteTypes {
     | '/obligations'
     | '/onboarding'
     | '/open-source'
+    | '/panel'
     | '/pre-assessment'
     | '/privacy'
     | '/regulatory-compliance'
@@ -1124,6 +1147,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/panel_/$id'
     | '/training_/assessment'
     | '/training_/manage'
     | '/validation_/$verificationId'
@@ -1196,6 +1220,7 @@ export interface RootRouteChildren {
   ObligationsRoute: typeof ObligationsRoute
   OnboardingRoute: typeof OnboardingRoute
   OpenSourceRoute: typeof OpenSourceRoute
+  PanelRoute: typeof PanelRoute
   PreAssessmentRoute: typeof PreAssessmentRoute
   PrivacyRoute: typeof PrivacyRoute
   RegulatoryComplianceRoute: typeof RegulatoryComplianceRoute
@@ -1218,6 +1243,7 @@ export interface RootRouteChildren {
   ForEsgReportingRoute: typeof ForEsgReportingRoute
   ForGovernmentRoute: typeof ForGovernmentRoute
   ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
+  PanelIdRoute: typeof PanelIdRoute
   TrainingAssessmentRoute: typeof TrainingAssessmentRoute
   TrainingManageRoute: typeof TrainingManageRoute
   ValidationVerificationIdRoute: typeof ValidationVerificationIdRoute
@@ -1488,6 +1514,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OpenSourceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/panel': {
+      id: '/panel'
+      path: '/panel'
+      fullPath: '/panel'
+      preLoaderRoute: typeof PanelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pre-assessment': {
       id: '/pre-assessment'
       path: '/pre-assessment'
@@ -1647,6 +1680,13 @@ declare module '@tanstack/react-router' {
       path: '/for/public-health-institutes'
       fullPath: '/for/public-health-institutes'
       preLoaderRoute: typeof ForPublicHealthInstitutesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/panel_/$id': {
+      id: '/panel_/$id'
+      path: '/panel/$id'
+      fullPath: '/panel/$id'
+      preLoaderRoute: typeof PanelIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/training_/assessment': {
@@ -1962,6 +2002,7 @@ const rootRouteChildren: RootRouteChildren = {
   ObligationsRoute: ObligationsRoute,
   OnboardingRoute: OnboardingRoute,
   OpenSourceRoute: OpenSourceRoute,
+  PanelRoute: PanelRoute,
   PreAssessmentRoute: PreAssessmentRoute,
   PrivacyRoute: PrivacyRoute,
   RegulatoryComplianceRoute: RegulatoryComplianceRoute,
@@ -1984,6 +2025,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForEsgReportingRoute: ForEsgReportingRoute,
   ForGovernmentRoute: ForGovernmentRoute,
   ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,
+  PanelIdRoute: PanelIdRoute,
   TrainingAssessmentRoute: TrainingAssessmentRoute,
   TrainingManageRoute: TrainingManageRoute,
   ValidationVerificationIdRoute: ValidationVerificationIdRoute,
