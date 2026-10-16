@@ -1,10 +1,10 @@
-import { Scale, ShieldAlert, FileText, AlertTriangle, Ban, Globe, KeyRound, Lock } from 'lucide-react'
+import { Scale, ShieldAlert, ShieldCheck, FileText, AlertTriangle, Ban, Globe, KeyRound, Lock } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { Reveal } from '../components/ui'
 import { BRAND } from '../lib/data'
 
 // Last substantive revision of these terms. Update when the text changes.
-const EFFECTIVE_DATE = '15 October 2026'
+const EFFECTIVE_DATE = '16 October 2026'
 
 interface Clause {
   icon: typeof Scale
@@ -36,7 +36,8 @@ const CLAUSES: Clause[] = [
         provide. The Service is an informational and diagnostic aid only. It is{' '}
         <strong>not</strong> an accreditation, certification, audit, legal, financial, or professional
         advisory service, and it does not guarantee eligibility for, or access to, any funding, grant,
-        partnership, or program.
+        partnership, or program. Where an accredited third-party validator reviews an organisation’s
+        self-assessment, that opinion is the validator’s own; see clause 10.
       </>
     ),
   },
@@ -141,8 +142,37 @@ const CLAUSES: Clause[] = [
     ),
   },
   {
+    icon: ShieldCheck,
+    title: '10. Independent Validation, Directory & Feedback',
+    body: (
+      <>
+        <p>
+          An organisation may ask an accredited third-party validator to review its self-assessment. The validator,
+          not the {BRAND.institute}, forms and signs the opinion; the Service records it, freezes it, and publishes a
+          verification page that shows its status. A validation is valid only while that page shows it as current: it
+          can be suspended after a material event, expire, or be withdrawn if new evidence shows it was wrong.
+          A funding partner’s own review is labelled a funder review and is never called independent.
+        </p>
+        <p className="mt-3">
+          Validators must sign an independence declaration for every engagement, must be currently accredited to
+          issue an independent validation, and may see an organisation’s evidence only for the named team, for the
+          time-limited, read-only access that organisation approved. Organisations agree to report material events
+          within the deadlines shown on their validation; failing to report is grounds for withdrawal.
+        </p>
+        <p className="mt-3">
+          Directory profiles are opt-in. After a validation is finished, its organisation (and, where one engaged the
+          validator, the funding partner) may rate the validator once, from 1 to 5 stars with an optional comment. Do
+          not put personal data, accusations about named people or anything you cannot support in a comment. The
+          validator may reply publicly, and the CRAFT programme team may remove feedback that is false, abusive or
+          exposes personal data, recording the reason. Anyone may report a concern from a verification page.
+          The Service is not responsible for the content of a validator’s opinion or of feedback.
+        </p>
+      </>
+    ),
+  },
+  {
     icon: FileText,
-    title: '10. Changes & Governing Terms',
+    title: '11. Changes & Governing Terms',
     body: (
       <>
         The {BRAND.institute} may revise these terms at any time by updating this page; continued use of

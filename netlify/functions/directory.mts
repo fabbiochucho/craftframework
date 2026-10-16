@@ -14,6 +14,7 @@ import { logger } from '../lib/logger.js'
 import { badgesFor } from '../lib/training.js'
 import { reconcileValidator } from '../lib/engagement-access.js'
 import { currentRung } from '../../src/lib/capitalReadiness.js'
+import { allValidatorStats, firmRatingSummary, ratingsFor } from '../lib/validator-quality.js'
 import {
   ADMIN_ACCREDITATION_ACTIONS, cleanList, credentialLabel, effectiveAccreditation, matchesQuery, validatorLevel,
 } from '../../src/lib/validatorDirectory.js'
@@ -338,6 +339,8 @@ export default async (req: Request) => {
       return json({
         ...validatorCard(v, firmList, (await badgesFor([v.email])).get(v.email)), bio: v.bio, frameworks: v.frameworks, languages: v.languages,
         credentials: creds.map((cr) => ({ id: cr.id, body: cr.body, membershipNumber: cr.membershipNumber, status: credentialLabel(cr) })),
+        // Trust and quality (PR 7): published feedback with the validator's replies, and how many validations they finished.
+        quality: { reviews: (await allValidatorStats()).get(v.email)?.reviews ?? 0, ...(await ratingsFor(v.email, { includeRemoved: isAdmin })) },
         ...(isAdmin ? { accreditationStatus: v.accreditationStatus, accreditationReason: v.accreditationReason } : {}),
       })
     }
@@ -353,7 +356,7 @@ export default async (req: Request) => {
         ? (await db.select({ id: validatorProfiles.id, name: validatorProfiles.name }).from(validatorProfiles)
           .where(inArray(validatorProfiles.email, members.map((m) => m.email))))
         : []
-      return json({ ...firmCard(f, members.length), team })
+      return json({ ...firmCard(f, members.length), team, ...(f.kind === 'validator_firm' ? { rating: await firmRatingSummary(f.id) } : {}) })
     }
 
     if (req.method === 'GET' && a === 'organizations' && b && !c) {

@@ -929,6 +929,43 @@ export type ValidatorCredentialRow = typeof validatorCredentials.$inferSelect
 export type ValidationEngagementRow = typeof validationEngagements.$inferSelect
 export type ValidationReviewRow = typeof validationReviews.$inferSelect
 export type ValidationRow = typeof validations.$inferSelect
+// --- validation_ratings -------------------------------------------------------
+// Validator system PR 7. Feedback on the lead validator from a party to a finalised independent
+// validation (the organisation, the engaging funding partner): once per party per engagement.
+// The validator may reply publicly; a removal (false or abusive feedback) keeps the row and the reason.
+export const validationRatings = pgTable(
+  'validation_ratings',
+  {
+    id: text('id').primaryKey(),
+    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    validationId: text('validation_id').references(() => validations.id, { onDelete: 'set null' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    // 'organisation' | 'funder'
+    party: text('party').notNull(),
+    raterEmail: text('rater_email').notNull(),
+    validatorEmail: text('validator_email').notNull(),
+    validatorFirmId: text('validator_firm_id').references(() => firms.id, { onDelete: 'set null' }),
+    stars: integer('stars').notNull(),
+    comment: text('comment').notNull().default(''),
+    reply: text('reply').notNull().default(''),
+    replyBy: text('reply_by'),
+    replyAt: timestamp('reply_at', { withTimezone: true }),
+    // 'published' | 'removed'
+    status: text('status').notNull().default('published'),
+    removedBy: text('removed_by'),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    removalGround: text('removal_ground'),
+    removalReason: text('removal_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('validation_ratings_one_per_party').on(t.engagementId, t.party),
+    index('validation_ratings_validator_idx').on(t.validatorEmail),
+    index('validation_ratings_firm_idx').on(t.validatorFirmId),
+  ],
+)
+
 export type CipActionRow = typeof validationCipActions.$inferSelect
 export type CheckpointRow = typeof validationCheckpoints.$inferSelect
 export type ValidationEventRow = typeof validationEvents.$inferSelect
@@ -1750,3 +1787,4 @@ export const trainingDeclarations = pgTable('training_declarations', {
   clients: text('clients').notNull().default(''),
   signedAt: timestamp('signed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('training_declarations_email_idx').on(t.email)])
+export type RatingRow = typeof validationRatings.$inferSelect

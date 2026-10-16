@@ -45,10 +45,11 @@ for (const name of [
 const publicValidation = (await import(new URL('../../netlify/functions/public-validation.mts', import.meta.url).href)).default
 const validationsHandler = (await import(new URL('../../netlify/functions/validations.mts', import.meta.url).href)).default
 const directoryHandler = (await import(new URL('../../netlify/functions/directory.mts', import.meta.url).href)).default
+const qualityHandler = (await import(new URL('../../netlify/functions/validator-quality.mts', import.meta.url).href)).default
 
 // Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
 // browser test can open the public verification page of a validation that exists. Returns its ID.
-async function seedValidation(opts: { orgEmail?: string; qualify?: boolean } = {}): Promise<{ verificationId: string; funderEmail: string }> {
+async function seedValidation(opts: { orgEmail?: string; qualify?: boolean } = {}): Promise<{ verificationId: string; funderEmail: string; validatorEmail: string }> {
   const load = async (n: string) => (await import(new URL(`../../netlify/functions/${n}.mts`, import.meta.url).href)).default
   const [directory, engagements, reviews, firms] = await Promise.all([load('directory'), load('engagements'), load('validation-reviews'), load('firms')])
   const call = async (email: string, h: (r: Request) => Promise<Response>, method: string, path: string, body?: unknown) => {
@@ -80,7 +81,7 @@ async function seedValidation(opts: { orgEmail?: string; qualify?: boolean } = {
   }
   if (opts.qualify) await call(VAL, reviews, 'POST', `validation-reviews/${id}/qualifications`, { text: 'Board minutes are incomplete', indicatorIds: [FRAMEWORKS['capital-readiness'].indicators[1].id] })
   await call(VAL, reviews, 'POST', `validation-reviews/${id}/finalise`, { outcome: opts.qualify ? 'validated_with_qualifications' : 'validated' })
-  return { verificationId: (await rows('SELECT verification_id FROM validations ORDER BY created_at DESC'))[0].verification_id, funderEmail: FUNDER }
+  return { verificationId: (await rows('SELECT verification_id FROM validations ORDER BY created_at DESC'))[0].verification_id, funderEmail: FUNDER, validatorEmail: VAL }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -114,7 +115,8 @@ const server = http.createServer(async (req, res) => {
     const routeHandler = url.pathname.startsWith('/api/public/validation/') ? publicValidation
       : url.pathname === '/api/validations' || url.pathname.startsWith('/api/validations/') ? validationsHandler
         : url.pathname === '/api/directory' || url.pathname.startsWith('/api/directory/') ? directoryHandler
-          : (legacyHandlers.get(url.pathname) ?? handler)
+          : url.pathname === '/api/validator-quality' || url.pathname.startsWith('/api/validator-quality/') ? qualityHandler
+            : (legacyHandlers.get(url.pathname) ?? handler)
     const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => routeHandler(request))
     const out: Record<string, string> = {}
     response.headers.forEach((v, k) => { out[k] = v })
