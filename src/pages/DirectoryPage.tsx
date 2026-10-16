@@ -14,6 +14,7 @@ type Me = {
   email: string
   isAdmin: boolean
   isFunder: boolean
+  canBrowseOrganizations: boolean
   validator: null | {
     id: string; name: string; bio: string; competencies: string[]; frameworks: string[]; countries: string[]; languages: string[]
     accreditation: string; level: string; credentials: Array<{ id: string; body: string; membershipNumber: string; status: string }>
@@ -106,7 +107,7 @@ function SearchPanel({ me }: { me: Me }) {
   useEffect(() => { void run() }, [type])
   const types = [
     { value: 'validators', label: 'Validators' }, { value: 'firms', label: 'Validator firms' }, { value: 'funders', label: 'Funding partners' },
-    ...(me.isFunder || me.isAdmin ? [{ value: 'organizations', label: 'Organisations (opted in)' }] : []),
+    ...(me.canBrowseOrganizations ? [{ value: 'organizations', label: 'Organisations (opted in)' }] : []),
   ]
   const kindFor = (t: string): Kind => (t === 'validators' ? 'validators' : t === 'organizations' ? 'organizations' : 'firms')
   return (
@@ -324,6 +325,7 @@ export function DirectoryProfilePage({ kind, id }: { kind: string; id: string })
   return (
     <div className="space-y-6">
       <Link to="/directory" className="text-sm text-emerald-700 hover:underline">← Directory</Link>
+      <a href={`/engagements?${new URLSearchParams(kind === 'validators' ? { validatorId: id } : kind === 'organizations' ? { organizationProfileId: id } : { [p?.kind === 'funding_partner' ? 'funderFirmId' : 'validatorFirmId']: id })}`} className="ml-4 text-sm font-semibold text-emerald-700 hover:underline">Start an engagement</a>
       <Card>
         <CardHeader>
           <h1 className="font-display text-2xl font-bold text-emerald-900">{p.name}</h1>

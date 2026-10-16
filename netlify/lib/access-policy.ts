@@ -1,6 +1,8 @@
 export const SPECIALIZED_READONLY_ROLES = new Set([
   'cbn_examiner', 'frcn_auditor', 'sec_analyst', 'sharia_board_member',
   'rating_agency_analyst', 'eu_csd_assessor',
+  // Validator system: one time-limited grant per named engagement team member.
+  'craft_validator',
 ])
 
 export function grantAllows(

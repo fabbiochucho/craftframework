@@ -13,7 +13,7 @@ import { ComplianceDeadlineBadge } from './ComplianceDeadlineBadge'
 import { MfaPrompt } from '../pages/workspace/shared'
 import { useOfflineSecurity } from '../hooks/use-offline-security'
 import { BRAND, getAccreditation, computeOrgScore } from '../lib/data'
-import {
+import { Handshake,
   LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
@@ -65,6 +65,7 @@ const orgNav = [
   { to: '/settings', label: 'Settings & Team', icon: Settings },
   { to: '/app/org/members', label: 'Org Members & RBAC', icon: Users },
   { to: '/directory', label: 'Validator Directory', icon: Contact },
+  { to: '/engagements', label: 'Validation Engagements', icon: Handshake },
   { to: '/audit-log', label: 'Audit Log', icon: ScrollText },
   { to: '/help', label: 'Help & Glossary', icon: HelpCircle },
   { to: '/guide', label: 'User Guide', icon: BookOpen },
