@@ -45,6 +45,7 @@ for (const name of [
 const publicValidation = (await import(new URL('../../netlify/functions/public-validation.mts', import.meta.url).href)).default
 const validationsHandler = (await import(new URL('../../netlify/functions/validations.mts', import.meta.url).href)).default
 const directoryHandler = (await import(new URL('../../netlify/functions/directory.mts', import.meta.url).href)).default
+const panelHandler = (await import(new URL('../../netlify/functions/review-panel.mts', import.meta.url).href)).default
 const qualityHandler = (await import(new URL('../../netlify/functions/validator-quality.mts', import.meta.url).href)).default
 
 // Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
@@ -97,6 +98,21 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(seeded))
       return
     }
+    if (url.pathname === '/__test/seed-panel' && req.method === 'POST') {
+      // A convenor from the programme team and two accredited reviewers on the volunteer roster.
+      const load = async (n: string) => (await import(new URL(`../../netlify/functions/${n}.mts`, import.meta.url).href)).default
+      const directory = await load('directory')
+      for (const [email, name] of [['e2e-reviewer1@panel.example', 'Rita Reviewer'], ['e2e-reviewer2@panel.example', 'Ravi Reviewer']]) {
+        await als.run({ id: `e2e-${email}`, email, name: email }, () => directory(new Request(`${WEB_ORIGIN}/api/directory/me/validator`, {
+          method: 'PUT', headers: { 'content-type': 'application/json', origin: WEB_ORIGIN }, body: JSON.stringify({ name }),
+        })))
+        await rows(`UPDATE validator_profiles SET accreditation_status='accredited', accredited_until = now() + interval '1 year' WHERE email=$1`, [email])
+        await rows(`INSERT INTO panel_roster(email, name, kind, added_by) VALUES($1,$2,'senior_validator','e2e') ON CONFLICT (email) DO NOTHING`, [email, name])
+      }
+      await rows(`INSERT INTO training_staff(email, role, added_by) VALUES('e2e-convenor@craft.example','programme_team','e2e') ON CONFLICT (email) DO NOTHING`)
+      res.writeHead(204).end()
+      return
+    }
     if (url.pathname === '/__test/ready') {
       res.writeHead(200).end('ok')
       return
@@ -115,6 +131,7 @@ const server = http.createServer(async (req, res) => {
     const routeHandler = url.pathname.startsWith('/api/public/validation/') ? publicValidation
       : url.pathname === '/api/validations' || url.pathname.startsWith('/api/validations/') ? validationsHandler
         : url.pathname === '/api/directory' || url.pathname.startsWith('/api/directory/') ? directoryHandler
+          : url.pathname === '/api/review-panel' || url.pathname.startsWith('/api/review-panel/') ? panelHandler
           : url.pathname === '/api/validator-quality' || url.pathname.startsWith('/api/validator-quality/') ? qualityHandler
             : (legacyHandlers.get(url.pathname) ?? handler)
     const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => routeHandler(request))

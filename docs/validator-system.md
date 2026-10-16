@@ -34,7 +34,8 @@ A funding partner cannot create an independent validation (API and database both
    can never extend validity. With the organisation's consent a funding partner sees counts and dates only.
 6. **Public verification** (`/api/public/validation/:id`, page `/validation/:id`): found only by its random
    `CRAFT-V-XXXXXXXX` ID or the QR on the statement PDF. No scores, evidence, comments or contact details.
-7. **Trust and quality** (`/api/validator-quality`, this PR): ratings, statistics, re-review flags.
+7. **Trust and quality** (`/api/validator-quality`): ratings, statistics, re-review flags.
+8. **Independent Review Panel** (`/api/review-panel`, page `/panel`): disputes and complaints.
 
 ## Statuses
 
@@ -50,8 +51,9 @@ observes them. Only `current` and `follow_up_overdue` count as a confirmed rung 
   Funder reviews have no validator and cannot be rated.
 - A rating is stored against the lead validator and firm as they were at finalisation.
 - The validator may reply publicly (not after a removal).
-- The platform admin (standing in for the Independent Review Panel until panel cases land) can remove false,
-  abusive or personal-data feedback with a ground and a written reason, and can restore it. The row, the
+- The Independent Review Panel decides complaints about feedback (below). The platform admin can still remove
+  clearly false, abusive or personal-data feedback with a ground and a written reason, and can restore it — kept
+  as an emergency route for personal data. The row, the
   ground, the reason and who acted are kept and audit-logged; a database CHECK refuses a removal without them.
 - Shown on the validator's directory profile as party and country only — never names or emails.
 
@@ -73,6 +75,44 @@ progress). Withdrawn and superseded validations are not flagged.
 
 `GET /api/validator-quality/stats` (admin) lists per-validator counts, approval rate, mean gap, mean rung
 difference, withdrawals, public concerns and average rating.
+
+## Independent Review Panel
+
+Disputes and complaints only (code: `src/lib/reviewPanel.ts` pure rules, `netlify/lib/review-panel.ts` conflict
+check and decision effects, `netlify/functions/review-panel.mts`).
+
+**Cases**: a dispute about a validation's result, a complaint about a validator, a contested material event or
+suspension, a challenge to a re-review outcome, or a complaint about feedback. Raised by a party (the
+organisation, the validator, or a funder the organisation lets follow the validation — not for events or
+re-reviews), or escalated by the programme team from a concern reported on a public page. A person may have at
+most three open cases.
+
+**Panel**: a new panel per case. The programme team (platform admins may compose a panel but never sit or vote)
+invites a **convenor** (a `programme_team` member, never a platform admin) and **two reviewers** from the
+volunteer **roster** (Senior Validators who are currently accredited, or an outside chartered accountant/auditor).
+The server refuses anyone with a conflict, at invitation **and again at acceptance**: a party to the case; in the
+same firm as the validator (or funder) concerned; named on an engagement with the organisation, or with the validator
+concerned, or holding an access grant to the organisation, within the last 3 years; (for an appeal) anyone who sat
+on an earlier panel in the chain. Each member signs a no-conflict declaration to accept. The panel is seated when
+all three have accepted; that starts the clock.
+
+**Process**: 14 days of written responses with evidence references from both sides; the convenor opens voting
+(early if both sides have responded); each member votes with reasons; a decision needs **2 of 3 identical votes**;
+the convenor records it with written reasons (target: 30 days from seating; late decisions are flagged, not blocked).
+Members read the frozen review once seated; parties see responses, the panel's names and the decision, never votes.
+
+**Outcomes** (a combination of): validation — none, stands (reinstated if suspended), amended, suspended, withdrawn;
+validator — none, warned, must retrain (accreditation lapses until renewed), suspended, removed; feedback — keep or
+remove with a ground. "Dismissed" means nothing is acted on. A decision is **applied in the same transaction**:
+status and status history (actor `panel:<case>`), a contested material event is closed, the validator's
+accreditation is changed (and their engagement access reconciled), feedback is removed or restored. **Amended**
+never rewrites the frozen review: it records the amendment, and a corrected validation must be issued.
+
+**Appeal**: one, by either side, within 14 days, to a fresh panel with none of the same members; an appeal's
+decision is final and overrides the first (e.g. a reinstated validation).
+
+Tables: `panel_roster`, `panel_cases`, `panel_members`, `panel_submissions`. Database CHECKs refuse a decided case
+without reasons, a seated case without its clock, and an accepted seat without a declaration.
 
 ## DevMapper summary
 
@@ -103,10 +143,10 @@ status moves, sends overdue debrief notices and sweeps expired engagements.
 ## Migrations
 
 All validator-system migrations are additive and live in `netlify/database/migrations/` (profiles, listing
-proposals, engagements, training, review, lifecycle, public, CIP follow-ups, ratings). Netlify applies them on
+proposals, engagements, training, review, lifecycle, public, CIP follow-ups, ratings, review panel). Netlify applies them on
 deploy. `validation_follow_ups` is kept but unused (checkpoints replaced it).
 
 ## Testing
 
 `npm run typecheck`, `npm test` (pure rules), `npm run test:integration` (needs `TEST_DATABASE_URL` — a database
-whose name contains "test"), `npx playwright test` (engagement → public verification, CIP, ratings).
+whose name contains "test"), `npx playwright test` (engagement → public verification, CIP, ratings, review panel).

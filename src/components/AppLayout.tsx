@@ -68,6 +68,7 @@ const orgNav = [
   { to: '/training', label: 'Validator Training', icon: GraduationCap },
   { to: '/engagements', label: 'Validation Engagements', icon: Handshake },
   { to: '/validations', label: 'Validations', icon: ShieldCheck },
+  { to: '/panel', label: 'Review Panel', icon: Scale },
   { to: '/audit-log', label: 'Audit Log', icon: ScrollText },
   { to: '/help', label: 'Help & Glossary', icon: HelpCircle },
   { to: '/guide', label: 'User Guide', icon: BookOpen },

@@ -966,6 +966,97 @@ export const validationRatings = pgTable(
   ],
 )
 
+// --- Independent Review Panel (validator system PR 7b) ---------------------------------------------------------
+// Disputes and complaints only. A new panel per case: one convenor and two reviewers from a volunteer roster.
+export const panelRoster = pgTable('panel_roster', {
+  email: text('email').primaryKey(),
+  name: text('name').notNull(),
+  // 'senior_validator' | 'external_auditor'
+  kind: text('kind').notNull(),
+  note: text('note').notNull().default(''),
+  active: boolean('active').notNull().default(true),
+  addedBy: text('added_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const panelCases = pgTable(
+  'panel_cases',
+  {
+    id: text('id').primaryKey(),
+    // 'validation_dispute' | 'validator_complaint' | 'contested_event' | 're_review_challenge' | 'feedback_complaint'
+    kind: text('kind').notNull(),
+    // 'open' | 'responses' | 'deliberating' | 'decided'
+    status: text('status').notNull().default('open'),
+    raisedBy: text('raised_by').notNull(),
+    // 'organisation' | 'funder' | 'validator' | 'programme'
+    raisedSide: text('raised_side').notNull(),
+    summary: text('summary').notNull(),
+    validationId: text('validation_id').references(() => validations.id, { onDelete: 'set null' }),
+    engagementId: text('engagement_id').references(() => validationEngagements.id, { onDelete: 'set null' }),
+    orgId: text('org_id').references(() => organizations.id, { onDelete: 'set null' }),
+    ratingId: text('rating_id').references(() => validationRatings.id, { onDelete: 'set null' }),
+    eventId: text('event_id').references(() => validationEvents.id, { onDelete: 'set null' }),
+    concernId: text('concern_id').references(() => validationConcerns.id, { onDelete: 'set null' }),
+    subjectValidatorEmail: text('subject_validator_email'),
+    appealOf: text('appeal_of'),
+    appealReason: text('appeal_reason'),
+    convenedAt: timestamp('convened_at', { withTimezone: true }),
+    respondBy: date('respond_by', { mode: 'string' }),
+    decideBy: date('decide_by', { mode: 'string' }),
+    decision: jsonb('decision').$type<{ validation: string; validator: string; feedback: string; feedbackGround?: string }>(),
+    decisionReasons: text('decision_reasons'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decidedBy: text('decided_by'),
+    decidedLate: boolean('decided_late').notNull().default(false),
+    appealBy: date('appeal_by', { mode: 'string' }),
+    effects: jsonb('effects').$type<string[]>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('panel_cases_validation_idx').on(t.validationId),
+    index('panel_cases_status_idx').on(t.status),
+    uniqueIndex('panel_cases_one_appeal').on(t.appealOf).where(sql`${t.appealOf} IS NOT NULL`),
+  ],
+)
+
+export const panelMembers = pgTable(
+  'panel_members',
+  {
+    id: text('id').primaryKey(),
+    caseId: text('case_id').notNull().references(() => panelCases.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    // 'convenor' | 'reviewer'
+    role: text('role').notNull(),
+    // 'invited' | 'accepted' | 'declined'
+    status: text('status').notNull().default('invited'),
+    declaration: text('declaration'),
+    declinedReason: text('declined_reason'),
+    respondedAt: timestamp('responded_at', { withTimezone: true }),
+    vote: jsonb('vote').$type<{ validation: string; validator: string; feedback: string; feedbackGround?: string }>(),
+    voteReasons: text('vote_reasons'),
+    votedAt: timestamp('voted_at', { withTimezone: true }),
+    addedBy: text('added_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('panel_members_case_email_unique').on(t.caseId, t.email), index('panel_members_email_idx').on(t.email)],
+)
+
+export const panelSubmissions = pgTable(
+  'panel_submissions',
+  {
+    id: text('id').primaryKey(),
+    caseId: text('case_id').notNull().references(() => panelCases.id, { onDelete: 'cascade' }),
+    // 'organisation' | 'validator' | 'funder' | 'other'
+    side: text('side').notNull(),
+    author: text('author').notNull(),
+    text: text('text').notNull(),
+    evidenceRef: text('evidence_ref').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('panel_submissions_case_idx').on(t.caseId)],
+)
+
 export type CipActionRow = typeof validationCipActions.$inferSelect
 export type CheckpointRow = typeof validationCheckpoints.$inferSelect
 export type ValidationEventRow = typeof validationEvents.$inferSelect
@@ -1788,3 +1879,5 @@ export const trainingDeclarations = pgTable('training_declarations', {
   signedAt: timestamp('signed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('training_declarations_email_idx').on(t.email)])
 export type RatingRow = typeof validationRatings.$inferSelect
+export type PanelCaseRow = typeof panelCases.$inferSelect
+export type PanelMemberRow = typeof panelMembers.$inferSelect
