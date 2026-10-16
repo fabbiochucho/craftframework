@@ -146,4 +146,83 @@ describe('validator directory', () => {
     assert.deepEqual(vals.body.map((v: any) => v.name), ['Valerie Okafor'])
     assert.ok(!vals.text.includes(VAL))
   })
+
+  describe('organisation listing proposals', () => {
+    const CONSULT = 'consult@advisors.example'
+    const insertGrant = (grantee: string, orgId: string, extra = "'read', NULL, NULL, 'active'") =>
+      rows(`INSERT INTO access_grants(id,org_id,grantee,level,role,expires_at,status) VALUES('g_${grantee}_${orgId}','${orgId}','${grantee}',${extra})`)
+    const searchable = async () => (await call(FUND, 'GET', 'directory/search?type=organizations')).body.map((o: any) => o.name)
+
+    it('a consultant without a grant cannot propose', async () => {
+      await makeFunder()
+      const res = await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'Smallholder co-op' })
+      assert.equal(res.status, 403)
+      // A grant to a different organisation does not help, nor does a pending or revoked one.
+      await insertGrant(CONSULT, 'org_b')
+      assert.equal((await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'x' })).status, 403)
+      await insertGrant(CONSULT, 'org_a', "'read', NULL, NULL, 'revoked'")
+      assert.equal((await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'x' })).status, 403)
+      assert.equal((await rows('SELECT 1 FROM org_listing_proposals')).length, 0)
+    })
+
+    it('a proposal does not go live until the organisation approves, and one is pending at a time', async () => {
+      await makeFunder()
+      await insertGrant(CONSULT, 'org_a')
+      const res = await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'Draft by consultant' })
+      assert.equal(res.status, 201, res.text)
+      assert.deepEqual(await searchable(), [], 'proposed, so not searchable')
+      assert.equal((await rows('SELECT 1 FROM org_directory_profiles WHERE listed')).length, 0)
+      assert.equal((await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'Second' })).status, 409)
+
+      // The consultant cannot approve their own proposal; nor can other organisations' staff.
+      const id = res.body.id
+      assert.equal((await call(CONSULT, 'POST', `directory/proposals/${id}/approve`, {})).status, 403)
+      assert.equal((await call(BOB, 'POST', `directory/proposals/${id}/approve`, {})).status, 404)
+      assert.equal((await call(BOB, 'POST', `directory/proposals/${id}/reject`, {})).status, 404)
+      assert.deepEqual(await searchable(), [])
+
+      // The organisation sees it on its profile and approves, editing the summary.
+      const mine = await call(ALICE, 'GET', 'directory/me')
+      assert.equal(mine.body.proposals.length, 1)
+      assert.equal((await call(BOB, 'GET', 'directory/me')).body.proposals.length, 0)
+      assert.equal((await call(ALICE, 'POST', `directory/proposals/${id}/approve`, { summary: 'Edited by Acme' })).status, 200)
+      assert.deepEqual(await searchable(), ['Acme Cooperative'])
+      assert.equal((await rows('SELECT summary FROM org_directory_profiles'))[0].summary, 'Edited by Acme')
+      assert.equal((await call(ALICE, 'POST', `directory/proposals/${id}/approve`, {})).status, 409, 'already decided')
+      // A new proposal is possible once the first is decided.
+      assert.equal((await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'Again' })).status, 201)
+      const log = await rows("SELECT actor, action, org_id FROM audit_logs WHERE category='Directory' AND action ~ 'listing' ORDER BY id")
+      assert.deepEqual(log.map((l: any) => l.actor), [CONSULT, ALICE, CONSULT])
+      assert.match(log[0].action, /proposed/)
+      assert.match(log[1].action, /approved/)
+      assert.ok(log.every((l: any) => l.org_id === 'org_a'))
+    })
+
+    it('a rejected proposal never lists the organisation', async () => {
+      await makeFunder()
+      await insertGrant(CONSULT, 'org_a')
+      const { body } = await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'Draft' })
+      assert.equal((await call(ALICE, 'POST', `directory/proposals/${body.id}/reject`, { reason: 'Not ready' })).status, 200)
+      assert.deepEqual(await searchable(), [])
+      assert.equal((await rows('SELECT 1 FROM org_directory_profiles WHERE listed')).length, 0)
+      assert.equal((await call(ALICE, 'POST', `directory/proposals/${body.id}/approve`, {})).status, 409, 'a rejected proposal cannot be approved later')
+      assert.deepEqual(await searchable(), [])
+      const outgoing = await call(CONSULT, 'GET', 'directory/proposals')
+      assert.deepEqual(outgoing.body.map((p: any) => [p.status, p.reason]), [['rejected', 'Not ready']])
+      assert.equal((await call(ALICE, 'GET', 'directory/me')).body.proposals.length, 0)
+      const log = await rows("SELECT action FROM audit_logs WHERE action ~ 'rejected'")
+      assert.match(log[0].action, /Not ready/)
+    })
+
+    it('a time-limited specialised grant and the org itself cannot propose; the proposer can withdraw', async () => {
+      await insertGrant('validator@v.example', 'org_a', "'read', 'frcn_auditor', now() + interval '30 days', 'active'")
+      assert.equal((await call('validator@v.example', 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'x' })).status, 403)
+      assert.equal((await call(ALICE, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'x' })).status, 400, 'own staff list directly')
+      await insertGrant(CONSULT, 'org_a')
+      const { body } = await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'x' })
+      assert.equal((await call(ALICE, 'DELETE', `directory/proposals/${body.id}`)).status, 403, 'only the proposer withdraws')
+      assert.equal((await call(CONSULT, 'DELETE', `directory/proposals/${body.id}`)).status, 200)
+      assert.equal((await call(CONSULT, 'POST', 'directory/proposals', { orgId: 'org_a', summary: 'y' })).status, 201)
+    })
+  })
 })
