@@ -674,6 +674,24 @@ export const validationQualifications = pgTable(
   (t) => [index('validation_qualifications_review_idx').on(t.reviewId)],
 )
 
+// Review follow-ups: the organisation's existing evidence (registry items) linked to ladder indicators of an
+// engagement. A reference only; the file stays in the evidence store and is never copied.
+export const validationEvidenceLinks = pgTable(
+  'validation_evidence_links',
+  {
+    id: text('id').primaryKey(),
+    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    indicatorId: text('indicator_id').notNull(),
+    evidenceId: integer('evidence_id').notNull().references(() => evidenceRegistry.id, { onDelete: 'cascade' }),
+    documentName: text('document_name').notNull(),
+    documentType: text('document_type').notNull().default('evidence'),
+    sha256: text('sha256'),
+    linkedBy: text('linked_by').notNull(),
+    linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('validation_evidence_links_uq').on(t.engagementId, t.indicatorId, t.evidenceId), index('validation_evidence_links_engagement_idx').on(t.engagementId)],
+)
+
 // --- validations (lifecycle) --------------------------------------------------
 // Validator system PR 5. The issued validation that a finalised review produces:
 // its validity, follow-up schedule and stored status decisions. 'Follow-up

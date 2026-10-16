@@ -11,7 +11,7 @@ type View = {
   verificationId: string; status: string; statusLabel: string; lastChangedAt: string
   organization: { name: string; country: string; registrationNumber: string | null }
   framework: { name: string; version: string }; scope: string; label: string; statement: string
-  outcome: string; outcomeLabel: string; validatedRung: number; rungName: string
+  outcome: string; outcomeLabel: string; validatedRung: number; rungName: string; confirmedLevels: Array<{ level: number; name: string; achieved: boolean }> | null
   validators: Array<{ name: string; role: string; accreditation: string; credentials: Array<{ body: string; number: string; status: string }> }>
   firm: string | null; validatorType: string; engagedBy: string
   independence: { statement: string; declarations: Array<{ name: string; version: string; signedAt: string }>; disclosure: string }
@@ -68,7 +68,7 @@ export function PublicValidationPage({ verificationId }: { verificationId: strin
         <CardContent className="space-y-1 text-sm text-slate-700">
           <p className="text-base font-semibold text-slate-900">{v.organization.name}{v.organization.country ? `, ${v.organization.country}` : ''}</p>
           <p>Registration number: {v.organization.registrationNumber ?? 'not provided'}</p>
-          <p>{v.label}: <strong>{v.outcomeLabel}</strong>, rung {v.validatedRung} ({v.rungName})</p>
+          <p>{v.label}: <strong>{v.outcomeLabel}</strong>, {v.confirmedLevels ? `levels confirmed: ${v.confirmedLevels.filter((l) => l.achieved).map((l) => `${l.level} (${l.name})`).join(', ') || 'none'}; no rung (partial scope)` : `rung ${v.validatedRung} (${v.rungName})`}</p>
           <p>{v.statement}</p>
         </CardContent>
       </Card>

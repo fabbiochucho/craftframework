@@ -8,8 +8,12 @@ import { EVENT_DECISIONS, FOLLOW_UP_LABEL, FOLLOW_UP_MODES, type FollowUpMode } 
 // Validator system PR 5: the issued validation's lifecycle. Every rule is
 // enforced by /api/validations; status is always computed on the server.
 
+/** A scope that skips level 1 confirms levels, never a rung. */
+const resultText = (v: { validatedRung: number; confirmedLevels?: Array<{ level: number; achieved: boolean }> | null }) =>
+  v.confirmedLevels ? `levels confirmed: ${v.confirmedLevels.filter((l) => l.achieved).map((l) => l.level).join(', ') || 'none'}` : `rung ${v.validatedRung}`
+
 type Summary = {
-  id: string; organization: string; framework: string; outcome: string; validatedRung: number; status: string; statusLabel: string
+  id: string; organization: string; framework: string; outcome: string; validatedRung: number; confirmedLevels?: Array<{ level: number; achieved: boolean }> | null; status: string; statusLabel: string
   issuedAt: string; expiresAt: string; nextFollowUp: string | null; can: { org: boolean; lead: boolean; funder?: boolean }
 }
 type Event = {
@@ -68,7 +72,7 @@ export function ValidationsPage() {
           <li key={v.id}>
             <Link to="/validations/$id" params={{ id: v.id }} className="block h-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500">
               <div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-slate-800">{v.organization}</p><Badge className={STATUS_STYLE[v.status] ?? ''}>{v.statusLabel}</Badge></div>
-              <p className="mt-0.5 text-sm text-slate-500">Rung {v.validatedRung} · {v.outcome === 'validated' ? 'Validated' : 'With qualifications'} · expires {fmt(v.expiresAt)}</p>
+              <p className="mt-0.5 text-sm text-slate-500">{resultText(v).replace(/^./, (c) => c.toUpperCase())} · {v.outcome === 'validated' ? 'Validated' : 'With qualifications'} · expires {fmt(v.expiresAt)}</p>
               {v.nextFollowUp && <p className="mt-1 text-xs text-slate-600">Next follow-up {fmt(v.nextFollowUp)}</p>}
             </Link>
           </li>
@@ -99,7 +103,7 @@ export function ValidationDetailPage({ id }: { id: string }) {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2"><h1 className="font-display text-2xl font-bold text-emerald-900">{d.organization}</h1><Badge className={STATUS_STYLE[d.status] ?? ''}>{d.statusLabel}</Badge></div>
-          <p className="text-sm text-slate-600">{d.framework} · rung {d.validatedRung} · {d.outcome === 'validated' ? 'Validated' : 'Validated with qualifications'}</p>
+          <p className="text-sm text-slate-600">{d.framework} · {resultText(d)} · {d.outcome === 'validated' ? 'Validated' : 'Validated with qualifications'}</p>
         </CardHeader>
         <CardContent className="space-y-1 text-sm text-slate-700">
           <p>Issued {fmt(d.issuedAt)} · valid {d.validityMonths} months · {d.status === 'expired' ? 'expired' : 'expires'} {fmt(d.expiresAt)}{d.validityReason ? ` (${d.validityReason})` : ''}</p>
@@ -316,7 +320,7 @@ function FunderProgress({ v }: { v: FunderView }) {
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2"><h1 className="font-display text-2xl font-bold text-emerald-900">{v.organization}</h1><Badge className={STATUS_STYLE[v.status] ?? ''}>{v.statusLabel}</Badge></div>
-          <p className="text-sm text-slate-600">{v.framework} · rung {v.validatedRung} · {v.outcome === 'validated' ? 'Validated' : 'Validated with qualifications'}</p>
+          <p className="text-sm text-slate-600">{v.framework} · {resultText(v)} · {v.outcome === 'validated' ? 'Validated' : 'Validated with qualifications'}</p>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-slate-700">
           <p className="text-base font-semibold text-slate-900">{v.progressLine}</p>
