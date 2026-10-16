@@ -15,7 +15,7 @@ function fakeSession(email: string) {
 // Forwards the app's /api calls to the test API server. Every context needs it,
 // including extra ones a spec opens for a second user; idempotent per context.
 const forwarded = new WeakSet<BrowserContext>()
-async function forwardApi(context: BrowserContext) {
+export async function forwardApi(context: BrowserContext) {
   if (forwarded.has(context)) return
   forwarded.add(context)
   // Only this test fixture redirects APIs; deployed bundles retain normal auth.

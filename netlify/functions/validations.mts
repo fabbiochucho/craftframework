@@ -3,10 +3,12 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
-  auditLogs, engagementMembers, organizations, validationEvents, validationFollowUps, validations, type EngagementMemberRow, type ValidationRow,
+  auditLogs, engagementMembers, organizations, validationConcerns, validationEvents, validationFollowUps, validations, type EngagementMemberRow, type ValidationRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { contactsFor, describeValidation, notify } from '../lib/validation-lifecycle.js'
+import { ensureStatement, ensureVerificationId, publicUrlFor } from '../lib/public-validation.js'
+import { cleanPublicOptions } from '../../src/lib/validationStatement.js'
 import { logger } from '../lib/logger.js'
 import {
   EVENT_DECISIONS, FOLLOW_UP_MODES, isStarred, MATERIAL_EVENTS, MATERIAL_EVENT_KEYS, reportingDeadline, statusAfterDecision, MS_DAY, STATUS_LABEL,
@@ -21,6 +23,8 @@ import { FRAMEWORKS } from '../../src/lib/validationReview.js'
 //   POST   /:id/follow-ups            lead: record the follow-up due now (re-checks the tracked indicators only)
 //   POST   /:id/surveillance          lead: record the 12-month surveillance check of a 24-month validation
 //   PUT    /:id/shorten               lead: shorten the validity for a named risk (never longer)
+//   PUT    /:id/public                organisation staff: what the public page shows beyond the mandatory facts
+//   GET    /concerns                  platform admin: concerns raised from public pages (PUT /concerns/:cid {status})
 //   POST   /:id/withdraw              lead: withdraw with a reason
 //   POST   /:id/events                organisation staff (or the CRAFT programme team): report a material event => suspended pending review
 //   PUT    /:id/events/:eid/respond   organisation staff: respond to a recorded event
@@ -68,6 +72,22 @@ export default async (req: Request) => {
       return org || mine || admin ? ctx : null
     }
 
+    if (id === 'concerns') {
+      if (!admin) return forbidden()
+      if (req.method === 'GET' && !sub) {
+        const rows = await db.select({ c: validationConcerns, vid: validations.verificationId, org: organizations.name }).from(validationConcerns)
+          .innerJoin(validations, eq(validations.id, validationConcerns.validationId)).innerJoin(organizations, eq(organizations.id, validations.orgId)).orderBy(desc(validationConcerns.createdAt))
+        return json(rows.map(({ c, vid, org }) => ({ id: c.id, verificationId: vid, organization: org, category: c.category, message: c.message, contactName: c.contactName, contactEmail: c.contactEmail, status: c.status, createdAt: c.createdAt })))
+      }
+      if (req.method === 'PUT' && sub) {
+        const p = z.object({ status: z.enum(['new', 'in_review', 'closed']) }).safeParse(await readBody())
+        if (!p.success) return bad('A status is required')
+        const done = await db.update(validationConcerns).set({ status: p.data.status, handledBy: caller.email, handledAt: new Date() }).where(eq(validationConcerns.id, sub)).returning({ id: validationConcerns.id })
+        return done.length ? json({ ok: true }) : notFound()
+      }
+      return notFound()
+    }
+
     if (!id) {
       if (req.method !== 'GET') return new Response('Method Not Allowed', { status: 405 })
       const mineRows = await db.select({ e: engagementMembers.engagementId }).from(engagementMembers)
@@ -92,6 +112,14 @@ export default async (req: Request) => {
     if (req.method === 'GET' && !sub) return json(await detail(ctx))
 
     const live = v.status === 'current' || v.status === 'suspended'
+
+    if (req.method === 'PUT' && sub === 'public' && !eid) {
+      if (!ctx.org) return forbidden()
+      const options = cleanPublicOptions(await readBody())
+      await db.update(validations).set({ publicOptions: options }).where(eq(validations.id, id))
+      await audit(caller.email, `set public page options: ${Object.keys(options).join(', ') || 'none'}`, id, v.orgId)
+      return json(await detail(ctx))
+    }
 
     if (req.method === 'PUT' && sub === 'schedule' && !eid) {
       if (!(ctx.org || ctx.lead)) return forbidden()
@@ -244,8 +272,11 @@ async function detail(ctx: Ctx) {
     db.select({ at: auditLogs.createdAt, action: auditLogs.action }).from(auditLogs)
       .where(and(eq(auditLogs.category, 'Validation'), inArray(auditLogs.target, [v.id, ...(await db.select({ id: validationEvents.id }).from(validationEvents).where(eq(validationEvents.validationId, v.id))).map((e) => e.id)]))),
   ])
+  const verificationId = await ensureVerificationId(v)
+  const statement = await ensureStatement({ ...v, verificationId })
   return {
     ...(await summary(ctx)),
+    verificationId, publicUrl: publicUrlFor(verificationId), pdfSha256: statement?.sha256 ?? null, publicOptions: v.publicOptions,
     validityMonths: v.validityMonths, validityReason: v.validityReason, statusReason: v.statusReason,
     surveillance: v.surveillanceDueAt ? { dueAt: v.surveillanceDueAt, doneAt: v.surveillanceDoneAt } : null,
     followUp: { mode: v.followUpMode, ...d.followUp, history: d.completedFollowUps, tracked: v.trackedIndicators },
