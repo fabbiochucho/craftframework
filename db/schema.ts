@@ -389,7 +389,18 @@ export const firms = pgTable('firms', {
   name: text('name').notNull(),
   createdBy: text('created_by'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-})
+  // Directory profile (validator system). null kind = an original consulting
+  // firm (client book only, never listed); 'validator_firm' | 'funding_partner'
+  // makes it a directory profile whose firm_members are its team / staff.
+  kind: text('kind'),
+  // Validator firm nature or funding-partner type (src/lib/validatorDirectory.ts).
+  nature: text('nature'),
+  summary: text('summary').notNull().default(''),
+  competencies: jsonb('competencies').$type<string[]>().notNull().default([]),
+  countries: jsonb('countries').$type<string[]>().notNull().default([]),
+  sectors: jsonb('sectors').$type<string[]>().notNull().default([]),
+  ticketSize: text('ticket_size'),
+}, (t) => [index('firms_kind_idx').on(t.kind)])
 
 // --- firm_members -----------------------------------------------------------
 // Membership of a firm, with a role and independently-revocable status.
@@ -412,6 +423,58 @@ export const firmMembers = pgTable(
     index('firm_members_email_idx').on(t.email),
   ],
 )
+
+// --- validator_profiles -----------------------------------------------------
+// A person's validator profile (open onboarding). The public id is used in
+// directory URLs so the email (a contact detail) is never exposed.
+// Accreditation is changed only by a platform admin, with a recorded reason.
+export const validatorProfiles = pgTable('validator_profiles', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  name: text('name').notNull(),
+  bio: text('bio').notNull().default(''),
+  competencies: jsonb('competencies').$type<string[]>().notNull().default([]),
+  frameworks: jsonb('frameworks').$type<string[]>().notNull().default([]),
+  countries: jsonb('countries').$type<string[]>().notNull().default([]),
+  languages: jsonb('languages').$type<string[]>().notNull().default([]),
+  // 'registered' | 'accredited' | 'suspended'
+  accreditationStatus: text('accreditation_status').notNull().default('registered'),
+  accreditationReason: text('accreditation_reason'),
+  pilotAccredited: boolean('pilot_accredited').notNull().default(false),
+  accreditationChangedBy: text('accreditation_changed_by'),
+  accreditationChangedAt: timestamp('accreditation_changed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Professional memberships: self-declared until a platform admin verifies one
+// against the body's public register. Editing = delete + re-add, so a changed
+// number can never keep an old verification.
+export const validatorCredentials = pgTable(
+  'validator_credentials',
+  {
+    id: text('id').primaryKey(),
+    validatorId: text('validator_id').notNull().references(() => validatorProfiles.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    membershipNumber: text('membership_number').notNull(),
+    verifiedBy: text('verified_by'),
+    verifiedAt: timestamp('verified_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('validator_credentials_validator_idx').on(t.validatorId)],
+)
+
+// An organisation's opt-in directory listing (off by default). Name, country
+// and sector come from `organizations`; never scores, evidence or comments.
+// The random `id` is used in directory URLs because legacy org ids can embed an email.
+export const orgDirectoryProfiles = pgTable('org_directory_profiles', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull().unique().references(() => organizations.id, { onDelete: 'cascade' }),
+  listed: boolean('listed').notNull().default(false),
+  summary: text('summary').notNull().default(''),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
 
 // --- response_notes ---------------------------------------------------------
 // Threaded, multi-author commentary on an assessment answer: one row per note,
@@ -463,6 +526,8 @@ export type AccessGrantRow = typeof accessGrants.$inferSelect
 export type InvitationRow = typeof invitations.$inferSelect
 export type FirmRow = typeof firms.$inferSelect
 export type FirmMemberRow = typeof firmMembers.$inferSelect
+export type ValidatorProfileRow = typeof validatorProfiles.$inferSelect
+export type ValidatorCredentialRow = typeof validatorCredentials.$inferSelect
 export type ResponseNoteRow = typeof responseNotes.$inferSelect
 
 // --- section 11 disclosures -------------------------------------------------
