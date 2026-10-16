@@ -44,7 +44,7 @@ export function zip(files: Record<string, string | Buffer>): Buffer {
 }
 
 // Strip characters XML 1.0 forbids, then escape.
-const xml = (v: unknown) => String(v ?? '').replace(/[^\x09\x0A\x0D\x20-퟿-�]/g, '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!)
+const xml = (v: unknown) => String(v ?? '').replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD]/g, '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!)
 const colName = (i: number) => { let s = ''; for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s }
 // Spreadsheet formula injection: text starting with = + - @ is stored with a leading apostrophe.
 const safeText = (s: string) => (/^[=+\-@\t\r]/.test(s) ? `'${s}` : s)
