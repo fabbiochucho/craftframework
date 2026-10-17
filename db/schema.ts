@@ -1718,6 +1718,8 @@ export const rateLimits = pgTable(
     key: text('key').notNull(),
     windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
     count: integer('count').notNull().default(0),
+    // Set for long-lived counters (hourly budgets, per-invitation caps); null = per-minute window, purged after 2 min.
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.key, t.windowStart] })],
 )

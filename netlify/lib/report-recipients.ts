@@ -39,7 +39,7 @@ export function partitionRecipients(emails: string[], members: Set<string>, supp
 export async function overHourlyBudget(key: string, amount: number, limit: number, now = Date.now()): Promise<boolean> {
   const windowStart = new Date(Math.floor(now / HOUR_MS) * HOUR_MS)
   const hashed = createHash('sha256').update(key).digest('hex')
-  const [row] = await db.insert(rateLimits).values({ key: hashed, windowStart, count: amount })
+  const [row] = await db.insert(rateLimits).values({ key: hashed, windowStart, count: amount, expiresAt: new Date(windowStart.getTime() + HOUR_MS) })
     .onConflictDoUpdate({ target: [rateLimits.key, rateLimits.windowStart], set: { count: sql`${rateLimits.count} + ${amount}` } })
     .returning({ count: rateLimits.count })
   return row.count > limit
