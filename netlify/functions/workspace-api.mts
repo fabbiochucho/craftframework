@@ -22,6 +22,7 @@ import {
 import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
 import { logger } from '../lib/logger.js'
+import { purgeExpiredRateLimits } from '../lib/public-rate-limit.js'
 import {
   activeCriteria, craftScorecard, criterionById, GOVERNANCE_CRITERIA, GOVERNANCE_PILLARS, VALIDATION_METHODS, VALIDATION_OUTCOMES, validationDelta,
   type ValidatorScores,
@@ -397,9 +398,7 @@ async function incrementRateLimit(key: string, now: number): Promise<number> {
       target: [rateLimits.key, rateLimits.windowStart],
       set: { count: sql`${rateLimits.count} + 1` },
     }).returning({ count: rateLimits.count })
-  if (Math.random() < 0.01) {
-    await db.delete(rateLimits).where(lte(rateLimits.windowStart, new Date(now - 120_000)))
-  }
+  if (Math.random() < 0.01) await purgeExpiredRateLimits(now)
   return counter.count
 }
 
