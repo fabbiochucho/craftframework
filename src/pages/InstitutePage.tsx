@@ -1,4 +1,4 @@
-import { Compass, Lightbulb, Network, Award, Linkedin, ShieldCheck, Globe, ExternalLink } from 'lucide-react'
+import { Compass, Lightbulb, Network, Award, Linkedin, ShieldCheck, ExternalLink } from 'lucide-react'
 import { Reveal } from '../components/ui'
 import { BRAND, STRATEGIC_PILLARS, PANAFRICAN_BADGES } from '../lib/data'
 
@@ -22,7 +22,6 @@ const FOUNDERS = [
       'Mobilized millions of dollars in development finance for institutional strengthening and capacity building initiatives across Africa',
     ],
     linkedin: 'https://www.linkedin.com/in/paulineabiolaoshunniyi',
-    website: 'https://pauline-oshunniyi-brand.lovable.app',
   },
   {
     name: 'Abiola Olugbenga Oshunniyi', initials: 'AO', photo: '/team/abiola-oshunniyi.webp' as string | null,
@@ -39,7 +38,6 @@ const FOUNDERS = [
       'Published 20+ research pieces and policy briefs on African systems transformation',
     ],
     linkedin: 'https://www.linkedin.com/in/abiolaoshunniyi',
-    website: 'https://abiolaoshunniyi.lovable.app',
   },
 ]
 
@@ -98,14 +96,9 @@ export function InstitutePage() {
                 <ul className="flex flex-wrap gap-2" aria-label="Key competencies">
                   {f.competencies.map((c) => <li key={c} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">{c}</li>)}
                 </ul>
-                <div className="mt-auto flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-emerald-700">
-                  <a href={f.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:underline">
-                    <Linkedin className="h-4 w-4" /> LinkedIn<span className="sr-only">: {f.name}</span>
-                  </a>
-                  <a href={f.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:underline">
-                    <Globe className="h-4 w-4" /> Personal website<span className="sr-only">: {f.name}</span>
-                  </a>
-                </div>
+                <a href={f.linkedin} target="_blank" rel="noopener noreferrer" className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:underline">
+                  <Linkedin className="h-4 w-4" /> {f.name} on LinkedIn
+                </a>
               </article>
             </Reveal>
           ))}
