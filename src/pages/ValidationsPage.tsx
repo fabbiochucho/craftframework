@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ShieldCheck } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { RateYourValidator, ReReviewFlags, ValidatorStatistics } from '../components/ValidatorFeedback'
+import { RequireReReview, ReReviews } from '../components/ReReviews'
 import { EVENT_DECISIONS, FOLLOW_UP_LABEL, FOLLOW_UP_MODES, type FollowUpMode } from '../lib/validationLifecycle'
 
 // Validator system PR 5: the issued validation's lifecycle. Every rule is
@@ -64,6 +65,7 @@ export function ValidationsPage() {
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       {items && !items.length && <p className="text-sm text-slate-500">No validation has been issued yet.</p>}
       <Concerns />
+      <ReReviews />
       <ReReviewFlags />
       <ValidatorStatistics />
       <RateYourValidator />
@@ -326,6 +328,7 @@ function FunderProgress({ v }: { v: FunderView }) {
           <p className="text-base font-semibold text-slate-900">{v.progressLine}</p>
           <p>Issued {fmt(v.issuedAt)} · {v.status === 'expired' ? 'expired' : 'expires'} {fmt(v.expiresAt)}</p>
           <p>Schedule: {FOLLOW_UP_LABEL[v.scheduleMode]}{v.followUpOverdue ? ' · follow-up overdue' : ''}</p>
+          {['current', 'follow_up_overdue', 'suspended'].includes(v.status) && <RequireReReview validationId={v.id} />}
           <p className="text-xs text-slate-500">You can see this because {v.organization} consented. It shares progress as counts and dates only, and can withdraw consent at any time. Verification ID <a className="font-mono text-emerald-700 underline" href={`/validation/${v.verificationId}`}>{v.verificationId}</a>.</p>
         </CardContent>
       </Card>

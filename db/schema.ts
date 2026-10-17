@@ -1904,6 +1904,40 @@ export type RatingRow = typeof validationRatings.$inferSelect
 export type PanelCaseRow = typeof panelCases.$inferSelect
 export type PanelMemberRow = typeof panelMembers.$inferSelect
 
+// Re-review: a Senior Validator from a different firm reads the frozen review and records stands, amended or
+// withdrawn. A following funding partner may request one; the programme team opens it. At most one in progress
+// per validation.
+export const validationRereviews = pgTable(
+  'validation_rereviews',
+  {
+    id: text('id').primaryKey(),
+    validationId: text('validation_id').notNull().references(() => validations.id, { onDelete: 'cascade' }),
+    orgId: text('org_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+    // 'funder_required' | 'flagged' | 'programme'
+    reason: text('reason').notNull(),
+    note: text('note').notNull().default(''),
+    // Null while only requested.
+    reviewerEmail: text('reviewer_email'),
+    requestedBy: text('requested_by'),
+    // 'requested' | 'assigned' | 'decided'
+    status: text('status').notNull().default('assigned'),
+    // 'stands' | 'amended' | 'withdrawn'
+    outcome: text('outcome'),
+    reasons: text('reasons'),
+    effects: jsonb('effects').$type<string[]>(),
+    openedBy: text('opened_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('validation_rereviews_validation_idx').on(t.validationId),
+    index('validation_rereviews_reviewer_idx').on(t.reviewerEmail),
+    uniqueIndex('validation_rereviews_one_open').on(t.validationId).where(sql`${t.status} <> 'decided'`),
+  ],
+)
+export type RereviewRow = typeof validationRereviews.$inferSelect
+
 // --- Super Admin analytics and resume-onboarding nudges -----------------------
 // Step numbers and names only: the form contents of /onboarding are never stored here.
 export const onboardingProgress = pgTable('onboarding_progress', {
