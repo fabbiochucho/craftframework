@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Handshake } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
+import { trackEvent } from '../lib/analytics'
 import { scopeText, TYPE_LABEL, type EngagementScope, type EngagementType } from '../lib/engagements'
 
 // Validator system PR 2: engagements. Every permission is enforced by
@@ -138,6 +139,7 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
               ...(side === 'organization' ? (type === 'funder_review' ? { funderFirmId: target.funderFirmId } : { validatorId: target.validatorId || undefined, validatorFirmId: target.validatorFirmId || undefined })
                 : { organizationProfileId: target.organizationProfileId, ...(side === 'funder' ? { funderFirmId: actFirm || funderFirms[0]?.id } : { validatorFirmId: actFirm || undefined }) }),
             } })
+            void trackEvent({ event: 'engagement_created' })
             setMsg({ ok: true, text: 'Engagement created. The other parties have been asked to answer.' }); onCreated()
           } catch (err: any) { setMsg({ ok: false, text: err.message }) }
         }}>
