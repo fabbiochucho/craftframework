@@ -132,7 +132,7 @@ export function AuthPage() {
       // path is honoured, and someone who has finished onboarding is not sent back into it.
       const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
       if (next && !(configured && next.split(/[?#]/)[0] === '/onboarding')) router.history.push(next)
-      else navigate({ to: configured ? '/dashboard' : '/onboarding' })
+      else navigate({ to: configured ? '/dashboard' : currentUser.role === 'super_admin' ? '/admin' : '/onboarding' })
     }
   }, [currentUser, authReady, onboardingComplete, navigate, router, recovery.state, mode, entityProfile, profileSaveStatus])
 
