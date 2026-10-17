@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import {
-  ADMIN, ASSESSOR, OUTSIDER, OWNER, VIEWER, as, auditCount, blobStores, createAssessment, createCap, createOrg, expectStatus, pdfFile,
+  ADMIN, ASSESSOR, OUTSIDER, OWNER, VIEWER, addMember, as, auditCount, blobStores, createAssessment, createCap, createOrg, expectStatus, pdfFile,
   rows, truncateAll, uploadEvidence,
 } from './harness.ts'
 
@@ -22,6 +22,7 @@ describe('GDPR export', () => {
     await uploadEvidence(wsId, ADMIN, pdfFile('admin-evidence.pdf'))
     const mineCap = await createCap(wsId, ASSESSOR, { assignedTo: ASSESSOR })
     await createCap(wsId, ADMIN, { assignedTo: ADMIN, findingDescription: 'Admin-only CAP' })
+    await addMember(orgId, 'colleague-secret@acme.example')
     expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/reports/schedules`, {
       reportType: 'cap_summary', cadence: 'weekly', recipients: ['colleague-secret@acme.example'],
     }), 201)
@@ -127,6 +128,7 @@ describe('GDPR erasure', () => {
     expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/cap/${capId}/actions`, { actionDescription: 'Do it', owner: ADMIN }), 201)
     expectStatus(await as(ADMIN).put(`/workspaces/${wsId}/cap/${capId}/actions/1`, { evidenceId }), 200)
     expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/reports/cap-summary`, {}), 201)
+    await addMember(orgId, 'keep@acme.example')
     expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/reports/schedules`, {
       reportType: 'cap_summary', cadence: 'weekly', recipients: [ADMIN, 'keep@acme.example'],
     }), 201)
