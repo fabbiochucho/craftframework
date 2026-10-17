@@ -41,7 +41,7 @@ for (const orgName of [undefined, null, '', '   ']) {
 // Out-of-range steps are clamped; user text is escaped.
 assert.match(renderNudgeEmail({ ...base, step: 9 }).text, /step 3 of 3: Team & Import/)
 const x = renderNudgeEmail({ ...base, name: '<b>Eve</b>', email: 'eve@x.example', orgName: 'A&B <script>', note: '<img src=x onerror=1>' })
-assert.doesNotMatch(x.html, /<script>|<img|<b>Eve/)
+assert.doesNotMatch(x.html, /<(script|img|b)[\s>]/i)
 assert.match(x.html, /A&amp;B &lt;script&gt;/)
 assert.equal(firstNameOf('', 'jo.smith@x.example'), 'Jo')
 assert.equal(firstNameOf('jo@x.example', 'jo@x.example'), 'Jo')
