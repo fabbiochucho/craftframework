@@ -11,13 +11,20 @@ import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
 type Row = {
   id: string; level: number; domain: string; question: string; self: number | null; validator: number | null; delta: number | null; optimismBias: number | null
   sufficiency?: string | null; comment?: string; evidenceRef?: string; orgResponse?: string; negotiated?: number | null
+  paperCap?: { negotiated: number; capped: number; message: string } | null; final?: number | null; evidence?: LinkedEvidence[]
 }
+type LinkedEvidence = {
+  indicatorId: string; evidenceId: number; name: string; documentType: string; sha256: string | null; linkedAt: string
+  available: boolean; status: string | null; expiryDate: string | null; sizeKb: number | null
+}
+type Confirmation = { level: number; name: string; achieved: boolean }
 type View = {
   status: string; engagementStatus: string; framework: { name: string; version: string }; type: string
   lead?: boolean; method?: Method | null; fieldworkStart?: string | null; fieldworkEnd?: string | null
   levels?: Array<{ level: number; name: string }>; rows?: Row[]
   qualifications?: Array<{ id: string; text: string; indicatorIds: string[] }>; problems?: string[]
-  rungs?: { self: number; validator: number }; scored?: number; total?: number
+  rungs?: { self: number; validator: number } | null; partialScope?: boolean; confirmedLevels?: Confirmation[] | null; scored?: number; total?: number
+  indicators?: Array<{ id: string; level: number; question: string }>; evidence?: LinkedEvidence[]
   outcome?: Outcome; validatedRung?: number | null; sha256?: string; finalisedAt?: string; snapshot?: any
 }
 
@@ -34,6 +41,24 @@ async function api<T = any>(path: string, init?: { method?: string; json?: unkno
 
 const SUFF_LABEL: Record<string, string> = { sufficient: 'Evidence sufficient', partial: 'Partly sufficient', insufficient: 'Insufficient' }
 const deltaStyle = (d: number | null) => (d == null ? 'text-slate-400' : d > 0 ? 'text-amber-700 font-semibold' : d < 0 ? 'text-indigo-700' : 'text-emerald-700')
+const Confirmed = ({ levels }: { levels: Confirmation[] }) => (
+  <div className="rounded-lg border border-slate-200 bg-white px-4 py-2">
+    <p className="text-xs text-slate-500">Levels confirmed (this scope yields no rung)</p>
+    <p className="text-sm font-semibold text-emerald-900">{levels.map((l) => `Level ${l.level}: ${l.achieved ? 'achieved' : 'not achieved'}`).join(' · ')}</p>
+  </div>
+)
+const CapNote = ({ cap }: { cap: { negotiated: number; capped: number; message?: string } }) => (
+  <p className="rounded bg-rose-50 px-2 py-1 text-sm text-rose-800">Paper-compliance cap: negotiated {cap.negotiated} stands at {cap.capped} because the evidence is insufficient.</p>
+)
+const EvidenceList = ({ items }: { items: LinkedEvidence[] }) => items.length ? (
+  <div className="text-sm text-slate-700">
+    <p className="text-xs font-medium text-slate-500">Linked by the organisation (read-only)</p>
+    <ul className="list-disc pl-5">{items.map((x) => (
+      <li key={x.evidenceId}>{x.name} <span className="text-xs text-slate-500">({x.documentType}{x.status ? `, ${x.status}` : ''}{x.expiryDate ? `, expires ${x.expiryDate}` : ''}{x.available ? '' : ', no longer available'})</span>
+        {x.sha256 && <span className="ml-1 font-mono text-xs text-slate-400">sha256 {x.sha256.slice(0, 12)}…</span>}</li>
+    ))}</ul>
+  </div>
+) : null
 const Rung = ({ label, value }: { label: string; value: number }) => (
   <div className="rounded-lg border border-slate-200 bg-white px-4 py-2"><p className="text-xs text-slate-500">{label}</p><p className="text-2xl font-bold text-emerald-900">{value || '—'}</p></div>
 )
@@ -63,6 +88,7 @@ export function ReviewPage({ id }: { id: string }) {
           {msg.problems && <ul className="list-disc pl-5">{msg.problems.map((p) => <li key={p}>{p}</li>)}</ul>}
         </div>
       )}
+      {v.indicators && v.evidence && <OrgEvidence id={id} v={v} act={act} call={call} />}
       {v.status === 'finalised' ? <Frozen v={v} /> : v.rows && v.lead !== undefined ? <Reviewer v={v} act={act} call={call} /> : v.rows ? <OrgDebrief v={v} act={act} call={call} />
         : <p className="text-sm text-slate-600">{v.status === 'not_started' ? 'The review has not started.' : 'The review is in progress. You will see the validator\'s scores and comments when the debrief opens.'}</p>}
     </div>
@@ -77,8 +103,12 @@ function Reviewer({ v, act, call }: { v: View; act: Act; call: Call }) {
   return (
     <>
       <div className="flex flex-wrap gap-3">
-        <Rung label="Rung implied by self-scores" value={v.rungs!.self} />
-        <Rung label={debrief ? 'Rung implied by final scores' : 'Rung implied by your scores'} value={v.rungs!.validator} />
+        {v.rungs ? (
+          <>
+            <Rung label="Rung implied by self-scores" value={v.rungs.self} />
+            <Rung label={debrief ? 'Rung implied by final scores' : 'Rung implied by your scores'} value={v.rungs.validator} />
+          </>
+        ) : v.confirmedLevels && <Confirmed levels={v.confirmedLevels} />}
         <div className="rounded-lg border border-slate-200 bg-white px-4 py-2"><p className="text-xs text-slate-500">Scored</p><p className="text-2xl font-bold text-emerald-900">{v.scored}/{v.total}</p></div>
       </div>
       {v.lead && <Setup v={v} act={act} call={call} />}
@@ -129,6 +159,7 @@ function IndicatorRow({ r, debrief, lead, act, call }: { r: Row; debrief: boolea
         Self {r.self ?? '—'} · You {r.validator ?? '—'} · <span className={deltaStyle(r.delta)}>{r.delta == null ? 'no delta' : `delta ${r.delta > 0 ? '+' : ''}${r.delta}`}</span>
         {r.optimismBias != null && r.optimismBias !== 0 && <span className="text-slate-500"> ({r.optimismBias}% optimism bias)</span>}
       </p>
+      <EvidenceList items={r.evidence ?? []} />
       <div className="grid gap-2 sm:grid-cols-[6rem_12rem_1fr_1fr_auto] sm:items-end">
         <Select label="Your score" placeholder="–" options={scores} value={score} onChange={setScore} />
         <Select label="Evidence" options={SUFFICIENCY.map((x) => ({ value: x, label: SUFF_LABEL[x] }))} value={suff} onChange={setSuff} />
@@ -139,6 +170,7 @@ function IndicatorRow({ r, debrief, lead, act, call }: { r: Row; debrief: boolea
       {debrief && (
         <div className="rounded-lg bg-amber-50/60 p-3 text-sm">
           <p className="text-slate-700"><span className="font-medium">Organisation response:</span> {r.orgResponse || <span className="text-slate-400">none yet</span>}</p>
+          {r.paperCap && <CapNote cap={r.paperCap} />}
           {lead && (
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <div className="w-28"><Select label="Negotiated score" placeholder="–" options={scores} value={neg} onChange={setNeg} /></div>
@@ -217,6 +249,32 @@ function OrgDebrief({ v, act, call }: { v: View; act: Act; call: Call }) {
   )
 }
 
+function OrgEvidence({ id, v, act, call }: { id: string; v: View; act: Act; call: Call }) {
+  const [options, setOptions] = useState<Array<{ id: number; name: string; documentType: string }>>([])
+  const [indicator, setIndicator] = useState('')
+  const [item, setItem] = useState('')
+  useEffect(() => { void api<{ options: typeof options }>(`/api/validation-reviews/${encodeURIComponent(id)}/evidence-options`).then((r) => setOptions(r.options), () => setOptions([])) }, [id])
+  return (
+    <Card>
+      <CardHeader><CardTitle>Evidence for the validator</CardTitle><p className="text-sm text-slate-500">Link items from your evidence register to indicators. Validators on this engagement can see the name, type and status of linked items once their access is active; links are references, nothing is copied.</p></CardHeader>
+      <CardContent className="space-y-3">
+        <ul className="space-y-1 text-sm">
+          {v.evidence!.map((x) => (
+            <li key={`${x.indicatorId}-${x.evidenceId}`} className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs text-slate-500">{x.indicatorId}</span> {x.name}
+              <Button size="sm" variant="ghost" onClick={() => void act(call(`/evidence/${x.indicatorId}/${x.evidenceId}`, 'DELETE'), 'Link removed')}>Unlink</Button></li>
+          ))}
+          {!v.evidence!.length && <li className="text-slate-400">Nothing linked yet.</li>}
+        </ul>
+        <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <Select label="Indicator" placeholder="Choose…" options={v.indicators!.map((i) => ({ value: i.id, label: `${i.id} ${i.question}`.slice(0, 90) }))} value={indicator} onChange={setIndicator} />
+          <Select label="Evidence item" placeholder={options.length ? 'Choose…' : 'No evidence you can link'} options={options.map((o) => ({ value: String(o.id), label: `${o.name} (${o.documentType})` }))} value={item} onChange={setItem} />
+          <Button disabled={!indicator || !item} onClick={() => void act(call(`/evidence/${indicator}`, 'POST', { evidenceId: Number(item) }), 'Evidence linked')}>Link</Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function OrgRow({ r, act, call }: { r: Row; act: Act; call: Call }) {
   const [text, setText] = useState(r.orgResponse ?? '')
   return (
@@ -224,6 +282,7 @@ function OrgRow({ r, act, call }: { r: Row; act: Act; call: Call }) {
       <p className="text-sm font-medium text-slate-800"><span className="font-mono text-xs text-slate-500">{r.id}</span> {r.question}</p>
       <p className="text-sm">You scored {r.self ?? '—'} · validator {r.validator ?? '—'} · <span className={deltaStyle(r.delta)}>{r.delta == null ? '' : `delta ${r.delta > 0 ? '+' : ''}${r.delta}`}</span>{r.negotiated != null && ` · negotiated ${r.negotiated}`}</p>
       {r.comment && <p className="text-sm text-slate-600">Validator comment: {r.comment}</p>}
+      {r.paperCap && <CapNote cap={r.paperCap} />}
       <Input label="Your response" value={text} onChange={(e) => setText(e.target.value)} />
       <Button size="sm" disabled={!text.trim()} onClick={() => void act(call(`/debrief/${r.id}`, 'PUT', { response: text }), 'Response saved')}>Save response</Button>
     </CardContent></Card>
@@ -239,12 +298,14 @@ function Frozen({ v }: { v: View }) {
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle>{OUTCOME_LABEL[v.outcome!]}</CardTitle>
             {v.validatedRung != null && <Badge className="bg-emerald-100 text-emerald-800">Validated rung {v.validatedRung}</Badge>}
+            {s.partialScope && v.outcome !== 'not_validated' && <Badge className="bg-emerald-100 text-emerald-800">Confirmed: {(s.confirmedLevels as Confirmation[]).filter((c) => c.achieved).map((c) => `level ${c.level}`).join(', ') || 'no levels'}</Badge>}
             <Badge variant="outline" className="text-slate-600">Frozen {new Date(v.finalisedAt!).toLocaleDateString()}</Badge>
           </div>
           <p className="text-sm text-slate-600">{s.engagement.statement}</p>
         </CardHeader>
         <CardContent className="space-y-1 text-sm text-slate-700">
           <p>Method: {METHOD_LABEL[s.method as Method]} · Fieldwork {s.fieldwork.start} to {s.fieldwork.end}</p>
+          {s.partialScope && <p>This scope skips level 1, so it confirms levels rather than a rung: {(s.confirmedLevels as Confirmation[]).map((c) => `level ${c.level} ${c.achieved ? 'achieved' : 'not achieved'}`).join('; ')}.</p>}
           <p>Self-assessed rung then: {s.selfRung} · Team: {s.team.map((t: any) => `${t.name} (${t.role})`).join(', ')}</p>
           {s.outcomeSummary && <p>{s.outcomeSummary}</p>}
           <p className="break-all font-mono text-xs text-slate-500">SHA-256 of the frozen record: {v.sha256}</p>
@@ -260,9 +321,13 @@ function Frozen({ v }: { v: View }) {
           <table className="w-full text-left text-sm">
             <thead><tr className="text-xs text-slate-500"><th className="py-1 pr-3">Indicator</th><th className="pr-3">Self</th><th className="pr-3">Validator</th><th className="pr-3">Negotiated</th><th>Final</th></tr></thead>
             <tbody>{s.indicators.map((i: any) => (
-              <tr key={i.id} className="border-t border-slate-100"><td className="py-1 pr-3"><span className="font-mono text-xs">{i.id}</span> {i.domain}</td><td className="pr-3">{i.self ?? '—'}</td><td className="pr-3">{i.validator ?? '—'}</td><td className="pr-3">{i.negotiated ?? '—'}</td><td className="font-semibold">{i.final ?? '—'}</td></tr>
+              <tr key={i.id} className="border-t border-slate-100"><td className="py-1 pr-3"><span className="font-mono text-xs">{i.id}</span> {i.domain}</td><td className="pr-3">{i.self ?? '—'}</td><td className="pr-3">{i.validator ?? '—'}</td><td className="pr-3">{i.negotiated ?? '—'}</td><td className="font-semibold">{i.final ?? '—'}{i.paperCap && <span className="ml-1 text-xs font-normal text-rose-700">(capped from {i.paperCap.negotiated}: insufficient evidence)</span>}</td></tr>
             ))}</tbody>
           </table>
+          {s.indicators.some((i: any) => i.evidence?.length) && (
+            <div className="mt-4 text-sm"><p className="text-xs font-medium text-slate-500">Evidence the organisation linked (references only)</p>
+              <ul className="list-disc pl-5">{s.indicators.flatMap((i: any) => (i.evidence ?? []).map((x: any) => <li key={`${i.id}-${x.id}`}><span className="font-mono text-xs">{i.id}</span> {x.name}{x.sha256 && <span className="ml-1 font-mono text-xs text-slate-400">sha256 {x.sha256.slice(0, 12)}…</span>}</li>))}</ul></div>
+          )}
         </CardContent>
       </Card>
     </>

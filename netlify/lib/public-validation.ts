@@ -56,6 +56,8 @@ export type PublicView = {
   outcomeLabel: string
   validatedRung: number
   rungName: string
+  /** A scope that skips level 1 confirms levels instead of a rung (validatedRung is then 0). */
+  confirmedLevels: ConfirmedLevel[] | null
   validators: Array<{ name: string; role: string; accreditation: string; credentials: Array<{ body: string; number: string; status: string }> }>
   firm: string | null
   validatorType: string
@@ -71,6 +73,15 @@ export type PublicView = {
   rungHistory?: Array<{ rung: number; issuedAt: string; status: string }>
   qualifications?: string[]
   devmapperUrl?: string
+}
+
+export type ConfirmedLevel = { level: number; name: string; achieved: boolean }
+
+/** The levels a partial-scope validation confirmed (from its frozen snapshot); null for a scope that yields a rung. */
+export async function confirmedLevelsFor(reviewId: string): Promise<ConfirmedLevel[] | null> {
+  const [review] = await db.select({ snapshot: validationReviews.snapshot }).from(validationReviews).where(eq(validationReviews.id, reviewId))
+  const snap = review?.snapshot as { partialScope?: boolean; confirmedLevels?: ConfirmedLevel[] } | null | undefined
+  return snap?.partialScope && Array.isArray(snap.confirmedLevels) ? snap.confirmedLevels : null
 }
 
 export async function buildPublicView(v: ValidationRow, now = new Date()): Promise<PublicView | null> {
@@ -121,6 +132,7 @@ export async function buildPublicView(v: ValidationRow, now = new Date()): Promi
     label: snap.engagement?.label ?? 'Independent validation', statement: snap.engagement?.statement ?? '',
     outcome: v.outcome as Outcome, outcomeLabel: OUTCOME_LABEL[v.outcome as Outcome], validatedRung: v.validatedRung,
     rungName: fw.levels.find((l) => l.level === v.validatedRung)?.name ?? '',
+    confirmedLevels: snap.partialScope && Array.isArray(snap.confirmedLevels) ? snap.confirmedLevels : null,
     validators, firm: type === 'funder_review' ? (fFirm?.name ?? null) : (vFirm?.name ?? null),
     validatorType: type === 'funder_review' ? `Funding partner${fFirm?.nature ? ` (${fFirm.nature})` : ''}` : vFirm ? (vFirm.nature ?? 'Validator firm') : 'Independent consultant',
     engagedBy: snap.engagement?.engagedBy ?? '',
@@ -139,10 +151,13 @@ export async function buildPublicView(v: ValidationRow, now = new Date()): Promi
   if (options.devmapperUrl) view.devmapperUrl = options.devmapperUrl
   if (options.showRungHistory) {
     const others = await db.select().from(validations).where(and(eq(validations.orgId, v.orgId), eq(validations.framework, v.framework), ne(validations.id, v.id)))
-    view.rungHistory = [...others, v].sort((a, b) => +a.issuedAt - +b.issuedAt).map((x) => ({ rung: x.validatedRung, issuedAt: x.issuedAt.toISOString(), status: x.id === v.id ? d.statusLabel : x.status }))
+    // A partial scope confirms levels, not a rung, so it has no place in a rung history.
+    view.rungHistory = [...others, v].filter((x) => x.validatedRung > 0).sort((a, b) => +a.issuedAt - +b.issuedAt).map((x) => ({ rung: x.validatedRung, issuedAt: x.issuedAt.toISOString(), status: x.id === v.id ? d.statusLabel : x.status }))
   }
   return view
 }
+
+const confirmedText = (levels: ConfirmedLevel[]) => `levels confirmed: ${levels.filter((l) => l.achieved).map((l) => `${l.level} (${l.name})`).join(', ') || 'none'}; no rung (partial scope)`
 
 function nextPoint(v: ValidationRow, followUpDue: string | null): string | null {
   const points = [followUpDue, v.surveillanceDueAt && !v.surveillanceDoneAt ? v.surveillanceDueAt.toISOString().slice(0, 10) : null].filter((x): x is string => !!x).sort()
@@ -206,7 +221,7 @@ export async function renderStatementPdf(view: PublicView, url: string): Promise
   row('Organisation', `${view.organization.name}${view.organization.country ? `, ${view.organization.country}` : ''}`)
   row('Registration number', view.organization.registrationNumber ?? 'Not provided')
   row('Scope', view.scope)
-  row('Outcome', `${view.outcomeLabel}${view.outcome === 'not_validated' ? '' : ` — rung ${view.validatedRung}: ${view.rungName}`}`)
+  row('Outcome', `${view.outcomeLabel}${view.outcome === 'not_validated' ? '' : view.confirmedLevels ? ` — ${confirmedText(view.confirmedLevels)}` : ` — rung ${view.validatedRung}: ${view.rungName}`}`)
   row('Label', view.statement)
   row('Validator(s)', view.validators.map((x) => `${x.name} (${x.role}; ${x.accreditation})`).join('; ') || '—')
   const cred = view.validators.flatMap((x) => x.credentials.map((c) => `${x.name}: ${c.body} ${c.number} (${c.status})`))
