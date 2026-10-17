@@ -8,7 +8,7 @@
 // ============================================================================
 
 import { blockingIndicators, currentRung, LADDER_INDICATORS, LADDER_LEVELS, levelAchieved, levelScore } from './capitalReadiness.ts'
-import { optimismBias } from './frameworks.ts'
+import { optimismBias, paperCompliancePenalty } from './frameworks.ts'
 import type { EngagementScope } from './engagements.ts'
 
 export const METHODS = ['document_review', 'sample_testing', 'interviews', 'site_visit', 'combined'] as const
@@ -74,6 +74,41 @@ export function finalScores(validator: Record<string, number>, negotiated: Recor
   return { ...validator, ...negotiated }
 }
 
+export type PaperCap = { negotiated: number; capped: number; message: string }
+
+/**
+ * Paper-compliance cap: a negotiated score above 2 on an indicator whose evidence the validator marked
+ * 'insufficient' stands at 2 (frameworks.paperCompliancePenalty). Only negotiated scores are capped; the
+ * validator's own score is their judgement of the evidence and is never altered.
+ */
+export function paperCaps(negotiated: Record<string, number>, sufficiency: Record<string, Sufficiency | null | undefined>): Record<string, PaperCap> {
+  const out: Record<string, PaperCap> = {}
+  for (const [id, score] of Object.entries(negotiated)) {
+    const p = paperCompliancePenalty(score, sufficiency[id] === 'insufficient')
+    if (p.triggered) out[id] = { negotiated: score, capped: p.cappedScore ?? 2, message: p.message ?? '' }
+  }
+  return out
+}
+
+/** The negotiated scores that stand after the paper-compliance cap. */
+export function cappedNegotiated(negotiated: Record<string, number>, caps: Record<string, PaperCap>): Record<string, number> {
+  return Object.fromEntries(Object.entries(negotiated).map(([id, n]) => [id, caps[id]?.capped ?? n]))
+}
+
+/** A scope that includes level 1 supports a rung; any other scope can only confirm the levels it covers. */
+export function supportsRung(scope: EngagementScope): boolean {
+  return scope.kind === 'whole' || scope.levels.includes(1)
+}
+
+export type LevelConfirmation = { level: number; name: string; achieved: boolean }
+
+/** Every level in scope, with whether the final scores achieve it (the "confirmed levels" of a partial scope). */
+export function levelConfirmations(fw: FrameworkDef, scores: Record<string, number>, scope: EngagementScope): LevelConfirmation[] {
+  const achieved = new Set(levelsAchieved(fw, scores, scope))
+  const levels = [...new Set(indicatorsInScope(fw, scope).map((i) => i.level))].sort((a, b) => a - b)
+  return levels.map((level) => ({ level, name: fw.levels.find((l) => l.level === level)?.name ?? `Level ${level}`, achieved: achieved.has(level) }))
+}
+
 /**
  * The rung a set of scores supports. Out-of-scope indicators are never assumed, so a scope that
  * does not start at level 1 supports no rung; its achieved levels are reported separately.
@@ -94,6 +129,7 @@ export type TrustDeltaRow = {
   id: string; level: number; domain: string; question: string
   self: number | null; validator: number | null; delta: number | null; optimismBias: number | null
 }
+export type TrustDeltaRowWithCap = TrustDeltaRow & { negotiated: number | null; paperCap: PaperCap | null; final: number | null }
 
 /** Self vs validator score per in-scope indicator (live, as the validator scores). */
 export function trustDelta(fw: FrameworkDef, scope: EngagementScope, self: Record<string, number>, validator: Record<string, number>): TrustDeltaRow[] {
@@ -108,6 +144,17 @@ export function trustDelta(fw: FrameworkDef, scope: EngagementScope, self: Recor
   })
 }
 
+/** Trust Delta rows with the negotiated score, any paper-compliance cap on it, and the score that stands. */
+export function trustDeltaWithCaps(
+  fw: FrameworkDef, scope: EngagementScope, self: Record<string, number>, validator: Record<string, number>,
+  negotiated: Record<string, number>, sufficiency: Record<string, Sufficiency | null | undefined>,
+): TrustDeltaRowWithCap[] {
+  const caps = paperCaps(negotiated, sufficiency)
+  return trustDelta(fw, scope, self, validator).map((t) => ({
+    ...t, negotiated: negotiated[t.id] ?? null, paperCap: caps[t.id] ?? null, final: caps[t.id]?.capped ?? negotiated[t.id] ?? validator[t.id] ?? null,
+  }))
+}
+
 export type Qualification = { id?: string; text: string; indicatorIds: string[] }
 
 export type FinaliseInput = {
@@ -115,6 +162,8 @@ export type FinaliseInput = {
   scope: EngagementScope
   validatorScores: Record<string, number>
   negotiated: Record<string, number>
+  /** The validator's evidence sufficiency per indicator; drives the paper-compliance cap on negotiated scores. */
+  sufficiency?: Record<string, Sufficiency | null | undefined>
   method: Method | null
   fieldworkStart: string | null
   fieldworkEnd: string | null
@@ -145,8 +194,16 @@ export function finalisationProblems(i: FinaliseInput): string[] {
   if (i.outcome === 'validated_with_qualifications' && !i.qualifications.length) problems.push('List at least one qualification')
   if (i.outcome === 'validated' && i.qualifications.length) problems.push('A plain "validated" outcome cannot carry qualifications')
   if (i.outcome && i.outcome !== 'not_validated' && !missing.length) {
-    const rung = impliedRung(i.fw, finalScores(i.validatorScores, i.negotiated), i.scope)
-    if (rung < 1) problems.push('No rung is supported by these scores, so the outcome must be "Not validated"')
+    const final = finalScores(i.validatorScores, cappedNegotiated(i.negotiated, paperCaps(i.negotiated, i.sufficiency ?? {})))
+    if (supportsRung(i.scope)) {
+      if (impliedRung(i.fw, final, i.scope) < 1) problems.push('No rung is supported by these scores, so the outcome must be "Not validated"')
+    } else {
+      // A partial scope confirms levels, not a rung: "validated" needs every level in scope confirmed, a qualified outcome at least one.
+      const confirmed = levelConfirmations(i.fw, final, i.scope)
+      const achieved = confirmed.filter((c) => c.achieved).length
+      if (i.outcome === 'validated' && achieved < confirmed.length) problems.push('A plain "validated" outcome needs every level in scope confirmed; choose "Validated with qualifications" or "Not validated"')
+      else if (i.outcome === 'validated_with_qualifications' && achieved < 1) problems.push('No level in scope is confirmed by these scores, so the outcome must be "Not validated"')
+    }
   }
   return problems
 }
