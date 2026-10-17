@@ -663,9 +663,11 @@ export function updateInvitationStatus(token: string, status: 'accepted' | 'revo
   }).catch((err) => console.warn('[api] updateInvitationStatus failed', err))
 }
 
-// Dispatch the branded welcome email. Degrades gracefully when no mail provider
-// is configured server-side (the invitation record is still created).
-export function sendInviteEmail(input: { to: string; subject: string; html: string }): void {
+// Ask the server to dispatch the branded welcome email for an invitation the
+// caller created. Recipient, subject and body are rendered server-side from the
+// stored invitation; the client can only name the invitation. Degrades
+// gracefully when no mail provider is configured (the invitation still exists).
+export function sendInviteEmail(input: { invitationId: string }): void {
   void fetch('/api/send-invite', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
