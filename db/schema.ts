@@ -1911,6 +1911,9 @@ export const onboardingProgress = pgTable('onboarding_progress', {
   startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
   lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
+  // Set when the welcome email is claimed (once per person); outcome: 'accepted' | 'failed' | 'not_configured'.
+  welcomeEmailSentAt: timestamp('welcome_email_sent_at', { withTimezone: true }),
+  welcomeEmailOutcome: text('welcome_email_outcome'),
 })
 
 export const onboardingNudges = pgTable('onboarding_nudges', {
