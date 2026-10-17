@@ -67,7 +67,7 @@ export default async (req: Request) => {
       await db.insert(auditLogs).values({ actor: 'public', action: `concern raised (${p.data.category})`, target: concernId, category: 'Validation', orgId: v.orgId })
       const to = process.env.CONCERNS_TO_EMAIL
       if (to) {
-        await sendReminderEmail({ to, subject: `CRAFT validation concern: ${id}`, text: `A concern was raised about ${id} (${p.data.category}).\n\n${p.data.message}\n\nSign in to CRAFT to review it.` }, `concern-${concernId}`)
+        await sendReminderEmail({ to, subject: `CRAFT validation concern: ${id}`, text: `A concern was raised about ${id} (${p.data.category}).\n\n${p.data.message}\n\nSign in to CRAFT to review it.` }, `concern-${concernId}`, 'validation_concern')
           .catch((err) => logger.error('public-validation', 'concern email failed', err))
       }
       return json({ ok: true }, 201)

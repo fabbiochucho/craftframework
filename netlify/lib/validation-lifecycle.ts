@@ -122,7 +122,7 @@ export async function contactsFor(v: Pick<ValidationRow, 'orgId' | 'engagementId
 export async function notify(to: string[], subject: string, text: string): Promise<'accepted' | 'failed' | 'not_configured' | 'skipped'> {
   if (!to.length) return 'skipped'
   try {
-    const result = await sendReminderEmail({ to, subject, text })
+    const result = await sendReminderEmail({ to, subject, text }, undefined, 'validation_notice')
     if (result === 'not_configured') logger.warn('validation-lifecycle', 'email not configured; notice not sent')
     return result
   } catch (err) {
@@ -197,7 +197,7 @@ export async function sendDueReminders(now = new Date()): Promise<{ checked: num
             text: `This is an automated CRAFT reminder.\n\nThe ${KIND_TEXT[p.kind]} for the validation of ${org2[0]?.name ?? 'the organisation'} is due on ${p.dueOn} (${days} day${days === 1 ? '' : 's'}).\n` +
               (p.kind === 'expiry' ? 'After this date the validation shows as expired on its verification page.\n' : '') +
               '\nSign in to CRAFT to see the validation and its follow-up schedule.',
-          }, `${v.id}-${p.kind}-${p.dueOn}-${offset}-${to}`)
+          }, `${v.id}-${p.kind}-${p.dueOn}-${offset}-${to}`, 'validation_reminder')
           if (result === 'accepted') {
             out.sent++
             await db.insert(validationNotifications).values({ validationId: v.id, kind: p.kind, dueOn: p.dueOn, offsetDays: offset, recipient: to }).onConflictDoNothing()

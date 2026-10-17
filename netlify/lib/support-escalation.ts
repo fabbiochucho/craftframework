@@ -12,7 +12,7 @@ async function deliverEscalation(entry: typeof supportEscalations.$inferSelect) 
     reply_to: decryptField(entry.contactEmail),
     subject: entry.reason === 'private_report' ? '[PRIVATE / CONFIDENTIAL] CRAFT support report' : `[CRAFT support escalation] ${entry.category}`,
     text: `${entry.reason === 'private_report' ? 'Private / confidential — do not publish or forward publicly.' : 'Support escalation queue'}\nReason: ${entry.reason}\nCategory: ${entry.category}\n\n${decryptField(entry.message)}`,
-  }, `support-escalation/${entry.key}`)
+  }, `support-escalation/${entry.key}`, 'support_escalation')
 }
 
 export async function retrySupportEscalations() {
