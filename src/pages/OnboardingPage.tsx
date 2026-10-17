@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { Button, Input, Select, Stepper } from '../components/ui'
 import { Footer } from '../components/Footer'
+import { trackEvent } from '../lib/analytics'
 import { Logo } from '../components/Logo'
 import { ExcelImport } from '../components/ExcelImport'
 import { useAuthCtx, useTeamCtx, useEntityProfileCtx } from '../lib/context'
@@ -17,6 +18,8 @@ import { saveOnboardingProgress } from '../lib/api'
 import { COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector } from '../lib/dataroom'
 
 const STEPS = [...ONBOARDING_STEPS]
+// Step names for analytics: fixed identifiers, never anything the user typed.
+const STEP_IDS = ['workspace', 'donor_alignment', 'team_import']
 
 export function OnboardingPage() {
   const { currentUser, completeOnboarding } = useAuthCtx()
@@ -81,6 +84,8 @@ export function OnboardingPage() {
       })
     if (!isDemoUser) saveOnboardingProgress(STEPS.length, true)
     completeOnboarding()
+    void trackEvent({ event: 'onboarding_step_completed', step: STEP_IDS[2] })
+    void trackEvent({ event: 'onboarding_completed' })
     navigate({ to: destination })
   }
 
@@ -258,7 +263,7 @@ export function OnboardingPage() {
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
               {step < 2 ? (
-                <Button onClick={() => setStep(s => s + 1)} disabled={step === 0 && !canContinueStep1}>
+                <Button onClick={() => { void trackEvent({ event: 'onboarding_step_completed', step: STEP_IDS[step] }); setStep(s => s + 1) }} disabled={step === 0 && !canContinueStep1}>
                   Continue <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (

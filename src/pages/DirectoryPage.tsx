@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { BadgeCheck, Search } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs } from '../components/ui'
 import { ValidatorFeedback } from '../components/ValidatorFeedback'
+import { trackEvent } from '../lib/analytics'
 import { FIRM_KINDS, natureOptions, type FirmKind } from '../lib/validatorDirectory'
 
 // Validator system PR 1: the signed-in three-way directory (validators,
@@ -106,7 +107,12 @@ function SearchPanel({ me }: { me: Me }) {
   const run = async (e?: React.FormEvent) => {
     e?.preventDefault()
     setError('')
-    try { setResults(await api(`/api/directory/search?${new URLSearchParams({ type, q, country })}`)) } catch (err: any) { setError(err.message) }
+    try {
+      const found = await api<any[]>(`/api/directory/search?${new URLSearchParams({ type, q, country })}`)
+      setResults(found)
+      // Only the kind searched and whether anything matched; never the keywords or country.
+      if (e) void trackEvent({ event: 'directory_search', type: type as 'validators' | 'firms' | 'funders' | 'organizations', has_results: found.length > 0 })
+    } catch (err: any) { setError(err.message) }
   }
   useEffect(() => { void run() }, [type])
   const types = [
@@ -183,7 +189,10 @@ function ValidatorForm({ me, reload }: { me: Me; reload: () => void }) {
       <CardContent className="space-y-3">
         <form className="grid gap-3 sm:grid-cols-2" onSubmit={(e) => {
           e.preventDefault()
-          void act(() => api('/api/directory/me/validator', { method: 'PUT', json: { name: f.name, bio: f.bio, competencies: list(f.competencies), frameworks: list(f.frameworks), countries: list(f.countries), languages: list(f.languages) } }), 'Profile saved')
+          void act(async () => {
+            await api('/api/directory/me/validator', { method: 'PUT', json: { name: f.name, bio: f.bio, competencies: list(f.competencies), frameworks: list(f.frameworks), countries: list(f.countries), languages: list(f.languages) } })
+            if (!v) void trackEvent({ event: 'validator_profile_created' })
+          }, 'Profile saved')
         }}>
           <Input label="Professional name" required value={f.name} onChange={set('name')} />
           <Input label="Competencies (comma-separated)" value={f.competencies} onChange={set('competencies')} />
