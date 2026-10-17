@@ -139,7 +139,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       navigate({ to: '/auth' })
       return
     }
-    if (onboardingComplete) return
+    // The platform Super Admin runs CRAFT; they are not an assessed organisation.
+    if (onboardingComplete || currentUser?.role === 'super_admin') return
     // /app/workspaces is the newer platform's own self-sufficient entry point -
     // it already renders a "create your first organization" form (CreateOrg)
     // whenever the signed-in user has no org yet, so it must never be bounced
