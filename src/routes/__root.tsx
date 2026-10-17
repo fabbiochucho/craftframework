@@ -6,6 +6,8 @@ import { IdentityBridge } from '../components/IdentityBridge'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { AutoTranslate } from '../components/AutoTranslate'
 import { SupportBot } from '../components/SupportBot'
+import { ConsentBanner } from '../components/ConsentBanner'
+import { AnalyticsController } from '../components/AnalyticsController'
 import '../styles.css'
 // Self-hosted fonts: loading them from fonts.googleapis.com sends every
 // visitor's IP to Google before consent, which German (Munich, 2022) and other
@@ -77,10 +79,13 @@ function RootApp() {
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <I18nProvider>
+          {/* First in the document so the banner is the first Tab stop; it is positioned fixed at the bottom. */}
+          <ConsentBanner />
           <IdentityBridge>
             <Outlet />
           </IdentityBridge>
           <OfflineBanner />
+          <AnalyticsController />
           <AutoTranslate />
           <SupportBot />
         </I18nProvider>
