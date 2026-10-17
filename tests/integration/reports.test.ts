@@ -1,7 +1,7 @@
 // PDF report generation/storage/download, report schedules and the email route
 // (SendGrid is never contacted: SENDGRID_* is unset or fetch is mocked).
 import assert from 'node:assert/strict'
-import { afterEach, beforeEach, describe, it } from 'node:test'
+import { afterEach, beforeEach, describe, it, mock as testMock } from 'node:test'
 import {
   ADMIN, ASSESSOR, OUTSIDER, OWNER, VIEWER, addMember, as, blobStores, createCap, createOrg, expectStatus, installFetchMock, rows, truncateAll,
 } from './harness.ts'
@@ -258,6 +258,9 @@ describe('report email', () => {
 
   it('limits each organisation to 10 sends per hour (429)', async () => {
     configure()
+    // The budget is per clock hour: pin Date to mid-hour so the 11 sends can't straddle a window boundary.
+    const hour = 3_600_000
+    testMock.timers.enable({ apis: ['Date'], now: Math.floor(Date.now() / hour) * hour + hour / 2 })
     const mock = installFetchMock()
     try {
       for (let i = 0; i < 5; i++) expectStatus(await send([VIEWER]), 200, `admin ${i}`)
@@ -270,7 +273,7 @@ describe('report email', () => {
       const other = await createOrg('Other Org', 'owner@other-org.example', {})
       const otherReport = expectStatus(await as('owner@other-org.example').post(`/workspaces/${other.wsId}/reports/cap-summary`, {}), 201).body.id
       expectStatus(await as('owner@other-org.example').post(`/workspaces/${other.wsId}/reports/${otherReport}/email`, {}), 200)
-    } finally { mock.restore() }
+    } finally { mock.restore(); testMock.timers.reset() }
   })
 
   it('audit-logs each send with actor, report and recipient count but no addresses', async () => {
