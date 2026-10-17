@@ -4,7 +4,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
-  engagementMembers, firms, organizations, validationConcerns, validationEngagements, validationRatings, validationReviews, validations, validatorProfiles,
+  engagementMembers, firms, organizations, validationConcerns, validationEngagements, validationRatings, validationRereviews, validationReviews, validations, validatorProfiles,
   type ValidationRow,
 } from '../../db/schema.js'
 import { decryptField } from './crypto.js'
@@ -30,6 +30,8 @@ export type FinalisedReview = {
   validator: string
   validatorFirmId: string | null
   funderFirmId: string | null
+  /** The engaging funding partner made a re-review a term of the engagement. */
+  requiresRereview: boolean
   finalisedAt: Date
   metrics: ReviewMetrics
   validationId: string | null
@@ -49,7 +51,7 @@ export async function finalisedReviews(): Promise<FinalisedReview[]> {
     const validator = leads.find((l) => l.engagementId === e.id)?.email ?? e.validatorEmail
     if (!validator || !r.finalisedAt) continue
     out.push({
-      engagementId: e.id, orgId: e.orgId, validator, validatorFirmId: e.validatorFirmId, funderFirmId: e.funderFirmId, finalisedAt: r.finalisedAt,
+      engagementId: e.id, orgId: e.orgId, validator, validatorFirmId: e.validatorFirmId, funderFirmId: e.funderFirmId, requiresRereview: e.requiresRereview, finalisedAt: r.finalisedAt,
       metrics: reviewMetrics(r.outcome ?? '', r.snapshot as never), validationId: issued.find((i) => i.engagementId === e.id)?.id ?? null,
     })
   }
@@ -85,6 +87,10 @@ export type FlaggedValidation = {
   validatedRung: number
   finalisedAt: string
   flags: Flag[]
+  /** A funding partner required a re-review. */
+  funderRequired: boolean
+  /** The latest re-review of this validation, if any. */
+  reReview: { id: string; status: string; outcome: string | null } | null
 }
 
 /** Issued validations that deserve a re-review look. Advice only: nothing is opened or changed by it. */
@@ -99,6 +105,8 @@ export async function flaggedValidations(): Promise<FlaggedValidation[]> {
   const profiles = await db.select({ email: validatorProfiles.email, name: validatorProfiles.name }).from(validatorProfiles).where(inArray(validatorProfiles.email, [...new Set(issued.map((r) => r.validator))]))
   const firmIds = [...new Set(issued.flatMap((r) => (r.validatorFirmId ? [r.validatorFirmId] : [])))]
   const firmRows = firmIds.length ? await db.select({ id: firms.id, name: firms.name }).from(firms).where(inArray(firms.id, firmIds)) : []
+  const latest = await db.select({ id: validationRereviews.id, validationId: validationRereviews.validationId, status: validationRereviews.status, outcome: validationRereviews.outcome })
+    .from(validationRereviews).where(inArray(validationRereviews.validationId, vals.map((v) => v.id))).orderBy(desc(validationRereviews.createdAt))
   const out: FlaggedValidation[] = []
   for (const r of issued) {
     const v = vals.find((x) => x.id === r.validationId)
@@ -107,14 +115,15 @@ export async function flaggedValidations(): Promise<FlaggedValidation[]> {
     const own = stats.get(r.validator)
     const peers = [...stats.entries()].filter(([k]) => k !== r.validator).map(([, s]) => s)
     const flags = reReviewFlags({ position: positions.get(r.engagementId) ?? 0, metrics: r.metrics, peer: own ? outOfLine(own, peers) : { reasons: [] } })
-    if (!flags.length) continue
+    if (!flags.length && !r.requiresRereview) continue
     out.push({
       validationId: v.id, verificationId: v.verificationId, organization: orgs.find((o) => o.id === r.orgId)?.name ?? '',
       validatorName: profiles.find((p) => p.email === r.validator)?.name ?? 'Validator', firm: firmRows.find((f) => f.id === r.validatorFirmId)?.name ?? null,
-      engagementId: r.engagementId, validatedRung: v.validatedRung, finalisedAt: r.finalisedAt.toISOString(), flags,
+      engagementId: r.engagementId, validatedRung: v.validatedRung, finalisedAt: r.finalisedAt.toISOString(), flags, funderRequired: r.requiresRereview,
+      reReview: ((x) => (x ? { id: x.id, status: x.status, outcome: x.outcome } : null))(latest.find((x) => x.validationId === v.id)),
     })
   }
-  return out.sort((a, b) => b.flags.length - a.flags.length || b.finalisedAt.localeCompare(a.finalisedAt))
+  return out.sort((a, b) => Number(b.funderRequired) - Number(a.funderRequired) || b.flags.length - a.flags.length || b.finalisedAt.localeCompare(a.finalisedAt))
 }
 
 export type PublicRating = { id: string; party: string; stars: number; comment: string; reply: string; replyAt: Date | null; createdAt: Date; country: string }
