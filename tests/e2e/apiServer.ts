@@ -16,6 +16,9 @@ import { applyMigrations, loadHandler, rows, truncateAll } from '../integration/
 // The app and API are same-origin in production; mirror that for the origin check.
 const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://localhost:3000'
 const PORT = Number(process.env.E2E_API_PORT ?? 8899)
+// The resume-onboarding emails need these; no email provider key is set, so previews work and sending reports 'not configured'.
+process.env.ONBOARDING_OPTOUT_SECRET ??= 'e2e-optout-secret-not-a-credential'
+process.env.APP_URL ??= WEB_ORIGIN
 
 function identityFromCookie(header: string | undefined): { id: string; email: string; name: string } | null {
   const token = /(?:^|;\s*)nf_jwt=([^;]+)/.exec(header ?? '')?.[1]
@@ -46,6 +49,8 @@ const publicValidation = (await import(new URL('../../netlify/functions/public-v
 const validationsHandler = (await import(new URL('../../netlify/functions/validations.mts', import.meta.url).href)).default
 const directoryHandler = (await import(new URL('../../netlify/functions/directory.mts', import.meta.url).href)).default
 const panelHandler = (await import(new URL('../../netlify/functions/review-panel.mts', import.meta.url).href)).default
+const analyticsHandler = (await import(new URL('../../netlify/functions/admin-analytics.mts', import.meta.url).href)).default
+const progressHandler = (await import(new URL('../../netlify/functions/onboarding-progress.mts', import.meta.url).href)).default
 const qualityHandler = (await import(new URL('../../netlify/functions/validator-quality.mts', import.meta.url).href)).default
 
 // Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
@@ -113,6 +118,14 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(204).end()
       return
     }
+    if (url.pathname === '/__test/seed-onboarding' && req.method === 'POST') {
+      // People who started onboarding and stopped, for the Super Admin analytics spec.
+      await rows(`INSERT INTO organizations(id,name,country) VALUES('self_amina','Riverbend Cooperative','Kenya') ON CONFLICT (id) DO NOTHING`)
+      await rows(`INSERT INTO users(id,email,name,org_id,role) VALUES('e2e-amina','amina@riverbend.example','Amina Okoro','self_amina','assessor') ON CONFLICT (email) DO NOTHING`)
+      await rows(`INSERT INTO onboarding_progress(email,step,step_name,started_at,last_activity_at) VALUES('amina@riverbend.example',2,'Donor Alignment', now() - interval '10 days', now() - interval '6 days') ON CONFLICT (email) DO NOTHING`)
+      res.writeHead(204).end()
+      return
+    }
     if (url.pathname === '/__test/ready') {
       res.writeHead(200).end('ok')
       return
@@ -130,6 +143,8 @@ const server = http.createServer(async (req, res) => {
     const request = new Request(`${WEB_ORIGIN}${req.url}`, { method: req.method, headers, body })
     const routeHandler = url.pathname.startsWith('/api/public/validation/') ? publicValidation
       : url.pathname === '/api/validations' || url.pathname.startsWith('/api/validations/') ? validationsHandler
+        : url.pathname === '/api/admin-analytics' || url.pathname.startsWith('/api/admin-analytics/') ? analyticsHandler
+        : url.pathname === '/api/onboarding-progress' ? progressHandler
         : url.pathname === '/api/directory' || url.pathname.startsWith('/api/directory/') ? directoryHandler
           : url.pathname === '/api/review-panel' || url.pathname.startsWith('/api/review-panel/') ? panelHandler
           : url.pathname === '/api/validator-quality' || url.pathname.startsWith('/api/validator-quality/') ? qualityHandler
