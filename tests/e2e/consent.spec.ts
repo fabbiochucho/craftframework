@@ -227,6 +227,9 @@ for (const [name, script] of [
 test('the banner and settings are operable by keyboard alone', async ({ page }) => {
   const ph = await interceptPosthog(page)
   await page.goto('/')
+  // The banner mounts after hydration; start tabbing from the top of the page only once it is there.
+  await expect(banner(page)).toBeVisible()
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
   const focusedName = () => page.evaluate(() => (document.activeElement as HTMLElement | null)?.textContent?.trim() ?? '')
   let found = false
   for (let i = 0; i < 12 && !found; i++) { await page.keyboard.press('Tab'); found = (await focusedName()) === 'Accept analytics' }
