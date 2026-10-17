@@ -18,7 +18,7 @@ import { ShieldCheck, Handshake,
   LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
-  Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap,
+  BarChart3, Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap,
 } from 'lucide-react'
 
 // The legacy /api endpoints answer 401 'mfa_required' when the account uses multi-factor sign-in
@@ -76,6 +76,7 @@ const orgNav = [
 ]
 const adminNav = [
   { to: '/admin', label: 'Super Admin', icon: Shield },
+  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/admin/portfolio', label: 'Portfolio Admin', icon: Network },
 ]
 
@@ -139,7 +140,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       navigate({ to: '/auth' })
       return
     }
-    if (onboardingComplete) return
+    // The platform Super Admin runs CRAFT; they are not an assessed organisation.
+    if (onboardingComplete || currentUser?.role === 'super_admin') return
     // /app/workspaces is the newer platform's own self-sufficient entry point -
     // it already renders a "create your first organization" form (CreateOrg)
     // whenever the signed-in user has no org yet, so it must never be bounced

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
 import { useNavigate, Link } from '@tanstack/react-router'
@@ -13,9 +13,11 @@ import { Logo } from '../components/Logo'
 import { ExcelImport } from '../components/ExcelImport'
 import { useAuthCtx, useTeamCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, DONOR_FRAMEWORKS, ARCHETYPES, Archetype } from '../lib/data'
+import { ONBOARDING_STEPS } from '../lib/onboardingProgress'
+import { saveOnboardingProgress } from '../lib/api'
 import { COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector } from '../lib/dataroom'
 
-const STEPS = ['Workspace', 'Donor Alignment', 'Team & Import']
+const STEPS = [...ONBOARDING_STEPS]
 // Step names for analytics: fixed identifiers, never anything the user typed.
 const STEP_IDS = ['workspace', 'donor_alignment', 'team_import']
 
@@ -25,6 +27,13 @@ export function OnboardingPage() {
   const { setEntityProfile, profileSaveStatus } = useEntityProfileCtx()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
+
+  // Which step the person has reached, for the Super Admin's onboarding analytics (step number and name only).
+  const isDemoUser = currentUser?.isDemo ?? true
+  const signedInEmail = currentUser?.email
+  useEffect(() => {
+    if (signedInEmail && !isDemoUser) saveOnboardingProgress(step + 1)
+  }, [step, signedInEmail, isDemoUser])
 
   // Step 1 - workspace identity. Archetype/country/sector/subsector ARE the
   // entity profile that drives the Assessment Wizard's question filtering and the
@@ -73,6 +82,7 @@ export function OnboardingPage() {
         const name = email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
         inviteTeamMember({ name, email, title: 'Co-Assessor', role: 'assessor', scopeLabel })
       })
+    if (!isDemoUser) saveOnboardingProgress(STEPS.length, true)
     completeOnboarding()
     void trackEvent({ event: 'onboarding_step_completed', step: STEP_IDS[2] })
     void trackEvent({ event: 'onboarding_completed' })
