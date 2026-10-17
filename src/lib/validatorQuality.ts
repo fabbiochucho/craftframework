@@ -186,8 +186,10 @@ export function positionsByValidator<T extends { id: string; validator: string; 
 export type DevMapperValidation = {
   /** "Independent validation" or "Funder review": a funder's own review is never called validated. */
   label: 'Independent validation' | 'Funder review'
-  validatedRung: number
+  /** Null when the scope skipped level 1: such a validation confirms levels (below), never a rung. */
+  validatedRung: number | null
   rungName: string
+  confirmedLevels: Array<{ level: number; name: string; achieved: boolean }> | null
   outcome: string
   status: string
   validatorOrganisation: string | null
