@@ -13,7 +13,6 @@ import {
   ViewLevel,
   getViewLevel,
   isSuperAdminEmail,
-  buildWelcomeEmailHtml,
   computeImplementationEvidence,
   clampSessionTimeout,
   SESSION_TIMEOUT_DEFAULT,
@@ -863,15 +862,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }).then(inv => {
           if (!inv) return
           setSentInvitations(prev => [inv, ...prev])
-          const { subject, html } = buildWelcomeEmailHtml({
-            name: input.name,
-            email: input.email,
-            role: input.role,
-            scopeLabel: input.scopeLabel,
-            inviterName: currentUser.email,
-            inviterEmail: currentUser.email,
-          })
-          api.sendInviteEmail({ to: input.email, subject, html })
+          // The server renders subject/body from the stored invitation.
+          api.sendInviteEmail({ invitationId: inv.id })
         })
       }
       appendAudit(
