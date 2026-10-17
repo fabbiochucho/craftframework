@@ -57,6 +57,7 @@ import {
   catalogueMeta, defaultFirstReportingYear, ESG_CATALOGUE, generateSecPlan, planCsv, renderPlanDoc, SEC_NG_FRAMEWORK,
   type EntityType, type Horizon, type PlanRow, type PlanSettings, type Readiness,
 } from '../lib/esg-planner.js'
+import { orgMemberEmails, overHourlyBudget, partitionRecipients, REPORT_RECIPIENTS_PER_HOUR, REPORT_SENDS_PER_ORG_PER_HOUR } from '../lib/report-recipients.js'
 import {
   classifySupportMessage, isPrivateReport, rankSupportFaq, redactSupportMessage, supportDeduplicationKey,
 } from '../lib/support-bot.js'
@@ -1989,9 +1990,15 @@ const routes: Route[] = [
   { method: 'GET', pattern: `${W}/reports`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
     json(await db.select().from(reports).where(and(eq(reports.orgId, orgId), eq(reports.workspaceId, wsId))).orderBy(desc(reports.id)).limit(100)) },
   // Literal `schedules` must be registered before the `:id` routes below.
-  { method: 'GET', pattern: `${W}/reports/schedules`, access: 'admin', scope: 'workspace', handler: async (_c, { orgId, wsId }) =>
-    json((await db.select().from(reportSchedules).where(and(eq(reportSchedules.orgId, orgId), eq(reportSchedules.workspaceId, wsId))).orderBy(desc(reportSchedules.id)))
-      .map((schedule) => ({ ...schedule, recipients: schedule.recipients.map(decryptField) }))) },
+  { method: 'GET', pattern: `${W}/reports/schedules`, access: 'admin', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
+    const members = await orgMemberEmails(orgId)
+    return json((await db.select().from(reportSchedules).where(and(eq(reportSchedules.orgId, orgId), eq(reportSchedules.workspaceId, wsId))).orderBy(desc(reportSchedules.id)))
+      .map((schedule) => {
+        const recipients = schedule.recipients.map(decryptField)
+        // Recipients who are no longer organisation members are skipped at send time; surface them as a warning.
+        return { ...schedule, recipients, skippedRecipients: partitionRecipients(recipients, members, SUPPORT_EMAIL).rejected }
+      }))
+  } },
   { method: 'GET', pattern: `${W}/reports/:id/pdf`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const reportId = intParam(c.p[1])
     const [report] = await db.select({ id: reports.id }).from(reports).where(and(
@@ -2020,12 +2027,23 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'report', r.id, 'read')
     return json(r)
   } },
-  { method: 'POST', pattern: `${W}/reports/:id/email`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+  { method: 'POST', pattern: `${W}/reports/:id/email`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const [r] = await db.select().from(reports).where(and(eq(reports.id, intParam(c.p[1])), eq(reports.orgId, orgId), eq(reports.workspaceId, wsId)))
     if (!r) throw new HttpError(404, 'Not found')
     if (!process.env.SENDGRID_API_KEY || !process.env.SENDGRID_FROM_EMAIL) throw new HttpError(503, 'Email not configured')
-    const recipients: string[] = Array.isArray(c.body.recipients) && c.body.recipients.length ? c.body.recipients : [SUPPORT_EMAIL]
-    if (recipients.length > 10 || recipients.some((e) => typeof e !== 'string' || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(e))) throw bad('recipients invalid (max 10 emails)')
+    const requested: string[] = Array.isArray(c.body.recipients) && c.body.recipients.length ? c.body.recipients : [SUPPORT_EMAIL]
+    if (requested.length > 10 || requested.some((e) => typeof e !== 'string' || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(e))) throw bad('recipients invalid (max 10 emails)')
+    const { allowed: recipients, rejected } = partitionRecipients(requested, await orgMemberEmails(orgId), SUPPORT_EMAIL)
+    if (rejected.length) throw bad(`Reports can only be emailed to members of this organisation or the CRAFT support inbox. Not members: ${rejected.join(', ')}`)
+    // Hourly budgets on the shared rate_limits table: sends per organisation and recipients per caller.
+    if (await overHourlyBudget(`report-email-org:${orgId}`, 1, REPORT_SENDS_PER_ORG_PER_HOUR)) {
+      await audit(c, orgId, wsId, 'report', r.id, 'update', { emailBlocked: 'org_rate_limit' })
+      throw new HttpError(429, `This organisation has reached its limit of ${REPORT_SENDS_PER_ORG_PER_HOUR} report emails per hour. Try again later.`)
+    }
+    if (await overHourlyBudget(`report-email-caller:${caller.email}`, recipients.length, REPORT_RECIPIENTS_PER_HOUR)) {
+      await audit(c, orgId, wsId, 'report', r.id, 'update', { emailBlocked: 'caller_rate_limit' })
+      throw new HttpError(429, `You have reached your limit of ${REPORT_RECIPIENTS_PER_HOUR} report email recipients per hour. Try again later.`)
+    }
     const versions = await db.select().from(reportVersions).where(and(eq(reportVersions.orgId, orgId), eq(reportVersions.reportId, r.id)))
       .orderBy(desc(reportVersions.versionNum)).limit(1)
     const latest = versions.find((version) => !!version.pdfUrl)
@@ -2057,8 +2075,10 @@ const routes: Route[] = [
       recipients.some((email) => typeof email !== 'string' || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email.trim()))) {
       throw bad('recipients must contain 1–10 valid email addresses')
     }
+    const { allowed, rejected } = partitionRecipients(recipients, await orgMemberEmails(orgId), SUPPORT_EMAIL)
+    if (rejected.length) throw bad(`Scheduled reports can only go to members of this organisation or the CRAFT support inbox. Not members: ${rejected.join(', ')}`)
     const [schedule] = await db.insert(reportSchedules).values({
-      orgId, workspaceId: wsId, reportType, cadence, format, recipients: recipients.map((email: string) => encryptField(email.trim())),
+      orgId, workspaceId: wsId, reportType, cadence, format, recipients: allowed.map((email) => encryptField(email)),
       scheduleDay: new Date().getUTCDate(), nextRunAt: nextReportRun(cadence, new Date()), createdBy: caller.email,
     }).returning()
     await audit(c, orgId, wsId, 'report_schedule', schedule.id, 'create', { reportType, cadence })

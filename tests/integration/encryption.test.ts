@@ -5,7 +5,7 @@ import { beforeEach, describe, it } from 'node:test'
 import { createHmac } from 'node:crypto'
 import { decryptField } from '../../netlify/lib/crypto.ts'
 import {
-  ADMIN, ASSESSOR, OWNER, VIEWER, as, createAssessment, createOrg, expectStatus, rows, truncateAll,
+  ADMIN, ASSESSOR, OWNER, VIEWER, addMember, as, createAssessment, createOrg, expectStatus, rows, truncateAll,
 } from './harness.ts'
 
 const isCipher = (v: unknown) => typeof v === 'string' && /^enc:v\d+:/.test(v)
@@ -83,6 +83,7 @@ describe('field encryption at rest', () => {
     expectStatus(await as(ASSESSOR).put(`/workspaces/${wsId}/assessments/${id}/findings/${plain.body.id}`, { sensitive: true }), 200)
     assert.ok(isCipher((await rows('SELECT description FROM governance_findings WHERE id = $1', [plain.body.id]))[0].description))
 
+    await addMember(orgId, 'board@acme.example')
     expectStatus(await as(ADMIN).post(`/workspaces/${wsId}/reports/schedules`, {
       reportType: 'cap_summary', cadence: 'weekly', recipients: ['board@acme.example'],
     }), 201)
