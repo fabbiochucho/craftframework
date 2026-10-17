@@ -3,7 +3,7 @@ import { asc, eq, sql } from 'drizzle-orm'
 import { admin } from '@netlify/identity'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { users } from '../../db/schema.js'
+import { dailyActive, users } from '../../db/schema.js'
 import type { UserRow } from '../../db/schema.js'
 import { isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
@@ -171,6 +171,8 @@ export default async (req: Request) => {
             },
           })
           .returning()
+        // One row per person per day, so the Super Admin analytics have activity history.
+        await db.insert(dailyActive).values({ day: now.toISOString().slice(0, 10), email }).onConflictDoNothing().catch(() => undefined)
         return Response.json(row, { status: 201 })
       }
 

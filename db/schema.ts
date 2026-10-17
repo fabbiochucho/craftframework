@@ -674,6 +674,24 @@ export const validationQualifications = pgTable(
   (t) => [index('validation_qualifications_review_idx').on(t.reviewId)],
 )
 
+// Review follow-ups: the organisation's existing evidence (registry items) linked to ladder indicators of an
+// engagement. A reference only; the file stays in the evidence store and is never copied.
+export const validationEvidenceLinks = pgTable(
+  'validation_evidence_links',
+  {
+    id: text('id').primaryKey(),
+    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    indicatorId: text('indicator_id').notNull(),
+    evidenceId: integer('evidence_id').notNull().references(() => evidenceRegistry.id, { onDelete: 'cascade' }),
+    documentName: text('document_name').notNull(),
+    documentType: text('document_type').notNull().default('evidence'),
+    sha256: text('sha256'),
+    linkedBy: text('linked_by').notNull(),
+    linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('validation_evidence_links_uq').on(t.engagementId, t.indicatorId, t.evidenceId), index('validation_evidence_links_engagement_idx').on(t.engagementId)],
+)
+
 // --- validations (lifecycle) --------------------------------------------------
 // Validator system PR 5. The issued validation that a finalised review produces:
 // its validity, follow-up schedule and stored status decisions. 'Follow-up
@@ -1881,3 +1899,58 @@ export const trainingDeclarations = pgTable('training_declarations', {
 export type RatingRow = typeof validationRatings.$inferSelect
 export type PanelCaseRow = typeof panelCases.$inferSelect
 export type PanelMemberRow = typeof panelMembers.$inferSelect
+
+// --- Super Admin analytics and resume-onboarding nudges -----------------------
+// Step numbers and names only: the form contents of /onboarding are never stored here.
+export const onboardingProgress = pgTable('onboarding_progress', {
+  email: text('email').primaryKey(),
+  step: integer('step').notNull(),
+  stepName: text('step_name').notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+})
+
+export const onboardingNudges = pgTable('onboarding_nudges', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  sentBy: text('sent_by').notNull(),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
+  step: integer('step').notNull(),
+  stepName: text('step_name').notNull(),
+  hasNote: boolean('has_note').notNull().default(false),
+  // 'pending' | 'accepted' | 'failed' | 'not_configured'
+  outcome: text('outcome').notNull().default('pending'),
+}, (t) => [index('onboarding_nudges_email_idx').on(t.email, t.sentAt)])
+
+export const onboardingOptouts = pgTable('onboarding_optouts', {
+  email: text('email').primaryKey(),
+  optedOutAt: timestamp('opted_out_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const dailyActive = pgTable('daily_active', {
+  day: date('day', { mode: 'string' }).notNull(),
+  email: text('email').notNull(),
+}, (t) => [primaryKey({ columns: [t.day, t.email] })])
+
+export const emailLog = pgTable('email_log', {
+  id: serial('id').primaryKey(),
+  kind: text('kind').notNull(),
+  outcome: text('outcome').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('email_log_created_idx').on(t.createdAt)])
+
+export const directorySearchLog = pgTable('directory_search_log', {
+  id: serial('id').primaryKey(),
+  type: text('type').notNull(),
+  query: text('query').notNull(),
+  resultCount: integer('result_count').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('directory_search_log_created_idx').on(t.createdAt)])
+
+export const directoryProfileViews = pgTable('directory_profile_views', {
+  kind: text('kind').notNull(),
+  profileId: text('profile_id').notNull(),
+  day: date('day', { mode: 'string' }).notNull(),
+  views: integer('views').notNull().default(0),
+}, (t) => [primaryKey({ columns: [t.kind, t.profileId, t.day] })])

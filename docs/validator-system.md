@@ -26,6 +26,18 @@ A funding partner cannot create an independent validation (API and database both
 3. **Review and freeze** (`/api/validation-reviews`): the validator scores each indicator 0–5 with evidence
    sufficiency, optional debrief with the organisation, outcome (validated / with qualifications / not
    validated). Finalising freezes a snapshot and its SHA-256; later self-score changes never alter it.
+   - **Partial scopes** (a scope that skips level 1, e.g. levels 3–4) confirm each in-scope level as achieved or
+     not (`levelAchieved` on the final scores). They never yield a rung: the snapshot records `confirmedLevels`,
+     `validated_rung` stays null, and the public page and DevMapper summary show the confirmed levels. "Validated"
+     needs every in-scope level confirmed; "validated with qualifications" needs at least one.
+   - **Linked evidence**: organisation staff link existing evidence-registry items to indicators
+     (`POST /api/validation-reviews/:id/evidence/:indicator`, needs workspace assessor or above on the item's
+     organisation; options at `GET .../evidence-options`). Validators with an active grant see name, type,
+     status, expiry and SHA-256 read-only (each view is audit-logged); no file contents are exposed. The snapshot
+     stores references only (id, name, type, SHA-256).
+   - **Paper-compliance cap**: a negotiated score above 2 on an indicator whose evidence the validator marked
+     `insufficient` stands at 2 (`paperCompliancePenalty`). The cap shows in the Trust Delta, the debrief and the
+     snapshot (`paperCap`), and counts towards the outcome and rung.
 4. **Issued validation** (`/api/validations`): validity (12 months; 6 with qualifications; 24 for rung 5+
    without qualifications, with a surveillance check at 12), follow-up schedule, material events, status
    history, reminders (30 and 7 days before each point).
@@ -123,7 +135,8 @@ function DevMapper will call (there is deliberately no HTTP endpoint). It return
 - `validation`: the latest validation that **currently stands** (status current or follow-up overdue), or null.
   It carries label (Independent validation / Funder review), validated rung and name, outcome, status,
   validator firm, validator type (firm / individual), who engaged them, finalised date, expiry, next
-  verification point, and the verification ID.
+  verification point, and the verification ID. For a partial scope `validatedRung` is null and
+  `confirmedLevels` lists the levels checked.
 
 Expired, suspended, withdrawn and superseded validations are never returned as a confirmed rung. No emails,
 scores or evidence are included.
