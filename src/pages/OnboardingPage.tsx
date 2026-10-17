@@ -182,6 +182,9 @@ export function OnboardingPage() {
         <div className="mx-auto max-w-3xl px-6 py-10">
           <Stepper steps={STEPS} current={step} />
 
+          {!hydrated ? (
+            <p role="status" className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">Loading your saved progress…</p>
+          ) : (
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             {/* STEP 1 */}
             {step === 0 && (
@@ -336,7 +339,7 @@ export function OnboardingPage() {
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
               {step < 2 ? (
-                <Button onClick={() => goToStep(step + 1)} disabled={!hydrated || (step === 0 && !canContinueStep1)}>
+                <Button onClick={() => goToStep(step + 1)} disabled={step === 0 && !canContinueStep1}>
                   Continue <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
@@ -346,6 +349,7 @@ export function OnboardingPage() {
               )}
             </div>
           </div>
+          )}
         </div>
       </main>
       <Footer />
