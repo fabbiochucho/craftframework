@@ -35,7 +35,7 @@ const send = (email: string | null, emails: string[], note?: string) => call(ema
 
 describe('admin analytics and resume-onboarding emails', () => {
   let mail: ReturnType<typeof installFetchMock>
-  const emailCalls = (): FetchCall[] => mail.calls.filter((c) => c.url.includes('api.resend.com'))
+  const emailCalls = (): FetchCall[] => mail.calls.filter((c) => new URL(c.url).host === 'api.resend.com')
 
   beforeEach(async () => {
     await truncateAll()
