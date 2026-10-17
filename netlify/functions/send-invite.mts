@@ -25,6 +25,8 @@ import type { ViewLevel } from '../../src/lib/data.js'
 export const SEND_LIMIT_PER_HOUR = 20
 export const SEND_LIMIT_PER_INVITATION = 3
 const HOUR_MS = 3_600_000
+// The per-invitation cap outlives any invitation (they expire well within this).
+const CAP_TTL_MS = 90 * 24 * HOUR_MS
 
 const json = (body: unknown, status = 200, headers?: Record<string, string>) => Response.json(body, { status, headers })
 
@@ -32,7 +34,7 @@ const json = (body: unknown, status = 200, headers?: Record<string, string>) => 
 async function overHourlyLimit(email: string, now = Date.now()): Promise<boolean> {
   const windowStart = new Date(Math.floor(now / HOUR_MS) * HOUR_MS)
   const key = createHash('sha256').update(`send-invite:${email}`).digest('hex')
-  const [row] = await db.insert(rateLimits).values({ key, windowStart, count: 1 })
+  const [row] = await db.insert(rateLimits).values({ key, windowStart, count: 1, expiresAt: new Date(windowStart.getTime() + HOUR_MS) })
     .onConflictDoUpdate({ target: [rateLimits.key, rateLimits.windowStart], set: { count: sql`${rateLimits.count} + 1` } })
     .returning({ count: rateLimits.count })
   return row.count > SEND_LIMIT_PER_HOUR
@@ -95,7 +97,7 @@ export default async (req: Request) => {
     // Reserve a send slot atomically; the cap holds under concurrent requests.
     // send_count lives in the rate_limits table keyed by invitation (no schema change).
     const capKey = createHash('sha256').update(`send-invite-inv:${inv.id}`).digest('hex')
-    const [slot] = await db.insert(rateLimits).values({ key: capKey, windowStart: new Date(0), count: 1 })
+    const [slot] = await db.insert(rateLimits).values({ key: capKey, windowStart: new Date(0), count: 1, expiresAt: new Date(Date.now() + CAP_TTL_MS) })
       .onConflictDoUpdate({ target: [rateLimits.key, rateLimits.windowStart], set: { count: sql`${rateLimits.count} + 1` } })
       .returning({ count: rateLimits.count })
     if (slot.count > SEND_LIMIT_PER_INVITATION) {
