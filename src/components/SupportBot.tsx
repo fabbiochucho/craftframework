@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { MessageCircle, Send, X } from 'lucide-react'
 import { setSupportAnalyticsConsent, trackSupportEvent } from '../lib/analytics'
+import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '../lib/consent'
 
 interface Message {
   id: string
@@ -105,6 +106,8 @@ export function SupportBot() {
   const [contactEmail, setContactEmail] = useState('')
   const [escalationConsent, setEscalationConsent] = useState(false)
   const [analyticsConsent, setAnalyticsConsent] = useState(false)
+  // Do Not Track / Global Privacy Control are treated as a refusal everywhere, including here.
+  const privacySignal = useSyncExternalStore(subscribeConsent, () => getConsentSnapshot().signal, () => getServerConsentSnapshot().signal)
   const inputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -271,11 +274,11 @@ export function SupportBot() {
             </label>
             {import.meta.env.VITE_POSTHOG_KEY && (
               <label className="flex items-start gap-2 text-xs text-gray-700">
-                <input type="checkbox" checked={analyticsConsent} onChange={event => {
+                <input type="checkbox" checked={analyticsConsent && !privacySignal} disabled={privacySignal} onChange={event => {
                   setAnalyticsConsent(event.target.checked)
                   setSupportAnalyticsConsent(event.target.checked, import.meta.env.VITE_POSTHOG_KEY)
                 }} />
-                <span>Allow anonymous support analytics (no message or email content).</span>
+                <span>Allow anonymous support analytics (no message or email content).{privacySignal && ' Off because your browser sends a Do Not Track / Global Privacy Control signal.'}</span>
               </label>
             )}
             <label className="flex items-start gap-2 text-xs text-gray-700">

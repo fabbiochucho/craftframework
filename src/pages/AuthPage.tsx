@@ -14,6 +14,7 @@ import { Button, Input } from '../components/ui'
 import { Footer } from '../components/Footer'
 import { Logo } from '../components/Logo'
 import { Turnstile } from '../components/Turnstile'
+import { trackEvent } from '../lib/analytics'
 import { useIdentityRecovery } from '../components/IdentityBridge'
 import { useAuthCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
@@ -218,6 +219,7 @@ export function AuthPage() {
           // Checked and removed by netlify/functions/identity-validate.mts.
           turnstile_token: captchaToken,
         })
+        void trackEvent({ event: 'signed_up' })
         if (user.confirmedAt) {
           // Autoconfirm is on - the user is already signed in. IdentityBridge
           // hydrates the session and the effect above navigates to the vault.

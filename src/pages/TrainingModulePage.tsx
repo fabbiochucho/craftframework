@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '../components/ui'
 import { training } from '../lib/trainingClient'
+import { trackEvent } from '../lib/analytics'
 import { LADDER_INDICATORS, LADDER_LEVELS, currentRung, levelAchieved, levelScore } from '../lib/capitalReadiness'
 import { STEPS, type Step } from '../lib/validatorTraining'
 
@@ -40,6 +41,15 @@ export function TrainingModulePage({ moduleId }: { moduleId: string }) {
   const [step, setStep] = useState<Step>('watch')
   const load = () => training<ModuleView>(`modules/${moduleId}`).then(setM, (e) => setError(e.message))
   useEffect(() => { setM(null); void load() }, [moduleId])
+  // Reports a module the first time it turns complete in this visit (not when an already-complete one is opened).
+  const wasComplete = useRef<boolean | null>(null)
+  useEffect(() => { wasComplete.current = null }, [moduleId])
+  useEffect(() => {
+    if (!m) return
+    const done = STEPS.every((s) => m.steps.includes(s))
+    if (wasComplete.current === false && done) void trackEvent({ event: 'training_module_completed', module: m.id })
+    wasComplete.current = done
+  }, [m])
   useEffect(() => { if (m && step === 'watch' && m.steps.includes('watch')) { const next = STEPS.find((s) => !m.steps.includes(s)); if (next) setStep(next) } }, [m?.id])
   if (error) return <p role="alert" className="text-sm text-rose-700">{error}</p>
   if (!m) return <p className="text-sm text-slate-500">Loading…</p>
