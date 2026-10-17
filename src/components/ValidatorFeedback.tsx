@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Star } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Select } from './ui'
+import { OpenReReview } from './ReReviews'
 import { FLAG_LABEL, REMOVAL_GROUNDS, REMOVAL_GROUND_LABEL, type Flag, type FlagKey, type RatingSummary, type RemovalGround } from '../lib/validatorQuality'
 
 // Validator system PR 7: feedback on validators, and the quality view for the CRAFT programme team.
@@ -180,21 +181,31 @@ function RateRow({ m, onDone }: { m: Mine; onDone: () => void }) {
   )
 }
 
-type FlagRow = { validationId: string; verificationId: string | null; organization: string; validatorName: string; firm: string | null; validatedRung: number; finalisedAt: string; flags: Flag[] }
+type FlagRow = {
+  validationId: string; verificationId: string | null; organization: string; validatorName: string; firm: string | null; validatedRung: number; finalisedAt: string; flags: Flag[]
+  funderRequired: boolean; reReview: { id: string; status: string; outcome: string | null } | null
+}
+const RR_STATUS: Record<string, string> = { requested: 'Re-review requested', assigned: 'Re-review in progress', decided: 'Re-reviewed' }
 
-/** Re-review flags: advice for the CRAFT programme team and for funders who follow a validation. Nothing here opens a re-review. */
+/** Re-review flags: advice for the CRAFT programme team and for funders who follow a validation. Flags never open a re-review; the programme team does. */
 export function ReReviewFlags() {
   const [rows, setRows] = useState<FlagRow[] | null>(null)
-  useEffect(() => { void api<FlagRow[]>('/api/validator-quality/flags').then(setRows, () => setRows(null)) }, [])
+  const load = () => void api<FlagRow[]>('/api/validator-quality/flags').then(setRows, () => setRows(null))
+  useEffect(load, [])
   if (!rows?.length) return null
   return (
     <Card>
-      <CardHeader><CardTitle>Validations to consider for re-review</CardTitle><p className="text-sm text-slate-500">Flags are advice only: nothing is opened or changed by them. A funding partner may require a re-review; complaints go to the Independent Review Panel.</p></CardHeader>
+      <CardHeader><CardTitle>Validations to consider for re-review</CardTitle><p className="text-sm text-slate-500">Flags are advice only: nothing is opened or changed by them. The programme team opens a re-review with a Senior Validator from a different firm; a funding partner may require one; complaints go to the Independent Review Panel.</p></CardHeader>
       <CardContent className="space-y-3">
         {rows.map((r) => (
           <div key={r.validationId} className="space-y-1 border-b border-slate-100 pb-3 text-sm last:border-0">
             <p className="font-medium text-slate-800">{r.verificationId ?? r.validationId} · {r.organization} <span className="font-normal text-slate-500">· rung {r.validatedRung} · {r.validatorName}{r.firm ? `, ${r.firm}` : ''} · finalised {fmt(r.finalisedAt)}</span></p>
+            <div className="flex flex-wrap gap-2">
+              {r.funderRequired && <Badge className="bg-amber-100 text-amber-800">Funder requires re-review</Badge>}
+              {r.reReview && <Badge className="bg-sky-100 text-sky-800">{RR_STATUS[r.reReview.status] ?? r.reReview.status}{r.reReview.outcome ? `: ${r.reReview.outcome}` : ''}</Badge>}
+            </div>
             <ul className="list-disc pl-5 text-slate-700">{r.flags.map((f) => <li key={f.key}>{FLAG_LABEL[f.key as FlagKey] ?? f.label}{f.detail ? <span className="text-slate-500"> — {f.detail}</span> : null}</li>)}</ul>
+            {(!r.reReview || r.reReview.status === 'decided') && <OpenReReview validationId={r.validationId} funderRequired={r.funderRequired} onDone={load} />}
           </div>
         ))}
       </CardContent>
