@@ -163,7 +163,7 @@ export function ReportsPage({ workspaceId }: { workspaceId: string }) {
           <div className="w-56"><Select label="Scheduled report type" value={scheduleType} onChange={setScheduleType} options={REPORT_TYPES.map(value => ({ value, label: value.replace(/_/g, ' ') }))} /></div>
           <div className="w-40"><Select label="Cadence" value={cadence} onChange={setCadence} options={['weekly', 'monthly', 'quarterly'].map(v => ({ value: v, label: v }))} /></div>
           <div className="w-28"><Select label="Format" value={format} onChange={setFormat} options={['pdf', 'json', 'both'].map(v => ({ value: v, label: v.toUpperCase() }))} /></div>
-          <div className="min-w-64 flex-1"><Input label="Recipients (comma-separated, max 10)" value={recipients} onChange={e => setRecipients(e.target.value)} /></div>
+          <div className="min-w-64 flex-1"><Input label="Recipients (organisation members or the CRAFT team; comma-separated, max 10)" value={recipients} onChange={e => setRecipients(e.target.value)} /></div>
           <Button onClick={() => run(() => api(wsPath(workspaceId, '/reports/schedules'), { method: 'POST', body: {
             reportType: scheduleType, cadence, format, recipients: recipients.split(',').map(v => v.trim()).filter(Boolean),
           } }))}>Create schedule</Button>
@@ -171,6 +171,7 @@ export function ReportsPage({ workspaceId }: { workspaceId: string }) {
         <ErrorLine error={schedules.error} />
         <ul className="space-y-2 text-sm">{schedules.data?.map(s => <li key={s.id} className="flex flex-wrap items-center gap-3">
           <span>{s.reportType.replace(/_/g, ' ')} · {s.cadence} · {s.format} · next {new Date(s.nextRunAt).toLocaleDateString()} · {s.paused ? 'paused' : 'active'}</span>
+          {s.skippedRecipients?.length > 0 && <span role="alert" className="text-xs text-amber-800">Warning: {s.skippedRecipients.join(', ')} {s.skippedRecipients.length === 1 ? 'is' : 'are'} not (or no longer) a member of this organisation and will be skipped. Add them as members or delete this schedule and recreate it.</span>}
           <Button size="sm" variant="outline" onClick={() => run(() => api(wsPath(workspaceId, `/reports/schedules/${s.id}/pause`), { method: 'POST', body: { paused: !s.paused } }))}>{s.paused ? 'Resume' : 'Pause'}</Button>
           <Button size="sm" variant="destructive" onClick={() => run(() => api(wsPath(workspaceId, `/reports/schedules/${s.id}`), { method: 'DELETE' }))}>Delete</Button>
         </li>)}</ul>
@@ -194,7 +195,7 @@ export function ReportViewPage({ workspaceId, reportId }: { workspaceId: string;
       <Header title={rep.data.reportType.replace(/_/g, ' ')} subtitle={`Data as of ${rep.data.dataAsOfDate}`} back={{ to: '/app/workspaces/$workspaceId/reports', params: { workspaceId }, label: 'Reports' }} />
       <div className="flex flex-wrap items-end gap-3"><Button variant="outline" onClick={download}>Download JSON</Button>
         <a className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700" href={`/api${wsPath(workspaceId, `/reports/${reportId}/pdf`)}`}>Download PDF</a>
-        <div className="w-72"><Input placeholder="recipient@example.org (blank = CRAFT team)" value={to} onChange={e => setTo(e.target.value)} /></div>
+        <div className="w-72"><Input placeholder="member@your-org.org (blank = CRAFT team)" value={to} onChange={e => setTo(e.target.value)} /></div>
         <Button onClick={() => run(() => api(wsPath(workspaceId, `/reports/${reportId}/email`), { method: 'POST', body: { recipients: to ? [to] : undefined } }))}>Email report</Button></div>
       <ErrorLine error={error} />
       {error === 'Email not configured' && <p role="alert" className="text-sm text-amber-800">Email is not configured. An administrator must set SENDGRID_API_KEY, SENDGRID_FROM_EMAIL, and SUPPORT_EMAIL.</p>}
