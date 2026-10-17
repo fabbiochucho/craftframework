@@ -9,7 +9,7 @@ import {
 } from '../../db/schema.js'
 import { decryptField } from './crypto.js'
 import { describeValidation } from './validation-lifecycle.js'
-import { publicUrlFor } from './public-validation.js'
+import { confirmedLevelsFor, publicUrlFor } from './public-validation.js'
 import { cleanScores, FRAMEWORKS } from '../../src/lib/validationReview.js'
 import {
   isConfirmedStatus, outOfLine, positionsByValidator, reReviewFlags, reviewMetrics, summariseRatings, validatorStats,
@@ -177,8 +177,10 @@ export async function devMapperSummary(orgId: string, framework = 'capital-readi
       d.followUp.dueOn ? { kind: 'follow_up', on: d.followUp.dueOn } : null,
       ...d.checkpoints.filter((c) => c.state === 'pending').map((c) => ({ kind: c.kind, on: c.dueOn })),
     ].filter((x): x is { kind: string; on: string } => !!x).sort((a, b) => a.on.localeCompare(b.on))[0] ?? null
+    const confirmed = await confirmedLevelsFor(v.reviewId)
     summary.validation = {
-      label: funder ? 'Funder review' : 'Independent validation', validatedRung: v.validatedRung, rungName: fw.levels.find((l) => l.level === v.validatedRung)?.name ?? '',
+      label: funder ? 'Funder review' : 'Independent validation', validatedRung: confirmed ? null : v.validatedRung, confirmedLevels: confirmed,
+      rungName: confirmed ? '' : (fw.levels.find((l) => l.level === v.validatedRung)?.name ?? ''),
       outcome: v.outcome, status: d.status,
       validatorOrganisation: snap.validatorFirm ?? null, validatorType: e?.validatorFirmId ? 'firm' : 'individual',
       engagedBy: snap.engagement?.engagedBy ?? '', finalisedOn: (review?.finalisedAt ?? v.issuedAt).toISOString().slice(0, 10), expiresOn: d.expiresAt.toISOString().slice(0, 10),
