@@ -12,6 +12,7 @@ import {
 import { useAuthCtx, SELF_ORG_ID } from '../lib/context'
 import { isSuperAdminEmail, effectiveViewLevel, type ViewLevel } from '../lib/data'
 import { fetchUserByEmail, recordSignIn } from '../lib/api'
+import { setAnalyticsUserId } from '../lib/analytics'
 import { completePasswordRecovery, discardRecoverySession, readRecoveryHash, RECOVERY_ERROR } from '../lib/identityRecovery'
 
 // The view levels a visitor may self-register as (Super Admin is excluded — it
@@ -92,6 +93,8 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
       if (user?.email) {
         if (syncedEmail.current === user.email) return
         syncedEmail.current = user.email
+        // Pseudonymous id only; analytics hashes it and is a no-op without consent.
+        setAnalyticsUserId(user.id)
         const fallbackOrgName =
           (user.userMetadata?.full_name as string) || user.name || 'My Institution'
         // The category the visitor chose at registration (AuthPage stores it in
@@ -146,6 +149,7 @@ export function IdentityBridge({ children }: { children: React.ReactNode }) {
       } else {
         if (syncedEmail.current === null) return
         syncedEmail.current = null
+        setAnalyticsUserId(null)
         logout()
       }
     }

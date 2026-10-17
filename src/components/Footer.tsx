@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { BRAND } from '../lib/data'
 import { useI18n } from '../lib/i18n'
+import { openConsentSettings } from '../lib/consent'
+import { analyticsConfigured } from '../lib/analytics'
 
 const footerLinks = [
   { to: '/code-of-conduct', labelKey: 'footer.codeOfConduct', fallback: 'Code of Conduct' },
@@ -34,6 +36,15 @@ export function Footer() {
               {t(l.labelKey, l.fallback)}
             </Link>
           ))}
+          {analyticsConfigured && (
+            <button
+              type="button"
+              onClick={openConsentSettings}
+              className="text-emerald-200 transition-colors hover:text-amber-400"
+            >
+              {t('footer.cookieSettings', 'Cookie & analytics settings')}
+            </button>
+          )}
         </nav>
 
         <p className="mt-5 text-center text-xs leading-relaxed">
