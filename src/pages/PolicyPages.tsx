@@ -66,13 +66,13 @@ const SUB: PolicySection[] = [
     <tr><td>Cloudflare (Turnstile)</td><td>Security check that stops automated sign-ups</td><td>IP address and browser signals during the check; no cookies for tracking</td><td>When you register an account</td></tr>
     <tr><td>Resend</td><td>Invitations, reminders and compliance-deadline alerts</td><td>Recipient email, message content</td><td>When these emails are sent</td></tr>
     <tr><td>Anthropic (through Netlify’s AI gateway)</td><td>Translating interface text into other languages</td><td>Interface text shown on screen</td><td>When you choose a language other than English</td></tr>
-    <tr><td>PostHog (EU)</td><td>Optional analytics of support-chat events</td><td>Event type only; no message content or identity</td><td>Only if you opt in</td></tr>
+    <tr><td>PostHog (EU)</td><td>Product analytics (page views, clicks, funnels, heatmaps, front-end errors, page speed) and masked session replay on public pages, and optional analytics of support-chat events</td><td>Pseudonymous browsing events on non-sensitive pages, with a salted hash of the account id and role, country and language for signed-in users; replays mask all typed text and most page text. Never emails, names, organisation names, scores, evidence, free text or URL query strings, and nothing from assessment, evidence, workspace or admin pages. Support-chat events: event type only</td><td>Only by consent: analytics, replay and support-chat analytics are separate choices, off until you opt in</td></tr>
     <tr><td>GitHub</td><td>Public support issues you choose to publish</td><td>Your redacted message</td><td>Only after you accept public disclosure</td></tr>
   </tbody></table> },
   { title: 'What does not leave your browser', body: <p>Optical character recognition of scanned documents runs in your browser with files served from our own site; no OCR or document data is sent to a third party.</p> },
   { title: 'Changes', body: <p>We update this list before a new sub-processor processes workspace data. Organisations that need advance notice can ask at <Mail />.</p> },
 ]
-export const SubprocessorsPage = () => <PolicyLayout kicker="Trust" title="Sub-processors" effective={EFFECTIVE} sections={SUB} intro={<>Service providers that process data on our behalf, what they receive and when.</>} />
+export const SubprocessorsPage = () => <PolicyLayout kicker="Trust" title="Sub-processors" effective="17 October 2026" sections={SUB} intro={<>Service providers that process data on our behalf, what they receive and when.</>} />
 
 // --- Data processing terms -------------------------------------------------------------------------
 const DPT: PolicySection[] = [
