@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Tabs } from '../components/ui'
 import { api, training } from '../lib/trainingClient'
+import { trackEvent } from '../lib/analytics'
 import { Drill } from './TrainingModulePage'
 import { CASES, EXAM, wordCount } from '../lib/validatorTraining'
 
@@ -50,7 +51,7 @@ function Exam({ onChange }: { onChange: () => void }) {
   useEffect(() => { void load() }, [])
   const submit = async (answers = ans) => {
     if (!exam) return
-    try { const r = await training(`exam/${exam.id}/submit`, { method: 'POST', json: { answers } }); setResult(r); setExam(null); setMsg(null); void load(); onChange() } catch (e: any) { setMsg({ ok: false, text: e.message }); setExam(null); void load() }
+    try { const r = await training(`exam/${exam.id}/submit`, { method: 'POST', json: { answers } }); void trackEvent({ event: r.passed ? 'exam_passed' : 'exam_failed' }); setResult(r); setExam(null); setMsg(null); void load(); onChange() } catch (e: any) { setMsg({ ok: false, text: e.message }); setExam(null); void load() }
   }
   useEffect(() => {
     if (!exam) return
@@ -102,7 +103,7 @@ function Exam({ onChange }: { onChange: () => void }) {
         )}
         {!info?.attempts.some((a: any) => a.passed) && (
           <Button disabled={info && !info.eligibility.allowed && !info.attempts.some((a: any) => a.status === 'in_progress')} onClick={async () => {
-            try { const e = await training('exam/start', { method: 'POST', json: {} }); setExam(e); setAns({}); setResult(null); setMsg(null) } catch (err: any) { setMsg({ ok: false, text: err.message }) }
+            try { const e = await training('exam/start', { method: 'POST', json: {} }); void trackEvent({ event: 'exam_started' }); setExam(e); setAns({}); setResult(null); setMsg(null) } catch (err: any) { setMsg({ ok: false, text: err.message }) }
           }}>{info?.attempts.some((a: any) => a.status === 'in_progress') ? 'Resume exam' : 'Start the exam'}</Button>
         )}
         <Note msg={msg} />

@@ -1,5 +1,7 @@
 import { test as base, expect, type BrowserContext, type Page, type Route } from '@playwright/test'
 
+import { CONSENT_POLICY_VERSION, CONSENT_STORAGE_KEY } from '../../src/lib/consent'
+
 const API_ORIGIN = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 8899}`
 const WEB_ORIGIN = `http://localhost:${process.env.E2E_WEB_PORT ?? 3000}`
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
@@ -47,7 +49,19 @@ export async function signInAs(context: BrowserContext, email: string) {
   }, [email, token, exp] as const)
 }
 
-export const test = base.extend<{ signedIn: Page; apiRoutes: void }>({
+type ConsentMode = 'rejected' | 'ask'
+export const test = base.extend<{ signedIn: Page; apiRoutes: void; consent: ConsentMode; consentInit: void }>({
+  // Most specs are not about analytics: they start with the banner already answered ("reject") so it never
+  // overlaps the page. consent.spec.ts opts out with test.use({ consent: 'ask' }).
+  consent: ['rejected', { option: true }],
+  consentInit: [async ({ context, consent }, use) => {
+    if (consent === 'rejected') {
+      await context.addInitScript(([key, version]) => {
+        if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ analytics: false, replay: false, timestamp: new Date().toISOString(), policyVersion: version }))
+      }, [CONSENT_STORAGE_KEY, CONSENT_POLICY_VERSION] as const)
+    }
+    await use()
+  }, { auto: true }],
   apiRoutes: [async ({ context }, use) => {
     await forwardApi(context)
     await use()
