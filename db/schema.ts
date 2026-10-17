@@ -364,6 +364,8 @@ export const invitations = pgTable(
     email: text('email').notNull(),
     inviter: text('inviter'),
     inviterName: text('inviter_name'),
+    // Name the inviter typed for the invitee; greets them in the welcome email.
+    inviteeName: text('invitee_name'),
     portfolioId: text('portfolio_id'),
     // 'assessor' | 'portfolio' | 'admin'
     role: text('role').notNull().default('assessor'),

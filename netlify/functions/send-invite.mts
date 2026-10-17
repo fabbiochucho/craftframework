@@ -104,7 +104,7 @@ export default async (req: Request) => {
     }
 
     const { subject, html } = buildWelcomeEmailHtml({
-      name: '',
+      name: inv.inviteeName ?? '',
       email: inv.email,
       role: inv.role as ViewLevel,
       scopeLabel: inv.scopeLabel,
