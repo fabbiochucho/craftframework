@@ -216,3 +216,19 @@ export const CONFIRMED_STATUSES = ['current', 'follow_up_overdue'] as const
 export function isConfirmedStatus(status: string): boolean {
   return (CONFIRMED_STATUSES as readonly string[]).includes(status)
 }
+
+// ---- Re-review ---------------------------------------------------------------------------------------------
+// The programme team opens one (a funder required it, a flag suggested it, or its own choice) and assigns a
+// Senior Validator from a different firm with no ties to the parties. A challenge goes to the Review Panel.
+
+export const REREVIEW_REASONS = ['funder_required', 'flagged', 'programme'] as const
+export type RereviewReason = (typeof REREVIEW_REASONS)[number]
+export const REREVIEW_REASON_LABEL: Record<RereviewReason, string> = {
+  funder_required: 'Required by the funding partner', flagged: 'Flagged for a second look', programme: 'Opened by the CRAFT programme team',
+}
+export const REREVIEW_OUTCOMES = ['stands', 'amended', 'withdrawn'] as const
+export type RereviewOutcome = (typeof REREVIEW_OUTCOMES)[number]
+export const REREVIEW_OUTCOME_LABEL: Record<RereviewOutcome, string> = {
+  stands: 'The validation stands', amended: 'The validation is amended (recorded; the validator issues a corrected one)', withdrawn: 'The validation is withdrawn',
+}
+export const REREVIEW_DECLARATION = 'I confirm I have no conflict of interest in this re-review: I am not a party to it, I am not in the same firm as the validator or the funder involved, and I have not worked for or with any party within the last three years.'
