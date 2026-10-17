@@ -126,7 +126,7 @@ export function AuthPage() {
     if (authReady && recovery.state === 'none' && mode !== 'recover' && currentUser && !currentUser.isDemo &&
         profileSaveStatus !== 'loading') {
       const configured = onboardingComplete && !!(entityProfile.archetype && entityProfile.country && entityProfile.sector)
-      navigate({ to: configured ? '/dashboard' : '/onboarding' })
+      navigate({ to: configured ? '/dashboard' : currentUser.role === 'super_admin' ? '/admin' : '/onboarding' })
     }
   }, [currentUser, authReady, onboardingComplete, navigate, recovery.state, mode, entityProfile, profileSaveStatus])
 
