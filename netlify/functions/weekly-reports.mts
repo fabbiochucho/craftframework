@@ -10,6 +10,9 @@ import { logger } from '../lib/logger.js'
 import { buildScorecard, nextReportRun, summarizeCaps } from '../lib/workspace.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
 import { decryptField, encryptField } from '../lib/crypto.js'
+import { orgMemberEmails, partitionRecipients } from '../lib/report-recipients.js'
+
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || 'craftframework@becomechange.institute'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -98,8 +101,21 @@ export default async () => {
           metadata: { contentType: 'application/pdf' },
         })
       }
+      // Stored recipients who are no longer members of the organisation are skipped (never deleted).
+      const { allowed: recipients, rejected: skipped } = partitionRecipients(
+        schedule.recipients.map(decryptField), await orgMemberEmails(schedule.orgId), SUPPORT_EMAIL)
+      if (skipped.length) {
+        logger.warn('weekly-reports', `schedule ${schedule.id}: skipped ${skipped.length} non-member recipient(s)`)
+        await db.insert(wsAuditLog).values({
+          orgId: schedule.orgId, workspaceId, actorId: 'system', resourceType: 'report_schedule', resourceId: String(schedule.id),
+          action: 'update', details: { skippedNonMemberRecipients: skipped.length, occurrence },
+        })
+      }
       let delivered = deliveryDetails.emailDelivered === true
-      if (!delivered && process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL) {
+      // Nobody left to send to: record it and move on rather than retrying the same occurrence daily.
+      const noRecipients = !delivered && recipients.length === 0
+      if (noRecipients) logger.warn('weekly-reports', `schedule ${schedule.id}: no eligible recipients; report generated, not emailed`)
+      if (!delivered && !noRecipients && process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL) {
         const attachments = []
         if (schedule.format !== 'pdf') attachments.push({
           content: Buffer.from(JSON.stringify(snapshot, null, 2)).toString('base64'),
@@ -121,7 +137,7 @@ export default async () => {
             signal: AbortSignal.timeout(15_000),
             headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              personalizations: [{ to: schedule.recipients.map(decryptField).map((email) => ({ email })) }],
+              personalizations: [{ to: recipients.map((email) => ({ email })) }],
               from: { email: process.env.SENDGRID_FROM_EMAIL },
               subject: `CRAFT report: ${schedule.reportType} (${report.dataAsOfDate})`,
               content: [{ type: 'text/html', value: `<p>Scheduled ${escapeHtml(schedule.reportType)} report for ${escapeHtml(organization?.name ?? 'Organization')}, as of ${report.dataAsOfDate}.</p>` }],
@@ -148,12 +164,12 @@ export default async () => {
         orgId: schedule.orgId, reportId: report.id, versionNum: 1,
         jsonExportUrl: `/api/workspaces/${workspaceId}/reports/${report.id}`,
         pdfUrl: pdfBytes ? `/api/workspaces/${workspaceId}/reports/${report.id}/pdf?version=1` : null,
-        emailSentTo: delivered ? encryptField(schedule.recipients.map(decryptField).join(',')) : null,
+        emailSentTo: delivered ? encryptField(recipients.join(',')) : null,
         sentAt: delivered ? new Date() : null,
       }
       if (version) await db.update(reportVersions).set(versionValue).where(eq(reportVersions.id, version.id))
       else await db.insert(reportVersions).values(versionValue)
-      if (!delivered) return
+      if (!delivered && !noRecipients) return
       const cadence = schedule.cadence as 'weekly' | 'monthly' | 'quarterly'
       const now = new Date()
       let nextRunAt = nextReportRun(cadence, schedule.nextRunAt, schedule.scheduleDay)

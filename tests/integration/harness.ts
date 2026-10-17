@@ -135,6 +135,11 @@ export const ASSESSOR = 'assessor@acme.example'
 export const VIEWER = 'viewer@acme.example'
 export const OUTSIDER = 'outsider@other.example'
 
+// Adds a member to an org through the owner-only members route.
+export async function addMember(orgId: number, email: string, role = 'viewer', owner = OWNER): Promise<void> {
+  expectStatus(await as(owner).post(`/orgs/${orgId}/members`, { email, role }), 201, `add ${email}`)
+}
+
 export type OrgFixture = { orgId: number; wsId: number }
 
 // Creates an org through the API (so the creator becomes owner), then adds the
