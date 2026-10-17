@@ -14,7 +14,7 @@ async function progress(email: string, body: unknown) {
   })) as Promise<Response>
 }
 
-const resendCalls = (mock: ReturnType<typeof installFetchMock>) => mock.calls.filter((c) => c.url.includes('api.resend.com'))
+const resendCalls = (mock: ReturnType<typeof installFetchMock>) => mock.calls.filter((c) => new URL(c.url).hostname === 'api.resend.com')
 
 describe('welcome email on onboarding completion', () => {
   let mock: ReturnType<typeof installFetchMock>
