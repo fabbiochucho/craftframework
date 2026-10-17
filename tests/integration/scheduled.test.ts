@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import {
-  ADMIN, OWNER, VIEWER, as, blobStores, createOrg, expectStatus, installFetchMock, rows, truncateAll,
+  ADMIN, OWNER, VIEWER, addMember, as, blobStores, createOrg, expectStatus, installFetchMock, rows, truncateAll,
 } from './harness.ts'
 
 const scheduledUrl = new URL('../../netlify/functions/weekly-reports.mts', import.meta.url).href
@@ -13,11 +13,15 @@ const runScheduled = async () => (await import(scheduledUrl)).default()
 let wsId = 0
 const placeholderKey = 'placeholder-not-a-real-key'
 
+let orgId = 0
+
 describe('scheduled report processing', () => {
   const saved = { key: process.env.SENDGRID_API_KEY, from: process.env.SENDGRID_FROM_EMAIL }
   beforeEach(async () => {
     await truncateAll()
-    ;({ wsId } = await createOrg())
+    ;({ orgId, wsId } = await createOrg())
+    await addMember(orgId, 'board@acme.example')
+    await addMember(orgId, 'later@acme.example')
   })
   afterEach(() => {
     for (const [k, v] of [['SENDGRID_API_KEY', saved.key], ['SENDGRID_FROM_EMAIL', saved.from]] as const) {
@@ -125,5 +129,33 @@ describe('scheduled report processing', () => {
       assert.equal(version.sent_at, null)
       assert.equal(version.email_sent_to, null)
     } finally { mock.restore() }
+  })
+  it('skips recipients who are not organisation members, logs it, keeps the stored list and still delivers to members', async () => {
+    process.env.SENDGRID_API_KEY = placeholderKey
+    process.env.SENDGRID_FROM_EMAIL = 'reports@acme.example'
+    const id = await schedule()
+    await rows("UPDATE report_schedules SET recipients = '[\"board@acme.example\", \"stranger@evil.example\"]'::jsonb WHERE id = $1", [id])
+    const mock = installFetchMock()
+    try {
+      await runScheduled()
+      assert.equal(mock.calls.length, 1)
+      assert.deepEqual(JSON.parse(String(mock.calls[0].init?.body)).personalizations[0].to, [{ email: 'board@acme.example' }])
+    } finally { mock.restore() }
+    assert.deepEqual((await rows('SELECT recipients FROM report_schedules WHERE id = $1', [id]))[0].recipients, ['board@acme.example', 'stranger@evil.example'])
+    const [skip] = await rows("SELECT details FROM ws_audit_log WHERE resource_type = 'report_schedule' AND details ? 'skippedNonMemberRecipients'")
+    assert.equal(skip.details.skippedNonMemberRecipients, 1)
+    assert.ok(!JSON.stringify(skip.details).includes('evil'))
+  })
+
+  it('sends nothing, and moves on, when no stored recipient is eligible', async () => {
+    process.env.SENDGRID_API_KEY = placeholderKey
+    process.env.SENDGRID_FROM_EMAIL = 'reports@acme.example'
+    const id = await schedule()
+    await rows("UPDATE report_schedules SET recipients = '[\"stranger@evil.example\"]'::jsonb WHERE id = $1", [id])
+    const mock = installFetchMock()
+    try { await runScheduled(); assert.equal(mock.calls.length, 0) } finally { mock.restore() }
+    assert.equal((await rows('SELECT count(*)::int AS n FROM reports'))[0].n, 1)
+    assert.equal((await rows('SELECT sent_at FROM report_versions'))[0].sent_at, null)
+    assert.equal((await rows('SELECT next_run_at > now() AS future FROM report_schedules WHERE id = $1', [id]))[0].future, true)
   })
 })

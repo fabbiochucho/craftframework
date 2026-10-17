@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import {
-  ADMIN, ASSESSOR, OUTSIDER, OWNER, VIEWER, as, blobStores, createCap, createOrg, expectStatus, installFetchMock, rows, truncateAll,
+  ADMIN, ASSESSOR, OUTSIDER, OWNER, VIEWER, addMember, as, blobStores, createCap, createOrg, expectStatus, installFetchMock, rows, truncateAll,
 } from './harness.ts'
 
 let orgId = 0, wsId = 0
@@ -59,6 +59,7 @@ describe('report schedules', () => {
   beforeEach(async () => {
     await truncateAll()
     ;({ orgId, wsId } = await createOrg())
+    await addMember(orgId, 'board@acme.example')
   })
   const base = () => `/workspaces/${wsId}/reports/schedules`
 
@@ -103,12 +104,45 @@ describe('report schedules', () => {
   })
 })
 
+describe('report schedule recipients', () => {
+  beforeEach(async () => {
+    await truncateAll()
+    ;({ orgId, wsId } = await createOrg())
+  })
+  const base = () => `/workspaces/${wsId}/reports/schedules`
+  const body = (recipients: string[]) => ({ reportType: 'cap_summary', cadence: 'monthly', recipients })
+
+  it('accepts org members (any case) and the support inbox, rejects everyone else with a 400 naming them', async () => {
+    expectStatus(await as(ADMIN).post(base(), body([VIEWER.toUpperCase(), ASSESSOR, 'craftframework@becomechange.institute'])), 201)
+    const res = await as(ADMIN).post(base(), body([VIEWER, 'stranger@evil.example', 'Other@Evil.example']))
+    assert.equal(res.status, 400)
+    assert.match(res.body.error, /stranger@evil\.example/)
+    assert.match(res.body.error, /Other@Evil\.example/)
+    assert.ok(!res.body.error.includes(VIEWER))
+    assert.equal((await rows('SELECT count(*)::int AS n FROM report_schedules'))[0].n, 1)
+  })
+
+  it('does not accept a member of a different organisation', async () => {
+    await createOrg('Other Org', 'owner@other-org.example', {})
+    assert.equal((await as(ADMIN).post(base(), body(['owner@other-org.example']))).status, 400)
+  })
+
+  it('lists recipients who are not (or no longer) members as skippedRecipients', async () => {
+    const created = expectStatus(await as(ADMIN).post(base(), body([VIEWER, ASSESSOR])), 201).body
+    await rows("UPDATE report_schedules SET recipients = $1::jsonb WHERE id = $2", [JSON.stringify([VIEWER, 'gone@acme.example']), created.id])
+    const [listed] = expectStatus(await as(ADMIN).get(base()), 200).body
+    assert.deepEqual(listed.skippedRecipients, ['gone@acme.example'])
+    assert.deepEqual(listed.recipients, [VIEWER, 'gone@acme.example'], 'stored recipients are kept')
+  })
+})
+
 describe('report email', () => {
   let reportId = 0
   const saved = { key: process.env.SENDGRID_API_KEY, from: process.env.SENDGRID_FROM_EMAIL }
   beforeEach(async () => {
     await truncateAll()
     ;({ orgId, wsId } = await createOrg())
+    await addMember(orgId, 'board@acme.example')
     reportId = expectStatus(await as(ASSESSOR).post(`/workspaces/${wsId}/reports/cap-summary`, {}), 201).body.id
   })
   afterEach(() => {
@@ -167,6 +201,89 @@ describe('report email', () => {
       const res = expectStatus(await send(['board@acme.example']), 200)
       assert.equal(res.body.delivered, false)
       assert.equal(res.body.sentAt, null)
+    } finally { mock.restore() }
+  })
+  const configure = () => { process.env.SENDGRID_API_KEY = 'placeholder-not-a-real-key'; process.env.SENDGRID_FROM_EMAIL = 'reports@acme.example' }
+  const addMembers = async (n: number) => {
+    const emails = Array.from({ length: n }, (_, i) => `m${i}@acme.example`)
+    for (const email of emails) await addMember(orgId, email)
+    return emails
+  }
+
+  it('sends to org members (any case) and the default support inbox, but 400s on non-members without sending', async () => {
+    configure()
+    const mock = installFetchMock()
+    try {
+      expectStatus(await send([VIEWER.toUpperCase(), ASSESSOR]), 200)
+      expectStatus(await send(), 200)
+      assert.deepEqual(JSON.parse(String(mock.calls[1].init?.body)).personalizations[0].to, [{ email: 'craftframework@becomechange.institute' }])
+      const before = mock.calls.length
+      const res = await send([VIEWER, 'stranger@evil.example', 'x@evil.example'])
+      assert.equal(res.status, 400)
+      assert.match(res.body.error, /stranger@evil\.example, x@evil\.example/)
+      assert.ok(!res.body.error.includes(VIEWER))
+      assert.equal(mock.calls.length, before, 'nothing sent')
+      assert.equal((await rows('SELECT count(*)::int AS n FROM report_versions'))[0].n, 3, 'no version for the rejected send')
+    } finally { mock.restore() }
+  })
+
+  it('only organisation admins can trigger a send', async () => {
+    configure()
+    const mock = installFetchMock()
+    try {
+      const path = `/workspaces/${wsId}/reports/${reportId}/email`
+      assert.equal((await as(null).post(path, { recipients: [ADMIN] })).status, 401)
+      assert.equal((await as(OUTSIDER).post(path, { recipients: [OUTSIDER] })).status, 404)
+      assert.equal((await as(VIEWER).post(path, { recipients: [VIEWER] })).status, 403)
+      assert.equal((await as(ASSESSOR).post(path, { recipients: [ASSESSOR] })).status, 403)
+      assert.equal(mock.calls.length, 0)
+      expectStatus(await as(OWNER).post(path, { recipients: [ADMIN] }), 200)
+    } finally { mock.restore() }
+  })
+
+  it('limits each caller to 30 recipients per hour (429)', async () => {
+    configure()
+    const members = await addMembers(10)
+    const mock = installFetchMock()
+    try {
+      for (let i = 0; i < 3; i++) expectStatus(await send(members), 200, `send ${i}`)
+      const res = await send([members[0]])
+      assert.equal(res.status, 429)
+      assert.match(res.body.error, /30 report email recipients per hour/)
+      assert.equal(mock.calls.length, 3)
+      // The limit is per caller: another admin is unaffected.
+      expectStatus(await as(OWNER).post(`/workspaces/${wsId}/reports/${reportId}/email`, { recipients: [members[0]] }), 200)
+    } finally { mock.restore() }
+  })
+
+  it('limits each organisation to 10 sends per hour (429)', async () => {
+    configure()
+    const mock = installFetchMock()
+    try {
+      for (let i = 0; i < 5; i++) expectStatus(await send([VIEWER]), 200, `admin ${i}`)
+      for (let i = 0; i < 5; i++) expectStatus(await as(OWNER).post(`/workspaces/${wsId}/reports/${reportId}/email`, { recipients: [VIEWER] }), 200, `owner ${i}`)
+      const res = await send([VIEWER])
+      assert.equal(res.status, 429)
+      assert.match(res.body.error, /10 report emails per hour/)
+      assert.equal(mock.calls.length, 10)
+      // Another organisation has its own budget.
+      const other = await createOrg('Other Org', 'owner@other-org.example', {})
+      const otherReport = expectStatus(await as('owner@other-org.example').post(`/workspaces/${other.wsId}/reports/cap-summary`, {}), 201).body.id
+      expectStatus(await as('owner@other-org.example').post(`/workspaces/${other.wsId}/reports/${otherReport}/email`, {}), 200)
+    } finally { mock.restore() }
+  })
+
+  it('audit-logs each send with actor, report and recipient count but no addresses', async () => {
+    configure()
+    const mock = installFetchMock()
+    try {
+      expectStatus(await send([VIEWER, ASSESSOR]), 200)
+      const [entry] = await rows("SELECT actor_id, resource_id, details FROM ws_audit_log WHERE resource_type = 'report' AND details ? 'recipientCount'")
+      assert.equal(entry.actor_id, ADMIN)
+      assert.equal(entry.resource_id, String(reportId))
+      assert.equal(entry.details.recipientCount, 2)
+      assert.ok(!JSON.stringify(entry).includes('@acme.example') || entry.actor_id === ADMIN)
+      assert.ok(!JSON.stringify(entry.details).includes('@'))
     } finally { mock.restore() }
   })
 })

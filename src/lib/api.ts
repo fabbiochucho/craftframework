@@ -646,6 +646,7 @@ export async function createInvitation(input: {
   email: string
   inviter?: string
   inviterName?: string
+  inviteeName?: string
   portfolioId?: string
   role?: string
   scopeLabel?: string

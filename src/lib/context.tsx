@@ -73,6 +73,8 @@ export interface InviteInput {
   role: UserRole
   scopeId?: string
   scopeLabel: string
+  // Personal note from the inviter; sent with the invitation, not kept on the team member.
+  message?: string
 }
 
 // Fields captured when a Portfolio Reviewer or Super Admin registers a new
@@ -822,7 +824,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   )
 
   const inviteTeamMember = useCallback(
-    (input: InviteInput) => {
+    ({ message, ...input }: InviteInput) => {
       // Persist to the user directory so the assignment survives sign-out and is
       // seen by the invitee when they log in (they resolve to this org + role).
       const id =
@@ -856,6 +858,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           email: input.email,
           inviter: currentUser.email,
           inviterName: currentUser.email,
+          inviteeName: input.name,
+          message: message?.trim() || undefined,
           portfolioId: input.scopeId,
           role: input.role,
           scopeLabel: input.scopeLabel,
