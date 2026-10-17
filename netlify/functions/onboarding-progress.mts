@@ -5,6 +5,7 @@ import { db } from '../../db/index.js'
 import { onboardingProgress } from '../../db/schema.js'
 import { forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
+import { sendWelcomeEmailOnce } from '../lib/welcome-email.js'
 import { onboardingStepName } from '../../src/lib/onboardingProgress.js'
 
 // /api/onboarding-progress — records how far the signed-in person got in /onboarding: the step number and
@@ -39,6 +40,8 @@ export default async (req: Request) => {
         completedAt: sql`coalesce(${onboardingProgress.completedAt}, ${completed ? now : null})`,
       },
     })
+    // First completion sends the welcome email (claimed once; never fails the request).
+    if (completed) await sendWelcomeEmailOnce(caller)
     return Response.json({ ok: true })
   } catch (err) {
     logger.error('/api/onboarding-progress', 'failed', err)
