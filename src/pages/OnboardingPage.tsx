@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
-import { LegacySaveStatus } from '../lib/legacy-state'
+import { LegacySaveStatus, type SaveStatus } from '../lib/legacy-state'
 import { useNavigate, Link } from '@tanstack/react-router'
 import {
   Building2, Target, Users, UploadCloud, Wand2, ArrowRight, ArrowLeft,
@@ -15,11 +15,26 @@ import { useAuthCtx, useTeamCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, DONOR_FRAMEWORKS, ARCHETYPES, Archetype } from '../lib/data'
 import { ONBOARDING_STEPS } from '../lib/onboardingProgress'
 import { saveOnboardingProgress } from '../lib/api'
+import {
+  EMPTY_ONBOARDING_DRAFT, ONBOARDING_DRAFT_DEBOUNCE_MS, ONBOARDING_DRAFT_KEY, furthestStep, mergeDraft, restoreDraft,
+  step1Complete, stepFromSearch, type OnboardingDraft,
+} from '../lib/onboardingDraft'
 import { COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector } from '../lib/dataroom'
 
 const STEPS = [...ONBOARDING_STEPS]
 // Step names for analytics: fixed identifiers, never anything the user typed.
 const STEP_IDS = ['workspace', 'donor_alignment', 'team_import']
+
+// One small, polite live region for everything the wizard saves as the person goes.
+function DraftSaveIndicator({ statuses }: { statuses: SaveStatus[] }) {
+  const state = statuses.includes('error') ? 'error' : statuses.includes('saving') ? 'saving' : statuses.includes('saved') ? 'saved' : null
+  const label = { error: 'Not saved yet — we’ll retry when you’re back online', saving: 'Saving…', saved: 'Saved' }[state ?? 'saved']
+  return (
+    <p role="status" aria-live="polite" className={`text-xs ${state === 'error' ? 'text-rose-700' : 'text-slate-500'}`}>
+      {state ? label : ''}
+    </p>
+  )
+}
 
 export function OnboardingPage() {
   const { currentUser, completeOnboarding } = useAuthCtx()
@@ -27,6 +42,7 @@ export function OnboardingPage() {
   const { setEntityProfile, profileSaveStatus } = useEntityProfileCtx()
   const navigate = useNavigate()
   const [step, setStep] = useState(0)
+  const [furthest, setFurthest] = useState(0)
 
   // Which step the person has reached, for the Super Admin's onboarding analytics (step number and name only).
   const isDemoUser = currentUser?.isDemo ?? true
@@ -49,9 +65,69 @@ export function OnboardingPage() {
   const [invites, setInvites] = useState<string[]>([''])
   const [path, setPath] = useState<'web' | 'excel' | null>(null)
 
+  // Draft: everything entered so far (not donor alignment, which saves itself) is saved server-side as the
+  // person moves on and, debounced, while they type; reopening restores it at the furthest step reached.
+  const [savedDraft, setSavedDraft, draftStatus] = useLegacyAssessment<OnboardingDraft>(ONBOARDING_DRAFT_KEY, EMPTY_ONBOARDING_DRAFT)
+  const [hydrated, setHydrated] = useState(false)
+  const lastSaved = useRef('')
+  useEffect(() => {
+    if (hydrated || draftStatus === 'loading') return
+    const restored = mergeDraft({ orgName: currentUser?.orgName ?? '' }, restoreDraft(savedDraft))
+    const hint = typeof window === 'undefined' ? 0 : stepFromSearch(new URLSearchParams(window.location.search).get('step'))
+    const reach = furthestStep(restored, restored.furthestStep, hint)
+    setOrgName(restored.orgName); setArchetype(restored.archetype); setCountry(restored.country)
+    setSector(restored.sector); setSubsector(restored.subsector); setInvites(restored.invites); setPath(restored.path)
+    setFurthest(reach); setStep(reach)
+    lastSaved.current = JSON.stringify({ ...restored, furthestStep: restored.furthestStep })
+    setHydrated(true)
+  }, [hydrated, draftStatus, savedDraft, currentUser?.orgName])
+
+  const draftNow = useCallback((reached: number): OnboardingDraft => ({
+    orgName, archetype, country, sector, subsector, invites, path,
+    furthestStep: furthestStep({ orgName, archetype }, reached),
+  }), [orgName, archetype, country, sector, subsector, invites, path])
+  const latest = useRef(draftNow)
+  latest.current = draftNow
+  const furthestRef = useRef(furthest)
+  furthestRef.current = furthest
+  const persist = useCallback(() => {
+    if (isDemoUser) return
+    const next = latest.current(furthestRef.current)
+    const json = JSON.stringify(next)
+    if (json === lastSaved.current) return
+    lastSaved.current = json
+    setSavedDraft(next)
+  }, [isDemoUser, setSavedDraft])
+  useEffect(() => {
+    if (!hydrated) return
+    const timer = setTimeout(persist, ONBOARDING_DRAFT_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [hydrated, persist, orgName, archetype, country, sector, subsector, invites, path, furthest])
+  // Offline-tolerant: a failed or offline save is retried when the connection returns, and when the tab is hidden.
+  useEffect(() => {
+    const retry = () => { lastSaved.current = ''; persist() }
+    const hide = () => { if (document.visibilityState === 'hidden') persist() }
+    window.addEventListener('online', retry)
+    document.addEventListener('visibilitychange', hide)
+    return () => { window.removeEventListener('online', retry); document.removeEventListener('visibilitychange', hide) }
+  }, [persist])
+
+  function goToStep(next: number) {
+    const reached = Math.max(furthestRef.current, next)
+    furthestRef.current = reached
+    setFurthest(reached)
+    setStep(next)
+    // Save now rather than waiting for the debounce when moving on.
+    if (!isDemoUser && hydrated) {
+      const draft = latest.current(reached)
+      lastSaved.current = JSON.stringify(draft)
+      setSavedDraft(draft)
+    }
+  }
+
   const sectorOptions = archetype ? SECTORS_BY_ARCHETYPE[archetype] : []
   const subsectorOptions = subsectorsForSector(sector)
-  const canContinueStep1 = orgName.trim() !== '' && archetype !== ''
+  const canContinueStep1 = step1Complete({ orgName, archetype })
 
   function chooseArchetype(value: Archetype) {
     setArchetype(value)
@@ -104,11 +180,16 @@ export function OnboardingPage() {
       </header>
 
       <main className="flex-1">
-        <LegacySaveStatus status={alignmentStatus} />
-        <LegacySaveStatus status={profileSaveStatus} />
+        <div className="mx-auto max-w-3xl px-6 pt-4">
+          {isDemoUser ? <LegacySaveStatus status="demo" /> : <DraftSaveIndicator statuses={[draftStatus, alignmentStatus]} />}
+          <LegacySaveStatus status={profileSaveStatus} />
+        </div>
         <div className="mx-auto max-w-3xl px-6 py-10">
           <Stepper steps={STEPS} current={step} />
 
+          {!hydrated ? (
+            <p role="status" className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">Loading your saved progress…</p>
+          ) : (
           <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             {/* STEP 1 */}
             {step === 0 && (
@@ -259,11 +340,11 @@ export function OnboardingPage() {
 
             {/* Nav */}
             <div className="mt-8 flex items-center justify-between border-t border-slate-100 pt-6">
-              <Button variant="ghost" size="sm" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}>
+              <Button variant="ghost" size="sm" onClick={() => goToStep(Math.max(0, step - 1))} disabled={step === 0}>
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
               {step < 2 ? (
-                <Button onClick={() => { void trackEvent({ event: 'onboarding_step_completed', step: STEP_IDS[step] }); setStep(s => s + 1) }} disabled={step === 0 && !canContinueStep1}>
+                <Button onClick={() => { void trackEvent({ event: 'onboarding_step_completed', step: STEP_IDS[step] }); goToStep(step + 1) }} disabled={step === 0 && !canContinueStep1}>
                   Continue <ArrowRight className="h-4 w-4" />
                 </Button>
               ) : (
@@ -273,6 +354,7 @@ export function OnboardingPage() {
               )}
             </div>
           </div>
+          )}
         </div>
       </main>
       <Footer />
