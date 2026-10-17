@@ -9,7 +9,7 @@ const base = {
 const m = renderNudgeEmail({ ...base, note: 'Happy to jump on a call.' })
 assert.equal(m.subject, 'Finish setting up your CRAFT workspace')
 assert.equal(NUDGE_SUBJECT, m.subject)
-assert.equal(m.ctaUrl, 'https://craft.example/auth?next=/onboarding')
+assert.equal(m.ctaUrl, 'https://craft.example/auth?next=/onboarding%3Fstep%3D2')
 // Every placeholder is filled, in both versions.
 for (const body of [m.text, m.html]) {
   assert.doesNotMatch(body, /\{[^}]*\}|undefined|null|NaN/)
@@ -21,12 +21,17 @@ for (const body of [m.text, m.html]) {
   assert.match(body, /© 2026 DiBadili Institute/)
   assert.match(body, /Capital Readiness Ladder/)
 }
+// Honest copy: progress is saved, and says so.
+for (const body of [m.text, m.html]) {
+  assert.match(body, /Everything you entered has been saved\. What’s left:/)
+  assert.doesNotMatch(body, /Here’s what’s left/)
+}
 // Remaining steps: the one stopped at and every later one, not the finished ones.
 assert.match(m.text, /- Donor Alignment\n- Team & Import/)
 assert.doesNotMatch(m.text, /- Workspace/)
 // Plain URL in text, a real button (anchor) in HTML.
-assert.match(m.text, /https:\/\/craft\.example\/auth\?next=\/onboarding/)
-assert.match(m.html, /<a href="https:\/\/craft\.example\/auth\?next=\/onboarding"[^>]*>Continue where you left off<\/a>/)
+assert.match(m.text, /https:\/\/craft\.example\/auth\?next=\/onboarding%3Fstep%3D2/)
+assert.match(m.html, /<a href="https:\/\/craft\.example\/auth\?next=\/onboarding%3Fstep%3D2"[^>]*>Continue where you left off<\/a>/)
 assert.match(m.text, /Stop them here: https:\/\/craft\.example\/api\/onboarding-optout\?t=abc\./)
 assert.match(m.html, /href="https:\/\/craft\.example\/api\/onboarding-optout\?t=abc"/)
 assert.match(m.text, /Just reply to this email/)

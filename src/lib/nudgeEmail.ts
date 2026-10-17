@@ -41,7 +41,8 @@ export function renderNudgeEmail(input: NudgeEmailInput): { subject: string; htm
   const started = formatDate(input.startedAt)
   const year = (input.now ?? new Date()).getUTCFullYear()
   const note = input.note?.trim().slice(0, NUDGE_NOTE_MAX) || ''
-  const ctaUrl = `${input.appUrl.replace(/\/+$/, '')}/auth?next=/onboarding`
+  // Lands on the furthest step reached (the wizard also restores the saved draft, so this is a hint).
+  const ctaUrl = `${input.appUrl.replace(/\/+$/, '')}/auth?next=/onboarding%3Fstep%3D${step}`
   const stoppedAt = `You stopped at step ${step} of ${ONBOARDING_STEPS.length}: ${stepName}.`
   const closing = 'Once your workspace is ready, you can take the CRAFT readiness assessment, build your Data Room, and see where your organisation stands on the Capital Readiness Ladder.'
   const footer = `You’re receiving this because you started registering on CRAFT. Don’t want these reminders? Stop them here: ${input.optOutUrl}. © ${year} ${BRAND.institute}.`
@@ -51,7 +52,7 @@ export function renderNudgeEmail(input: NudgeEmailInput): { subject: string; htm
     '',
     `You started setting up ${orgPossessive} workspace on CRAFT on ${started}, but didn’t get to the end. ${stoppedAt}`,
     '',
-    'Here’s what’s left:',
+    'Everything you entered has been saved. What’s left:',
     ...remaining.map((s) => `- ${s}`),
     '',
     `Continue where you left off: ${ctaUrl}`,
@@ -84,7 +85,7 @@ export function renderNudgeEmail(input: NudgeEmailInput): { subject: string; htm
       <tr><td style="padding:32px 32px 8px">
         <h1 style="margin:0 0 12px;font-size:22px;color:#064e3b">Hi ${esc(first)},</h1>
         <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#475569">You started setting up <strong>${esc(orgPossessive)}</strong> workspace on CRAFT on ${esc(started)}, but didn’t get to the end. ${esc(stoppedAt)}</p>
-        <p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#475569">Here’s what’s left:</p>
+        <p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:#475569">Everything you entered has been saved. What’s left:</p>
         <ul style="margin:0 0 8px;padding-left:20px;font-size:15px;line-height:1.7;color:#0f172a">${remaining.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>
       </td></tr>
       <tr><td style="padding:16px 32px 8px;text-align:center">

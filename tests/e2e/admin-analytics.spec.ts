@@ -43,7 +43,7 @@ test('the Super Admin opens /admin/analytics and previews a resume-onboarding em
   await expect(frame.getByText('Hi Amina,')).toBeVisible()
   await expect(frame.getByText('step 2 of 3: Donor Alignment')).toBeVisible()
   await expect(frame.getByText('Happy to help with the donor step.')).toBeVisible()
-  await expect(frame.getByRole('link', { name: 'Continue where you left off' })).toHaveAttribute('href', /\/auth\?next=\/onboarding$/)
+  await expect(frame.getByRole('link', { name: 'Continue where you left off' })).toHaveAttribute('href', /\/auth\?next=\/onboarding%3Fstep%3D2$/)
   await page.screenshot({ path: 'test-results/admin-analytics-preview.png', fullPage: true })
   // The test API has no email provider: sending reports that plainly rather than pretending it worked.
   await dialog.getByRole('button', { name: 'Send to 1' }).click()
