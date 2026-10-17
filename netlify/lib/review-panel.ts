@@ -12,6 +12,8 @@ import { reconcileValidator } from './engagement-access.js'
 import { CONFLICT_YEARS, conflictReasons, type Decision, type Side } from '../../src/lib/reviewPanel.js'
 
 type Tx = Pick<typeof db, 'insert' | 'select' | 'update' | 'delete'>
+/** What a conflict check needs to know: a panel case, or a re-review described the same way. */
+export type ConflictSubject = Pick<PanelCaseRow, 'engagementId' | 'orgId' | 'subjectValidatorEmail' | 'raisedBy' | 'raisedSide' | 'appealOf'>
 const lower = (l: Array<string | null | undefined>) => [...new Set(l.filter((e): e is string => !!e).map((e) => e.toLowerCase()))]
 
 export async function membersOf(caseId: string): Promise<PanelMemberRow[]> {
@@ -19,7 +21,7 @@ export async function membersOf(caseId: string): Promise<PanelMemberRow[]> {
 }
 
 /** Everyone who is a named member of the case's engagement (the validation team), lead first. */
-async function teamEmails(c: PanelCaseRow): Promise<string[]> {
+async function teamEmails(c: Pick<PanelCaseRow, 'engagementId'>): Promise<string[]> {
   if (!c.engagementId) return []
   const rows = await db.select({ email: engagementMembers.email }).from(engagementMembers).where(and(eq(engagementMembers.engagementId, c.engagementId), eq(engagementMembers.status, 'named')))
   return rows.map((r) => r.email)
@@ -29,14 +31,14 @@ const activeFirms = async (email: string): Promise<string[]> =>
   (await db.select({ id: firmMembers.firmId }).from(firmMembers).where(and(eq(firmMembers.email, email), eq(firmMembers.status, 'active')))).map((r) => r.id)
 
 /** The people the case is about or brought by: they may never sit on its panel. */
-export async function partyEmails(c: PanelCaseRow): Promise<string[]> {
+export async function partyEmails(c: ConflictSubject): Promise<string[]> {
   // Every person in the organisation is a party, not only its admins and contact address.
   const org = c.orgId ? [...await orgContactsFor(c.orgId), ...(await db.select({ email: users.email }).from(users).where(eq(users.orgId, c.orgId))).map((u) => u.email)] : []
   return lower([c.subjectValidatorEmail, c.raisedBy === 'public' ? null : c.raisedBy, ...org, ...(await teamEmails(c))])
 }
 
 /** What the database says about a possible reviewer; the pure rules decide. Empty means no conflict found. */
-export async function conflictCheck(c: PanelCaseRow, reviewer: string, now = new Date()): Promise<string[]> {
+export async function conflictCheck(c: ConflictSubject, reviewer: string, now = new Date()): Promise<string[]> {
   const email = reviewer.toLowerCase()
   const since = new Date(now.getTime() - CONFLICT_YEARS * 365.25 * 86_400_000)
   const [engagement] = c.engagementId ? await db.select().from(validationEngagements).where(eq(validationEngagements.id, c.engagementId)) : []
@@ -105,33 +107,7 @@ export async function applyDecision(tx: Tx, c: PanelCaseRow, d: Decision, reason
   const why = `Independent Review Panel decision (case ${c.id})`
   const actor = `panel:${c.id}`
 
-  if (c.validationId && d.validation !== 'none') {
-    const [v] = await tx.select().from(validations).where(eq(validations.id, c.validationId)).for('update')
-    if (v) {
-      const set = async (to: 'current' | 'suspended' | 'withdrawn') => {
-        await tx.update(validations).set({ status: to, statusReason: `${why}: ${reasons.slice(0, 300)}`, statusChangedAt: now, statusChangedBy: actor }).where(eq(validations.id, v.id))
-        await recordStatusHistory(tx as never, v.id, v.status, to, `${why}: ${reasons.slice(0, 300)}`, actor, now)
-        effects.push(`Validation ${v.verificationId ?? v.id}: ${v.status} → ${to}`)
-      }
-      if (v.status === 'withdrawn' || v.status === 'superseded') effects.push(`Validation ${v.verificationId ?? v.id} is ${v.status}; its status was left as it is`)
-      else if (d.validation === 'suspended') { if (v.status !== 'suspended') await set('suspended'); else effects.push('Validation remains suspended') }
-      else if (d.validation === 'withdrawn') await set('withdrawn')
-      else if (d.validation === 'stands') { if (v.status === 'suspended') await set('current'); else effects.push('Validation stands') }
-      else if (d.validation === 'amended') {
-        // A frozen review is never rewritten: the amendment is recorded and the validator must issue a corrected one.
-        await recordStatusHistory(tx as never, v.id, v.status, v.status, `Amended by the Independent Review Panel (case ${c.id}): ${reasons.slice(0, 300)}`, actor, now)
-        effects.push(`Validation ${v.verificationId ?? v.id}: amendment recorded; a corrected validation must be issued`)
-      }
-    }
-    // A contested material event follows the same ruling.
-    if (c.eventId) {
-      const status = d.validation === 'stands' ? 'reinstated' : d.validation === 'withdrawn' ? 'withdrawn' : null
-      if (status) {
-        await tx.update(validationEvents).set({ status, decidedBy: actor, decidedAt: now, decisionNote: `${why}: ${reasons.slice(0, 300)}` }).where(eq(validationEvents.id, c.eventId))
-        effects.push(`Material event closed as ${status}`)
-      }
-    }
-  }
+  if (c.validationId && d.validation !== 'none') effects.push(...await applyValidationOutcome(tx, c.validationId, d.validation, { why, by: `the Independent Review Panel (case ${c.id})`, actor, reasons, now, eventId: c.eventId }))
 
   let reconcile: string | null = null
   if (d.validator !== 'none') {
@@ -168,6 +144,43 @@ export async function applyDecision(tx: Tx, c: PanelCaseRow, d: Decision, reason
   }
   await tx.insert(auditLogs).values({ actor, action: `applied panel decision: ${effects.join('; ') || 'no change'}`, target: c.id, category: 'Validation', orgId: c.orgId ?? undefined })
   return { effects, reconcile }
+}
+
+/**
+ * Sets a validation's status for a ruling (panel decision or re-review outcome). State-setting and repeatable.
+ * A contested material event, if given, follows the same ruling. Returns a plain-language list of what changed.
+ */
+export async function applyValidationOutcome(
+  tx: Tx, validationId: string, outcome: Exclude<Decision['validation'], 'none'>,
+  o: { why: string; by: string; actor: string; reasons: string; now: Date; eventId?: string | null },
+): Promise<string[]> {
+  const effects: string[] = []
+  const { why, actor, reasons, now } = o
+  const [v] = await tx.select().from(validations).where(eq(validations.id, validationId)).for('update')
+  if (v) {
+    const set = async (to: 'current' | 'suspended' | 'withdrawn') => {
+      await tx.update(validations).set({ status: to, statusReason: `${why}: ${reasons.slice(0, 300)}`, statusChangedAt: now, statusChangedBy: actor }).where(eq(validations.id, v.id))
+      await recordStatusHistory(tx as never, v.id, v.status, to, `${why}: ${reasons.slice(0, 300)}`, actor, now)
+      effects.push(`Validation ${v.verificationId ?? v.id}: ${v.status} → ${to}`)
+    }
+    if (v.status === 'withdrawn' || v.status === 'superseded') effects.push(`Validation ${v.verificationId ?? v.id} is ${v.status}; its status was left as it is`)
+    else if (outcome === 'suspended') { if (v.status !== 'suspended') await set('suspended'); else effects.push('Validation remains suspended') }
+    else if (outcome === 'withdrawn') await set('withdrawn')
+    else if (outcome === 'stands') { if (v.status === 'suspended') await set('current'); else effects.push('Validation stands') }
+    else if (outcome === 'amended') {
+      // A frozen review is never rewritten: the amendment is recorded and the validator must issue a corrected one.
+      await recordStatusHistory(tx as never, v.id, v.status, v.status, `Amended by ${o.by}: ${reasons.slice(0, 300)}`, actor, now)
+      effects.push(`Validation ${v.verificationId ?? v.id}: amendment recorded; a corrected validation must be issued`)
+    }
+  }
+  if (o.eventId) {
+    const status = outcome === 'stands' ? 'reinstated' : outcome === 'withdrawn' ? 'withdrawn' : null
+    if (status) {
+      await tx.update(validationEvents).set({ status, decidedBy: actor, decidedAt: now, decisionNote: `${why}: ${reasons.slice(0, 300)}` }).where(eq(validationEvents.id, o.eventId))
+      effects.push(`Material event closed as ${status}`)
+    }
+  }
+  return effects
 }
 
 /** After the transaction: a validator who lost accreditation loses the access their seats carried. */
