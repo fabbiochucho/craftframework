@@ -8,7 +8,7 @@ import {
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { contactsFor, describeValidation, notify, recordStatusHistory, statusHistory, syncCheckpoints } from '../lib/validation-lifecycle.js'
-import { ensureStatement, ensureVerificationId, publicUrlFor } from '../lib/public-validation.js'
+import { confirmedLevelsFor, ensureStatement, ensureVerificationId, publicUrlFor } from '../lib/public-validation.js'
 import { cleanPublicOptions } from '../../src/lib/validationStatement.js'
 import { logger } from '../lib/logger.js'
 import {
@@ -432,7 +432,7 @@ async function summary(ctx: Ctx) {
   const v = await fresh(ctx)
   const [d, [org]] = await Promise.all([describeValidation(v), db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, v.orgId))])
   return {
-    id: v.id, organization: org?.name ?? '', framework: FRAMEWORKS[v.framework]?.name ?? v.framework, outcome: v.outcome, validatedRung: v.validatedRung,
+    id: v.id, organization: org?.name ?? '', framework: FRAMEWORKS[v.framework]?.name ?? v.framework, outcome: v.outcome, validatedRung: v.validatedRung, confirmedLevels: await confirmedLevelsFor(v.reviewId),
     status: d.status, statusLabel: STATUS_LABEL[d.status], issuedAt: v.issuedAt, expiresAt: d.expiresAt, nextFollowUp: d.followUp.dueOn,
     can: { org: ctx.org, lead: ctx.lead, funder: ctx.funder && !ctx.org && !ctx.member && !ctx.admin },
   }
@@ -443,7 +443,7 @@ async function funderView(v: ValidationRow) {
   const [d, [org]] = await Promise.all([describeValidation(v), db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, v.orgId))])
   const progress = cipProgress(d.cipActions)
   return {
-    id: v.id, funderView: true, organization: org?.name ?? '', framework: FRAMEWORKS[v.framework]?.name ?? v.framework, outcome: v.outcome, validatedRung: v.validatedRung,
+    id: v.id, funderView: true, organization: org?.name ?? '', framework: FRAMEWORKS[v.framework]?.name ?? v.framework, outcome: v.outcome, validatedRung: v.validatedRung, confirmedLevels: await confirmedLevelsFor(v.reviewId),
     status: d.status, statusLabel: STATUS_LABEL[d.status], issuedAt: v.issuedAt, expiresAt: d.expiresAt, verificationId: v.verificationId,
     scheduleMode: v.followUpMode, nextFollowUp: d.followUp.dueOn, followUpOverdue: d.followUp.overdue, progress, progressLine: progressLine(progress, d.followUp.dueOn),
     can: { org: false, lead: false, funder: true },
@@ -457,7 +457,7 @@ async function cipView(v: ValidationRow) {
     .innerJoin(firms, eq(firms.id, validationFunderConsents.funderFirmId)).where(and(eq(validationFunderConsents.validationId, v.id), isNull(validationFunderConsents.revokedAt)))
   const progress = cipProgress(d.cipActions)
   return {
-    id: v.id, verificationId: v.verificationId, outcome: v.outcome, validatedRung: v.validatedRung, status: d.status, statusLabel: STATUS_LABEL[d.status], expiresAt: d.expiresAt,
+    id: v.id, verificationId: v.verificationId, outcome: v.outcome, validatedRung: v.validatedRung, confirmedLevels: await confirmedLevelsFor(v.reviewId), status: d.status, statusLabel: STATUS_LABEL[d.status], expiresAt: d.expiresAt,
     scheduleMode: v.followUpMode, nextFollowUp: d.followUp.dueOn, followUpOverdue: d.followUp.overdue, broughtForward: d.followUp.broughtForward, tracked: v.trackedIndicators,
     progress, progressLine: progressLine(progress, d.followUp.dueOn),
     actions: d.cipActions.map((a) => ({ id: a.id, text: a.text, indicatorIds: a.indicatorIds, owner: a.owner, dueDate: a.dueDate, status: a.status, proof: a.proof, doneAt: a.doneAt, fromQualification: !!a.qualificationId })),
