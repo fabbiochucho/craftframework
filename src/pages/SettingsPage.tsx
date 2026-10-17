@@ -126,6 +126,7 @@ export function SettingsPage() {
       role: iRole,
       scopeId,
       scopeLabel,
+      message: iMessage,
     })
     setToast(`✉️ Invitation sent to ${iEmail.trim()}. A DiBadili Institute welcome email is on its way.`)
     resetInvite()
