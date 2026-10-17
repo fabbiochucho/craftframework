@@ -23,6 +23,16 @@ export async function saveLegacyState<T>(orgId: string, key: string, value: T, s
   }))
 }
 
+// Records the step reached in /onboarding (number and name only, never form contents). Fire-and-forget:
+// tracking must never get in the way of finishing onboarding.
+export function saveOnboardingProgress(step: number, completed = false): void {
+  void fetch('/api/onboarding-progress', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(completed ? { step, completed: true } : { step }),
+  }).catch((err) => console.warn('[api] saveOnboardingProgress failed', err))
+}
+
 export async function fetchResponseRecords(orgId: string): Promise<{ scores: Record<string, number>; details: Record<string, ResponseDetail> }> {
   return jsonOrThrow(await fetch(`/api/responses?orgId=${encodeURIComponent(orgId)}`, { cache: 'no-store' }))
 }
@@ -663,9 +673,11 @@ export function updateInvitationStatus(token: string, status: 'accepted' | 'revo
   }).catch((err) => console.warn('[api] updateInvitationStatus failed', err))
 }
 
-// Dispatch the branded welcome email. Degrades gracefully when no mail provider
-// is configured server-side (the invitation record is still created).
-export function sendInviteEmail(input: { to: string; subject: string; html: string }): void {
+// Ask the server to dispatch the branded welcome email for an invitation the
+// caller created. Recipient, subject and body are rendered server-side from the
+// stored invitation; the client can only name the invitation. Degrades
+// gracefully when no mail provider is configured (the invitation still exists).
+export function sendInviteEmail(input: { invitationId: string }): void {
   void fetch('/api/send-invite', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -737,3 +749,22 @@ export function deleteFirmMember(firmId: string, email: string): void {
 export function tenantOrgId(email: string): string {
   return `self_${email.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
 }
+
+// --- Super Admin analytics and resume-onboarding emails (/api/admin-analytics; Super Admin only) -----------------
+export class AdminAnalyticsError extends Error {
+  constructor(public status: number, public code: string, message: string) { super(message) }
+}
+
+async function adminAnalyticsRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`/api/admin-analytics${path}`, { cache: 'no-store', ...init })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new AdminAnalyticsError(res.status, String(body?.error ?? ''), String(body?.error ?? `Request failed (${res.status})`))
+  return body as T
+}
+
+export const fetchAdminAnalytics = <T>(range: string) => adminAnalyticsRequest<T>(`?range=${encodeURIComponent(range)}`)
+
+export const nudgeRequest = <T>(action: 'preview' | 'send', emails: string[], note: string) =>
+  adminAnalyticsRequest<T>(`/nudges/${action}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ emails, note: note.trim() || undefined }),
+  })

@@ -58,6 +58,7 @@ import { Route as VaultsRouteImport } from './routes/vaults'
 import { Route as VerifyRouteImport } from './routes/verify'
 import { Route as WallboardRouteImport } from './routes/wallboard'
 import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin_.analytics'
 import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
 import { Route as AppSecurityRouteImport } from './routes/app.security'
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
@@ -347,6 +348,11 @@ const WallboardRoute = WallboardRouteImport.update({
 const AcceptTokenRoute = AcceptTokenRouteImport.update({
   id: '/accept/$token',
   path: '/accept/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/admin_/analytics',
+  path: '/admin/analytics',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
@@ -656,6 +662,7 @@ export interface FileRoutesByFullPath {
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
@@ -752,6 +759,7 @@ export interface FileRoutesByTo {
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
@@ -849,6 +857,7 @@ export interface FileRoutesById {
   '/verify': typeof VerifyRoute
   '/wallboard': typeof WallboardRoute
   '/accept/$token': typeof AcceptTokenRoute
+  '/admin_/analytics': typeof AdminAnalyticsRoute
   '/admin_/portfolio': typeof AdminPortfolioRoute
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
@@ -947,6 +956,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/wallboard'
     | '/accept/$token'
+    | '/admin/analytics'
     | '/admin/portfolio'
     | '/app/security'
     | '/assessment/$frameworkId'
@@ -1043,6 +1053,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/wallboard'
     | '/accept/$token'
+    | '/admin/analytics'
     | '/admin/portfolio'
     | '/app/security'
     | '/assessment/$frameworkId'
@@ -1139,6 +1150,7 @@ export interface FileRouteTypes {
     | '/verify'
     | '/wallboard'
     | '/accept/$token'
+    | '/admin_/analytics'
     | '/admin_/portfolio'
     | '/app/security'
     | '/assessment/$frameworkId'
@@ -1236,6 +1248,7 @@ export interface RootRouteChildren {
   VerifyRoute: typeof VerifyRoute
   WallboardRoute: typeof WallboardRoute
   AcceptTokenRoute: typeof AcceptTokenRoute
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
   AppSecurityRoute: typeof AppSecurityRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
@@ -1624,6 +1637,13 @@ declare module '@tanstack/react-router' {
       path: '/accept/$token'
       fullPath: '/accept/$token'
       preLoaderRoute: typeof AcceptTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin_/analytics': {
+      id: '/admin_/analytics'
+      path: '/admin/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin_/portfolio': {
@@ -2018,6 +2038,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyRoute: VerifyRoute,
   WallboardRoute: WallboardRoute,
   AcceptTokenRoute: AcceptTokenRoute,
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
   AppSecurityRoute: AppSecurityRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,

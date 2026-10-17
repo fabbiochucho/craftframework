@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from '@tanstack/react-router'
+import { useNavigate, useRouter, Link } from '@tanstack/react-router'
 import {
   signup,
   login,
@@ -18,6 +18,7 @@ import { trackEvent } from '../lib/analytics'
 import { useIdentityRecovery } from '../components/IdentityBridge'
 import { useAuthCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
+import { safeNextPath } from '../lib/safeNext'
 
 type Status = 'idle' | 'submitting'
 
@@ -44,6 +45,7 @@ function describeOAuthError(description: string): string {
 
 export function AuthPage() {
   const navigate = useNavigate()
+  const router = useRouter()
   // The app session, hydrated by IdentityBridge from the Identity auth events.
   // Navigation into the vault is driven off THIS (see the effect below) rather
   // than fired the instant login() resolves — otherwise the redirect can race
@@ -127,9 +129,13 @@ export function AuthPage() {
     if (authReady && recovery.state === 'none' && mode !== 'recover' && currentUser && !currentUser.isDemo &&
         profileSaveStatus !== 'loading') {
       const configured = onboardingComplete && !!(entityProfile.archetype && entityProfile.country && entityProfile.sector)
-      navigate({ to: configured ? '/dashboard' : '/onboarding' })
+      // `?next=` (e.g. the "finish setting up" email) returns the person to that page, but only a same-site
+      // path is honoured, and someone who has finished onboarding is not sent back into it.
+      const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
+      if (next && !(configured && next.split(/[?#]/)[0] === '/onboarding')) router.history.push(next)
+      else navigate({ to: configured ? '/dashboard' : currentUser.role === 'super_admin' ? '/admin' : '/onboarding' })
     }
-  }, [currentUser, authReady, onboardingComplete, navigate, recovery.state, mode, entityProfile, profileSaveStatus])
+  }, [currentUser, authReady, onboardingComplete, navigate, router, recovery.state, mode, entityProfile, profileSaveStatus])
 
   function switchMode(m: 'login' | 'register' | 'recover') {
     setMode(m)

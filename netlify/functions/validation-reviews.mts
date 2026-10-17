@@ -1,15 +1,19 @@
 import type { Config } from '@netlify/functions'
 import { createHash } from 'node:crypto'
-import { and, eq, inArray } from 'drizzle-orm'
+import { getStore } from '@netlify/blobs'
+import { and, eq, inArray, isNull, ne, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
-  accessGrants, auditLogs, engagementDeclarations, engagementMembers, firms, organizations, validationDebriefs, validationEngagements,
+  accessGrants, auditLogs, engagementDeclarations, engagementMembers, evidenceRegistry, firms, organizations, validationEvidenceLinks, wsOrgMembers, validationDebriefs, validationEngagements,
   validationCipActions, validationQualifications, validationReviews, validationScores, validations, validatorProfiles,
   type EngagementMemberRow, type ValidationEngagementRow, type ValidationReviewRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { grantAllows } from '../lib/access-policy.js'
+import { fieldLookupHashes } from '../lib/crypto.js'
+import { decodeEvidence } from '../lib/evidence-storage.js'
+import { HttpError, requireOrgAccess } from '../lib/orgAccess.js'
 import { reconcileEngagement, sweepEngagements } from '../lib/engagement-access.js'
 import { logger } from '../lib/logger.js'
 import { engagementLabel, GRANT_ROLE, type EngagementScope, type EngagementType } from '../../src/lib/engagements.js'
@@ -20,8 +24,8 @@ import { ensureStatement } from '../lib/public-validation.js'
 import { loadSelfScores } from '../lib/validator-quality.js'
 import { recordStatusHistory, sendDebriefNotice, syncCheckpoints } from '../lib/validation-lifecycle.js'
 import {
-  canonicalJson, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indicatorsInScope, levelsAchieved, METHODS,
-  OUTCOMES, SUFFICIENCY, trustDelta, type Outcome,
+  canonicalJson, cappedNegotiated, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indicatorsInScope, levelConfirmations, levelsAchieved,
+  METHODS, OUTCOMES, paperCaps, SUFFICIENCY, supportsRung, trustDeltaWithCaps, type Outcome, type PaperCap, type Sufficiency,
 } from '../../src/lib/validationReview.js'
 
 // /api/validation-reviews/:engagementId — validator system PR 3 (spec: "Review, outcome and freeze").
@@ -34,6 +38,9 @@ import {
 //   PUT    /:id/negotiated/:indicator   lead: record the negotiated score, or null to clear (debrief only)
 //   POST   /:id/qualifications          lead: add a qualification linked to indicators
 //   DELETE /:id/qualifications/:qid     lead: remove one
+//   GET    /:id/evidence-options        organisation staff: evidence items they may link (workspace assessor or above)
+//   POST   /:id/evidence/:indicator     organisation staff: link an existing evidence item to an indicator ({ evidenceId })
+//   DELETE /:id/evidence/:indicator/:evidenceId   organisation staff: remove a link
 //   POST   /:id/finalise                lead: outcome + validity + freeze (snapshot + SHA-256); issues the validation (PR 5); revokes every team grant
 //
 // A reviewer sees the organisation's self-scores only while their grant is active and unexpired.
@@ -59,6 +66,8 @@ const scoreSchema = z.object({
 })
 const responseSchema = z.object({ response: z.string().trim().min(1).max(4000) })
 const negotiatedSchema = z.object({ score: z.number().int().min(0).max(5).nullable() })
+const evidenceLinkSchema = z.object({ evidenceId: z.number().int().positive() })
+const MAX_LINKS_PER_INDICATOR = 20
 const qualificationSchema = z.object({ text: z.string().trim().min(1).max(2000), indicatorIds: z.array(z.string().max(40)).min(1).max(60) })
 const finaliseSchema = z.object({
   outcome: z.enum(OUTCOMES),
@@ -118,6 +127,50 @@ export default async (req: Request) => {
 
     // Everything below writes. The review is created lazily by the first reviewer write.
     const frozen = ctx.review?.status === 'finalised' || e.status === 'finalised'
+
+    // The organisation's evidence, linked per indicator. A link is a reference to an item in the evidence registry.
+    if (sub === 'evidence-options' && req.method === 'GET' && !who) {
+      if (!ctx.org) return forbidden()
+      return json({ options: await evidenceOptions(caller.email, caller.role === 'super_admin') })
+    }
+    if (sub === 'evidence' && who) {
+      if (!ctx.org) return forbidden()
+      if (frozen) return conflict('This review is finalised')
+      if (e.status !== 'proposed' && e.status !== 'active') return conflict('This engagement is no longer open')
+      if (!ids.has(who)) return bad('Not an indicator in scope')
+      if (req.method === 'POST' && !extra) {
+        const p = evidenceLinkSchema.safeParse(await readBody())
+        if (!p.success) return bad('Choose an evidence item')
+        const [ev] = await db.select().from(evidenceRegistry).where(and(eq(evidenceRegistry.id, p.data.evidenceId), isNull(evidenceRegistry.archivedAt), ne(evidenceRegistry.status, 'rejected')))
+        if (!ev) return notFound()
+        // The evidence's own permissions apply: the caller must be an assessor or above in the workspace organisation that holds it.
+        try { await requireOrgAccess(caller, ev.orgId, 'assessor') } catch (err) {
+          if (err instanceof HttpError) return err.status === 404 ? notFound() : forbidden()
+          throw err
+        }
+        const existing = await db.select({ id: validationEvidenceLinks.id }).from(validationEvidenceLinks)
+          .where(and(eq(validationEvidenceLinks.engagementId, id), eq(validationEvidenceLinks.indicatorId, who)))
+        if (existing.length >= MAX_LINKS_PER_INDICATOR) return bad(`At most ${MAX_LINKS_PER_INDICATOR} evidence items per indicator`)
+        const linkId = `evl_${crypto.randomUUID()}`
+        const inserted = await db.insert(validationEvidenceLinks).values({
+          id: linkId, engagementId: id, indicatorId: who, evidenceId: ev.id, documentName: ev.documentName, documentType: ev.documentType,
+          sha256: await evidenceSha256(ev.filePath), linkedBy: caller.email,
+        }).onConflictDoNothing().returning({ id: validationEvidenceLinks.id })
+        if (inserted.length) await audit(caller.email, `linked evidence #${ev.id} to ${who}`, id, e.orgId)
+        return json({ ok: true, id: inserted[0]?.id ?? null }, inserted.length ? 201 : 200)
+      }
+      if (req.method === 'DELETE' && extra) {
+        const evidenceId = Number(extra)
+        if (!Number.isInteger(evidenceId)) return notFound()
+        const gone = await db.delete(validationEvidenceLinks)
+          .where(and(eq(validationEvidenceLinks.engagementId, id), eq(validationEvidenceLinks.indicatorId, who), eq(validationEvidenceLinks.evidenceId, evidenceId)))
+          .returning({ id: validationEvidenceLinks.id })
+        if (!gone.length) return notFound()
+        await audit(caller.email, `unlinked evidence #${evidenceId} from ${who}`, id, e.orgId)
+        return json({ ok: true })
+      }
+      return notFound()
+    }
 
     if (req.method === 'PUT' && sub === 'debrief' && who) {
       if (!ctx.org) return forbidden()
@@ -252,25 +305,30 @@ export default async (req: Request) => {
         const validatorScores = Object.fromEntries(scoreRows.filter((s) => ids.has(s.indicatorId)).map((s) => [s.indicatorId, s.score]))
         const negotiated = Object.fromEntries(debriefRows.filter((d) => d.negotiatedScore != null && ids.has(d.indicatorId)).map((d) => [d.indicatorId, d.negotiatedScore as number]))
         const quals = qualRows.map((q) => ({ id: q.id, text: q.text, indicatorIds: q.indicatorIds }))
+        const sufficiency = sufficiencyOf(scoreRows, ids)
         const problems = finalisationProblems({
-          fw, scope, validatorScores, negotiated, method: row.method as never, fieldworkStart: row.fieldworkStart, fieldworkEnd: row.fieldworkEnd,
+          fw, scope, validatorScores, negotiated, sufficiency, method: row.method as never, fieldworkStart: row.fieldworkStart, fieldworkEnd: row.fieldworkEnd,
           outcome: p.data.outcome, qualifications: quals,
         })
         if (problems.length) return bad('This review cannot be finalised yet', { problems })
 
         const self = await selfScores(e.orgId, fw.scoresKey, ids)
-        const final = finalScores(validatorScores, negotiated)
-        const rung = impliedRung(fw, final, scope)
+        // A negotiated score above 2 on evidence the validator marked insufficient stands at 2 (paper-compliance cap).
+        const caps = paperCaps(negotiated, sufficiency)
+        const final = finalScores(validatorScores, cappedNegotiated(negotiated, caps))
+        // Only a scope that includes level 1 yields a rung; a partial scope records the levels it confirmed instead.
+        const rung = supportsRung(scope) ? impliedRung(fw, final, scope) : 0
+        const evidenceLinks = await tx.select().from(validationEvidenceLinks).where(eq(validationEvidenceLinks.engagementId, id))
         const choice = p.data.validityMonths != null ? { months: p.data.validityMonths, reason: p.data.validityReason ?? '' } : null
         const validityIssues = validityProblems(p.data.outcome, rung, choice)
         if (validityIssues.length) return bad('This review cannot be finalised yet', { problems: validityIssues })
         const achieved = levelsAchieved(fw, final, scope)
         const now = new Date()
-        const snapshot = JSON.parse(JSON.stringify(await buildSnapshot({ e, members, fw, scope, row, scoreRows, debriefRows, quals, self, final, validatorScores, negotiated, rung, achieved, outcome: p.data.outcome, summary: p.data.summary ?? '', finalisedAt: now, finalisedByEmail: caller.email })))
+        const snapshot = JSON.parse(JSON.stringify(await buildSnapshot({ e, members, fw, scope, row, scoreRows, debriefRows, quals, self, final, validatorScores, negotiated, caps, evidenceLinks, rung, achieved, outcome: p.data.outcome, summary: p.data.summary ?? '', finalisedAt: now, finalisedByEmail: caller.email })))
         // Hash the JSON-typed form: it is what Postgres stores, so anyone can re-hash the stored snapshot.
         const sha = createHash('sha256').update(canonicalJson(snapshot)).digest('hex')
         await tx.update(validationReviews).set({
-          status: 'finalised', outcome: p.data.outcome, outcomeSummary: p.data.summary ?? '', validatedRung: p.data.outcome === 'not_validated' ? null : rung,
+          status: 'finalised', outcome: p.data.outcome, outcomeSummary: p.data.summary ?? '', validatedRung: p.data.outcome === 'not_validated' || !supportsRung(scope) ? null : rung,
           snapshot, snapshotSha256: sha, finalisedAt: now, finalisedBy: caller.email, updatedAt: now,
         }).where(eq(validationReviews.id, row.id))
         await tx.update(validationEngagements).set({ status: 'finalised', updatedAt: now }).where(eq(validationEngagements.id, id))
@@ -301,8 +359,8 @@ export default async (req: Request) => {
           }
           await tx.insert(auditLogs).values({ actor: caller.email, action: `issued validation: ${issued.months} months, expires ${issued.expiresAt.toISOString().slice(0, 10)}${issued.surveillanceDueAt ? `, surveillance ${issued.surveillanceDueAt.toISOString().slice(0, 10)}` : ''}`, target: issuedId, category: 'Validation', orgId: e.orgId })
         }
-        await tx.insert(auditLogs).values({ actor: caller.email, action: `finalised review: ${p.data.outcome}${p.data.outcome === 'not_validated' ? '' : `, rung ${rung}`} (sha256 ${sha.slice(0, 12)}…)`, target: row.id, category: 'Validation', orgId: e.orgId })
-        return json({ ok: true, outcome: p.data.outcome, validatedRung: p.data.outcome === 'not_validated' ? null : rung, sha256: sha, validationId: issuedId })
+        await tx.insert(auditLogs).values({ actor: caller.email, action: `finalised review: ${p.data.outcome}${p.data.outcome === 'not_validated' ? '' : supportsRung(scope) ? `, rung ${rung}` : `, levels confirmed: ${achieved.join(', ') || 'none'}`} (sha256 ${sha.slice(0, 12)}…)`, target: row.id, category: 'Validation', orgId: e.orgId })
+        return json({ ok: true, outcome: p.data.outcome, validatedRung: p.data.outcome === 'not_validated' || !supportsRung(scope) ? null : rung, confirmedLevels: supportsRung(scope) ? null : achieved, sha256: sha, validationId: issuedId })
       })
       // The engagement is finalised: every team member's access ends now.
       if (result.status === 200) {
@@ -349,17 +407,23 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
     const validatorScores = Object.fromEntries(scoreRows.filter((s) => ids.has(s.indicatorId)).map((s) => [s.indicatorId, s.score]))
     const negotiated = Object.fromEntries(debriefRows.filter((d) => d.negotiatedScore != null && ids.has(d.indicatorId)).map((d) => [d.indicatorId, d.negotiatedScore as number]))
     const quals = qualRows.map((q) => ({ id: q.id, text: q.text, indicatorIds: q.indicatorIds }))
-    const rows = trustDelta(fw, scope, self, validatorScores).map((t) => {
+    const sufficiency = sufficiencyOf(scoreRows, ids)
+    const caps = paperCaps(negotiated, sufficiency)
+    const evidence = await linkedEvidence(e.id)
+    if (evidence.length) await audit(ctx.me!.email, `viewed ${evidence.length} linked evidence item${evidence.length === 1 ? '' : 's'}`, e.id, e.orgId)
+    const rows = trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiency).map((t) => {
       const s = scoreRows.find((x) => x.indicatorId === t.id)
       const d = debriefRows.find((x) => x.indicatorId === t.id)
-      return { ...t, sufficiency: s?.sufficiency ?? null, comment: s?.comment ?? '', evidenceRef: s?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '', negotiated: d?.negotiatedScore ?? null }
+      return { ...t, sufficiency: s?.sufficiency ?? null, comment: s?.comment ?? '', evidenceRef: s?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '', evidence: evidence.filter((x) => x.indicatorId === t.id) }
     })
-    const problems = finalisationProblems({ fw, scope, validatorScores, negotiated, method: (review?.method ?? null) as never, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null, outcome: null, qualifications: quals })
+    const problems = finalisationProblems({ fw, scope, validatorScores, negotiated, sufficiency, method: (review?.method ?? null) as never, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null, outcome: null, qualifications: quals })
       .filter((x) => x !== 'Choose an outcome')
     return {
       ...base, status: review?.status ?? 'draft', lead: ctx.lead, method: review?.method ?? null, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null,
       levels: fw.levels, rows, qualifications: quals, problems,
-      rungs: { self: impliedRung(fw, self, scope), validator: impliedRung(fw, finalScores(validatorScores, negotiated), scope) },
+      partialScope: !supportsRung(scope),
+      rungs: supportsRung(scope) ? { self: impliedRung(fw, self, scope), validator: impliedRung(fw, finalScores(validatorScores, cappedNegotiated(negotiated, caps)), scope) } : null,
+      confirmedLevels: supportsRung(scope) ? null : levelConfirmations(fw, finalScores(validatorScores, cappedNegotiated(negotiated, caps)), scope),
       scored: Object.keys(validatorScores).length, total: ids.size,
     }
   }
@@ -367,16 +431,58 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
   if (review?.status === 'debrief') {
     const self = await selfScores(e.orgId, fw.scoresKey, ids)
     const validatorScores = Object.fromEntries(scoreRows.filter((s) => ids.has(s.indicatorId)).map((s) => [s.indicatorId, s.score]))
+    const negotiated = Object.fromEntries(debriefRows.filter((d) => d.negotiatedScore != null && ids.has(d.indicatorId)).map((d) => [d.indicatorId, d.negotiatedScore as number]))
+    const evidence = await linkedEvidence(e.id)
     return {
       ...base, status: 'debrief', method: review.method, fieldworkStart: review.fieldworkStart, fieldworkEnd: review.fieldworkEnd, levels: fw.levels,
-      rows: trustDelta(fw, scope, self, validatorScores).map((t) => {
+      indicators: indicatorsInScope(fw, scope), evidence,
+      rows: trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiencyOf(scoreRows, ids)).map((t) => {
         const s = scoreRows.find((x) => x.indicatorId === t.id)
         const d = debriefRows.find((x) => x.indicatorId === t.id)
-        return { ...t, comment: s?.comment ?? '', orgResponse: d?.orgResponse ?? '', negotiated: d?.negotiatedScore ?? null }
+        return { ...t, comment: s?.comment ?? '', orgResponse: d?.orgResponse ?? '' }
       }),
     }
   }
-  return { ...base, status: review ? 'in_progress' : 'not_started' }
+  // Before the debrief the organisation sees only the evidence it has linked.
+  return { ...base, status: review ? 'in_progress' : 'not_started', ...(ctx.org ? { indicators: indicatorsInScope(fw, scope), evidence: await linkedEvidence(e.id) } : {}) }
+}
+
+const sufficiencyOf = (scoreRows: Array<{ indicatorId: string; sufficiency: string }>, ids: Set<string>): Record<string, Sufficiency> =>
+  Object.fromEntries(scoreRows.filter((s) => ids.has(s.indicatorId)).map((s) => [s.indicatorId, s.sufficiency as Sufficiency]))
+
+/** SHA-256 of the stored evidence file, or null when it cannot be read. Only the hash is kept. */
+async function evidenceSha256(filePath: string): Promise<string | null> {
+  try {
+    const data = await getStore('evidence').get(filePath, { type: 'arrayBuffer' })
+    return data ? createHash('sha256').update(Buffer.from(decodeEvidence(data))).digest('hex') : null
+  } catch { return null }
+}
+
+/** The evidence linked to an engagement's indicators, with the registry's current state (read-only metadata, no contents). */
+async function linkedEvidence(engagementId: string) {
+  const links = await db.select().from(validationEvidenceLinks).where(eq(validationEvidenceLinks.engagementId, engagementId))
+  if (!links.length) return []
+  const registry = await db.select().from(evidenceRegistry).where(inArray(evidenceRegistry.id, links.map((l) => l.evidenceId)))
+  return links.sort((a, b) => +a.linkedAt - +b.linkedAt).map((l) => {
+    const r = registry.find((x) => x.id === l.evidenceId)
+    return {
+      indicatorId: l.indicatorId, evidenceId: l.evidenceId, name: l.documentName, documentType: l.documentType, sha256: l.sha256, linkedBy: l.linkedBy, linkedAt: l.linkedAt,
+      available: !!r && !r.archivedAt, status: r?.status ?? null, expiryDate: r?.expiryDate ?? null, mimeType: r?.mimeType ?? null, sizeKb: r?.fileSizeKb ?? null,
+    }
+  })
+}
+
+/** Evidence the caller may link: items held by workspace organisations where they are an assessor or above. */
+async function evidenceOptions(email: string, superAdmin: boolean) {
+  const hashes = fieldLookupHashes(email)
+  const memberOf = hashes.length ? or(inArray(wsOrgMembers.userIdHash, hashes), eq(wsOrgMembers.userId, email))! : eq(wsOrgMembers.userId, email)
+  const orgIds = superAdmin ? null : (await db.select({ orgId: wsOrgMembers.orgId }).from(wsOrgMembers)
+    .where(and(memberOf, inArray(wsOrgMembers.role, ['owner', 'admin', 'assessor'])))).map((m) => m.orgId)
+  if (orgIds && !orgIds.length) return []
+  const items = await db.select().from(evidenceRegistry)
+    .where(and(isNull(evidenceRegistry.archivedAt), ne(evidenceRegistry.status, 'rejected'), orgIds ? inArray(evidenceRegistry.orgId, orgIds) : undefined))
+    .limit(500)
+  return items.map((x) => ({ id: x.id, name: x.documentName, documentType: x.documentType, status: x.status, expiryDate: x.expiryDate, mimeType: x.mimeType, sizeKb: x.fileSizeKb }))
 }
 
 type SnapshotInput = {
@@ -384,6 +490,7 @@ type SnapshotInput = {
   scoreRows: Array<typeof validationScores.$inferSelect>; debriefRows: Array<typeof validationDebriefs.$inferSelect>
   quals: Array<{ id: string; text: string; indicatorIds: string[] }>
   self: Record<string, number>; final: Record<string, number>; validatorScores: Record<string, number>; negotiated: Record<string, number>
+  caps: Record<string, PaperCap>; evidenceLinks: Array<typeof validationEvidenceLinks.$inferSelect>
   rung: number; achieved: number[]; outcome: Outcome; summary: string; finalisedAt: Date; finalisedByEmail: string
 }
 
@@ -416,7 +523,9 @@ async function buildSnapshot(s: SnapshotInput) {
     validatorFirm: firmName(e.validatorFirmId), funder: firmName(e.funderFirmId),
     team,
     method: s.row.method, fieldwork: { start: s.row.fieldworkStart, end: s.row.fieldworkEnd },
-    outcome: s.outcome, outcomeSummary: s.summary, validatedRung: s.outcome === 'not_validated' ? null : s.rung, impliedRung: s.rung,
+    outcome: s.outcome, outcomeSummary: s.summary, validatedRung: s.outcome === 'not_validated' || !supportsRung(s.scope) ? null : s.rung, impliedRung: s.rung,
+    // A scope that skips level 1 confirms levels, never a rung: each in-scope level and whether the final scores achieve it.
+    partialScope: !supportsRung(s.scope), confirmedLevels: supportsRung(s.scope) ? null : levelConfirmations(fw, s.final, s.scope),
     selfRung: impliedRung(fw, s.self, s.scope), levelsAchieved: s.achieved,
     levelScores: levelsInScope.map((l) => ({ level: l, self: fw.levelScore(l, s.self), validator: fw.levelScore(l, s.validatorScores), final: fw.levelScore(l, s.final) })),
     indicators: indicatorsInScope(fw, s.scope).map((i) => {
@@ -425,6 +534,11 @@ async function buildSnapshot(s: SnapshotInput) {
       return {
         id: i.id, level: i.level, domain: i.domain, self: s.self[i.id] ?? null, validator: s.validatorScores[i.id] ?? null, negotiated: s.negotiated[i.id] ?? null, final: s.final[i.id] ?? null,
         sufficiency: sc?.sufficiency ?? null, comment: sc?.comment ?? '', evidenceRef: sc?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '',
+        // Paper-compliance cap on the negotiated score, when it applied.
+        paperCap: s.caps[i.id] ? { negotiated: s.caps[i.id].negotiated, capped: s.caps[i.id].capped } : null,
+        // References only (id, name, hash): never file contents.
+        evidence: s.evidenceLinks.filter((l) => l.indicatorId === i.id).sort((a, b) => a.evidenceId - b.evidenceId)
+          .map((l) => ({ id: l.evidenceId, name: l.documentName, type: l.documentType, sha256: l.sha256 })),
       }
     }),
     qualifications: s.quals.map((q) => ({ text: q.text, indicatorIds: q.indicatorIds })),
