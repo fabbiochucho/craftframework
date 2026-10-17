@@ -5,6 +5,7 @@ import { openConsentSettings } from '../lib/consent'
 import { analyticsConfigured } from '../lib/analytics'
 
 const footerLinks = [
+  { to: '/institute', labelKey: 'footer.about', fallback: 'About & Founders' },
   { to: '/code-of-conduct', labelKey: 'footer.codeOfConduct', fallback: 'Code of Conduct' },
   { to: '/open-source', labelKey: 'footer.openSource', fallback: 'Open Source' },
   { to: '/methodology', labelKey: 'footer.methodology', fallback: 'Methodology' },
