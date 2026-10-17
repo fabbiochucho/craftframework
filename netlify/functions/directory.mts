@@ -1,10 +1,10 @@
 import type { Config } from '@netlify/functions'
-import { and, eq, inArray, isNotNull } from 'drizzle-orm'
+import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
-  accessGrants, auditLogs, engagementMembers, firmMembers, firms, organizations, orgDirectoryProfiles, orgListingProposals, validatorCredentials, validatorProfiles,
+  accessGrants, auditLogs, directoryProfileViews, directorySearchLog, engagementMembers, firmMembers, firms, organizations, orgDirectoryProfiles, orgListingProposals, validatorCredentials, validatorProfiles,
   type FirmRow, type ValidatorProfileRow, validationEngagements,
 } from '../../db/schema.js'
 import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
@@ -41,6 +41,17 @@ import {
 //   PUT    admin/credentials/:id      platform admin: verify / unverify a membership
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
+// Aggregated analytics for the Super Admin: what people searched for and which profiles were opened. Neither
+// row records who did it. Best effort; a logging failure never affects the search or the profile.
+const logSearch = (type: string, q: string, resultCount: number) => {
+  const query = q.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 100)
+  if (!query) return Promise.resolve()
+  return db.insert(directorySearchLog).values({ type, query, resultCount }).then(() => undefined, () => undefined)
+}
+const logView = (kind: 'validator' | 'firm' | 'organization', profileId: string) =>
+  db.insert(directoryProfileViews).values({ kind, profileId, day: new Date().toISOString().slice(0, 10), views: 1 })
+    .onConflictDoUpdate({ target: [directoryProfileViews.kind, directoryProfileViews.profileId, directoryProfileViews.day], set: { views: sql`${directoryProfileViews.views} + 1` } })
+    .then(() => undefined, () => undefined)
 const notFound = () => json({ error: 'Not found' }, 404)
 const bad = (error: string) => json({ error }, 400)
 const audit = (actor: string, action: string, target: string, category = 'Directory', orgId: string | null = null) =>
@@ -332,18 +343,22 @@ export default async (req: Request) => {
           .filter(({ v, firmList }) => inCountry(v.countries) &&
             matchesQuery([v.name, v.bio, v.competencies, v.frameworks, v.countries, v.languages, firmList.map((f) => f.name)], q))
         const badgeMap = await badgesFor(hits.map(({ v }) => v.email))
+        await logSearch(type, q, hits.length)
         return json(hits.map(({ v, firmList }) => validatorCard(v, firmList, badgeMap.get(v.email))))
       }
       if (type === 'firms' || type === 'funders') {
         const all = await db.select().from(firms).where(eq(firms.kind, type === 'firms' ? 'validator_firm' : 'funding_partner'))
         const hits = all.filter((f) => inCountry(f.countries) && matchesQuery([f.name, f.nature, f.summary, f.competencies, f.countries, f.sectors], q))
         const sizes = await teamSizes(hits.map((f) => f.id))
+        await logSearch(type, q, hits.length)
         return json(hits.map((f) => firmCard(f, sizes.get(f.id) ?? 0)))
       }
       if (type === 'organizations') {
         if (!(await mayBrowseOrganizations(caller.email, isAdmin))) return forbidden()
         const all = await listedOrganizations()
-        return json(all.filter((o) => (!country || o.country.toLowerCase() === country) && matchesQuery([o.name, o.country, o.sector, o.summary], q)))
+        const hits = all.filter((o) => (!country || o.country.toLowerCase() === country) && matchesQuery([o.name, o.country, o.sector, o.summary], q))
+        await logSearch(type, q, hits.length)
+        return json(hits)
       }
       return bad('Unknown type')
     }
@@ -353,6 +368,7 @@ export default async (req: Request) => {
       if (!v) return notFound()
       const creds = await db.select().from(validatorCredentials).where(eq(validatorCredentials.validatorId, v.id))
       const firmList = (await validatorFirmsByEmail([v.email])).get(v.email) ?? []
+      if (v.email !== caller.email) await logView('validator', v.id)
       return json({
         ...validatorCard(v, firmList, (await badgesFor([v.email])).get(v.email)), bio: v.bio, frameworks: v.frameworks, languages: v.languages,
         credentials: creds.map((cr) => ({ id: cr.id, body: cr.body, membershipNumber: cr.membershipNumber, status: credentialLabel(cr) })),
@@ -365,6 +381,7 @@ export default async (req: Request) => {
     if (req.method === 'GET' && a === 'firms' && b && !c) {
       const [f] = await db.select().from(firms).where(and(eq(firms.id, b), isNotNull(firms.kind)))
       if (!f) return notFound()
+      await logView('firm', f.id)
       const members = await db.select({ email: firmMembers.email }).from(firmMembers)
         .where(and(eq(firmMembers.firmId, f.id), eq(firmMembers.status, 'active')))
       // Validator firms show team members who have a validator profile (by name);
@@ -379,6 +396,7 @@ export default async (req: Request) => {
     if (req.method === 'GET' && a === 'organizations' && b && !c) {
       if (!(await mayBrowseOrganizations(caller.email, isAdmin))) return forbidden()
       const [o] = await listedOrganizations(b)
+      if (o) await logView('organization', b)
       return o ? json(o) : notFound()
     }
 
