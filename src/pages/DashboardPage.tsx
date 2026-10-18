@@ -1,3 +1,4 @@
+import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { useMemo } from 'react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -34,7 +35,8 @@ export function DashboardPage() {
     [orgScores, activeLenses],
   )
   const [moduleProfile] = useModuleProfile()
-  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT), [orgScores, moduleProfile])
+  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT, 2, esgScores), [orgScores, moduleProfile, esgScores])
   const answered = answeredCount(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
   const penalty = answered > 0 && implementationEvidence < PAPER_COMPLIANCE_THRESHOLD

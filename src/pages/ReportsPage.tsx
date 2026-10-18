@@ -79,7 +79,8 @@ export function ReportsPage() {
   const composite = computeOrgScore(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
   const [moduleProfile] = useModuleProfile()
-  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths), [orgScores, planMonths, moduleProfile])
+  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths, 2, esgScores), [orgScores, planMonths, moduleProfile, esgScores])
   const criticals = plan.filter(p => p.severity === 'Critical')
   const answered = answeredCount(orgScores)
   const [toast, setToast] = useState<string | null>(null)
@@ -89,7 +90,6 @@ export function ReportsPage() {
 
   // New reports draw on every assessment: core and indices (one score map), the ladder and ESG (their own stores).
   const [ladderScores] = useLegacyAssessment<Record<string, number>>('capital:scores', {})
-  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const { activeLenses } = useLensCtx()
   const lenses = useMemo(() => Object.entries(activeLenses).filter(([, on]) => on).map(([k]) => k), [activeLenses])
   const allScores = useMemo(() => ({ ...orgScores, ...ladderScores, ...esgScores }), [orgScores, ladderScores, esgScores])
