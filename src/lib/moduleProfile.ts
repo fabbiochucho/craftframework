@@ -21,21 +21,30 @@ export function useModuleProfile() {
  * `complete` is false while loading or if any request failed, so callers can fall back to core-only counts.
  */
 export function useModuleProfiles(orgIds: string[], demo: boolean) {
+  const { values, complete } = useOrgStates<StoredModuleProfile>(orgIds, 'modules:profile', demo)
+  return { profiles: values as Record<string, ModuleProfile>, complete }
+}
+
+/**
+ * One saved state key for several organisations (the portfolio Wallboard): one request per organisation.
+ * `complete` is false while loading or if any request failed, so callers can fall back to core-only counts.
+ */
+export function useOrgStates<T extends object>(orgIds: string[], stateKey: string, demo: boolean) {
   const key = orgIds.join(',')
-  const [state, setState] = useState<{ key: string; profiles: Record<string, ModuleProfile>; failed: boolean }>({ key: '', profiles: {}, failed: false })
+  const [state, setState] = useState<{ key: string; values: Record<string, T>; failed: boolean }>({ key: '', values: {}, failed: false })
   useEffect(() => {
     if (demo || !key) return
     const ids = key.split(',')
     const controller = new AbortController()
-    void Promise.allSettled(ids.map((id) => fetchLegacyState<StoredModuleProfile>(id, 'modules:profile', controller.signal))).then((rs) => {
+    void Promise.allSettled(ids.map((id) => fetchLegacyState<T>(id, stateKey, controller.signal))).then((rs) => {
       if (controller.signal.aborted) return
       setState({
         key,
-        profiles: Object.fromEntries(rs.map((r, i) => [ids[i], r.status === 'fulfilled' ? r.value ?? {} : {}])),
+        values: Object.fromEntries(rs.map((r, i) => [ids[i], r.status === 'fulfilled' ? r.value ?? ({} as T) : ({} as T)])),
         failed: rs.some((r) => r.status === 'rejected'),
       })
     })
     return () => controller.abort()
-  }, [key, demo])
-  return { profiles: state.profiles, complete: demo || (state.key === key && !state.failed) }
+  }, [key, stateKey, demo])
+  return { values: state.values, complete: demo || (state.key === key && !state.failed) }
 }
