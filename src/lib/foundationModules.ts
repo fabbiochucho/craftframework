@@ -47,7 +47,13 @@ export type CrosswalkRef = { framework: string; ref: string }
 export type EsCategory = 'low' | 'moderate' | 'high'
 export type EsFlag = 'land' | 'biodiversity' | 'heritage' | 'intermediary'
 /** What the organisation has told CRAFT about itself; decides which indicators apply. */
-export interface ModuleProfile { publicBody?: boolean; esCategory?: EsCategory; esFlags?: EsFlag[] }
+export interface ModuleProfile {
+  publicBody?: boolean
+  esCategory?: EsCategory
+  esFlags?: EsFlag[]
+  /** High-risk operations only: an independently prepared E&S impact assessment exists. */
+  esIndependentAssessment?: boolean
+}
 /** When an indicator applies. Absent = always. */
 export type Applicability = { publicBody?: true; esCategories?: EsCategory[]; esFlag?: EsFlag }
 
@@ -99,6 +105,8 @@ export interface FoundationModule {
   preview?: boolean
   /** Validating this module needs a specialist accreditation. */
   specialist?: 'fiduciary' | 'safeguards'
+  /** A ceiling on the band, given the profile (e.g. high-risk safeguards without an independent assessment). */
+  bandCap?: (p?: ModuleProfile) => { maxBandIndex: number; reason: string } | null
 }
 
 const P = MODULE_SCORE_PREFIX
@@ -835,6 +843,8 @@ export interface BandResult {
   /** Dimensions below the weakest-link floor (these caused the cap, if any). */
   weakLinks: ModuleDimension[]
   provisional: boolean
+  /** Why the band was held down by the module's cap rule, if it was. */
+  capReason?: string
 }
 
 export function bandFor(m: FoundationModule, scores: Record<string, number>, p?: ModuleProfile): BandResult | null {
@@ -848,8 +858,11 @@ export function bandFor(m: FoundationModule, scores: Record<string, number>, p?:
   })
   const capIndex = 1
   const uncappedIndex = m.bands.indexOf(byComposite)
-  const band = weakLinks.length > 0 && uncappedIndex > capIndex ? m.bands[capIndex] : byComposite
-  return { band, uncapped: byComposite, weakLinks, provisional: answered < applicableIndicators(m, p).length }
+  let band = weakLinks.length > 0 && uncappedIndex > capIndex ? m.bands[capIndex] : byComposite
+  const cap = m.bandCap?.(p) ?? null
+  const capped = !!cap && m.bands.indexOf(band) > cap.maxBandIndex
+  if (capped) band = m.bands[cap!.maxBandIndex]
+  return { band, uncapped: byComposite, weakLinks, provisional: answered < applicableIndicators(m, p).length, ...(capped ? { capReason: cap!.reason } : {}) }
 }
 
 export type LensStatus = 'not-assessed' | 'at-risk' | 'strained' | 'holds'
