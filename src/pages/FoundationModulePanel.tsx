@@ -1,19 +1,21 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 } from 'recharts'
 import {
-  ShieldHalf, Sprout, Landmark, CheckCircle2, FileText, AlertTriangle, TrendingUp, Sparkles,
+  ShieldHalf, Sprout, Landmark, HeartPulse, Repeat, ShieldCheck, Leaf, CheckCircle2, FileText, AlertTriangle, TrendingUp, Sparkles,
   Gauge, Lock, CloudCheck, Eye, ArrowRight, Info,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { FIDUCIARY_LEVELS, type FrameworkId } from '../lib/frameworks'
 import {
   getFoundationModule, indicatorsForDimension, dimensionScore, compositeScore, answeredIn,
-  bandFor, evaluateLens, priorityGaps, strengths,
-  type FoundationModuleId, type ModuleBand, type LensStatus,
+  bandFor, evaluateLens, priorityGaps, strengths, applicableIndicators, applicableDimensions,
+  type FoundationModuleId, type ModuleBand, type LensStatus, type ModuleProfile,
 } from '../lib/foundationModules'
+import { CATEGORY_LABEL, esScreening, SCREENING_QUESTIONS, type EsScreeningAnswers } from '../lib/indices/safeguards'
+import { useTenantState } from '../lib/legacy-state'
 import { useAuthCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import {
   Card, CardHeader, CardTitle, CardContent, Badge, ProgressBar, Accordion, Stat, Reveal,
@@ -23,6 +25,10 @@ const MODULE_ICONS: Record<FoundationModuleId, typeof ShieldHalf> = {
   'craft-resilience': ShieldHalf,
   'craft-transformation': Sprout,
   'craft-legacy': Landmark,
+  'craft-health': HeartPulse,
+  'craft-change': Repeat,
+  'craft-fiduciary': ShieldCheck,
+  'craft-safeguards': Leaf,
 }
 
 const BAND_TONE: Record<ModuleBand['tone'], string> = {
@@ -57,17 +63,24 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
     updateScore(orgId, qId, value)
   }
 
-  const total = m.indicators.length
-  const answered = answeredIn(m, scores)
-  const completionPct = Math.round((answered / total) * 100)
-  const composite = useMemo(() => compositeScore(m, scores), [m, scores])
-  const band = useMemo(() => bandFor(m, scores), [m, scores])
-  const lenses = useMemo(() => m.lenses.map(l => evaluateLens(m, l, scores)), [m, scores])
-  const gaps = useMemo(() => priorityGaps(m, scores), [m, scores])
-  const strong = useMemo(() => strengths(m, scores), [m, scores])
+  // What the organisation has told CRAFT about itself (public body, E&S screening): decides which indicators apply.
+  const [profile, setProfile] = useTenantState<ModuleProfile & { esAnswers?: EsScreeningAnswers }>(
+    currentUser?.email, orgId, !!currentUser?.isDemo, 'modules:profile', {}, readOnly,
+  )
+  const p: ModuleProfile = profile
+  const needsScreening = m.id === 'craft-safeguards' && !profile.esCategory
+  const total = applicableIndicators(m, p).length
+  const answered = answeredIn(m, scores, p)
+  const completionPct = total ? Math.round((answered / total) * 100) : 0
+  const composite = useMemo(() => compositeScore(m, scores, p), [m, scores, p])
+  const band = useMemo(() => bandFor(m, scores, p), [m, scores, p])
+  const lenses = useMemo(() => m.lenses.map(l => evaluateLens(m, l, scores, p)), [m, scores, p])
+  const gaps = useMemo(() => priorityGaps(m, scores, p), [m, scores, p])
+  const strong = useMemo(() => strengths(m, scores, p), [m, scores, p])
+  const dims = useMemo(() => applicableDimensions(m, p), [m, p])
   const radarData = useMemo(
-    () => m.dimensions.map(d => ({ dimension: d.name, value: dimensionScore(m, d.key, scores) ?? 0 })),
-    [m, scores],
+    () => dims.map(d => ({ dimension: d.name, value: dimensionScore(m, d.key, scores, p) ?? 0 })),
+    [m, dims, scores, p],
   )
 
   const compositeAccent: 'rose' | 'amber' | 'emerald' | 'slate' =
@@ -101,6 +114,29 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
       </div>
       <p className="max-w-3xl text-sm leading-relaxed text-slate-600">{m.intro}</p>
 
+      {m.id === 'craft-fiduciary' && (
+        <Card className="p-4">
+          <label className="flex items-center gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox" className="h-4 w-4 accent-emerald-600" disabled={readOnly}
+              checked={!!profile.publicBody}
+              onChange={e => setProfile({ ...profile, publicBody: e.target.checked })}
+            />
+            We are a public body or manage public money (adds 3 public financial management indicators)
+          </label>
+        </Card>
+      )}
+
+      {m.id === 'craft-safeguards' && (
+        <SafeguardsScreening
+          // Remount when saved answers load or change, so the form shows them (useState only seeds once).
+          key={JSON.stringify(profile.esAnswers ?? null)}
+          answers={profile.esAnswers} readOnly={readOnly}
+          onSave={answers => setProfile({ ...profile, esAnswers: answers, esCategory: esScreening(answers).category, esFlags: esScreening(answers).flags })}
+        />
+      )}
+
+      {needsScreening ? null : <>
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="p-5">
@@ -278,8 +314,8 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
 
       {/* Scored indicators, grouped by dimension */}
       <div className="space-y-8">
-        {m.dimensions.map(dim => {
-          const ds = dimensionScore(m, dim.key, scores)
+        {dims.map(dim => {
+          const ds = dimensionScore(m, dim.key, scores, p)
           const weak = ds != null && ds < m.weakestLinkFloor
           return (
             <div key={dim.key}>
@@ -293,7 +329,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
                 <span className="text-xs text-slate-500">{dim.question}</span>
               </div>
               <div className="space-y-4">
-                {indicatorsForDimension(m, dim.key).map((ind, i) => {
+                {indicatorsForDimension(m, dim.key, p).map((ind, i) => {
                   const selected = scores[ind.id]
                   return (
                     <Reveal key={ind.id} delay={i * 40}>
@@ -379,6 +415,55 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
           )
         })}
       </div>
+      </>}
     </div>
+  )
+}
+
+/** The seven-question E&S screening. Nothing in the safeguards index is scored until it is answered. */
+function SafeguardsScreening({ answers, readOnly, onSave }: {
+  answers?: EsScreeningAnswers; readOnly: boolean; onSave: (a: EsScreeningAnswers) => void
+}) {
+  const [draft, setDraft] = useState<Partial<EsScreeningAnswers>>(answers ?? {})
+  const complete = SCREENING_QUESTIONS.every(([k]) => typeof draft[k] === 'boolean')
+  const result = answers ? esScreening(answers) : null
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Safeguards screening</CardTitle>
+        <p className="text-sm text-slate-500">
+          Seven questions decide which safeguard areas apply and how much evidence is needed.
+          {result && <> Current result: <strong>{CATEGORY_LABEL[result.category]}</strong>{result.flags.length ? `, plus ${result.flags.join(', ')}` : ''}.</>}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {SCREENING_QUESTIONS.map(([k, label]) => (
+          <fieldset key={k} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2 text-sm">
+            <legend className="sr-only">{label}</legend>
+            <span className="text-slate-700">{label}</span>
+            <span className="flex gap-3">
+              {[true, false].map(v => (
+                <label key={String(v)} className="flex items-center gap-1.5">
+                  <input
+                    type="radio" name={`es-${k}`} disabled={readOnly} className="accent-emerald-600"
+                    checked={draft[k] === v} onChange={() => setDraft({ ...draft, [k]: v })}
+                  />
+                  {v ? 'Yes' : 'No'}
+                </label>
+              ))}
+            </span>
+          </fieldset>
+        ))}
+        {!readOnly && (
+          <button
+            type="button" disabled={!complete}
+            onClick={() => onSave(draft as EsScreeningAnswers)}
+            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {answers ? 'Update screening' : 'Save screening'}
+          </button>
+        )}
+      </CardContent>
+    </Card>
   )
 }
