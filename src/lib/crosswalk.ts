@@ -146,7 +146,7 @@ EXTERNAL_FRAMEWORKS.push(
 )
 
 /** Shown wherever TNFD is named, so users know its status. */
-export const TNFD_STATUS_NOTE = 'TNFD is concluding its technical work; the ISSB is developing nature-related requirements that build on it (exposure draft expected around COP17, October 2026).'
+export const TNFD_STATUS_NOTE = 'As of October 2026, TNFD is concluding its technical work and the ISSB is developing nature-related requirements that build on it (an exposure draft was expected around COP17); check the ISSB for the current position.'
 
 export function frameworkById(id: string): ExternalFramework | undefined {
   return EXTERNAL_FRAMEWORKS.find((f) => f.id === id)

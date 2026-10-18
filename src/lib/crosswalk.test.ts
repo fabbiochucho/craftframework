@@ -29,4 +29,5 @@ const tnfd = frameworkById('tnfd')!
 assert.equal(tnfd.elements.length, 8, 'TNFD: 4 pillars + 4 LEAP phases')
 assert.deepEqual(tnfd.elements.map((e) => e.id), ['GOV', 'STRAT', 'RIM', 'MT', 'L', 'E', 'A', 'P'])
 assert.match(TNFD_STATUS_NOTE, /ISSB/)
+assert.match(TNFD_STATUS_NOTE, /^As of October 2026/, 'the note is dated so it reads correctly as it ages')
 console.log('crosswalk: ok')

@@ -1,7 +1,7 @@
 // The five-stage ESG maturity journey, placed from answers and confirmed by evidence. Stage names and descriptions are
 // CRAFT's own; the idea of a staged journey draws on published sustainability maturity models (see the spec).
 // Self-check: `node src/lib/esgMaturity.test.ts`.
-import { ESG_QUESTIONS, pillarEvidenceScore, type EsgPillar, type EsgQuestion } from './esg.ts'
+import { ESG_QUESTIONS, pillarEvidenceScore, RATED_QUESTION_IDS, type EsgPillar, type EsgQuestion } from './esg.ts'
 
 export interface EsgStage { n: 1 | 2 | 3 | 4 | 5; name: string; summary: string; criteria: string[] }
 export const ESG_STAGES: EsgStage[] = [
@@ -70,3 +70,9 @@ export function stageLabel(m: EsgMaturity): string {
   ].filter(Boolean)
   return `Stage ${s.n}: ${s.name}${notes.length ? ` (${notes.join('; ')})` : ''}`
 }
+
+/** The eight questions added in October 2026 (maturity, nature, value chain). */
+export const NEW_ESG_IDS = ['ESG-G5', 'ESG-E5', 'ESG-N1', 'ESG-N2', 'ESG-N3', 'ESG-G6', 'ESG-V1', 'ESG-V2']
+/** Show the "new questions added" notice only to organisations that answered the original assessment and still have new ones open. */
+export const shouldShowNewQuestionsNotice = (scores: Record<string, number>): boolean =>
+  RATED_QUESTION_IDS.some((id) => id in scores) && NEW_ESG_IDS.some((id) => !(id in scores))
