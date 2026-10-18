@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 } from 'recharts'
 import {
-  ShieldHalf, Sprout, Landmark, CheckCircle2, FileText, AlertTriangle, TrendingUp, Sparkles,
+  ShieldHalf, Sprout, Landmark, HeartPulse, Repeat, ShieldCheck, Leaf, CheckCircle2, FileText, AlertTriangle, TrendingUp, Sparkles,
   Gauge, Lock, CloudCheck, Eye, ArrowRight, Info,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
@@ -23,6 +23,10 @@ const MODULE_ICONS: Record<FoundationModuleId, typeof ShieldHalf> = {
   'craft-resilience': ShieldHalf,
   'craft-transformation': Sprout,
   'craft-legacy': Landmark,
+  'craft-health': HeartPulse,
+  'craft-change': Repeat,
+  'craft-fiduciary': ShieldCheck,
+  'craft-safeguards': Leaf,
 }
 
 const BAND_TONE: Record<ModuleBand['tone'], string> = {

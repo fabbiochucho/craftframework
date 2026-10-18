@@ -26,7 +26,9 @@
 import type { RubricQuestion } from './frameworks'
 import { MODULE_SCORE_PREFIX } from './data.ts'
 
-export type FoundationModuleId = 'craft-resilience' | 'craft-transformation' | 'craft-legacy'
+export type FoundationModuleId =
+  | 'craft-resilience' | 'craft-transformation' | 'craft-legacy'
+  | 'craft-health' | 'craft-change' | 'craft-fiduciary' | 'craft-safeguards'
 
 export interface ModuleDimension {
   key: string
