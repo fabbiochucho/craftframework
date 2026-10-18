@@ -1,14 +1,15 @@
 import { Link } from '@tanstack/react-router'
 import { Card, Badge, Reveal } from '../components/ui'
-import { FRAMEWORKS } from '../lib/frameworks'
+import { canSeePreview, FRAMEWORKS } from '../lib/frameworks'
+import { useAuthCtx } from '../lib/context'
 import {
   Network, Banknote, Cpu, ShieldCheck, TrendingUp, ArrowRight, Layers, Radar, Leaf, Mountain,
-  ShieldHalf, Sprout, Landmark,
+  ShieldHalf, Sprout, Landmark, HeartPulse, Repeat,
 } from 'lucide-react'
 
 // Icon resolver for the framework registry's `icon` field.
 const ICONS: Record<string, typeof Network> = {
-  Network, Radar, Banknote, Cpu, ShieldCheck, TrendingUp, Leaf, Mountain, ShieldHalf, Sprout, Landmark,
+  Network, Radar, Banknote, Cpu, ShieldCheck, TrendingUp, Leaf, Mountain, ShieldHalf, Sprout, Landmark, HeartPulse, Repeat,
 }
 
 const THEME: Record<string, { ring: string; chip: string; icon: string }> = {
@@ -27,6 +28,7 @@ const SCALE_LABEL: Record<string, string> = {
 // The Dynamic Assessment Engine entry point: pick a world-leading framework and
 // the engine renders its exact methodology at /assessment/{frameworkId}.
 export function FrameworksPage() {
+  const { currentUser } = useAuthCtx()
   return (
     <div className="space-y-6">
       <div>
@@ -43,7 +45,7 @@ export function FrameworksPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {FRAMEWORKS.map((f, i) => {
+        {FRAMEWORKS.filter(f => !f.preview || canSeePreview(currentUser?.role)).map((f, i) => {
           const Icon = ICONS[f.icon] ?? Network
           const t = THEME[f.theme] ?? THEME.emerald
           return (
@@ -54,8 +56,8 @@ export function FrameworksPage() {
                     <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${t.icon}`}>
                       <Icon className="h-5 w-5" />
                     </div>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${t.chip}`}>
-                      {SCALE_LABEL[f.scale]}
+                    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${f.preview ? 'bg-slate-200 text-slate-700' : t.chip}`}>
+                      {f.preview ? 'In review · v1 (102026)' : SCALE_LABEL[f.scale]}
                     </span>
                   </div>
                   <h3 className="mt-4 font-display text-lg font-bold leading-tight text-slate-900">{f.name}</h3>
