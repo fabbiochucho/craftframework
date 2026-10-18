@@ -15,7 +15,7 @@ import {
   type FoundationModuleId, type ModuleBand, type LensStatus, type ModuleProfile,
 } from '../lib/foundationModules'
 import { CATEGORY_LABEL, esScreening, SCREENING_QUESTIONS, type EsScreeningAnswers } from '../lib/indices/safeguards'
-import { useTenantState } from '../lib/legacy-state'
+import { useModuleProfile } from '../lib/moduleProfile'
 import { useAuthCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import {
   Card, CardHeader, CardTitle, CardContent, Badge, ProgressBar, Accordion, Stat, Reveal,
@@ -64,9 +64,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
   }
 
   // What the organisation has told CRAFT about itself (public body, E&S screening): decides which indicators apply.
-  const [profile, setProfile] = useTenantState<ModuleProfile & { esAnswers?: EsScreeningAnswers }>(
-    currentUser?.email, orgId, !!currentUser?.isDemo, 'modules:profile', {}, readOnly,
-  )
+  const [profile, setProfile] = useModuleProfile()
   const p: ModuleProfile = profile
   const needsScreening = m.id === 'craft-safeguards' && !profile.esCategory
   const total = applicableIndicators(m, p).length
