@@ -1,6 +1,6 @@
 // Self-check: `node src/lib/crosswalk.test.ts`
 import assert from 'node:assert/strict'
-import { crosswalkProblems, EXTERNAL_FRAMEWORKS, frameworkById } from './crosswalk.ts'
+import { crosswalkProblems, EXTERNAL_FRAMEWORKS, frameworkById, TNFD_STATUS_NOTE } from './crosswalk.ts'
 
 const ids = EXTERNAL_FRAMEWORKS.map((f) => f.id)
 assert.equal(new Set(ids).size, ids.length, 'framework ids unique')
@@ -25,4 +25,8 @@ assert.deepEqual(crosswalkProblems([{ indicatorId: 'A', refs: [{ framework: 'cos
 assert.deepEqual(crosswalkProblems([{ indicatorId: 'A', refs: [{ framework: 'coso-ic', ref: 'ZZ' }] }]), ['A: coso-ic has no element "ZZ"'])
 assert.equal(frameworkById('coso-erm')?.elements.length, 25, 'COSO ERM: 5 components + 20 principles')
 assert.ok(frameworkById('bsc')?.elements.some((e) => e.id === 'CASCADE'), 'Balanced Scorecard cascade element')
+const tnfd = frameworkById('tnfd')!
+assert.equal(tnfd.elements.length, 8, 'TNFD: 4 pillars + 4 LEAP phases')
+assert.deepEqual(tnfd.elements.map((e) => e.id), ['GOV', 'STRAT', 'RIM', 'MT', 'L', 'E', 'A', 'P'])
+assert.match(TNFD_STATUS_NOTE, /ISSB/)
 console.log('crosswalk: ok')

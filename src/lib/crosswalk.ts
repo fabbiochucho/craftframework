@@ -101,6 +101,9 @@ export const EXTERNAL_FRAMEWORKS: ExternalFramework[] = [
   { id: 'bsc', name: 'Balanced Scorecard', owner: 'Robert Kaplan and David Norton', kind: 'framework',
     elements: el([['FINANCIAL', 'Financial perspective'], ['CUSTOMER', 'People served perspective'], ['PROCESS', 'Internal process perspective'],
       ['LEARNING', 'Learning and growth perspective'], ['CASCADE', 'Strategy translated into objectives, measures and targets, and cascaded']]) },
+  { id: 'tnfd', name: 'TNFD Recommendations and LEAP approach', owner: 'Taskforce on Nature-related Financial Disclosures', kind: 'framework',
+    elements: el([['GOV', 'Governance of nature-related issues'], ['STRAT', 'Nature in strategy'], ['RIM', 'Risk and impact management'], ['MT', 'Metrics and targets'],
+      ['L', 'Locate the interface with nature'], ['E', 'Evaluate dependencies and impacts'], ['A', 'Assess risks and opportunities'], ['P', 'Prepare to respond and report']]) },
   // ---- Change management ----
   { id: 'adkar', name: 'ADKAR Model', owner: 'Prosci', kind: 'framework',
     elements: el([['AWARENESS', 'Awareness'], ['DESIRE', 'Desire'], ['KNOWLEDGE', 'Knowledge'], ['ABILITY', 'Ability'], ['REINFORCEMENT', 'Reinforcement']]) },
@@ -141,6 +144,9 @@ EXTERNAL_FRAMEWORKS.push(
   { id: 'oecd-ai', name: 'OECD AI classification and UNESCO ethical impact assessment', owner: 'OECD and UNESCO', kind: 'guidance', elements: TOOL },
   { id: 'g7-ai', name: 'G7 AI governance toolkit for the public sector', owner: 'G7', kind: 'guidance', elements: TOOL },
 )
+
+/** Shown wherever TNFD is named, so users know its status. */
+export const TNFD_STATUS_NOTE = 'TNFD is concluding its technical work; the ISSB is developing nature-related requirements that build on it (exposure draft expected around COP17, October 2026).'
 
 export function frameworkById(id: string): ExternalFramework | undefined {
   return EXTERNAL_FRAMEWORKS.find((f) => f.id === id)

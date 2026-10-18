@@ -95,3 +95,6 @@ assert.ok(bscCascade.rationale.length > 0 && bscCascade.rationale.every((t) => t
 const bscFin = buildAlignmentReport('bsc', {}, {}).elements.find((e) => e.id === 'FINANCIAL')!
 assert.ok(bscFin.rationale.some((t) => /budget/i.test(t)), 'question-level reasons reach the report')
 console.log('reports (stage 2 additions): ok')
+
+assert.match(ATTRIBUTION_NOTICE, /TNFD/, 'TNFD named in the attribution notice')
+console.log('reports (TNFD attribution): ok')
