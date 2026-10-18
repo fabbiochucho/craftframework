@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FileBarChart, FileText, FileSpreadsheet, Download, Printer } from 'lucide-react'
-import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx, useLensCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx, useLensCtx, useEntityProfileCtx } from '../lib/context'
 import {
   computeOrgScore, getAccreditation, DerivedFinding, answeredCount, RiskStatus,
 } from '../lib/data'
@@ -15,6 +15,9 @@ import { alignmentAvailable, buildAlignmentReport } from '../lib/reports/alignme
 import { buildIsoReadiness } from '../lib/reports/isoReadiness'
 import { COVERAGE_LABEL } from '../lib/reports/coverage'
 import { AlignmentReportView, IndexReportView, IsoReadinessView } from '../components/reports/ReportViews'
+import { buildJurisdictionReport, jurisdictionCsvRows, reportJurisdictions } from '../lib/laws/jurisdictionReport'
+import { LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
+import { JurisdictionReportView } from '../components/reports/JurisdictionReportView'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
 function csvCell(v: string | number) {
@@ -51,7 +54,19 @@ function exportAlignmentCsv(r: ReturnType<typeof buildAlignmentReport>) {
   URL.revokeObjectURL(url)
 }
 
-type PrintTarget = 'summary' | 'index' | 'alignment' | 'iso' | null
+function exportJurisdictionCsv(r: ReturnType<typeof buildJurisdictionReport>) {
+  const header = 'Jurisdiction,Area,Law,Citation,Regulator,Rating,Answered,In scope,Source kind,Source,Checked'
+  const rows = jurisdictionCsvRows(r).map(row => row.map(v => (typeof v === 'number' ? v : csvCell(v))).join(','))
+  const blob = new Blob([[csvCell(r.title), csvCell(r.version), csvCell(r.lensNote), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'CRAFT_Jurisdiction_Alignment.csv'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+type PrintTarget = 'summary' | 'index' | 'alignment' | 'iso' | 'jurisdiction' | null
 const ISO_IDS = EXTERNAL_FRAMEWORKS.filter(f => f.owner === 'ISO')
 
 export function ReportsPage() {
@@ -89,6 +104,15 @@ export function ReportsPage() {
   }, [indexId, allScores, moduleProfile, planMonths])
   const alignment = useMemo(() => (frameworkId ? buildAlignmentReport(frameworkId, allScores, moduleProfile, lenses) : null), [frameworkId, allScores, moduleProfile, lenses])
   const iso = useMemo(() => (isoIds.length ? buildIsoReadiness(isoIds, allScores, moduleProfile, lenses) : null), [isoIds, allScores, moduleProfile, lenses])
+  // Jurisdiction alignment starts from the organisation's home country and listed jurisdictions; the user can change the list.
+  const { entityProfile } = useEntityProfileCtx()
+  const [lawJurisdictions, setLawJurisdictions] = useState<string[] | null>(null)
+  const chosenJurisdictions = lawJurisdictions ?? reportJurisdictions(entityProfile.country, entityProfile.jurisdictions)
+  const [showLaws, setShowLaws] = useState(false)
+  const lawKey = chosenJurisdictions.join()
+  const lawReport = useMemo(() => (showLaws && lawKey ? buildJurisdictionReport(lawKey.split(','), allScores, moduleProfile, lenses) : null),
+    [showLaws, lawKey, allScores, moduleProfile, lenses])
+  const toggleJurisdiction = (j: string, on: boolean) => setLawJurisdictions(on ? [...chosenJurisdictions, j] : chosenJurisdictions.filter(x => x !== j))
 
   // Print only the chosen report: everything else on the page is hidden while printing.
   const [printTarget, setPrintTarget] = useState<PrintTarget>(null)
@@ -165,7 +189,7 @@ export function ReportsPage() {
       </div>
 
       {/* New reports: choose, view, print */}
-      <div className="grid gap-5 md:grid-cols-3 print:hidden">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4 print:hidden">
         <Card>
           <CardContent className="space-y-3 p-6">
             <h3 className="font-display text-lg font-bold text-emerald-900">Index report</h3>
@@ -205,11 +229,32 @@ export function ReportsPage() {
             </fieldset>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <h3 className="font-display text-lg font-bold text-emerald-900">Jurisdiction alignment</h3>
+            <p className="text-sm text-slate-500">Laws that apply where you are registered and operate, and how far your answers show readiness. Laws appear once CRAFT has reviewed them. Information, not legal advice.</p>
+            <fieldset className="max-h-48 space-y-1 overflow-y-auto text-sm">
+              <legend className="sr-only">Jurisdictions</legend>
+              {LAW_JURISDICTIONS.map(j => (
+                <label key={j} className="flex items-start gap-2">
+                  <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={chosenJurisdictions.includes(j)} onChange={e => toggleJurisdiction(j, e.target.checked)} />
+                  <span>{jurisdictionName(j)}</span>
+                </label>
+              ))}
+            </fieldset>
+            {chosenJurisdictions.length === 0 && <p className="text-xs text-amber-700">Choose at least one jurisdiction.</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={chosenJurisdictions.length === 0} onClick={() => setShowLaws(true)}>View report</Button>
+              {lawReport && <Button variant="outline" size="sm" onClick={() => { exportJurisdictionCsv(lawReport); logActivity('Exported report', 'Jurisdiction alignment (CSV)', 'Export') }}><Download className="h-4 w-4" /> Export CSV</Button>}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {indexReport && <div className={hideUnless('index')}><IndexReportView r={indexReport} org={orgName} onPrint={() => printReport('index', `Index report: ${indexReport.title}`)} /></div>}
       {alignment && <div className={hideUnless('alignment')}><AlignmentReportView r={alignment} org={orgName} onPrint={() => printReport('alignment', `Alignment: ${alignment.framework.name}`)} /></div>}
       {iso && <div className={hideUnless('iso')}><IsoReadinessView r={iso} org={orgName} onPrint={() => printReport('iso', 'ISO certification readiness')} /></div>}
+      {lawReport && <div className={hideUnless('jurisdiction')}><JurisdictionReportView r={lawReport} org={orgName} onPrint={() => printReport('jurisdiction', 'Jurisdiction alignment')} /></div>}
 
       {/* Printable executive summary */}
       <Card className={`print:shadow-none print:border-0 ${hideUnless('summary')}`}>
