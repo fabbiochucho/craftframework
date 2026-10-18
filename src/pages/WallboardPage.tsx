@@ -125,7 +125,8 @@ export function WallboardPage() {
   const [soloEsg] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const criticalsFor = (s: Record<string, number>, p: Parameters<typeof derivePlan>[1] | null, esg: Record<string, number> = {}) =>
     (p ? derivePlan(s, p, CIP_PLAN_MONTHS_DEFAULT, 2, esg) : deriveFindings(s)).filter(f => f.severity === 'Critical')
-  const criticalsNote = isAggregate && !profilesReady ? 'Core assessment gaps only' : 'Core, index and ESG gaps'
+  // Demo sessions don't load ESG answers per organisation, so the label must not claim ESG gaps there.
+  const criticalsNote = isAggregate && !profilesReady ? 'Core assessment gaps only' : currentUser?.isDemo ? 'Core assessment and index gaps' : 'Core, index and ESG gaps'
 
   const aggregate = useMemo(() => {
     const rows = organizations.map(o => {

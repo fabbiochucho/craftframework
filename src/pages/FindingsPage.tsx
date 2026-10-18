@@ -109,7 +109,7 @@ export function FindingsPage() {
                         <p className="mt-0.5 text-sm text-slate-700">{r.domain}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{r.tier ? 'Tier' : 'Index'}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{r.tier ? 'Tier' : r.id.startsWith('ESG-') ? 'ESG' : 'Index'}</p>
                         <p className="mt-0.5 text-sm text-slate-700">{r.tier ? `Tier ${r.tier} · ${TIER_NAMES[r.tier - 1]}` : r.topic}</p>
                       </div>
                       <div>
