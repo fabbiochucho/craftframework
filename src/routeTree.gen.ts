@@ -61,7 +61,7 @@ import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin_.analytics'
 import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
 import { Route as AppSecurityRouteImport } from './routes/app.security'
-import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment.$frameworkId'
+import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment_.$frameworkId'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
 import { Route as EngagementsIdRouteImport } from './routes/engagements_.$id'
 import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
@@ -366,9 +366,9 @@ const AppSecurityRoute = AppSecurityRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AssessmentFrameworkIdRoute = AssessmentFrameworkIdRouteImport.update({
-  id: '/$frameworkId',
-  path: '/$frameworkId',
-  getParentRoute: () => AssessmentRoute,
+  id: '/assessment_/$frameworkId',
+  path: '/assessment/$frameworkId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardTrustDeltaRoute = DashboardTrustDeltaRouteImport.update({
   id: '/dashboard_/trust-delta',
@@ -618,7 +618,7 @@ export interface FileRoutesByFullPath {
   '/accessibility': typeof AccessibilityRoute
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
-  '/assessment': typeof AssessmentRouteWithChildren
+  '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/cip': typeof CipRoute
@@ -715,7 +715,7 @@ export interface FileRoutesByTo {
   '/accessibility': typeof AccessibilityRoute
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
-  '/assessment': typeof AssessmentRouteWithChildren
+  '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/cip': typeof CipRoute
@@ -813,7 +813,7 @@ export interface FileRoutesById {
   '/accessibility': typeof AccessibilityRoute
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
-  '/assessment': typeof AssessmentRouteWithChildren
+  '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/cip': typeof CipRoute
@@ -860,7 +860,7 @@ export interface FileRoutesById {
   '/admin_/analytics': typeof AdminAnalyticsRoute
   '/admin_/portfolio': typeof AdminPortfolioRoute
   '/app/security': typeof AppSecurityRoute
-  '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
+  '/assessment_/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
   '/engagements_/$id': typeof EngagementsIdRouteWithChildren
   '/for/esg-reporting': typeof ForEsgReportingRoute
@@ -1153,7 +1153,7 @@ export interface FileRouteTypes {
     | '/admin_/analytics'
     | '/admin_/portfolio'
     | '/app/security'
-    | '/assessment/$frameworkId'
+    | '/assessment_/$frameworkId'
     | '/dashboard_/trust-delta'
     | '/engagements_/$id'
     | '/for/esg-reporting'
@@ -1204,7 +1204,7 @@ export interface RootRouteChildren {
   AccessibilityRoute: typeof AccessibilityRoute
   AdminRoute: typeof AdminRoute
   ArchitectureRoute: typeof ArchitectureRoute
-  AssessmentRoute: typeof AssessmentRouteWithChildren
+  AssessmentRoute: typeof AssessmentRoute
   AuditLogRoute: typeof AuditLogRoute
   AuthRoute: typeof AuthRoute
   CipRoute: typeof CipRoute
@@ -1251,6 +1251,7 @@ export interface RootRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
   AppSecurityRoute: typeof AppSecurityRoute
+  AssessmentFrameworkIdRoute: typeof AssessmentFrameworkIdRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
   EngagementsIdRoute: typeof EngagementsIdRouteWithChildren
   ForEsgReportingRoute: typeof ForEsgReportingRoute
@@ -1660,12 +1661,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSecurityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/assessment/$frameworkId': {
-      id: '/assessment/$frameworkId'
-      path: '/$frameworkId'
+    '/assessment_/$frameworkId': {
+      id: '/assessment_/$frameworkId'
+      path: '/assessment/$frameworkId'
       fullPath: '/assessment/$frameworkId'
       preLoaderRoute: typeof AssessmentFrameworkIdRouteImport
-      parentRoute: typeof AssessmentRoute
+      parentRoute: typeof rootRouteImport
     }
     '/dashboard_/trust-delta': {
       id: '/dashboard_/trust-delta'
@@ -1964,18 +1965,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AssessmentRouteChildren {
-  AssessmentFrameworkIdRoute: typeof AssessmentFrameworkIdRoute
-}
-
-const AssessmentRouteChildren: AssessmentRouteChildren = {
-  AssessmentFrameworkIdRoute: AssessmentFrameworkIdRoute,
-}
-
-const AssessmentRouteWithChildren = AssessmentRoute._addFileChildren(
-  AssessmentRouteChildren,
-)
-
 interface EngagementsIdRouteChildren {
   EngagementsIdReviewRoute: typeof EngagementsIdReviewRoute
 }
@@ -1994,7 +1983,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccessibilityRoute: AccessibilityRoute,
   AdminRoute: AdminRoute,
   ArchitectureRoute: ArchitectureRoute,
-  AssessmentRoute: AssessmentRouteWithChildren,
+  AssessmentRoute: AssessmentRoute,
   AuditLogRoute: AuditLogRoute,
   AuthRoute: AuthRoute,
   CipRoute: CipRoute,
@@ -2041,6 +2030,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
   AppSecurityRoute: AppSecurityRoute,
+  AssessmentFrameworkIdRoute: AssessmentFrameworkIdRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
   EngagementsIdRoute: EngagementsIdRouteWithChildren,
   ForEsgReportingRoute: ForEsgReportingRoute,
