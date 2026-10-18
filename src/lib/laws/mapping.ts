@@ -4,7 +4,7 @@ import { MOCK_QUESTIONS } from '../data.ts'
 import { LADDER_INDICATORS } from '../capitalReadiness.ts'
 import type { LawArea, LawEntry } from './types.ts'
 
-const RULES: Record<LawArea, { core?: string[]; ladder?: string[]; prefix?: string[] }> = {
+const RULES: Record<LawArea, { core?: string[]; ladder?: string[]; prefix?: string[]; esg?: boolean }> = {
   company: { core: ['Legal & Regulatory', 'Governance & Leadership'], ladder: ['Legal Structure & Registration'] },
   data: { core: ['Digital Systems & Cyber'] },
   integrity: { core: ['Ethics & Anti-Fraud', 'Risk & Internal Controls'], prefix: ['CRAFT-FCR-'] },
@@ -12,6 +12,8 @@ const RULES: Record<LawArea, { core?: string[]; ladder?: string[]; prefix?: stri
   governance: { core: ['Governance & Leadership', 'Audit & Assurance'], ladder: ['Core Governance & Leadership', 'Transparent Governance & Reporting'] },
   labour: { core: ['Human Resources'], ladder: ['Social Value & Human Capital'] },
   eia: { core: ['Env. & Social Safeguards'], prefix: ['CRAFT-ESS-'] },
+  sustainability: { core: ['Climate Governance', 'MRV & Article 6', 'Climate Finance Access'], ladder: ['Environmental & Resource Performance', 'Sustainability-Linked / Green Finance Readiness'], esg: true },
+  financial: { core: ['Financial Management', 'Audit & Assurance'], ladder: ['Basic Financial Controls', 'Auditable Financial Records', 'Financial Resilience & Reserves'] },
   capital: { core: ['Audit & Assurance'], ladder: ['Capital Markets & Credit Readiness', 'Investor Protections & Regulatory Certainty', 'Transparent Governance & Reporting'] },
 }
 const coreDomain = new Map(MOCK_QUESTIONS.map((q) => [q.id, q.domain]))
@@ -20,6 +22,7 @@ const ladderDomain = new Map(LADDER_INDICATORS.map((q) => [q.id, q.domain]))
 export const AREA_QUESTIONS = Object.fromEntries(Object.entries(RULES).map(([area, r]) => [area, INDICATOR_CATALOGUE.filter((e) =>
   (e.source === 'core' && !!r.core?.includes(coreDomain.get(e.id) ?? '')) ||
   (e.source === 'ladder' && !!r.ladder?.includes(ladderDomain.get(e.id) ?? '')) ||
+  (e.source === 'esg' && !!r.esg) ||
   (r.prefix ?? []).some((p) => e.id.startsWith(p)))])) as Record<LawArea, CatalogueEntry[]>
 
 export function questionsForLaw(e: LawEntry): CatalogueEntry[] {
