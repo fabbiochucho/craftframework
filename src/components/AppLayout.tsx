@@ -210,15 +210,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div data-sensitive-workspace translate="no" className="flex h-screen bg-emerald-50/30 font-sans">
+    <div data-sensitive-workspace translate="no" className="flex h-screen bg-emerald-50/30 font-sans print:block print:h-auto print:bg-white">
       {sidebarOpen && (
-        <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-20 bg-black/40 lg:hidden print:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Vault sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 flex w-64 flex-col bg-gradient-to-b from-emerald-900 to-slate-900 transition-transform duration-300 lg:relative lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-30 flex w-64 flex-col bg-gradient-to-b from-emerald-900 to-slate-900 transition-transform duration-300 lg:relative lg:translate-x-0 print:hidden',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -338,8 +338,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-6 py-3.5">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden print:overflow-visible">
+        <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-6 py-3.5 print:hidden">
           <button onClick={() => setSidebarOpen(true)} className="text-slate-500 hover:text-slate-800 lg:hidden">
             <Menu className="h-5 w-5" />
           </button>
@@ -377,15 +377,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Badge>
         </header>
 
-        <div className="flex flex-1 flex-col overflow-y-auto">
+        <div className="flex flex-1 flex-col overflow-y-auto print:overflow-visible">
           {currentUser.isDemo && (
-            <div className="flex items-center justify-center gap-2 bg-amber-400 px-4 py-1.5 text-center text-xs font-semibold text-slate-900">
+            <div className="flex items-center justify-center gap-2 bg-amber-400 px-4 py-1.5 text-center text-xs font-semibold text-slate-900 print:hidden">
               <Users className="h-3.5 w-3.5" />
               Demo Mode: sample data for exploration only. Nothing here is saved to a live workspace.
             </div>
           )}
           {isViewingClient && currentOrg && (
-            <div className="flex flex-wrap items-center justify-center gap-2 bg-blue-600 px-4 py-1.5 text-center text-xs font-semibold text-white">
+            <div className="flex flex-wrap items-center justify-center gap-2 bg-blue-600 px-4 py-1.5 text-center text-xs font-semibold text-white print:hidden">
               <Eye className="h-3.5 w-3.5" />
               Viewing <strong>{currentOrg.name}</strong> — read-only client workspace.
               <button
@@ -396,8 +396,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           )}
-          <main className="flex-1 p-6">{mfaNeeded ? <MfaPrompt /> : children}</main>
-          <Footer />
+          <main className="flex-1 p-6 print:p-0">{mfaNeeded ? <MfaPrompt /> : children}</main>
+          <div className="print:hidden"><Footer /></div>
         </div>
       </div>
 

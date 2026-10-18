@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, Search, Filter, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { deriveFindings, severityStyle, TIER_NAMES } from '../lib/data'
+import { CIP_PLAN_MONTHS_DEFAULT, severityStyle, TIER_NAMES } from '../lib/data'
+import { derivePlan } from '../lib/moduleFindings'
+import { useModuleProfile } from '../lib/moduleProfile'
 import { useWorkspace, useScoresCtx, useCIPCtx } from '../lib/context'
 import { Card, CardContent, Input, Select, StatusBadge, Button } from '../components/ui'
 
@@ -13,7 +15,8 @@ export function FindingsPage() {
   const [query, setQuery] = useState('')
   const [severity, setSeverity] = useState('')
 
-  const findings = useMemo(() => deriveFindings(orgScores), [orgScores])
+  const [moduleProfile] = useModuleProfile()
+  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT), [orgScores, moduleProfile])
 
   const filtered = useMemo(
     () =>
@@ -104,8 +107,8 @@ export function FindingsPage() {
                         <p className="mt-0.5 text-sm text-slate-700">{r.domain}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tier</p>
-                        <p className="mt-0.5 text-sm text-slate-700">Tier {r.tier} · {TIER_NAMES[r.tier - 1]}</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{r.tier ? 'Tier' : 'Index'}</p>
+                        <p className="mt-0.5 text-sm text-slate-700">{r.tier ? `Tier ${r.tier} · ${TIER_NAMES[r.tier - 1]}` : r.topic}</p>
                       </div>
                       <div>
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Recommended Action</p>

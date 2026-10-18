@@ -51,6 +51,9 @@ export const SAFEGUARDS: FoundationModule = {
   no: '17',
   version: V1,
   specialist: 'safeguards',
+  bandCap: (p) => p?.esCategory === 'high' && !p.esIndependentAssessment
+    ? { maxBandIndex: 1, reason: 'High-risk operations need an independently prepared environmental and social impact assessment before this index can score above Developing.' }
+    : null,
   title: 'Environmental & Social Safeguards Index',
   question: 'Does the institution avoid harm to people and the environment, and put it right when harm happens?',
   intro:
