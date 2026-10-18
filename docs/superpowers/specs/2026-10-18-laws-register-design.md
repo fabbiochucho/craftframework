@@ -14,7 +14,7 @@ The register is information, not legal advice. Reports say "readiness" and "alig
 ## 2. Scope
 
 - **Jurisdictions:** all 54 African Union member countries (ISO 3166 alpha-2, as in `africa-countries.ts`), plus `EU`, `UK`, `US`. 57 in total.
-- **Areas of law (eight):**
+- **Areas of law (ten):** every area may hold several entries; record the main acts, regulations and codes, not just one.
 
 | Id | Area | Typical laws |
 |---|---|---|
@@ -22,9 +22,11 @@ The register is information, not legal advice. Reports say "readiness" and "alig
 | `data` | Data protection and privacy | data protection act, regulator rules on registration and transfers |
 | `integrity` | Anti-corruption and anti-money-laundering | anti-corruption act, AML/CFT act, whistleblower protection |
 | `procurement` | Public procurement | public procurement act and regulations |
-| `governance` | Corporate governance codes | national code, listing-rule code |
+| `governance` | Corporate governance codes and regulations | national code, regulator governance rules, listing-rule code, sector codes |
 | `labour` | Labour and employment | labour / employment act, occupational safety |
 | `eia` | Environmental impact assessment | environment act, EIA regulations |
+| `sustainability` | Environment, climate and sustainability | environment protection act, climate change act, sustainability / ISSB disclosure rules |
+| `financial` | Financial reporting and financial regulation | financial reporting council act, accounting and audit standards, banking and insurance acts |
 | `capital` | Capital markets and securities | securities / capital markets act, stock exchange listing rules, collective investment rules |
 
 - **In force only.** A known reform may be noted in one line (`reformNote`); bills are not tracked.
@@ -39,7 +41,7 @@ The register is information, not legal advice. Reports say "readiness" and "alig
 New folder `src/lib/laws/`.
 
 ```ts
-export type LawArea = 'company' | 'data' | 'integrity' | 'procurement' | 'governance' | 'labour' | 'eia' | 'capital'
+export type LawArea = 'company' | 'data' | 'integrity' | 'procurement' | 'governance' | 'labour' | 'eia' | 'sustainability' | 'financial' | 'capital'
 export type LawJurisdiction = string // ISO alpha-2 of an AU member, or 'EU' | 'UK' | 'US'
 export type SourceKind = 'official' | 'secondary'
 export type ReviewStatus = 'pending' | 'approved'
@@ -77,6 +79,8 @@ Set once per area, reusing `INDICATOR_CATALOGUE` (`crosswalkExisting.ts`), by co
 | governance | core `Governance & Leadership`, `Audit & Assurance`; ladder `Core Governance & Leadership`, `Transparent Governance & Reporting` |
 | labour | core `Human Resources`; ladder `Social Value & Human Capital` |
 | eia | core `Env. & Social Safeguards`; E&S Safeguards index |
+| sustainability | core `Climate Governance`, `MRV & Article 6`, `Climate Finance Access`; ladder `Environmental & Resource Performance`, `Sustainability-Linked / Green Finance Readiness`; all ESG answers |
+| financial | core `Financial Management`, `Audit & Assurance`; ladder `Basic Financial Controls`, `Auditable Financial Records`, `Financial Resilience & Reserves` |
 | capital | core `Audit & Assurance`; ladder `Capital Markets & Credit Readiness`, `Investor Protections & Regulatory Certainty`, `Transparent Governance & Reporting` |
 
 Each law's questions = its area's questions + `extraQuestions`. Applicability (public-body, screening, lenses) follows the catalogue's `applies` and lens rules, exactly as alignment reports do.
