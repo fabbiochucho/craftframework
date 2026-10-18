@@ -30,7 +30,7 @@ fiduciary 0–5 scale with a descriptor per score, evidence, recommendation, why
 extended with the fields in section 3. Ids use the existing `CRAFT-` module prefix so scores stay out of the core
 ladder (`MODULE_SCORE_PREFIX`).
 
-### 2.1 Organisational Health & Effectiveness (`craft-health`, prefix `CRAFT-OHE-`)
+### 2.1 Organisational Effectiveness (`craft-health`, prefix `CRAFT-OHE-`)
 
 Draws on: organisational health research (including the McKinsey Organizational Health Index and 7S Framework),
 Nadler-Tushman congruence, Burke-Litwin, Galbraith Star Model, Lencioni's disciplines, the Competing Values Framework,
