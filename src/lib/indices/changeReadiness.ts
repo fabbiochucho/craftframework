@@ -11,7 +11,6 @@ export const CHANGE_READINESS: FoundationModule = {
   id: 'craft-change',
   no: '15',
   version: V1,
-  preview: true,
   title: 'Change Readiness & Adoption Index',
   question: 'Can the institution deliver a change, including its own improvement plan, so that it sticks?',
   intro:

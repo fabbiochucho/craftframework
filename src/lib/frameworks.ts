@@ -185,7 +185,6 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     theme: 'emerald',
     blurb: 'Is the institution set up to deliver its strategy? 24 indicators across direction, leadership, design, accountability, culture, engagement, capabilities and outside focus.',
     icon: 'HeartPulse',
-    preview: true,
   },
   {
     id: 'craft-change',
@@ -196,7 +195,6 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     theme: 'emerald',
     blurb: 'Can the institution deliver a change, including its own improvement plan, so that it sticks? 18 indicators from the case for change to making it last.',
     icon: 'Repeat',
-    preview: true,
   },
   {
     id: 'craft-fiduciary',
@@ -207,7 +205,6 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     theme: 'slate',
     blurb: "Would a funder's money be safe and well accounted for? 24 indicators on internal control, governance and risk, plus 3 for public bodies.",
     icon: 'ShieldCheck',
-    preview: true,
   },
   {
     id: 'craft-safeguards',
@@ -218,7 +215,6 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     theme: 'slate',
     blurb: 'Does the institution avoid harm to people and the environment? A short screening decides which of 10 safeguard areas apply.',
     icon: 'Leaf',
-    preview: true,
   },
 ]
 

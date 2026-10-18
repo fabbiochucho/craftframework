@@ -50,7 +50,6 @@ export const SAFEGUARDS: FoundationModule = {
   id: 'craft-safeguards',
   no: '17',
   version: V1,
-  preview: true,
   specialist: 'safeguards',
   title: 'Environmental & Social Safeguards Index',
   question: 'Does the institution avoid harm to people and the environment, and put it right when harm happens?',
