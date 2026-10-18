@@ -92,6 +92,7 @@ export function AlignmentReportView({ r, org, onPrint }: { r: AlignmentReport; o
       </div>
       <p className="text-xs text-slate-500">"Covered" needs an average of 3.5 or more, and "Gap" an average below 2, each with at least half of the related questions answered; a low average on fewer answers shows as "Gap (limited evidence)". ESG questions use your self-assessed answer.</p>
       <p className="text-xs text-slate-500">{r.lensNote}</p>
+      {r.statusNote && <p className="text-xs text-amber-700">{r.statusNote}</p>}
     </Shell>
   )
 }
