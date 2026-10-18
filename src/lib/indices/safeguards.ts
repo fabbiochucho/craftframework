@@ -21,6 +21,18 @@ export type EsScreeningAnswers = {
   lendsOrInvests: boolean
 }
 
+/** The seven screening questions, in order, as organisations see them. */
+export const SCREENING_QUESTIONS: Array<[keyof EsScreeningAnswers, string]> = [
+  ['physicalWorks', 'We build, renovate or operate physical sites'],
+  ['largeWorkforce', 'We employ or contract more than 50 people'],
+  ['sensitiveLocation', 'We work in a sensitive location (conflict, flood-prone areas, informal settlements)'],
+  ['acquiresLand', "We acquire land or restrict people's access to it"],
+  ['nearProtectedArea', 'We work in or near protected or high-biodiversity areas'],
+  ['nearHeritage', 'We work near cultural heritage sites'],
+  ['lendsOrInvests', 'We lend to or invest in other organisations'],
+]
+export const CATEGORY_LABEL = { low: 'Low risk', moderate: 'Moderate risk', high: 'High risk' } as const
+
 /** CRAFT's own risk categorisation: decides which safeguard areas apply and how much evidence they need. */
 export function esScreening(a: EsScreeningAnswers): { category: EsCategory; flags: EsFlag[] } {
   const category: EsCategory = a.physicalWorks && (a.sensitiveLocation || a.acquiresLand) ? 'high'
