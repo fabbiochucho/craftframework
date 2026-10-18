@@ -19,6 +19,8 @@ import { buildJurisdictionReport, jurisdictionCsvRows, reportJurisdictions } fro
 import { LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
 import { JurisdictionReportView } from '../components/reports/JurisdictionReportView'
 import { esgMaturity, stageLabel } from '../lib/esgMaturity'
+import { useLawApprovals } from '../lib/laws/useLawApprovals'
+import { LAW_REGISTER } from '../lib/laws/register'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
 function csvCell(v: string | number) {
@@ -112,8 +114,9 @@ export function ReportsPage() {
   const chosenJurisdictions = lawJurisdictions ?? reportJurisdictions(entityProfile.country, entityProfile.jurisdictions)
   const [showLaws, setShowLaws] = useState(false)
   const lawKey = chosenJurisdictions.join()
-  const lawReport = useMemo(() => (showLaws && lawKey ? buildJurisdictionReport(lawKey.split(','), allScores, moduleProfile, lenses) : null),
-    [showLaws, lawKey, allScores, moduleProfile, lenses])
+  const { approved: approvedJurisdictions } = useLawApprovals()
+  const lawReport = useMemo(() => (showLaws && lawKey ? buildJurisdictionReport(lawKey.split(','), allScores, moduleProfile, lenses, LAW_REGISTER, approvedJurisdictions) : null),
+    [showLaws, lawKey, allScores, moduleProfile, lenses, approvedJurisdictions.join()])
   const toggleJurisdiction = (j: string, on: boolean) => setLawJurisdictions(on ? [...chosenJurisdictions, j] : chosenJurisdictions.filter(x => x !== j))
 
   // Print only the chosen report: everything else on the page is hidden while printing.
