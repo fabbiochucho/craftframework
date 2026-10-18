@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Card, Button, Badge } from '../components/ui'
-import { getFramework } from '../lib/frameworks'
+import { canSeePreview, getFramework } from '../lib/frameworks'
+import { useAuthCtx } from '../lib/context'
 import { ArrowLeft, AlertTriangle, Loader2 } from 'lucide-react'
 
 // Each framework's engine is its own chunk, loaded only when that framework is
@@ -28,7 +29,10 @@ function EngineLoading() {
 // the URL (/assessment/{frameworkId}); this component resolves the framework and
 // renders its exact native methodology.
 export function AssessmentFrameworkPage({ frameworkId }: { frameworkId: string }) {
-  const meta = getFramework(frameworkId)
+  const { currentUser } = useAuthCtx()
+  const found = getFramework(frameworkId)
+  // Preview frameworks look like unknown ones to everyone but the Super Admin.
+  const meta = found && (!found.preview || canSeePreview(currentUser?.role)) ? found : undefined
 
   if (!meta) {
     return (
@@ -85,6 +89,10 @@ function renderEngine(id: string) {
     case 'craft-resilience':
     case 'craft-transformation':
     case 'craft-legacy':
+    case 'craft-health':
+    case 'craft-change':
+    case 'craft-fiduciary':
+    case 'craft-safeguards':
       return <FoundationModulePanel moduleId={id} />
     default:
       return null
