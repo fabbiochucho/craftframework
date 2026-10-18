@@ -14,7 +14,7 @@ The register is information, not legal advice. Reports say "readiness" and "alig
 ## 2. Scope
 
 - **Jurisdictions:** all 54 African Union member countries (ISO 3166 alpha-2, as in `africa-countries.ts`), plus `EU`, `UK`, `US`. 57 in total.
-- **Areas of law (ten):** every area may hold several entries; record the main acts, regulations and codes, not just one.
+- **Areas of law (sixteen):** every area may hold several entries; record the main acts, regulations and codes, not just one.
 
 | Id | Area | Typical laws |
 |---|---|---|
@@ -27,6 +27,12 @@ The register is information, not legal advice. Reports say "readiness" and "alig
 | `eia` | Environmental impact assessment | environment act, EIA regulations |
 | `sustainability` | Environment, climate and sustainability | environment protection act, climate change act, sustainability / ISSB disclosure rules |
 | `financial` | Financial reporting and financial regulation | financial reporting council act, accounting and audit standards, banking and insurance acts |
+| `tax` | Tax | income tax, VAT, tax administration, charity exemptions |
+| `competition` | Competition | competition act, merger control, regional rules (WAEMU, CEMAC, COMESA) |
+| `consumer` | Consumer protection | consumer protection act |
+| `sanctions` | Sanctions and export controls | UN targeted financial sanctions, national sanctions regimes, export controls |
+| `forex` | Foreign exchange | exchange control regulations, regional exchange rules |
+| `licensing` | Investment and sector licensing | investment code, foreign investment screening, business licensing |
 | `capital` | Capital markets and securities | securities / capital markets act, stock exchange listing rules, collective investment rules |
 
 - **In force only.** A known reform may be noted in one line (`reformNote`); bills are not tracked.
@@ -81,6 +87,12 @@ Set once per area, reusing `INDICATOR_CATALOGUE` (`crosswalkExisting.ts`), by co
 | eia | core `Env. & Social Safeguards`; E&S Safeguards index |
 | sustainability | core `Climate Governance`, `MRV & Article 6`, `Climate Finance Access`; ladder `Environmental & Resource Performance`, `Sustainability-Linked / Green Finance Readiness`; all ESG answers |
 | financial | core `Financial Management`, `Audit & Assurance`; ladder `Basic Financial Controls`, `Auditable Financial Records`, `Financial Resilience & Reserves` |
+| tax | core `Financial Management`; ladder `Auditable Financial Records`, `Basic Financial Controls` |
+| competition | core `Legal & Regulatory`, `Ethics & Anti-Fraud` |
+| consumer | core `Legal & Regulatory`, `Partnerships & Stakeholders` |
+| sanctions | core `Ethics & Anti-Fraud`, `Risk & Internal Controls`, `USG Compliance`, `International Donor Compliance` |
+| forex | core `Financial Management`, `Risk & Internal Controls` |
+| licensing | core `Legal & Regulatory`; ladder `Legal Structure & Registration` |
 | capital | core `Audit & Assurance`; ladder `Capital Markets & Credit Readiness`, `Investor Protections & Regulatory Certainty`, `Transparent Governance & Reporting` |
 
 Each law's questions = its area's questions + `extraQuestions`. Applicability (public-body, screening, lenses) follows the catalogue's `applies` and lens rules, exactly as alignment reports do.
@@ -130,3 +142,7 @@ Bills and draft laws; sub-national (state/provincial) law; sector regulators' ru
 - **Accuracy:** mitigated by citations, checked dates, secondary flags, the review gate, and the not-legal-advice footer.
 - **Copyright:** summaries in CRAFT's words; no statute text reproduced.
 - **Staleness:** the 12-month re-check list on the internal check.
+
+## 12. Scope additions (owner, 18 October 2026)
+
+Six areas added (tax, competition, consumer, sanctions, forex, licensing). Existing areas also hold whistleblowing (integrity), health and safety and pensions (labour), cybersecurity (data), insurance (financial) and beneficial ownership (company). All 54 African countries were researched locally rather than by cloud routines.
