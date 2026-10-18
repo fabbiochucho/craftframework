@@ -75,7 +75,7 @@ export const SAFEGUARDS: FoundationModule = {
       'A screening procedure categorises the risk of every project or operation before it starts.',
       'Screening records exist for current projects, with the required actions taken.',
       'Screening results are reviewed for accuracy and the procedure is improved.',
-    ], 'Screening procedure, completed screening forms.', 'Screen every new project with a one-page checklist before it starts and record the category.',
+    ], 'Screening procedure, completed screening forms; for high-risk operations, the independently prepared impact assessment.', 'Screen every new project with a one-page checklist before it starts and record the category.',
     'Unscreened projects are where serious harm, and funder withdrawal, usually start.', 'process', 8, 'afdb-iss:OS1', ALL),
     i(3, 'esms', 'Management Plan', 'Is there a staffed environmental and social management plan with monitoring and reporting?', [
       'No management plan or responsible staff.',
@@ -94,7 +94,7 @@ export const SAFEGUARDS: FoundationModule = {
       'Assessment results are reported to the board and affect plans and budgets.',
       'Climate scenarios inform strategy, and the assessment method is improved over time.',
     ], 'Board terms of reference covering climate, climate risk assessment, board minutes.', 'Assign climate risk oversight to a board committee and assess the main climate risks once a year.',
-    'Climate risks increasingly decide whether institutions and their assets stay viable.', 'assurance', 12, 'ifrs-s2:GOV ifrs-s2:RISK', ALL),
+    'Climate risks increasingly decide whether institutions and their assets stay viable.', 'assurance', 12, 'ifrs-s2:GOV ifrs-s2:RISK', MOD),
     i(5, 'esms', 'Sustainability Disclosure', 'Are material sustainability risks, opportunities, metrics and targets reported to stakeholders?', [
       'No sustainability reporting.',
       'Occasional stories, with no data.',
@@ -103,7 +103,7 @@ export const SAFEGUARDS: FoundationModule = {
       'Reported data is reconciled to records and progress against targets is shown.',
       'Reporting is assured or reviewed externally, and stakeholder feedback shapes what is reported.',
     ], 'Sustainability report, data sources, review or assurance statement.', 'Publish a short yearly report on your main sustainability risks with two or three measures and targets.',
-    'Funders and regulators increasingly expect sustainability information alongside financial reports.', 'practice', 26, 'ifrs-s1:STRAT ifrs-s1:METRICS ifrs-s2:METRICS', ALL),
+    'Funders and regulators increasingly expect sustainability information alongside financial reports.', 'practice', 26, 'ifrs-s1:STRAT ifrs-s1:METRICS ifrs-s2:METRICS', MOD),
     i(6, 'labour', 'Terms and Conditions', 'Do all workers, including contractors, have written terms, fair wages and lawful hours?', [
       'Workers have no written terms.',
       'Some staff have contracts; contractors do not.',
@@ -130,7 +130,7 @@ export const SAFEGUARDS: FoundationModule = {
       'Supplier checks are carried out and recorded for higher-risk suppliers.',
       'Findings are acted on, and the supplier check approach is reviewed yearly.',
     ], 'Age verification procedure, supplier clauses, supplier check records.', 'Add child and forced labour clauses to supplier contracts and check your highest-risk suppliers.',
-    'Child or forced labour found anywhere in the chain causes lasting harm and immediate loss of funding.', 'process', 12, 'afdb-iss:OS2', ALL),
+    'Child or forced labour found anywhere in the chain causes lasting harm and can end funding.', 'process', 12, 'afdb-iss:OS2', ALL),
     i(9, 'resources', 'Resource Use', 'Are energy, water and materials use measured, with reduction targets?', [
       'Resource use is not measured.',
       'Bills are paid without analysis.',
@@ -158,15 +158,15 @@ export const SAFEGUARDS: FoundationModule = {
       'Incident trends fall, and the plan is updated with community input.',
     ], 'Community risk assessment, mitigation plan, incident records.', 'Assess how your operations could harm nearby communities and write down how you will prevent it.',
     'Harm to communities is the fastest way to lose a licence to operate.', 'process', 8, 'afdb-iss:OS4', MOD),
-    i(12, 'community', 'GBV and Harassment', 'Are gender-based violence and sexual harassment prevented, with survivor-centred reporting and response?', [
+    i(12, 'community', 'SEAH and Gender-Based Violence', 'Are sexual exploitation, abuse and harassment, and other gender-based violence, prevented, with survivor-centred reporting and response?', [
       'No measures on gender-based violence or harassment.',
       'A general conduct policy only.',
       'A policy exists, but reporting routes and support are unclear.',
       'A policy, code of conduct, safe reporting routes and referral to survivor support are in place for staff, contractors and communities.',
       'Training records and a confidential case log show cases handled with survivor-centred responses.',
       'Prevention is reviewed with specialist input, and lessons change practice.',
-    ], 'GBV and harassment policy, signed codes of conduct, training records, confidential case handling procedure.', 'Adopt a policy on sexual exploitation, abuse and harassment, train all staff and contractors, and set up a confidential reporting route.',
-    'These harms are severe, often hidden, and funders treat failures as grounds for suspension.', 'practice', 12, 'afdb-iss:OS4 afdb-iss:OS2', MOD),
+    ], 'SEAH and GBV policy, signed codes of conduct, training records, confidential case handling procedure, confidential case log (zero cases recorded as zero).', 'Adopt a policy on sexual exploitation, abuse and harassment, train all staff and contractors, and set up a confidential reporting route.',
+    'These harms are severe, often hidden, and funders treat failures as grounds for suspension.', 'practice', 12, 'afdb-iss:OS4 afdb-iss:OS2', ALL),
     i(13, 'community', 'Security and Rights', 'Are security arrangements proportionate and respectful of human rights?', [
       'Security arrangements are unmanaged.',
       'Security staff have no rules of engagement.',

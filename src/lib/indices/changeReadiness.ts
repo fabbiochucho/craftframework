@@ -15,7 +15,7 @@ export const CHANGE_READINESS: FoundationModule = {
   title: 'Change Readiness & Adoption Index',
   question: 'Can the institution deliver a change, including its own improvement plan, so that it sticks?',
   intro:
-    'Eighteen indicators on how the institution carries out change: the case for it, who leads it, whether people adopt it, how they are supported, early results and making it last. Gaps here become plan actions about how the Capacity Improvement Plan itself is delivered.',
+    'Eighteen indicators on how the institution carries out change: the case for it, who leads it, whether people adopt it, how they are supported, early results and making it last. Answer each question for the most recent major change, or for delivering the Capacity Improvement Plan if there has been none. Gaps here become plan actions about how that plan is delivered.',
   lensTitle: 'Change lenses',
   lensBlurb: 'Three moments where change succeeds or fails: starting well, landing it with people, and making it stick.',
   dimensions: [
@@ -35,7 +35,7 @@ export const CHANGE_READINESS: FoundationModule = {
       'The case is shared with everyone affected before the change starts.',
       'Cases are revisited at each review and updated when circumstances change.',
     ], 'Change case documents for recent major changes.', 'Write a one-page case for the next major change, including what happens if nothing changes.',
-    'People resist change they do not understand far more than change they disagree with.', 'policy', 4, 'kotter:URGENCY adkar:AWARENESS lewin:UNFREEZE'),
+    'People accept a change they understand more readily than one they do not.', 'policy', 4, 'kotter:URGENCY adkar:AWARENESS lewin:UNFREEZE'),
     i(2, 'case', 'Consultation', 'Are the people affected consulted before a major change is decided?', [
       'Changes are imposed with no consultation.',
       'A few senior people are consulted informally.',
@@ -147,7 +147,7 @@ export const CHANGE_READINESS: FoundationModule = {
     i(14, 'wins', 'Results Shared', 'Are early results communicated and credited to the people who produced them?', [
       'Results are not communicated.',
       'Results are reported only to leadership.',
-      'Results are shared, but without crediting the people involved.',
+      'Results are shared occasionally, without a plan or credit to the people involved.',
       'A plan exists to share early results with everyone affected.',
       'Results are shared, and the people who produced them are credited by name or team.',
       'Recognition of results is consistent and visibly links back to the case for change.',
