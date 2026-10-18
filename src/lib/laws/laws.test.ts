@@ -51,3 +51,31 @@ for (const j of PHASE1) for (const a of Object.keys(LAW_AREAS)) assert.ok(PHASE1
 assert.ok(PHASE1_LAWS.every((e) => e.review === 'pending'), 'new entries start pending')
 assert.ok(PHASE1_LAWS.filter((e) => e.area === 'data' && !e.noLaw).every((e) => e.craftNotes?.length), 'every data protection law says what it means for CRAFT')
 console.log('laws (phase 1 completeness): ok')
+
+import { buildJurisdictionReport, LAW_FOOTER, reportJurisdictions } from './jurisdictionReport.ts'
+const approved = (e: LawEntry): LawEntry => ({ ...e, review: 'approved' })
+const fixtures: LawEntry[] = [
+  approved(ok),
+  approved({ ...ok, id: 'NG-governance-1', area: 'governance', noLaw: true, title: 'No national code' }),
+  { ...ok, id: 'KE-data-1', jurisdiction: 'KE' },
+]
+// Review Focus 1 and 3: no country; non-register ids ignored
+assert.deepEqual(reportJurisdictions('', []), [])
+assert.deepEqual(reportJurisdictions('NG', ['NG', 'EU', 'OHADA', 'GCC', 'ASIA']), ['NG', 'EU'])
+assert.deepEqual(buildJurisdictionReport([], {}, {}, [], fixtures).sections, [])
+const jr = buildJurisdictionReport(['NG', 'KE'], {}, {}, [], fixtures)
+const ng = jr.sections.find((s) => s.id === 'NG')!
+assert.equal(ng.reviewed, true)
+assert.equal(ng.areas.find((a) => a.area === 'data')!.laws[0].coverage, 'not-assessed')
+// Review Focus 4: no law in an area is never a gap
+assert.equal(ng.areas.find((a) => a.area === 'governance')!.laws[0].coverage, 'no-law')
+// Review Focus 2: only pending entries → not reviewed, nothing shown
+const ke = jr.sections.find((s) => s.id === 'KE')!
+assert.equal(ke.reviewed, false)
+assert.deepEqual(ke.areas, [])
+// Scores drive the rating
+const low = Object.fromEntries(AREA_QUESTIONS.data.map((q) => [q.id, 0]))
+assert.equal(buildJurisdictionReport(['NG'], low, {}, [], fixtures).sections[0].areas.find((a) => a.area === 'data')!.laws[0].coverage, 'gap')
+assert.ok(jr.footer.startsWith(LAW_FOOTER))
+assert.ok(!/\b(compliant|certified)\b|compliance with/i.test(JSON.stringify({ t: jr.title, f: LAW_FOOTER })))
+console.log('laws (report): ok')
