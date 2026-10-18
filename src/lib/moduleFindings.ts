@@ -3,6 +3,7 @@
 // Self-check: `node src/lib/moduleFindings.test.ts`.
 import { deriveFindings, dueMonthFor, quarterLabel, severityFromScore, type DerivedFinding } from './data.ts'
 import { applicableIndicators, FOUNDATION_MODULES, type ActionType, type ModuleProfile } from './foundationModules.ts'
+import { esgMaturity } from './esgMaturity.ts'
 
 const V1 = 'v1 (102026)'
 
@@ -44,11 +45,31 @@ export function deriveModuleFindings(
   return out.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity] || a.dueMonth - b.dueMonth)
 }
 
-/** The whole Capacity Improvement Plan: core gaps and index gaps on one schedule, sorted by severity then due month. */
-export function derivePlan(scores: Record<string, number>, p: ModuleProfile, planMonths: number, threshold = 2): DerivedFinding[] {
+/** Unmet ESG criteria up to the next maturity stage become plan actions; later stages wait, so the plan stays achievable. */
+export function deriveEsgFindings(
+  esg: Record<string, number>, planMonths: number, startAt: Record<Severity, number> = { Critical: 0, High: 0, Moderate: 0 },
+): DerivedFinding[] {
+  const perSeverity = { ...startAt }
+  const { missing, next } = esgMaturity(esg, {})
+  return missing.filter((q) => q.id in esg && esg[q.id] <= 2).map((q) => {
+    const score = esg[q.id]
+    const severity = severityFromScore(score)
+    const dueMonth = dueMonthFor(severity, perSeverity[severity]++, planMonths)
+    return {
+      id: q.id, qId: q.id, topic: `ESG maturity: towards ${next?.name ?? 'the next stage'}`, domain: q.domain, tier: 0, severity, score,
+      question: q.question, description: q.question, mitigation: q.recommendation,
+      owner: q.pillar === 'Governance' ? 'Board Secretary' : 'Sustainability lead', dueMonth, dueDate: quarterLabel(dueMonth),
+    }
+  })
+}
+
+/** The whole Capacity Improvement Plan: core, index and ESG-maturity gaps on one schedule, sorted by severity then due month. */
+export function derivePlan(scores: Record<string, number>, p: ModuleProfile, planMonths: number, threshold = 2, esg: Record<string, number> = {}): DerivedFinding[] {
   const core = deriveFindings(scores, threshold, planMonths)
   const startAt: Record<Severity, number> = { Critical: 0, High: 0, Moderate: 0 }
   for (const f of core) startAt[f.severity]++
-  return [...core, ...deriveModuleFindings(scores, p, planMonths, threshold, startAt)]
+  const modules = deriveModuleFindings(scores, p, planMonths, threshold, startAt)
+  for (const f of modules) startAt[f.severity]++
+  return [...core, ...modules, ...deriveEsgFindings(esg, planMonths, startAt)]
     .sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity] || a.dueMonth - b.dueMonth || a.tier - b.tier)
 }

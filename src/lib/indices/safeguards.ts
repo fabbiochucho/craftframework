@@ -216,7 +216,7 @@ export const SAFEGUARDS: FoundationModule = {
       'Measures are implemented and monitored.',
       'Monitoring shows no net loss, and results are reported publicly.',
     ], 'Biodiversity assessment, mitigation plan, monitoring reports.', 'Commission a basic habitat assessment for sites near protected or high-biodiversity areas.',
-    'Damage to critical habitats can be irreversible and is a red line for many funders.', 'process', 12, 'afdb-iss:OS6', FLAG('biodiversity')),
+    'Damage to critical habitats can be irreversible and is a red line for many funders.', 'process', 12, 'afdb-iss:OS6 tnfd:L tnfd:E tnfd:RIM', FLAG('biodiversity')),
     i(17, 'biodiversity', 'Natural Resources', 'Are living natural resources used sustainably?', [
       'Natural resources are used without limits.',
       'Use is informal and unrecorded.',
@@ -225,7 +225,7 @@ export const SAFEGUARDS: FoundationModule = {
       'Use is monitored against the limits.',
       'Limits are reviewed with experts and communities, and practices improve.',
     ], 'Resource use plan, monitoring records.', 'Set and record a sustainable limit for each natural resource your operations depend on.',
-    'Over-used resources fail the communities that depend on them, and then the operations themselves.', 'practice', 12, 'afdb-iss:OS6', FLAG('biodiversity')),
+    'Over-used resources fail the communities that depend on them, and then the operations themselves.', 'practice', 12, 'afdb-iss:OS6 tnfd:L tnfd:E tnfd:RIM', FLAG('biodiversity')),
     i(18, 'vulnerable', 'Vulnerable Groups Identified', 'Are the vulnerable groups affected by operations identified?', [
       'Vulnerable groups are not considered.',
       'Groups are considered only when someone raises them.',

@@ -1,4 +1,7 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { esgMaturity, shouldShowNewQuestionsNotice } from '../lib/esgMaturity'
+import { useAuthCtx, useWorkspace } from '../lib/context'
+import { EsgMaturityCard } from '../components/esg/EsgMaturityCard'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
 import {
@@ -27,7 +30,7 @@ import {
   ESG_PILLARS, ESG_QUESTIONS, ESG_DOCS, EVIDENCE_LEVELS, questionsForPillar, docKey,
   pillarVerifiedScore, compositeEsgScore, compositeVerifiedScore,
   evidenceCoveragePct, confidenceFromCoverage, identifyGaps, identifyStrengths,
-  unansweredQuestions, getEsgBadge, financingPositioning,
+  unansweredQuestions, getEsgBadge, ratedAnswered, financingPositioning,
   RATING_AGENCY_MAP, RATING_AGENCY_REFERENCES, AGENCY_TRANSLATION_DISCLAIMER,
   type EsgPillar,
 } from '../lib/esg'
@@ -62,7 +65,7 @@ export function EsgAssessmentPanel() {
   const coveragePct = useMemo(() => evidenceCoveragePct(evidence), [evidence])
   const confidence = useMemo(() => confidenceFromCoverage(coveragePct), [coveragePct])
   const badge = useMemo(
-    () => getEsgBadge(verifiedComposite, answeredCount, coveragePct),
+    () => getEsgBadge(verifiedComposite, ratedAnswered(scores), coveragePct),
     [verifiedComposite, answeredCount, coveragePct],
   )
   const gaps = useMemo(() => identifyGaps(scores), [scores])
@@ -102,9 +105,31 @@ export function EsgAssessmentPanel() {
   const verifiedAccent: 'rose' | 'amber' | 'emerald' | 'slate' =
     answeredCount === 0 ? 'slate' : verifiedComposite < 2 ? 'rose' : verifiedComposite < 3.5 ? 'amber' : 'emerald'
 
+  const maturity = useMemo(() => esgMaturity(scores, evidence), [scores, evidence])
+  // One-time notice for organisations that answered before the eight new questions were added.
+  const { currentUser } = useAuthCtx()
+  const { currentOrg } = useWorkspace()
+  // Remembered per organisation in this browser.
+  const noticeKey = `craft:esg-new-questions-2026-10:${currentOrg?.id ?? currentUser?.orgId ?? 'workspace'}`
+  const [dismissedKeys, setDismissedKeys] = useState<string[]>([])
+  const noticeDismissed = dismissedKeys.includes(noticeKey) || (() => {
+    try { return localStorage.getItem(noticeKey) === '1' } catch { return false }
+  })()
+  const showNotice = !noticeDismissed && shouldShowNewQuestionsNotice(scores)
+  const dismissNotice = () => {
+    setDismissedKeys((k) => [...k, noticeKey])
+    try { localStorage.setItem(noticeKey, '1') } catch { /* private mode: notice returns next visit */ }
+  }
+
   return (
     <div className="space-y-6">
       <LegacySaveStatus status={saveStatus} />
+      {showNotice && (
+        <div role="status" className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <p>8 new questions added, including nature (TNFD), materiality and value chain. Your earlier answers are kept; answer the new ones to confirm your maturity stage.</p>
+          <button type="button" onClick={dismissNotice} className="text-xs font-semibold underline">Dismiss</button>
+        </div>
+      )}
       <LegacySaveStatus status={evidenceStatus} />
       <p className="text-sm text-amber-700">Evidence confidence is self-reported, not independent verification or an external ESG rating.</p>
       {/* Header */}
@@ -151,6 +176,8 @@ export function EsgAssessmentPanel() {
           </p>
         </Card>
       </div>
+
+      <EsgMaturityCard m={maturity} />
 
       {/* Disclaimer - a self-assessment is never a final/independent rating */}
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">

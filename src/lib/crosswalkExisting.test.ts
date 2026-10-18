@@ -44,3 +44,13 @@ assert.ok(!refd('EPR-01', 'coso-erm', 'P13') && refd('EPR-01', 'iso-22301', 'MS'
 for (const e of INDICATOR_CATALOGUE) for (const r of e.refs) assert.ok(e.rationale[`${r.framework}:${r.ref}`]?.length > 10, `rationale for ${e.id} → ${r.framework}:${r.ref}`)
 assert.match(entry('SP-15').rationale['bsc:FINANCIAL'], /budget/i)
 console.log('crosswalkExisting: ok')
+
+import { alignmentAvailable, buildAlignmentReport } from './reports/alignmentReport.ts'
+assert.ok(indicatorsFor('tnfd', 'L').some((e) => e.id === 'ESG-N1') && indicatorsFor('tnfd', 'L').some((e) => e.id === 'CRAFT-ESS-16'))
+assert.ok(indicatorsFor('tnfd', 'MT').some((e) => e.id === 'ESG-N3'))
+assert.ok(indicatorsFor('tnfd', 'GOV').some((e) => e.id === 'ESG-G6'))
+assert.equal(alignmentAvailable('tnfd'), true)
+const onlyN = buildAlignmentReport('tnfd', { 'ESG-N1': 4 }, {})
+assert.equal(onlyN.elements.find((e) => e.id === 'MT')!.coverage, 'not-assessed', 'unanswered elements stay not assessed')
+assert.ok(entry('ESG-N1').rationale['tnfd:L'].length > 10)
+console.log('crosswalkExisting (TNFD): ok')
