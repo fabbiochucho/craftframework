@@ -23,4 +23,6 @@ assert.equal(frameworkById('coso-ic')?.elements.length, 22, 'COSO IC: 5 componen
 assert.deepEqual(crosswalkProblems([{ indicatorId: 'A', refs: [{ framework: 'coso-ic', ref: 'CE' }] }]), [])
 assert.deepEqual(crosswalkProblems([{ indicatorId: 'A', refs: [{ framework: 'coso', ref: 'CE' }] }]), ['A: unknown framework "coso"'])
 assert.deepEqual(crosswalkProblems([{ indicatorId: 'A', refs: [{ framework: 'coso-ic', ref: 'ZZ' }] }]), ['A: coso-ic has no element "ZZ"'])
+assert.equal(frameworkById('coso-erm')?.elements.length, 25, 'COSO ERM: 5 components + 20 principles')
+assert.ok(frameworkById('bsc')?.elements.some((e) => e.id === 'CASCADE'), 'Balanced Scorecard cascade element')
 console.log('crosswalk: ok')

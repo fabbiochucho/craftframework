@@ -250,7 +250,7 @@ export function Toast({ message, onClose }: { message: string; onClose: () => vo
     return () => clearTimeout(t)
   }, [onClose])
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-[fadeIn_0.2s_ease]">
+    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 animate-[fadeIn_0.2s_ease] print:hidden">
       <div className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 shadow-lg">
         {message}
       </div>

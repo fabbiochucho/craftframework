@@ -15,7 +15,7 @@ import {
   type FoundationModuleId, type ModuleBand, type LensStatus, type ModuleProfile,
 } from '../lib/foundationModules'
 import { CATEGORY_LABEL, esScreening, SCREENING_QUESTIONS, type EsScreeningAnswers } from '../lib/indices/safeguards'
-import { useTenantState } from '../lib/legacy-state'
+import { useModuleProfile } from '../lib/moduleProfile'
 import { useAuthCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import {
   Card, CardHeader, CardTitle, CardContent, Badge, ProgressBar, Accordion, Stat, Reveal,
@@ -64,9 +64,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
   }
 
   // What the organisation has told CRAFT about itself (public body, E&S screening): decides which indicators apply.
-  const [profile, setProfile] = useTenantState<ModuleProfile & { esAnswers?: EsScreeningAnswers }>(
-    currentUser?.email, orgId, !!currentUser?.isDemo, 'modules:profile', {}, readOnly,
-  )
+  const [profile, setProfile] = useModuleProfile()
   const p: ModuleProfile = profile
   const needsScreening = m.id === 'craft-safeguards' && !profile.esCategory
   const total = applicableIndicators(m, p).length
@@ -136,6 +134,19 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
         />
       )}
 
+      {m.id === 'craft-safeguards' && profile.esCategory === 'high' && (
+        <Card className="p-4">
+          <label className="flex items-center gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox" className="h-4 w-4 accent-emerald-600" disabled={readOnly}
+              checked={!!profile.esIndependentAssessment}
+              onChange={e => setProfile({ ...profile, esIndependentAssessment: e.target.checked })}
+            />
+            An independently prepared environmental and social impact assessment has been completed
+          </label>
+        </Card>
+      )}
+
       {needsScreening ? null : <>
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -147,6 +158,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
                 {band.band.label}
               </span>
               <p className="mt-2 text-xs text-slate-400">{band.provisional ? 'Provisional - not all indicators answered' : 'All indicators answered'}</p>
+              {band.capReason && <p className="mt-1 text-xs text-amber-700">{band.capReason}</p>}
             </>
           ) : (
             <>
@@ -155,7 +167,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
             </>
           )}
         </Card>
-        <Stat label="Composite Score" value={`${composite.toFixed(2)} / 5`} hint="Mean across answered indicators" accent={compositeAccent} />
+        <Stat label="Composite Score" value={answered === 0 ? '—' : `${composite.toFixed(2)} / 5`} hint="Mean across answered indicators" accent={compositeAccent} />
         <Card className="p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Weak Links</p>
           <p className={cn('mt-2 text-3xl font-bold', band?.weakLinks.length ? 'text-rose-600' : 'text-slate-800')}>
@@ -176,7 +188,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
           <p className="text-sm text-slate-700">
             <span className="font-semibold">{band.band.label}:</span> {band.band.summary}
           </p>
-          {band.band !== band.uncapped && (
+          {band.band !== band.uncapped && band.weakLinks.length > 0 && (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-700">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>
