@@ -178,8 +178,8 @@ export const FRAMEWORKS: FrameworkMeta[] = [
   },
   {
     id: 'craft-health',
-    name: 'CRAFT Organisational Health & Effectiveness Index',
-    short: 'Health',
+    name: 'CRAFT Organisational Effectiveness Index',
+    short: 'Effectiveness',
     authority: 'CRAFT · v1 (102026)',
     scale: 'fiduciary-0-5',
     theme: 'emerald',
