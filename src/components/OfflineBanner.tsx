@@ -102,7 +102,7 @@ export function OfflineBanner() {
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-4 right-4 z-[60] flex items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-medium shadow-lg backdrop-blur transition-all ${tone}`}
+      className={`fixed bottom-4 right-4 z-[60] print:hidden flex items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-medium shadow-lg backdrop-blur transition-all ${tone}`}
     >
       {icon}
       <span className="font-sans">{label}</span>

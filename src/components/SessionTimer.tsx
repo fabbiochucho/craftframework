@@ -40,7 +40,7 @@ export function SessionTimer() {
   return (
     <div
       className={cn(
-        'fixed bottom-4 right-4 z-40 flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur',
+        'fixed bottom-4 right-4 z-40 print:hidden flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur',
         critical
           ? 'border-rose-300 bg-rose-50/90 text-rose-700'
           : warning
