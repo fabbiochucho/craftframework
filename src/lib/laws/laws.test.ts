@@ -27,3 +27,13 @@ assert.match(bad({ title: '' }).join(), /title/)
 assert.deepEqual(registerProblems(LAW_REGISTER, today), [], 'the shipped register is valid')
 assert.deepEqual(lawsFor(['NG'], { approvedOnly: true }).filter((e) => e.review !== 'approved'), [])
 console.log('laws (register): ok')
+
+import { AREA_QUESTIONS, questionsForLaw } from './mapping.ts'
+for (const [area, qs] of Object.entries(AREA_QUESTIONS)) assert.ok(qs.length >= 5, `area ${area} maps to CRAFT questions`)
+assert.ok(AREA_QUESTIONS.data.every((q) => q.source === 'core'))
+assert.ok(AREA_QUESTIONS.integrity.some((q) => q.id.startsWith('CRAFT-FCR-')), 'fiduciary index counts for integrity')
+assert.ok(AREA_QUESTIONS.eia.some((q) => q.id.startsWith('CRAFT-ESS-')), 'safeguards index counts for EIA')
+const withExtra = questionsForLaw({ ...ok, extraQuestions: ['GOV-01'] })
+assert.ok(withExtra.some((q) => q.id === 'GOV-01') && withExtra.length === AREA_QUESTIONS.data.length + 1)
+assert.equal(questionsForLaw({ ...ok, extraQuestions: [AREA_QUESTIONS.data[0].id] }).length, AREA_QUESTIONS.data.length, 'no duplicates')
+console.log('laws (mapping): ok')
