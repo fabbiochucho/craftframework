@@ -1,11 +1,12 @@
 // How well an organisation's answers cover a framework element or a standard, from the questions mapped to it.
 import type { CatalogueEntry } from '../crosswalkExisting.ts'
 import type { ModuleProfile } from '../foundationModules.ts'
+import { LENS_BY_ID, type LensId } from '../data.ts'
 
-export type Coverage = 'covered' | 'partial' | 'gap' | 'not-assessed' | 'not-applicable' | 'not-mapped'
+export type Coverage = 'covered' | 'partial' | 'gap' | 'gap-limited' | 'not-assessed' | 'not-applicable' | 'not-mapped'
 
 export const COVERAGE_LABEL: Record<Coverage, string> = {
-  covered: 'Covered', partial: 'Partial', gap: 'Gap', 'not-assessed': 'Not assessed',
+  covered: 'Covered', partial: 'Partial', gap: 'Gap', 'gap-limited': 'Gap (limited evidence)', 'not-assessed': 'Not assessed',
   'not-applicable': 'Not applicable', 'not-mapped': 'No CRAFT question mapped',
 }
 
@@ -16,7 +17,8 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 /**
  * No mapped question → not-mapped; none of the mapped questions is asked of this organisation → not-applicable;
  * none answered → not-assessed; otherwise the mean of answered scores: below 2 gap, 2 to 3.5 partial, 3.5 and above
- * covered, but only once enough questions are answered (at least half, and at least two where two exist).
+ * covered. Covered and gap both need enough answers (at least half, and at least two where two exist); a low mean on
+ * fewer answers is gap-limited.
  * Questions in a thematic lens count only when that lens is switched on (`lenses`).
  */
 export function coverageOf(entries: CatalogueEntry[], scores: Record<string, number>, p: ModuleProfile, lenses: string[] = []) {
@@ -28,9 +30,13 @@ export function coverageOf(entries: CatalogueEntry[], scores: Record<string, num
   const coverage: Coverage = entries.length === 0 ? 'not-mapped'
     : applicable.length === 0 ? 'not-applicable'
       : mean === null ? 'not-assessed'
-        : mean < 2 ? 'gap' : mean >= 3.5 && enough ? 'covered' : 'partial'
+        : mean < 2 ? (enough ? 'gap' : 'gap-limited') : mean >= 3.5 && enough ? 'covered' : 'partial'
   return { coverage, mean, indicators, answered: answered.length, applicable: applicable.length }
 }
 
 export const emptyCounts = (): Record<Coverage, number> =>
-  ({ covered: 0, partial: 0, gap: 0, 'not-assessed': 0, 'not-applicable': 0, 'not-mapped': 0 })
+  ({ covered: 0, partial: 0, gap: 0, 'gap-limited': 0, 'not-assessed': 0, 'not-applicable': 0, 'not-mapped': 0 })
+
+/** The line every alignment and readiness report carries, so a reader knows which thematic questions were counted. */
+export const lensNote = (lenses: string[]): string =>
+  `Thematic lenses included: ${lenses.map((l) => LENS_BY_ID[l as LensId]?.name.replace(/ Lens$/, '') ?? l).join(', ') || 'none'}`
