@@ -43,7 +43,7 @@ export const CORE_DOMAIN_REFS = table({
   'Research & Innovation': 'mck-ohi:INNOVATION bsc:LEARNING',
   'PMO & Delivery': 'bsc:PROCESS mck-ohi:COORDINATION iso-9001:MS',
   'Climate Governance': 'ifrs-s2:GOV ifrs-s2:STRAT ifrs-s2:RISK',
-  'Env. & Social Safeguards': 'afdb-iss:OS1 afdb-iss:OS2 afdb-iss:OS4 afdb-iss:OS10 iso-14001:MS',
+  'Env. & Social Safeguards': 'afdb-iss:OS1 afdb-iss:OS2 afdb-iss:OS4 afdb-iss:OS10 iso-14001:MS tnfd:RIM',
   'Climate Finance Access': 'ifrs-s2:STRAT ifrs-s1:STRAT',
   'MRV & Article 6': 'ifrs-s2:METRICS iso-14064-1:MS',
 })
@@ -112,6 +112,12 @@ export const QUESTION_LINKS: Record<string, { refs: string; why: string }> = {
   'EPR-13': { refs: 'coso-erm:P13 iso-31000:6.5', why: 'Pre-positioning agreements are a risk treatment put in place before an emergency.' },
   'EPR-20': { refs: 'coso-erm:P13 iso-31000:6.5', why: 'A transition-to-recovery protocol completes the planned response to an emergency.' },
   'EPR-03': { refs: 'coso-erm:P16 coso-erm:P17', why: 'Exercises and after-action reviews test performance and feed improvements back.' },
+  'ESG-N1': { refs: 'tnfd:L tnfd:E ifrs-s1:STRAT', why: 'Locating sites against sensitive areas and evaluating dependencies and impacts are the first LEAP phases.' },
+  'ESG-N2': { refs: 'tnfd:A tnfd:P tnfd:RIM ifrs-s1:RISK', why: 'Assessing and responding to nature risks is the assess and prepare phases and risk management.' },
+  'ESG-N3': { refs: 'tnfd:MT ifrs-s1:METRICS', why: 'Nature metrics and targets are the metrics and targets pillar.' },
+  'ESG-G1': { refs: 'tnfd:GOV', why: 'Board oversight of strategy and risk includes nature-related issues.' },
+  'ESG-G6': { refs: 'tnfd:GOV tnfd:STRAT ifrs-s1:STRAT', why: 'Building sustainability into strategy with named board oversight.' },
+  'ESG-E4': { refs: 'tnfd:STRAT', why: 'Climate and nature risk assessment feeds strategy resilience.' },
 }
 
 export type CatalogueSource = 'core' | 'ladder' | 'esg' | 'module'
@@ -153,8 +159,11 @@ export const INDICATOR_CATALOGUE: CatalogueEntry[] = [
     return { id: q.id, source: 'ladder', sourceName: 'Capital Readiness Ladder', question: q.question, refs: rs, rationale: byGroup('domain', q.domain, rs), applies: always }
   }),
   ...ESG_QUESTIONS.map((q): CatalogueEntry => {
-    const rs = ESG_PILLAR_REFS[q.pillar] ?? []
-    return { id: q.id, source: 'esg', sourceName: 'ESG Self-Assessment', question: q.question, refs: rs, rationale: byGroup('pillar', q.pillar, rs), applies: always }
+    const pillar = ESG_PILLAR_REFS[q.pillar] ?? []
+    const link = QUESTION_LINKS[q.id]
+    const extra = link ? refs(link.refs).filter((r) => !pillar.some((d) => d.framework === r.framework && d.ref === r.ref)) : []
+    return { id: q.id, source: 'esg', sourceName: 'ESG Self-Assessment', question: q.question, refs: [...pillar, ...extra],
+      rationale: { ...byGroup('pillar', q.pillar, pillar), ...(link ? why(extra, link.why) : {}) }, applies: always }
   }),
   ...FOUNDATION_MODULES.flatMap((m) => m.indicators.map((i): CatalogueEntry => {
     const own = i.crosswalk
