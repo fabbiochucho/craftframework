@@ -6,7 +6,8 @@ import { frameworkById } from '../src/lib/crosswalk.ts'
 import { CATEGORY_LABEL, SCREENING_QUESTIONS } from '../src/lib/indices/safeguards.ts'
 
 const V = 'v1 (102026)'
-const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ')
+// Escape backslashes first, then pipes, so text can never break out of its table cell.
+const cell = (s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')
 const modules = FOUNDATION_MODULES.filter((m) => m.version === V)
 const FLAG_LABEL = { land: 'land', biodiversity: 'biodiversity', heritage: 'heritage', intermediary: 'lending or investing' }
 /** Who is asked this question, in plain words. */
