@@ -14,6 +14,12 @@ const RULES: Record<LawArea, { core?: string[]; ladder?: string[]; prefix?: stri
   eia: { core: ['Env. & Social Safeguards'], prefix: ['CRAFT-ESS-'] },
   sustainability: { core: ['Climate Governance', 'MRV & Article 6', 'Climate Finance Access'], ladder: ['Environmental & Resource Performance', 'Sustainability-Linked / Green Finance Readiness'], esg: true },
   financial: { core: ['Financial Management', 'Audit & Assurance'], ladder: ['Basic Financial Controls', 'Auditable Financial Records', 'Financial Resilience & Reserves'] },
+  tax: { core: ['Financial Management'], ladder: ['Auditable Financial Records', 'Basic Financial Controls'] },
+  competition: { core: ['Legal & Regulatory', 'Ethics & Anti-Fraud'] },
+  consumer: { core: ['Legal & Regulatory', 'Partnerships & Stakeholders'] },
+  sanctions: { core: ['Ethics & Anti-Fraud', 'Risk & Internal Controls', 'USG Compliance', 'International Donor Compliance'] },
+  forex: { core: ['Financial Management', 'Risk & Internal Controls'] },
+  licensing: { core: ['Legal & Regulatory'], ladder: ['Legal Structure & Registration'] },
   capital: { core: ['Audit & Assurance'], ladder: ['Capital Markets & Credit Readiness', 'Investor Protections & Regulatory Certainty', 'Transparent Governance & Reporting'] },
 }
 const coreDomain = new Map(MOCK_QUESTIONS.map((q) => [q.id, q.domain]))
