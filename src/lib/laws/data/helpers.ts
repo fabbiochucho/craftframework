@@ -28,6 +28,8 @@ const mk = (j: string, area: LawArea, b: Base, summary: string, more: Partial<La
   summary: b.extra ? `${summary} ${b.extra}` : summary, source: { ...b.source, checked: P2 },
   ...(b.reformNote ? { reformNote: b.reformNote } : {}), review: 'pending', ...more,
 })
+/** A hand-written entry: `summary` is used as given. */
+export const entry = (j: string, area: LawArea, b: Base, summary: string, more: Partial<LawEntry> = {}) => mk(j, area, b, summary, more)
 const by = (r: string | null, lead: string) => (r ? `${lead} ${r}` : '')
 
 export const T = {
@@ -47,6 +49,14 @@ export const T = {
   accounting: (j: string, b: Base) => mk(j, 'financial', b, 'Sets the accounting framework for financial statements and the audit duties of companies above set thresholds.'),
   securities: (j: string, b: Base) => mk(j, 'capital', b, `Regulates public offers, listing and disclosure by issuers, licensed market intermediaries and collective investment schemes, and prohibits market abuse${by(b.regulator, ', under')}.`),
   noMarket: (j: string, b: Base) => mk(j, 'capital', b, 'There is no domestic stock exchange or dedicated capital markets law; public offers are rare and governed by company and banking rules.', { noLaw: true }),
+  tax: (j: string, b: Base) => mk(j, 'tax', b, `Sets income tax, VAT or sales tax and withholding duties, with registration and filing${by(b.regulator, ' with')}. Non-profits may qualify for exemptions on application but usually still withhold and file.`),
+  competition: (j: string, b: Base) => mk(j, 'competition', b, `Prohibits anti-competitive agreements and abuse of dominance and requires notification of qualifying mergers${by(b.regulator, ' to')}.`),
+  noCompetition: (j: string, b: Base) => mk(j, 'competition', b, 'There is no standalone national competition law or authority in operation; regional rules, where they apply, and general commercial law govern.', { noLaw: true }),
+  consumer: (j: string, b: Base) => mk(j, 'consumer', b, `Requires fair dealing with consumers: clear information and pricing, fair contract terms, safe goods and services, and complaint and redress routes${by(b.regulator, ', enforced by')}.`),
+  noConsumer: (j: string, b: Base) => mk(j, 'consumer', b, 'No standalone consumer protection law was confirmed; consumer rules sit in commercial, competition or sector legislation. Confirm before relying on this.', { noLaw: true }),
+  sanctions: (j: string, b: Base) => mk(j, 'sanctions', b, `Gives effect to UN Security Council targeted financial sanctions: screen customers, partners and payees, freeze designated persons' funds without delay and report${by(b.regulator, ' to')}.`),
+  forex: (j: string, b: Base) => mk(j, 'forex', b, `Regulates foreign currency accounts, payments and transfers abroad and repatriation of foreign earnings; some transactions must go through authorised banks or need approval${by(b.regulator, ' from')}.`),
+  licensing: (j: string, b: Base) => mk(j, 'licensing', b, `Sets how businesses and investors register, obtain licences and access incentives${by(b.regulator, ', through')}, with sector permits issued by the relevant regulators.`),
 }
 
 /** Regional frameworks shared by several member states. */
@@ -60,12 +70,18 @@ export const R = {
   cemacBank: (j: string) => T.bank(j, { title: 'CEMAC banking regulation', citation: 'COBAC prudential regulations', regulator: 'the BEAC and COBAC (Central African Banking Commission)', source: O('https://www.beac.int/') }),
   cemacAml: (j: string) => T.aml(j, { title: 'CEMAC Regulation on the prevention and suppression of money laundering and terrorist financing', citation: 'CEMAC regulation of 2016 (applies directly)', regulator: 'the national ANIF (financial intelligence agency)', source: O('https://www.beac.int/') }),
   cemacCapital: (j: string) => T.securities(j, { title: 'CEMAC unified regional financial market', citation: 'COSUMAF General Regulation; BVMAC rules', regulator: 'COSUMAF, with listing on the BVMAC', source: O('https://www.bvm-ac.org/') }),
+  waemuCompetition: (j: string) => T.competition(j, { title: 'WAEMU community competition rules', citation: 'WAEMU competition regulations (regional; the WAEMU Commission has exclusive competence)', regulator: 'the WAEMU Commission', source: O('https://www.uemoa.int/') }),
+  waemuForex: (j: string) => T.forex(j, { title: 'WAEMU regulation on the external financial relations of member states', citation: 'Regulation No. 09/2010/CM/UEMOA (regional)', regulator: 'the BCEAO and authorised banks', source: O('https://www.bceao.int/') }),
+  cemacCompetition: (j: string) => T.competition(j, { title: 'CEMAC competition regulation', citation: 'CEMAC regulation of 2019 (regional)', regulator: 'the CEMAC Competition Council', source: O('https://www.cemac.int/') }),
+  cemacForex: (j: string) => T.forex(j, { title: 'CEMAC foreign exchange regulation', citation: 'CEMAC exchange regulation of 2018 (regional), with BEAC instructions', regulator: 'the BEAC and authorised banks', source: O('https://www.beac.int/'), extra: 'Repatriation of export earnings and documentation of transfers abroad are closely enforced.' }),
   cemacGov: (j: string) => T.govNone(j, { title: 'No national corporate governance code', citation: 'OHADA company law; COBAC governance rules for banks; COSUMAF rules for listed issuers', regulator: 'COBAC; COSUMAF', source: O('https://www.beac.int/') }),
 }
 
 /** Give each entry its id `${J}-${area}-${n}`, numbering within jurisdiction and area. */
-export function finalize(entries: LawEntry[]): LawEntry[] {
+export function finalize(entries: LawEntry[], after: LawEntry[] = []): LawEntry[] {
   const n = new Map<string, number>()
+  // Continue numbering after entries that already exist for the same jurisdiction and area.
+  for (const e of after) n.set(`${e.jurisdiction}-${e.area}`, (n.get(`${e.jurisdiction}-${e.area}`) ?? 0) + 1)
   return entries.map((e) => {
     const k = `${e.jurisdiction}-${e.area}`
     n.set(k, (n.get(k) ?? 0) + 1)

@@ -12,7 +12,8 @@ const ok: LawEntry = {
 const today = '2026-10-18'
 assert.equal(LAW_JURISDICTIONS.length, 57)
 assert.ok(LAW_JURISDICTIONS.includes('UK') && LAW_JURISDICTIONS.includes('CV'))
-assert.equal(Object.keys(LAW_AREAS).length, 10)
+assert.equal(Object.keys(LAW_AREAS).length, 16)
+for (const a of ['tax', 'competition', 'consumer', 'sanctions', 'forex', 'licensing']) assert.ok(a in LAW_AREAS, `area ${a}`)
 assert.equal(LAW_AREAS.governance, 'Corporate governance codes and regulations')
 assert.equal(LAW_AREAS.sustainability, 'Environment, climate and sustainability')
 assert.equal(LAW_AREAS.financial, 'Financial reporting and financial regulation')
@@ -20,7 +21,7 @@ assert.equal(LAW_AREAS.capital, 'Capital markets and securities')
 assert.deepEqual(registerProblems([ok], today), [])
 const bad = (patch: Partial<LawEntry>) => registerProblems([{ ...ok, ...patch }], today)
 assert.match(bad({ jurisdiction: 'XX' }).join(), /jurisdiction/)
-assert.match(bad({ area: 'tax' as never }).join(), /area/)
+assert.match(bad({ area: 'astrology' as never }).join(), /area/)
 assert.match(bad({ source: { ...ok.source, url: 'http://x.org' } }).join(), /https/)
 assert.match(bad({ source: { ...ok.source, checked: '2027-01-01' } }).join(), /future/)
 assert.match(bad({ source: { ...ok.source, checked: '2026-13-40' } }).join(), /date/)
@@ -47,7 +48,7 @@ console.log('laws (mapping): ok')
 
 import { PHASE1_LAWS } from './data/phase1.ts'
 const PHASE1 = ['NG', 'KE', 'ZA', 'MA', 'EG', 'SN', 'MU', 'CV', 'US', 'UK', 'EU']
-for (const j of PHASE1) for (const a of Object.keys(LAW_AREAS)) assert.ok(PHASE1_LAWS.some((e) => e.jurisdiction === j && e.area === a), `phase 1: ${j} has an entry for ${a}`)
+for (const j of PHASE1) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `phase 1: ${j} has an entry for ${a}`)
 assert.ok(PHASE1_LAWS.every((e) => e.review === 'pending'), 'new entries start pending')
 assert.ok(PHASE1_LAWS.filter((e) => e.area === 'data' && !e.noLaw).every((e) => e.craftNotes?.length), 'every data protection law says what it means for CRAFT')
 console.log('laws (phase 1 completeness): ok')
