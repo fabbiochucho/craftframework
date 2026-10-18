@@ -423,3 +423,9 @@ export function EsgMaturityCard({ m }: { m: EsgMaturity }) {
 
 - Spec §2 → Task 4; §3 → Task 2; §4 → Task 5; §5 → Tasks 1, 3, 6; §6 tests spread across Tasks 1–5; attribution change approved by the owner → Task 1.
 - Wallboard and the index report don't pass ESG scores (ESG is not loaded per organisation there); their labels already say core and index gaps.
+
+## Owner amendments (18 October 2026)
+
+1. **Provisional stage (Task 4).** Unanswered criteria do not drop an organisation's stage. Stage = highest stage *s* such that every stage up to *s* has at least one answered criterion and no answered criterion below 3. `EsgMaturity` gains `provisional: boolean` (true when any criterion up to the current stage is unanswered). The card shows "Stage N: Name (provisional — answer K new questions to confirm)". Tests: legacy 12 answers at 4 → stage 4, provisional; an answered criterion below 3 still caps (no skipping).
+2. **New-questions notice (Task 6).** The ESG page shows a dismissible notice "8 new questions added, including nature (TNFD)" while any new question is unanswered and the organisation has earlier answers; dismissal is remembered per browser (localStorage, wrapped in try/catch).
+3. **Wallboard counts ESG gaps (new Task 7).** Load each organisation's `esg:scores` the same way as `modules:profile` (one request per organisation); pass them to `derivePlan`. Same fallback: until all profiles and ESG answers load, or if any request fails, counts are core-only and labelled "Core assessment gaps only"; otherwise "Core, index and ESG gaps". Solo view uses the organisation's own ESG answers.
