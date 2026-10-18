@@ -2,7 +2,9 @@
 
 CRAFT-LAW 1.0 (2026-10-18). 129 entries, 45 from secondary sources (marked **verify**). Information, not legal advice.
 
-For each jurisdiction: open every source, confirm the title, citation, regulator and summary, check the secondary-source entries most carefully, then tick the box. Only approved jurisdictions appear in organisation reports.
+For each jurisdiction: open every source, confirm the title, citation, regulator and summary, check the secondary-source entries most carefully, then tick the box. Only approved entries appear in organisation reports; approve a jurisdiction's entries together.
+
+Where an "official" link opens a regulator's home page rather than the law itself, replace it with a direct link to the text, or mark the entry secondary.
 
 ## Nigeria (NG)
 
