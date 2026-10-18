@@ -188,7 +188,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
           <p className="text-sm text-slate-700">
             <span className="font-semibold">{band.band.label}:</span> {band.band.summary}
           </p>
-          {band.band !== band.uncapped && (
+          {band.band !== band.uncapped && band.weakLinks.length > 0 && (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-rose-700">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>

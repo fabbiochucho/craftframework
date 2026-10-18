@@ -3,10 +3,10 @@ import { TrendingUp, CalendarRange, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { useWorkspace, useScoresCtx, useCIPCtx } from '../lib/context'
 import {
-  deriveFindings, RISK_STATUSES, RiskStatus, STATUS_STYLES, severityStyle,
+  RISK_STATUSES, RiskStatus, STATUS_STYLES, severityStyle,
   CIP_PLAN_MONTHS_MIN, CIP_PLAN_MONTHS_MAX, CIP_PLAN_MONTHS_PRESETS,
 } from '../lib/data'
-import { deriveModuleFindings } from '../lib/moduleFindings'
+import { derivePlan } from '../lib/moduleFindings'
 import { useModuleProfile } from '../lib/moduleProfile'
 import {
   Card, CardContent, CardHeader, CardTitle, Select, Input, StatusBadge, Button,
@@ -37,10 +37,7 @@ export function CIPPage() {
   }
 
   const [moduleProfile] = useModuleProfile()
-  const plan = useMemo(
-    () => [...deriveFindings(orgScores, 2, planMonths), ...deriveModuleFindings(orgScores, moduleProfile, planMonths)],
-    [orgScores, planMonths, moduleProfile],
-  )
+  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths), [orgScores, planMonths, moduleProfile])
 
   const summary = useMemo(() => {
     const counts: Record<RiskStatus, number> = {

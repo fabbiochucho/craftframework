@@ -21,4 +21,10 @@ assert.ok(indicatorsFor('coso-ic', 'CE').some((e) => e.id === 'CRAFT-FCR-01'), '
 const pfm = INDICATOR_CATALOGUE.find((e) => e.id === 'CRAFT-FCR-25')!
 assert.equal(pfm.applies({}), false)
 assert.equal(pfm.applies({ publicBody: true }), true)
+// Checkpoint 1: mappings a funder would find wrong
+const has = (rows: Record<string, { framework: string; ref: string }[]>, k: string, fw: string, ref: string) => rows[k].some((r) => r.framework === fw && r.ref === ref)
+assert.ok(!has(CORE_DOMAIN_REFS, 'Sustainability & Financing', 'ifrs-s1', 'STRAT'), 'resource mobilisation is not sustainability disclosure')
+assert.ok(!has(CORE_DOMAIN_REFS, 'Grant Management', 'pefa', 'V'), 'donor grants are not government budget execution')
+assert.ok(has(CORE_DOMAIN_REFS, 'USG Compliance', 'coso-ic', 'CE') && has(CORE_DOMAIN_REFS, 'International Donor Compliance', 'gf-pr', 'TOOL'))
+assert.ok(!has(LADDER_DOMAIN_REFS, 'Legal Structure & Registration', 'ifc-cgdf', 'COMMIT'), 'legal constitution is not commitment to governance')
 console.log('crosswalkExisting: ok')
