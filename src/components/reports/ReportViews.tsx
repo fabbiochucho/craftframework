@@ -19,12 +19,13 @@ export function CoverageChip({ c }: { c: Coverage }) {
 const today = () => new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
 const fmt = (n: number | null) => (n === null ? '—' : n.toFixed(2))
 
-function Shell({ title, subtitle, onPrint, footer, children }: { title: string; subtitle: string; onPrint: () => void; footer?: string; children: React.ReactNode }) {
+function Shell({ title, subtitle, org, onPrint, footer, children }: { title: string; subtitle: string; org: string; onPrint: () => void; footer?: string; children: React.ReactNode }) {
   return (
     <Card className="print:border-0 print:shadow-none">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{org}</p>
             <CardTitle>{title}</CardTitle>
             <p className="mt-1 text-sm text-slate-500">{subtitle} · as of {today()}</p>
           </div>
@@ -39,14 +40,16 @@ function Shell({ title, subtitle, onPrint, footer, children }: { title: string; 
   )
 }
 
-export function IndexReportView({ r, onPrint }: { r: IndexReport; onPrint: () => void }) {
+export function IndexReportView({ r, org, onPrint }: { r: IndexReport; org: string; onPrint: () => void }) {
   return (
-    <Shell title={r.title} subtitle={`${r.version ?? 'CRAFT index'} · ${r.answered} of ${r.total} questions answered`} onPrint={onPrint}>
+    <Shell title={r.title} subtitle={`${r.version ?? 'CRAFT index'} · ${r.answered} of ${r.total} questions answered`} org={org} onPrint={onPrint}>
       <p className="text-sm text-slate-600">{r.question}</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg bg-slate-50 p-4"><p className="text-xs uppercase text-slate-500">Band</p><p className="text-xl font-bold text-emerald-900">{r.band?.band.label ?? 'Not yet assessed'}</p>{r.band?.capReason && <p className="mt-1 text-xs text-amber-700">{r.band.capReason}</p>}</div>
         <div className="rounded-lg bg-slate-50 p-4"><p className="text-xs uppercase text-slate-500">Composite</p><p className="text-xl font-bold text-emerald-900">{r.composite.toFixed(2)} / 5</p></div>
-        <div className="rounded-lg bg-slate-50 p-4"><p className="text-xs uppercase text-slate-500">Plan actions created</p><p className="text-xl font-bold text-emerald-900">{r.actions.length}</p></div>
+        <div className="rounded-lg bg-slate-50 p-4"><p className="text-xs uppercase text-slate-500">Plan actions created</p>{r.feedsPlan
+          ? <p className="text-xl font-bold text-emerald-900">{r.actions.length}</p>
+          : <p className="mt-1 text-sm text-slate-600">This index does not add actions to the Capacity Improvement Plan.</p>}</div>
       </div>
       <table className="w-full text-left text-sm">
         <thead><tr className="text-xs uppercase text-slate-500"><th className="py-1 pr-3">Dimension</th><th>Score (0–5)</th></tr></thead>
@@ -71,9 +74,9 @@ export function IndexReportView({ r, onPrint }: { r: IndexReport; onPrint: () =>
   )
 }
 
-export function AlignmentReportView({ r, onPrint }: { r: AlignmentReport; onPrint: () => void }) {
+export function AlignmentReportView({ r, org, onPrint }: { r: AlignmentReport; org: string; onPrint: () => void }) {
   return (
-    <Shell title={r.title} subtitle={`${r.framework.owner} · ${r.counts.covered} covered · ${r.counts.partial} partial · ${r.counts.gap} gaps · ${r.counts['not-assessed']} not assessed`} onPrint={onPrint} footer={r.footer}>
+    <Shell title={r.title} subtitle={`${r.framework.owner} · ${r.counts.covered} covered · ${r.counts.partial} partial · ${r.counts.gap} gaps · ${r.counts['not-assessed']} not assessed`} org={org} onPrint={onPrint} footer={r.footer}>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead><tr className="text-xs uppercase text-slate-500"><th className="py-1 pr-3">Element</th><th className="pr-3">Coverage</th><th className="pr-3">Answered</th><th>Average (0–5)</th></tr></thead>
@@ -92,9 +95,9 @@ export function AlignmentReportView({ r, onPrint }: { r: AlignmentReport; onPrin
   )
 }
 
-export function IsoReadinessView({ r, onPrint }: { r: IsoReadiness; onPrint: () => void }) {
+export function IsoReadinessView({ r, org, onPrint }: { r: IsoReadiness; org: string; onPrint: () => void }) {
   return (
-    <Shell title="ISO certification readiness" subtitle={`${r.standards.length} standard${r.standards.length === 1 ? '' : 's'}`} onPrint={onPrint} footer={r.footer}>
+    <Shell title="ISO certification readiness" subtitle={`${r.standards.length} standard${r.standards.length === 1 ? '' : 's'}`} org={org} onPrint={onPrint} footer={r.footer}>
       <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{r.statement}</p>
       {r.standards.map(s => (
         <div key={s.id} className="space-y-2 border-t border-slate-100 pt-3">

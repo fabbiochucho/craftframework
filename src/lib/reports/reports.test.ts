@@ -66,3 +66,17 @@ assert.ok(buildIsoReadiness(['iso-9001'], {}, {}).standards[0].related.length > 
 const labels = JSON.stringify({ statement: iso.statement, standards: iso.standards.map((s) => ({ name: s.name, kind: s.kind, readiness: s.readiness })) })
 assert.ok(!/\b(certified|compliant|passes)\b/i.test(labels), 'report labels never claim certification or compliance')
 console.log('reports: ok')
+
+// Final review: index report dates match the plan; older indices say they don't feed the plan
+import { derivePlan } from '../moduleFindings.ts'
+import { FOUNDATION_MODULES } from '../foundationModules.ts'
+import { ORGANISATIONAL_HEALTH } from '../indices/organisationalHealth.ts'
+const busy: Record<string, number> = { 'CRAFT-OHE-01': 0 }
+for (const id of ['GOV-01', 'GOV-02', 'GOV-03', 'GOV-04', 'GOV-05', 'GOV-06', 'GOV-07', 'GOV-08']) busy[id] = 0
+const planDue = derivePlan(busy, {}, 24).find((a) => a.id === 'CRAFT-OHE-01')!.dueMonth
+const reportDue = buildIndexReport(ORGANISATIONAL_HEALTH, busy, {}, 24).actions.find((a) => a.id === 'CRAFT-OHE-01')!.dueMonth
+assert.equal(reportDue, planDue, 'the index report and the plan give the same due date')
+const resilience = FOUNDATION_MODULES.find((m) => m.id === 'craft-resilience')!
+assert.equal(buildIndexReport(resilience, {}, {}, 24).feedsPlan, false)
+assert.equal(buildIndexReport(ORGANISATIONAL_HEALTH, {}, {}, 24).feedsPlan, true)
+console.log('reports (final review): ok')
