@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { crosswalkProblems } from '../crosswalk.ts'
 import { ORGANISATIONAL_HEALTH } from './organisationalHealth.ts'
 import { CHANGE_READINESS } from './changeReadiness.ts'
+import { FIDUCIARY_CONTROLS } from './fiduciaryControls.ts'
+import { applicableIndicators } from '../foundationModules.ts'
 import type { FoundationModule } from '../foundationModules.ts'
 
 export function checkIndex(m: FoundationModule, prefix: string, expected: number) {
@@ -27,4 +29,9 @@ export function checkIndex(m: FoundationModule, prefix: string, expected: number
 
 checkIndex(ORGANISATIONAL_HEALTH, 'OHE', 24)
 checkIndex(CHANGE_READINESS, 'CHG', 18)
+checkIndex(FIDUCIARY_CONTROLS, 'FCR', 27)
+assert.equal(FIDUCIARY_CONTROLS.specialist, 'fiduciary')
+assert.equal(applicableIndicators(FIDUCIARY_CONTROLS, {}).length, 24, 'PFM hidden unless public body')
+assert.equal(applicableIndicators(FIDUCIARY_CONTROLS, { publicBody: true }).length, 27)
+assert.ok(FIDUCIARY_CONTROLS.indicators.filter((i) => i.dimension === 'pfm').every((i) => i.appliesWhen?.publicBody))
 console.log('indices: ok')
