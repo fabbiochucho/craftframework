@@ -24,7 +24,7 @@ const table = (rows: Record<string, string>): Record<string, CrosswalkRef[]> =>
 export const CORE_DOMAIN_REFS = table({
   'Governance & Leadership': 'ifc-cgdf:BOARD ifc-cgdf:COMMIT nccg-2018:BOARD coso-ic:CE mck-ohi:LEADERSHIP iso-37000:MS',
   'Legal & Regulatory': 'nccg-2018:CONDUCT iso-37301:MS coso-ic:RA',
-  'Strategy & Planning': 'mck-ohi:DIRECTION mck-7s:STRATEGY star-model:STRATEGY bsc:FINANCIAL coso-erm:SO pefa:IV',
+  'Strategy & Planning': 'mck-ohi:DIRECTION mck-7s:STRATEGY star-model:STRATEGY bsc:CASCADE coso-erm:SO pefa:IV',
   'Human Resources': 'mck-7s:STAFF star-model:PEOPLE mck-ohi:CAPABILITIES iso-45001:MS iso-30414:MS afdb-iss:OS2',
   'Sustainability & Financing': 'bsc:FINANCIAL coso-erm:SO',
   'Financial Management': 'coso-ic:CA coso-ic:IC pefa:I pefa:VI ifc-cgdf:DISCLOSURE',
@@ -39,7 +39,7 @@ export const CORE_DOMAIN_REFS = table({
   'USG Compliance': 'coso-ic:CE coso-ic:CA coso-ic:MA iso-37301:MS',
   'International Donor Compliance': 'coso-ic:CE coso-ic:CA coso-ic:MA iso-37301:MS gf-pr:TOOL',
   'Digital Systems & Cyber': 'iso-27001:MS iso-27701:MS nist-csf-2:GV nist-csf-2:ID nist-csf-2:PR nist-csf-2:DE nist-csf-2:RS nist-csf-2:RC',
-  'Emergency Preparedness': 'iso-22301:MS nist-csf-2:RC coso-erm:PF',
+  'Emergency Preparedness': 'iso-22301:MS nist-csf-2:RC',
   'Research & Innovation': 'mck-ohi:INNOVATION bsc:LEARNING',
   'PMO & Delivery': 'bsc:PROCESS mck-ohi:COORDINATION iso-9001:MS',
   'Climate Governance': 'ifrs-s2:GOV ifrs-s2:STRAT ifrs-s2:RISK',
@@ -100,6 +100,20 @@ export const ESG_PILLAR_REFS = table({
   Governance: 'ifc-cgdf:BOARD ifrs-s1:GOV nccg-2018:BOARD',
 })
 
+/** Question-level links, added to the domain's. Used where only some questions in a domain match an element. */
+export const QUESTION_LINKS: Record<string, { refs: string; why: string }> = {
+  'SP-04': { refs: 'bsc:FINANCIAL bsc:CUSTOMER bsc:PROCESS bsc:LEARNING', why: 'A results framework links activities to outcomes across every scorecard perspective.' },
+  'SP-05': { refs: 'bsc:FINANCIAL bsc:CUSTOMER bsc:PROCESS bsc:LEARNING', why: 'KPIs for every goal and department are the measures each scorecard perspective needs.' },
+  'SP-06': { refs: 'bsc:FINANCIAL bsc:CUSTOMER bsc:PROCESS bsc:LEARNING', why: 'A leadership dashboard reports performance across the scorecard perspectives.' },
+  'SP-15': { refs: 'bsc:FINANCIAL', why: 'Aligning the budget with strategic priorities is the financial perspective in practice.' },
+  'SP-13': { refs: 'bsc:LEARNING', why: 'A performance culture linked to appraisals sits in the learning and growth perspective.' },
+  'EPR-02': { refs: 'coso-erm:P13 iso-31000:6.5', why: 'Contingency and response plans are planned responses to identified hazards.' },
+  'EPR-08': { refs: 'coso-erm:P13 iso-31000:6.5', why: 'An emergency declaration protocol is a defined response when a risk materialises.' },
+  'EPR-13': { refs: 'coso-erm:P13 iso-31000:6.5', why: 'Pre-positioning agreements are a risk treatment put in place before an emergency.' },
+  'EPR-20': { refs: 'coso-erm:P13 iso-31000:6.5', why: 'A transition-to-recovery protocol completes the planned response to an emergency.' },
+  'EPR-03': { refs: 'coso-erm:P16 coso-erm:P17', why: 'Exercises and after-action reviews test performance and feed improvements back.' },
+}
+
 export type CatalogueSource = 'core' | 'ladder' | 'esg' | 'module'
 
 export interface CatalogueEntry {
@@ -109,22 +123,48 @@ export interface CatalogueEntry {
   question: string
   refs: CrosswalkRef[]
   applies: (p?: ModuleProfile) => boolean
+  /** Why each ref applies, keyed `framework:ref`. Shown in the alignment CSV. */
+  rationale: Record<string, string>
   /** Core questions in a thematic lens are asked only when that lens is switched on. */
   lens?: string
+}
+
+const why = (rs: CrosswalkRef[], text: string): Record<string, string> => Object.fromEntries(rs.map((r) => [`${r.framework}:${r.ref}`, text]))
+const byGroup = (kind: string, name: string, rs: CrosswalkRef[]) => why(rs, `Mapped at ${kind} level: "${name}" as a whole relates to this element.`)
+
+function coreEntry(q: (typeof MOCK_QUESTIONS)[number]): CatalogueEntry {
+  const domain = CORE_DOMAIN_REFS[q.domain] ?? []
+  const link = QUESTION_LINKS[q.id]
+  const extra = link ? refs(link.refs).filter((r) => !domain.some((d) => d.framework === r.framework && d.ref === r.ref)) : []
+  return {
+    id: q.id, source: 'core', sourceName: 'Core assessment', question: q.question, refs: [...domain, ...extra],
+    rationale: { ...byGroup('domain', q.domain, domain), ...(link ? why(extra, link.why) : {}) },
+    applies: always, ...(q.lens ? { lens: q.lens } : {}),
+  }
 }
 
 const always = () => true
 
 /** Every indicator CRAFT asks, with the framework elements it relates to. */
 export const INDICATOR_CATALOGUE: CatalogueEntry[] = [
-  ...MOCK_QUESTIONS.map((q): CatalogueEntry => ({ id: q.id, source: 'core', sourceName: 'Core assessment', question: q.question, refs: CORE_DOMAIN_REFS[q.domain] ?? [], applies: always, ...(q.lens ? { lens: q.lens } : {}) })),
-  ...LADDER_INDICATORS.map((q): CatalogueEntry => ({ id: q.id, source: 'ladder', sourceName: 'Capital Readiness Ladder', question: q.question, refs: LADDER_DOMAIN_REFS[q.domain] ?? [], applies: always })),
-  ...ESG_QUESTIONS.map((q): CatalogueEntry => ({ id: q.id, source: 'esg', sourceName: 'ESG Self-Assessment', question: q.question, refs: ESG_PILLAR_REFS[q.pillar] ?? [], applies: always })),
-  ...FOUNDATION_MODULES.flatMap((m) => m.indicators.map((i): CatalogueEntry => ({
-    id: i.id, source: 'module', sourceName: m.title, question: i.question,
-    refs: i.crosswalk ?? MODULE_DIMENSION_REFS[`${m.id}:${i.dimension}`] ?? [],
-    applies: (p) => applies(i, p),
-  }))),
+  ...MOCK_QUESTIONS.map(coreEntry),
+  ...LADDER_INDICATORS.map((q): CatalogueEntry => {
+    const rs = LADDER_DOMAIN_REFS[q.domain] ?? []
+    return { id: q.id, source: 'ladder', sourceName: 'Capital Readiness Ladder', question: q.question, refs: rs, rationale: byGroup('domain', q.domain, rs), applies: always }
+  }),
+  ...ESG_QUESTIONS.map((q): CatalogueEntry => {
+    const rs = ESG_PILLAR_REFS[q.pillar] ?? []
+    return { id: q.id, source: 'esg', sourceName: 'ESG Self-Assessment', question: q.question, refs: rs, rationale: byGroup('pillar', q.pillar, rs), applies: always }
+  }),
+  ...FOUNDATION_MODULES.flatMap((m) => m.indicators.map((i): CatalogueEntry => {
+    const own = i.crosswalk
+    const rs = own ?? MODULE_DIMENSION_REFS[`${m.id}:${i.dimension}`] ?? []
+    return {
+      id: i.id, source: 'module', sourceName: m.title, question: i.question, refs: rs,
+      rationale: own ? why(rs, 'Question written for this index with this element in view.') : byGroup('dimension', `${m.title}: ${i.dimension}`, rs),
+      applies: (p) => applies(i, p),
+    }
+  })),
 ]
 
 /** Catalogue entries mapped to a framework (and, when given, one of its elements). */

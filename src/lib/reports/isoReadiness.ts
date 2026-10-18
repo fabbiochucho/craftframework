@@ -3,12 +3,13 @@
 import { frameworkById, type FrameworkKind } from '../crosswalk.ts'
 import { indicatorsFor } from '../crosswalkExisting.ts'
 import type { ModuleProfile } from '../foundationModules.ts'
-import { coverageOf, type Coverage, type MappedIndicator } from './coverage.ts'
+import { coverageOf, lensNote, type Coverage, type MappedIndicator } from './coverage.ts'
 import { ATTRIBUTION_NOTICE, ISO_STATEMENT } from './legal.ts'
 
 export interface IsoReadiness {
   standards: { id: string; name: string; kind: FrameworkKind; note: string; readiness: Coverage; answered: number; applicable: number; related: MappedIndicator[]; gaps: MappedIndicator[] }[]
   statement: string
+  lensNote: string
   footer: string
 }
 
@@ -28,5 +29,5 @@ export function buildIsoReadiness(standardIds: string[], scores: Record<string, 
       gaps: c.indicators.filter((i) => i.score !== null && i.score < 3).sort((a, b) => (a.score ?? 0) - (b.score ?? 0)),
     }]
   })
-  return { standards, statement: ISO_STATEMENT, footer: ATTRIBUTION_NOTICE }
+  return { standards, statement: ISO_STATEMENT, lensNote: lensNote(lenses), footer: ATTRIBUTION_NOTICE }
 }

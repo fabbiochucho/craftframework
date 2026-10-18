@@ -9,7 +9,8 @@ export interface IndexReport {
   version: string | null
   question: string
   band: BandResult | null
-  composite: number
+  /** Null until a question is answered, so an untouched index never reads as 0. */
+  composite: number | null
   answered: number
   total: number
   dimensions: { name: string; score: number | null }[]
@@ -27,7 +28,7 @@ export function buildIndexReport(m: FoundationModule, scores: Record<string, num
     version: m.version ?? null,
     question: m.question,
     band: bandFor(m, scores, p),
-    composite: compositeScore(m, scores, p),
+    composite: answeredIn(m, scores, p) > 0 ? compositeScore(m, scores, p) : null,
     answered: answeredIn(m, scores, p),
     total: applicableIndicators(m, p).length,
     dimensions: applicableDimensions(m, p).map((d) => ({ name: d.name, score: dimensionScore(m, d.key, scores, p) })),
