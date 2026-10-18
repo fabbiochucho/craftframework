@@ -2133,13 +2133,13 @@ const OWNER_BY_DOMAIN: Record<string, string> = {
   'PMO & Delivery': 'Head of PMO',
 }
 
-function severityFromScore(score: number): DerivedFinding['severity'] {
+export function severityFromScore(score: number): DerivedFinding['severity'] {
   if (score <= 1) return 'Critical'
   if (score === 2) return 'High'
   return 'Moderate'
 }
 
-function quarterLabel(month: number): string {
+export function quarterLabel(month: number): string {
   return `Q${Math.ceil(month / 3)}, Month ${month}`
 }
 
@@ -2178,7 +2178,7 @@ function planBands(planMonths: number): Record<DerivedFinding['severity'], [numb
 // Schedule each gap into the plan window: the more critical the gap, the
 // earlier it is due, spread across its band so items don't all land on the
 // same month.
-function dueMonthFor(severity: DerivedFinding['severity'], index: number, planMonths: number): number {
+export function dueMonthFor(severity: DerivedFinding['severity'], index: number, planMonths: number): number {
   const [start, end] = planBands(planMonths)[severity]
   const width = end - start + 1
   return start + (index % width)
