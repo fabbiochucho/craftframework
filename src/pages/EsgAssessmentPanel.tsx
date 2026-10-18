@@ -1,4 +1,6 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { esgMaturity } from '../lib/esgMaturity'
+import { EsgMaturityCard } from '../components/esg/EsgMaturityCard'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
 import {
@@ -102,9 +104,28 @@ export function EsgAssessmentPanel() {
   const verifiedAccent: 'rose' | 'amber' | 'emerald' | 'slate' =
     answeredCount === 0 ? 'slate' : verifiedComposite < 2 ? 'rose' : verifiedComposite < 3.5 ? 'amber' : 'emerald'
 
+  const maturity = useMemo(() => esgMaturity(scores, evidence), [scores, evidence])
+  // One-time notice for organisations that answered before the eight new questions were added.
+  const NEW_IDS = ['ESG-G5', 'ESG-E5', 'ESG-N1', 'ESG-N2', 'ESG-N3', 'ESG-G6', 'ESG-V1', 'ESG-V2']
+  const [noticeDismissed, setNoticeDismissed] = useState(() => {
+    try { return localStorage.getItem('craft:esg-new-questions-2026-10') === '1' } catch { return false }
+  })
+  const showNotice = !noticeDismissed && Object.keys(scores).length > 0 && NEW_IDS.some((id) => !(id in scores))
+  const dismissNotice = () => {
+    setNoticeDismissed(true)
+    try { localStorage.setItem('craft:esg-new-questions-2026-10', '1') } catch { /* private mode: notice returns next visit */ }
+  }
+
   return (
     <div className="space-y-6">
       <LegacySaveStatus status={saveStatus} />
+      {showNotice && (
+        <div role="status" className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <p>8 new questions added, including nature (TNFD), materiality and value chain. Your earlier answers are kept; answer the new ones to confirm your maturity stage.</p>
+          <button type="button" onClick={dismissNotice} className="text-xs font-semibold underline">Dismiss</button>
+        </div>
+      )}
+      <EsgMaturityCard m={maturity} />
       <LegacySaveStatus status={evidenceStatus} />
       <p className="text-sm text-amber-700">Evidence confidence is self-reported, not independent verification or an external ESG rating.</p>
       {/* Header */}

@@ -59,3 +59,14 @@ export function esgMaturity(scores: Record<string, number>, evidence: Record<str
     unanswered: ESG_STAGES.flatMap((s) => s.criteria).filter((id) => !(id in scores)).length,
   }
 }
+
+/** One line for cards and reports, e.g. "Stage 2: Efficiency (provisional — answer 3 new questions to confirm)". */
+export function stageLabel(m: EsgMaturity): string {
+  const s = ESG_STAGES.find((x) => x.n === m.stage)
+  if (!s) return 'Not yet at Foundations'
+  const notes = [
+    m.provisional ? `provisional — answer ${m.toConfirm} new question${m.toConfirm === 1 ? '' : 's'} to confirm` : '',
+    m.confirmed ? '' : 'self-reported — add evidence to confirm',
+  ].filter(Boolean)
+  return `Stage ${s.n}: ${s.name}${notes.length ? ` (${notes.join('; ')})` : ''}`
+}
