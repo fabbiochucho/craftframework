@@ -18,6 +18,7 @@ import { AlignmentReportView, IndexReportView, IsoReadinessView } from '../compo
 import { buildJurisdictionReport, jurisdictionCsvRows, reportJurisdictions } from '../lib/laws/jurisdictionReport'
 import { LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
 import { JurisdictionReportView } from '../components/reports/JurisdictionReportView'
+import { esgMaturity, stageLabel } from '../lib/esgMaturity'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
 function csvCell(v: string | number) {
@@ -80,6 +81,7 @@ export function ReportsPage() {
   const accred = getAccreditation(composite, implementationEvidence)
   const [moduleProfile] = useModuleProfile()
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const [esgEvidence] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
   const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths, 2, esgScores), [orgScores, planMonths, moduleProfile, esgScores])
   const criticals = plan.filter(p => p.severity === 'Critical')
   const answered = answeredCount(orgScores)
@@ -277,6 +279,7 @@ export function ReportsPage() {
               <p className="text-2xl font-bold text-emerald-900">{implementationEvidence}%</p>
             </div>
           </div>
+          <p className="mt-4 text-sm text-slate-700"><span className="font-semibold">ESG maturity:</span> {stageLabel(esgMaturity(esgScores, esgEvidence))}</p>
           <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Top Critical Risks ({criticals.length})
           </p>
