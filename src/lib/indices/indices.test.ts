@@ -11,7 +11,7 @@ import type { FoundationModule } from '../foundationModules.ts'
 export function checkIndex(m: FoundationModule, prefix: string, expected: number) {
   assert.equal(m.indicators.length, expected, `${m.id}: indicator count`)
   assert.equal(m.version, 'v1 (102026)')
-  assert.equal(m.preview, true, `${m.id}: hidden until founder sign-off`)
+  assert.ok(!m.preview, `${m.id}: live for organisations (founder sign-off 2026-10-18)`)
   const dims = new Set(m.dimensions.map((d) => d.key))
   m.indicators.forEach((i, n) => {
     assert.equal(i.id, `CRAFT-${prefix}-${String(n + 1).padStart(2, '0')}`, 'ids sequential')
@@ -61,7 +61,7 @@ const allIds = FOUNDATION_MODULES.flatMap((m) => m.indicators.map((x) => x.id))
 assert.equal(new Set(allIds).size, allIds.length, 'indicator ids unique across all modules')
 for (const fid of ['craft-health', 'craft-change', 'craft-fiduciary', 'craft-safeguards']) {
   assert.ok(FOUNDATION_MODULES.some((m) => m.id === fid), `${fid} in FOUNDATION_MODULES`)
-  assert.equal(FRAMEWORKS.find((f) => f.id === fid)?.preview, true, `${fid} registered as preview`)
+  assert.ok(!FRAMEWORKS.find((f) => f.id === fid)?.preview, `${fid} live for organisations`)
 }
 assert.equal(canSeePreview('super_admin'), true)
 assert.equal(canSeePreview('admin'), false)
