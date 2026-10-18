@@ -136,6 +136,19 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
         />
       )}
 
+      {m.id === 'craft-safeguards' && profile.esCategory === 'high' && (
+        <Card className="p-4">
+          <label className="flex items-center gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox" className="h-4 w-4 accent-emerald-600" disabled={readOnly}
+              checked={!!profile.esIndependentAssessment}
+              onChange={e => setProfile({ ...profile, esIndependentAssessment: e.target.checked })}
+            />
+            An independently prepared environmental and social impact assessment has been completed
+          </label>
+        </Card>
+      )}
+
       {needsScreening ? null : <>
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -147,6 +160,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
                 {band.band.label}
               </span>
               <p className="mt-2 text-xs text-slate-400">{band.provisional ? 'Provisional - not all indicators answered' : 'All indicators answered'}</p>
+              {band.capReason && <p className="mt-1 text-xs text-amber-700">{band.capReason}</p>}
             </>
           ) : (
             <>
