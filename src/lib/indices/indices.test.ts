@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict'
 import { crosswalkProblems } from '../crosswalk.ts'
 import { ORGANISATIONAL_HEALTH } from './organisationalHealth.ts'
+import { CHANGE_READINESS } from './changeReadiness.ts'
 import type { FoundationModule } from '../foundationModules.ts'
 
 export function checkIndex(m: FoundationModule, prefix: string, expected: number) {
@@ -25,4 +26,5 @@ export function checkIndex(m: FoundationModule, prefix: string, expected: number
 }
 
 checkIndex(ORGANISATIONAL_HEALTH, 'OHE', 24)
+checkIndex(CHANGE_READINESS, 'CHG', 18)
 console.log('indices: ok')
