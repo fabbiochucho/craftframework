@@ -3,10 +3,22 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { FOUNDATION_MODULES, applicableIndicators } from '../src/lib/foundationModules.ts'
 import { frameworkById } from '../src/lib/crosswalk.ts'
+import { CATEGORY_LABEL, SCREENING_QUESTIONS } from '../src/lib/indices/safeguards.ts'
 
 const V = 'v1 (102026)'
 const cell = (s) => String(s ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ')
 const modules = FOUNDATION_MODULES.filter((m) => m.version === V)
+const FLAG_LABEL = { land: 'land', biodiversity: 'biodiversity', heritage: 'heritage', intermediary: 'lending or investing' }
+/** Who is asked this question, in plain words. */
+function appliesWhen(i) {
+  const w = i.appliesWhen
+  if (!w) return 'Every organisation'
+  if (w.publicBody) return 'Public bodies only'
+  if (w.esFlag) return `When screening flags ${FLAG_LABEL[w.esFlag]}`
+  if (w.esCategories?.length === 3) return 'Every organisation'
+  if (w.esCategories?.join() === 'moderate,high') return 'Moderate and high risk'
+  return (w.esCategories ?? []).join(', ')
+}
 
 const out = [
   `# CRAFT indices ${V}: founder review`,
@@ -22,21 +34,33 @@ let total = 0
 for (const m of modules) {
   total += m.indicators.length
   out.push(`## ${m.title}`, '', `*${m.question}*`, '', m.intro, '')
+  out.push(`Bands: ${m.bands.map((b) => `${b.label} from ${b.min}`).join(' · ')}. A dimension below ${m.weakestLinkFloor} caps the band at ${m.bands[1].label}.`, '')
+  out.push(`Lenses: ${m.lenses.map((l) => `${l.name} (${l.indicatorIds.map((x) => x.replace('CRAFT-', '')).join(', ')})`).join(' · ')}.`, '')
   if (m.specialist) out.push(`**Specialist validation:** ${m.specialist === 'fiduciary' ? 'fiduciary controls and risk' : 'environmental and social safeguards'}.`, '')
   if (m.id === 'craft-fiduciary') out.push(`Applies to everyone: ${applicableIndicators(m, {}).length} indicators. Public bodies: ${m.indicators.length}.`, '')
   for (const d of m.dimensions) {
     out.push(`### ${d.name}`, '', d.question, '')
-    out.push('| Id | Question | 0 | 1 | 2 | 3 | 4 | 5 | Evidence | Recommendation | Action · min weeks | Draws on |')
-    out.push('|---|---|---|---|---|---|---|---|---|---|---|---|')
+    out.push('| Id | Question | 0 | 1 | 2 | 3 | 4 | 5 | Evidence | Recommendation | Action · min weeks | Applies when | Draws on |')
+    out.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|')
     for (const i of m.indicators.filter((x) => x.dimension === d.key)) {
       const draws = [...new Set((i.crosswalk ?? []).map((r) => frameworkById(r.framework)?.name ?? r.framework))].join('; ')
-      out.push(`| ${i.id.replace('CRAFT-', '')} | **${cell(i.domain)}**: ${cell(i.question)} | ${[0, 1, 2, 3, 4, 5].map((s) => cell(i.soe[s])).join(' | ')} | ${cell(i.evidence)} | ${cell(i.recommendation)} | ${i.actionType} · ${i.minWeeks} | ${cell(draws)} |`)
+      out.push(`| ${i.id.replace('CRAFT-', '')} | **${cell(i.domain)}**: ${cell(i.question)} | ${[0, 1, 2, 3, 4, 5].map((s) => cell(i.soe[s])).join(' | ')} | ${cell(i.evidence)} | ${cell(i.recommendation)} | ${i.actionType} · ${i.minWeeks} | ${appliesWhen(i)} | ${cell(draws)} |`)
     }
     out.push('')
   }
   out.push(`- [ ] Approved by Abiola Oshunniyi`, `- [ ] Approved by Pauline Abiola-Oshunniyi`, '')
 }
 out.splice(8, 0, `**${modules.length} indices, ${total} indicators.**`, '')
+out.push(
+  '## How the safeguards screening works', '',
+  'Organisations answer seven yes/no questions before any safeguards question is shown:', '',
+  ...SCREENING_QUESTIONS.map(([, q], n) => `${n + 1}. ${q}`), '',
+  `- **${CATEGORY_LABEL.high}:** physical sites (1) and either a sensitive location (3) or land acquisition (4).`,
+  `- **${CATEGORY_LABEL.moderate}:** physical sites (1) or more than 50 people (2).`,
+  `- **${CATEGORY_LABEL.low}:** everyone else.`,
+  '- Questions 4 to 7 also switch on the land, biodiversity, heritage and lending areas, whatever the category.',
+  '- Every organisation is asked the core system, labour, SEAH and stakeholder questions.', '',
+)
 
 mkdirSync('docs/indices', { recursive: true })
 writeFileSync('docs/indices/v1-102026-review.md', out.join('\n'))

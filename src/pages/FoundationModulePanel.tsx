@@ -14,7 +14,7 @@ import {
   bandFor, evaluateLens, priorityGaps, strengths, applicableIndicators, applicableDimensions,
   type FoundationModuleId, type ModuleBand, type LensStatus, type ModuleProfile,
 } from '../lib/foundationModules'
-import { esScreening, type EsScreeningAnswers } from '../lib/indices/safeguards'
+import { CATEGORY_LABEL, esScreening, SCREENING_QUESTIONS, type EsScreeningAnswers } from '../lib/indices/safeguards'
 import { useTenantState } from '../lib/legacy-state'
 import { useAuthCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import {
@@ -129,6 +129,8 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
 
       {m.id === 'craft-safeguards' && (
         <SafeguardsScreening
+          // Remount when saved answers load or change, so the form shows them (useState only seeds once).
+          key={JSON.stringify(profile.esAnswers ?? null)}
           answers={profile.esAnswers} readOnly={readOnly}
           onSave={answers => setProfile({ ...profile, esAnswers: answers, esCategory: esScreening(answers).category, esFlags: esScreening(answers).flags })}
         />
@@ -417,17 +419,6 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
     </div>
   )
 }
-
-const SCREENING_QUESTIONS: Array<[keyof EsScreeningAnswers, string]> = [
-  ['physicalWorks', 'We build, renovate or operate physical sites'],
-  ['largeWorkforce', 'We employ or contract more than 50 people'],
-  ['sensitiveLocation', 'We work in a sensitive location (conflict, flood-prone areas, informal settlements)'],
-  ['acquiresLand', "We acquire land or restrict people's access to it"],
-  ['nearProtectedArea', 'We work in or near protected or high-biodiversity areas'],
-  ['nearHeritage', 'We work near cultural heritage sites'],
-  ['lendsOrInvests', 'We lend to or invest in other organisations'],
-]
-const CATEGORY_LABEL = { low: 'Low risk', moderate: 'Moderate risk', high: 'High risk' } as const
 
 /** The seven-question E&S screening. Nothing in the safeguards index is scored until it is answered. */
 function SafeguardsScreening({ answers, readOnly, onSave }: {
