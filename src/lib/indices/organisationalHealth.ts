@@ -1,4 +1,4 @@
-// CRAFT Organisational Health & Effectiveness Index · v1 (102026)
+// CRAFT Organisational Effectiveness Index · v1 (102026)
 // Original CRAFT indicators. Draws on organisational health and design research (cited in the crosswalk);
 // no third-party questions, items or scoring are reproduced.
 import { MODULE_SCORE_PREFIX } from '../data.ts'
@@ -12,7 +12,7 @@ export const ORGANISATIONAL_HEALTH: FoundationModule = {
   no: '14',
   version: V,
   preview: true,
-  title: 'Organisational Health & Effectiveness Index',
+  title: 'Organisational Effectiveness Index',
   question: 'Is the institution set up to deliver its strategy, and do its people make that happen?',
   intro:
     'Twenty-four indicators across direction, leadership, design, accountability, culture, engagement, capabilities and outside focus. Each asks what the institution can show, not how people feel, so the result stands up to a funder or a validator.',
