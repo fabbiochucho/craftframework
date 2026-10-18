@@ -12,6 +12,7 @@ const RULES: Record<LawArea, { core?: string[]; ladder?: string[]; prefix?: stri
   governance: { core: ['Governance & Leadership', 'Audit & Assurance'], ladder: ['Core Governance & Leadership', 'Transparent Governance & Reporting'] },
   labour: { core: ['Human Resources'], ladder: ['Social Value & Human Capital'] },
   eia: { core: ['Env. & Social Safeguards'], prefix: ['CRAFT-ESS-'] },
+  capital: { core: ['Audit & Assurance'], ladder: ['Capital Markets & Credit Readiness', 'Investor Protections & Regulatory Certainty', 'Transparent Governance & Reporting'] },
 }
 const coreDomain = new Map(MOCK_QUESTIONS.map((q) => [q.id, q.domain]))
 const ladderDomain = new Map(LADDER_INDICATORS.map((q) => [q.id, q.domain]))

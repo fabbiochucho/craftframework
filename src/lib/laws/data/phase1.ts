@@ -55,6 +55,10 @@ export const PHASE1_LAWS: LawEntry[] = [
     summary: 'Requires proponents of major new projects to carry out an environmental impact assessment, with public consultation, before work starts, and to obtain approval and follow the conditions set.',
     source: sec('https://lawsofnigeria.placng.org/laws/E12.pdf'),
     reformNote: 'A bill to repeal and replace the Act was introduced in the National Assembly in 2023.', review: 'pending' },
+  { id: 'NG-capital-1', jurisdiction: 'NG', area: 'capital', title: 'Investments and Securities Act, 2025', citation: 'Act of 2025 (repeals the Investments and Securities Act 2007)',
+    regulator: 'Securities and Exchange Commission, Nigeria',
+    summary: 'Governs public offers, registration of securities, licensing of exchanges and market operators, collective investment schemes, takeovers and market abuse. Confirms the SEC as apex capital market regulator and brings virtual assets within the definition of securities.',
+    source: sec('https://www.mondaq.com/nigeria/securities/1620400/review-of-the-investment-and-securities-act-of-2025'), review: 'pending' },
 
   // ---- Kenya ----
   { id: 'KE-company-1', jurisdiction: 'KE', area: 'company', title: 'Companies Act, 2015', citation: 'No. 17 of 2015',
@@ -99,6 +103,10 @@ export const PHASE1_LAWS: LawEntry[] = [
     regulator: 'National Environment Management Authority',
     summary: 'Requires an environmental impact assessment licence before starting listed projects, with public participation, and provides for environmental audits and monitoring of ongoing activities.',
     source: off('https://new.kenyalaw.org/akn/ke/act/1999/8'), review: 'pending' },
+  { id: 'KE-capital-1', jurisdiction: 'KE', area: 'capital', title: 'Capital Markets Act', citation: 'Cap. 485A (No. 17 of 1989)',
+    regulator: 'Capital Markets Authority',
+    summary: 'Establishes the Capital Markets Authority and sets the rules for public offers, licensing of exchanges, brokers and investment advisers, collective investment schemes, disclosure by issuers and market misconduct, with an investor compensation fund and a tribunal.',
+    source: off('https://new.kenyalaw.org/akn/ke/act/1989/17'), review: 'pending' },
   // ---- South Africa ----
   { id: 'ZA-company-1', jurisdiction: 'ZA', area: 'company', title: 'Companies Act 71 of 2008', citation: 'Act 71 of 2008',
     regulator: 'Companies and Intellectual Property Commission',
@@ -144,5 +152,9 @@ export const PHASE1_LAWS: LawEntry[] = [
     regulator: 'Department of Forestry, Fisheries and the Environment; provincial environmental authorities',
     summary: 'Requires environmental authorisation before starting listed activities, following basic assessment or full scoping and EIA under the 2014 Regulations, with public participation and a duty of care for environmental harm.',
     source: off('https://www.gov.za/documents/national-environmental-management-act'), review: 'pending' },
+  { id: 'ZA-capital-1', jurisdiction: 'ZA', area: 'capital', title: 'Financial Markets Act 19 of 2012', citation: 'Act 19 of 2012',
+    regulator: 'Financial Sector Conduct Authority; JSE Limited (listings)',
+    summary: 'Licenses and regulates exchanges, central securities depositories, clearing houses and trade repositories, and prohibits insider trading and market manipulation. Listed issuers also follow the exchange listing requirements.',
+    source: off('https://www.gov.za/documents/financial-markets-act'), review: 'pending' },
   // ---- end of entries ----
 ]

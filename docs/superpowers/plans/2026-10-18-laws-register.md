@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Jurisdictions: the 54 AU members (ISO alpha-2 as in `src/lib/africa-countries.ts`) plus `EU`, `UK`, `US`.
-- Areas: `company`, `data`, `integrity`, `procurement`, `governance`, `labour`, `eia`.
+- Areas: `company`, `data`, `integrity`, `procurement`, `governance`, `labour`, `eia`, `capital` (capital markets and securities, added at the owner's request).
 - In force only; at most a one-line `reformNote`.
 - Sources: official text first; else a reputable secondary source with `kind: 'secondary'` ("secondary source, verify"). Every entry has `checked: 'YYYY-MM-DD'`.
 - `summary` ≤ 60 words, CRAFT's own words; no statute text copied.
@@ -614,7 +614,7 @@ After the founders approve, flip each approved jurisdiction's entries to `review
 ```
 Repo fabbiochucho/craftframework, branch from main. Read docs/superpowers/specs/2026-10-18-laws-register-design.md and src/lib/laws/types.ts.
 Create src/lib/laws/data/<FILE>.ts exporting `<BATCH>_LAWS: LawEntry[]` for exactly these jurisdictions: <LIST>.
-For each jurisdiction cover all seven areas (company, data, integrity, procurement, governance, labour, eia).
+For each jurisdiction cover all eight areas (company, data, integrity, procurement, governance, labour, eia, capital — capital = securities / capital markets act and stock exchange listing rules; for WAEMU members cite the regional AMF-UMOA framework, for CEMAC members COSUMAF; where there is no exchange say so with noLaw).
 Rules: laws in force only; cite the official text first (gazette, ministry, regulator, legislature); if no official copy is online cite a reputable secondary source with kind 'secondary'; open each source to confirm title, number and year; summary ≤ 60 words in your own words, never statute text; where no national law exists in an area add an entry with noLaw: true naming what applies instead (for OHADA members, the OHADA Uniform Act applies to company law); data-protection entries carry craftNotes for registration, cross-border transfer, breach notice and local representative; checked = today; review: 'pending'; ids `${J}-${area}-${n}`.
 Append the array to LAW_REGISTER in src/lib/laws/register.ts, add the batch to BATCHES in scripts/export-laws-review.mjs, run `node scripts/export-laws-review.mjs <FILE>` and `npm test`; fix every failure.
 Open a PR titled "Laws register: <BATCH> (pending review)" listing any entry you could only source secondarily.
