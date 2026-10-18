@@ -113,3 +113,11 @@ for (const id of ['US-company-1', 'US-data-1', 'SN-governance-1', 'CV-governance
 assert.equal(byId('NG-sustainability-1').source.kind, 'secondary')
 assert.equal(byId('EG-company-2').source.url, 'https://www.icnl.org/resources/civic-freedom-monitor/egypt')
 console.log('laws (batch A data fixes): ok')
+
+// Batch A, task 2: organisations see when an entry is due for re-checking
+import { isRecheckDue } from './jurisdictionReport.ts'
+assert.equal(isRecheckDue({ ...ok, source: { ...ok.source, checked: '2025-10-17' } }, '2026-10-18'), true)
+assert.equal(isRecheckDue({ ...ok, source: { ...ok.source, checked: '2025-10-18' } }, '2026-10-18'), false)
+const staleReport = buildJurisdictionReport(['NG'], {}, {}, [], [approved({ ...ok, source: { ...ok.source, checked: '2024-01-01' } })], [], '2026-10-18')
+assert.equal(staleReport.sections[0].areas[0].laws[0].recheckDue, true)
+console.log('laws (re-check warning): ok')
