@@ -12,7 +12,8 @@ const ok: LawEntry = {
 const today = '2026-10-18'
 assert.equal(LAW_JURISDICTIONS.length, 57)
 assert.ok(LAW_JURISDICTIONS.includes('UK') && LAW_JURISDICTIONS.includes('CV'))
-assert.equal(Object.keys(LAW_AREAS).length, 7)
+assert.equal(Object.keys(LAW_AREAS).length, 8)
+assert.equal(LAW_AREAS.capital, 'Capital markets and securities')
 assert.deepEqual(registerProblems([ok], today), [])
 const bad = (patch: Partial<LawEntry>) => registerProblems([{ ...ok, ...patch }], today)
 assert.match(bad({ jurisdiction: 'XX' }).join(), /jurisdiction/)
@@ -33,6 +34,7 @@ for (const [area, qs] of Object.entries(AREA_QUESTIONS)) assert.ok(qs.length >= 
 assert.ok(AREA_QUESTIONS.data.every((q) => q.source === 'core'))
 assert.ok(AREA_QUESTIONS.integrity.some((q) => q.id.startsWith('CRAFT-FCR-')), 'fiduciary index counts for integrity')
 assert.ok(AREA_QUESTIONS.eia.some((q) => q.id.startsWith('CRAFT-ESS-')), 'safeguards index counts for EIA')
+assert.ok(AREA_QUESTIONS.capital.some((q) => q.source === 'ladder'), 'capital readiness questions count for capital markets law')
 const withExtra = questionsForLaw({ ...ok, extraQuestions: ['GOV-01'] })
 assert.ok(withExtra.some((q) => q.id === 'GOV-01') && withExtra.length === AREA_QUESTIONS.data.length + 1)
 assert.equal(questionsForLaw({ ...ok, extraQuestions: [AREA_QUESTIONS.data[0].id] }).length, AREA_QUESTIONS.data.length, 'no duplicates')
