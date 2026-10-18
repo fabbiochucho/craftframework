@@ -37,3 +37,10 @@ const withExtra = questionsForLaw({ ...ok, extraQuestions: ['GOV-01'] })
 assert.ok(withExtra.some((q) => q.id === 'GOV-01') && withExtra.length === AREA_QUESTIONS.data.length + 1)
 assert.equal(questionsForLaw({ ...ok, extraQuestions: [AREA_QUESTIONS.data[0].id] }).length, AREA_QUESTIONS.data.length, 'no duplicates')
 console.log('laws (mapping): ok')
+
+import { PHASE1_LAWS } from './data/phase1.ts'
+const PHASE1 = ['NG', 'KE', 'ZA', 'MA', 'EG', 'SN', 'MU', 'CV', 'US', 'UK', 'EU']
+for (const j of PHASE1) for (const a of Object.keys(LAW_AREAS)) assert.ok(PHASE1_LAWS.some((e) => e.jurisdiction === j && e.area === a), `phase 1: ${j} has an entry for ${a}`)
+assert.ok(PHASE1_LAWS.every((e) => e.review === 'pending'), 'new entries start pending')
+assert.ok(PHASE1_LAWS.filter((e) => e.area === 'data' && !e.noLaw).every((e) => e.craftNotes?.length), 'every data protection law says what it means for CRAFT')
+console.log('laws (phase 1 completeness): ok')
