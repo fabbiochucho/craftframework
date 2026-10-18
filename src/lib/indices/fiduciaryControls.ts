@@ -12,7 +12,6 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
   id: 'craft-fiduciary',
   no: '16',
   version: V1,
-  preview: true,
   specialist: 'fiduciary',
   title: 'Fiduciary Controls & Risk Management Index',
   question: "Would a funder's money be safe, well accounted for and protected from the risks that matter?",
