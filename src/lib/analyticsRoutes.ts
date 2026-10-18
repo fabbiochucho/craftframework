@@ -48,7 +48,7 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   admin: 'sensitive',
   'admin_.portfolio': 'sensitive',
   'admin_.analytics': 'sensitive',
-  'assessment.$frameworkId': 'sensitive',
+  'assessment_.$frameworkId': 'sensitive',
   assessment: 'sensitive',
   'audit-log': 'sensitive',
   cip: 'sensitive',
