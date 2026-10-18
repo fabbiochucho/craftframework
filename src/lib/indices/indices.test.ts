@@ -4,6 +4,7 @@ import { crosswalkProblems } from '../crosswalk.ts'
 import { ORGANISATIONAL_HEALTH } from './organisationalHealth.ts'
 import { CHANGE_READINESS } from './changeReadiness.ts'
 import { FIDUCIARY_CONTROLS } from './fiduciaryControls.ts'
+import { esScreening, SAFEGUARDS } from './safeguards.ts'
 import { applicableIndicators } from '../foundationModules.ts'
 import type { FoundationModule } from '../foundationModules.ts'
 
@@ -34,4 +35,16 @@ assert.equal(FIDUCIARY_CONTROLS.specialist, 'fiduciary')
 assert.equal(applicableIndicators(FIDUCIARY_CONTROLS, {}).length, 24, 'PFM hidden unless public body')
 assert.equal(applicableIndicators(FIDUCIARY_CONTROLS, { publicBody: true }).length, 27)
 assert.ok(FIDUCIARY_CONTROLS.indicators.filter((i) => i.dimension === 'pfm').every((i) => i.appliesWhen?.publicBody))
+checkIndex(SAFEGUARDS, 'ESS', 25)
+assert.equal(SAFEGUARDS.specialist, 'safeguards')
+const none = { physicalWorks: false, largeWorkforce: false, sensitiveLocation: false, acquiresLand: false, nearProtectedArea: false, nearHeritage: false, lendsOrInvests: false }
+assert.deepEqual(esScreening(none), { category: 'low', flags: [] })
+assert.deepEqual(esScreening({ ...none, largeWorkforce: true }), { category: 'moderate', flags: [] })
+assert.deepEqual(esScreening({ ...none, physicalWorks: true, acquiresLand: true }), { category: 'high', flags: ['land'] })
+assert.deepEqual(esScreening({ ...none, lendsOrInvests: true, nearHeritage: true }), { category: 'low', flags: ['heritage', 'intermediary'] })
+const low = applicableIndicators(SAFEGUARDS, { esCategory: 'low', esFlags: [] }).map((i) => i.dimension)
+assert.deepEqual([...new Set(low)].sort(), ['esms', 'labour', 'stakeholders'])
+const moderate = applicableIndicators(SAFEGUARDS, { esCategory: 'moderate', esFlags: ['land'] }).map((i) => i.dimension)
+assert.deepEqual([...new Set(moderate)].sort(), ['community', 'esms', 'labour', 'land', 'resources', 'stakeholders', 'vulnerable'])
+assert.equal(applicableIndicators(SAFEGUARDS, {}).length, 0, 'nothing scores before the screening is done')
 console.log('indices: ok')
