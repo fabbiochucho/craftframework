@@ -31,7 +31,7 @@ export const ORGANISATIONAL_HEALTH: FoundationModule = {
   indicators: [
     {
       id: `${P}OHE-01`, dimension: 'direction', domain: 'Strategy in Place',
-      question: 'Is there a current, board-approved strategy with measurable goals for the next three to five years?',
+      question: 'Is there a current strategy, approved by the board or equivalent oversight body, with measurable goals for the next three to five years?',
       soe: {
         0: 'No written strategy; direction depends on the chief executive.',
         1: 'A strategy exists in draft or is out of date.',
@@ -229,7 +229,7 @@ export const ORGANISATIONAL_HEALTH: FoundationModule = {
       },
       evidence: 'Performance management policy, completion rates, sample of reviewed objectives.',
       recommendation: 'Hold a mid-year review for every member of staff and record one development action from each.',
-      whyItMatters: 'Institutions perform when individuals know what is expected of them and get honest feedback.',
+      whyItMatters: 'Institutions perform when individuals know what they are accountable for and get honest feedback.',
       version: V, actionType: 'process', minWeeks: 24,
       crosswalk: [{ framework: 'mck-ohi', ref: 'ACCOUNTABILITY' }, { framework: 'burke-litwin', ref: 'PRACTICES' }],
     },
@@ -257,7 +257,7 @@ export const ORGANISATIONAL_HEALTH: FoundationModule = {
         0: 'Culture has never been discussed or assessed.',
         1: 'Leaders hold views about the culture, but nothing is measured.',
         2: 'A culture survey was run once, with no follow-up.',
-        3: 'A method is agreed to assess the current culture and the culture the strategy needs.',
+        3: 'An agreed method has been used to compare the current culture with the culture the strategy needs, and the results are documented.',
         4: 'The gap between current and needed culture is assessed at least every two years, with actions agreed.',
         5: 'Culture actions are tracked, and later assessments show whether the gap is closing.',
       },
@@ -382,7 +382,7 @@ export const ORGANISATIONAL_HEALTH: FoundationModule = {
       },
       evidence: 'Recruitment procedure, vacancy and time-to-hire report, retention report for key roles.',
       recommendation: 'Identify the ten roles the strategy most depends on and track how long each takes to fill.',
-      whyItMatters: 'Vacant or rotating key roles stall delivery more than any other single cause.',
+      whyItMatters: 'Vacant or rotating key roles stall delivery.',
       version: V, actionType: 'system', minWeeks: 24,
       crosswalk: [{ framework: 'star-model', ref: 'PEOPLE' }, { framework: 'mck-7s', ref: 'STAFF' }],
     },

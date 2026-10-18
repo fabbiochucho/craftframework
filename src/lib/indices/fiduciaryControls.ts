@@ -17,7 +17,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
   title: 'Fiduciary Controls & Risk Management Index',
   question: "Would a funder's money be safe, well accounted for and protected from the risks that matter?",
   intro:
-    'Twenty-four indicators on internal control, governance and risk management, plus three on public financial management for public bodies. Validating this index needs a specialist-accredited validator.',
+    'Twenty-four indicators on internal control, governance and risk management, plus three on public financial management for public bodies. Where an institution has no board, read board as its equivalent oversight body, such as an audit committee or council. Validating this index needs a specialist-accredited validator.',
   lensTitle: 'Fiduciary lenses',
   lensBlurb: 'Three questions a funder asks first: how exposed is the money to fraud, can the institution report on it, and does the board really oversee it?',
   dimensions: [
@@ -52,7 +52,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
     ], 'Segregation of duties matrix, sample payment approvals, exception log.',
     'Map who can approve, record and pay; where one person holds two roles, add an independent review.',
     'When one person controls the whole payment chain, a single error or fraud goes unseen.', 'process', 6, 'coso-ic:CA coso-ic:P10'),
-    i(3, 'environment', 'Board Oversight of Control', 'Does the board or audit committee review internal control, with the review minuted?', [
+    i(3, 'environment', 'Board Oversight of Control', 'Does the board or audit committee (or equivalent oversight body) review internal control, with the review minuted?', [
       'The board never discusses internal control.',
       'Control is discussed only after a problem.',
       'Management reports on control occasionally, without challenge from the board.',
@@ -71,7 +71,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'The assessment uses incident data and audit findings, and its controls are tested.',
     ], 'Fraud risk assessment, risk-to-control mapping, board report.',
     'Hold a half-day workshop to list how money could be stolen in procurement, payroll, cash and grants, and assign a control to each.',
-    'Most frauds exploit risks no one had written down.', 'assurance', 8, 'coso-ic:RA coso-ic:P8 iso-37001:MS'),
+    'Fraud often exploits risks no one had written down.', 'assurance', 8, 'coso-ic:RA coso-ic:P8 iso-37001:MS'),
     i(5, 'assessment', 'Control Objectives', 'Are control objectives defined for each major financial and operational process?', [
       'No one has defined what controls are meant to achieve.',
       'Control objectives exist for finance only, informally.',
@@ -107,9 +107,9 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'Reconciliations are done irregularly.',
       'Reconciliations are done monthly by the person who records transactions, without independent review.',
       'A procedure requires monthly reconciliations reviewed and signed by someone independent.',
-      'Signed reconciliations exist for the last twelve months, with reconciling items cleared.',
+      'Signed reconciliations exist for at least the last three months, with reconciling items cleared.',
       'Reconciling items are aged and investigated, and the process is tested by audit.',
-    ], 'Twelve months of signed reconciliations, reconciling items listing.',
+    ], 'Signed reconciliations for at least the last three months, reconciling items listing.',
     'Have someone who does not record transactions review and sign each monthly bank reconciliation.',
     'Monthly independent reconciliation is the simplest control that catches errors and fraud early.', 'practice', 12, 'coso-ic:CA coso-ic:P10'),
     i(9, 'activities', 'Procurement Controls', 'Are procurement rules (competition, thresholds, supplier checks) followed and tested?', [
@@ -121,7 +121,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'Procurement is tested by audit or spot checks, and findings change the rules.',
     ], 'Procurement policy, sample procurement files, exceptions register, test results.',
     'Check ten recent purchases against your procurement thresholds and fix the gaps you find.',
-    'Procurement is where most funds are spent and where most fraud occurs.', 'practice', 12, 'coso-ic:CA iso-37001:MS'),
+    'Procurement is where most funds are spent and a common route for fraud.', 'practice', 12, 'coso-ic:CA iso-37001:MS'),
     i(10, 'information', 'Management Accounts', 'Are financial reports produced monthly, on time, and used by management?', [
       'No regular financial reports.',
       'Reports are produced irregularly or months late.',
@@ -129,7 +129,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'Monthly management accounts are produced to a set deadline with budget comparisons.',
       'Minutes show management reviewing the accounts and acting on variances.',
       'Reports are improved using management feedback, and forecasts are updated monthly.',
-    ], 'Twelve months of management accounts, management meeting minutes.',
+    ], 'Management accounts for at least the last three months, management meeting minutes.',
     'Produce monthly accounts with budget versus actual within 15 days of month-end, and review them at a management meeting.',
     'Management that sees its numbers monthly catches problems while they are still small.', 'practice', 12, 'coso-ic:IC coso-ic:P13 ifc-cgdf:DISCLOSURE'),
     i(11, 'information', 'Funder and Regulatory Reporting', 'Is funder and regulatory reporting accurate, on time and reconciled to the accounts?', [
@@ -151,13 +151,13 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'Use of the channel and trust in it are reviewed, and lessons improve controls.',
     ], 'Whistleblowing policy, channel details, anonymised case log, board reports.',
     'Set up a confidential reporting channel that goes outside the line management chain and tell every member of staff about it.',
-    'Most frauds are uncovered by tips from people inside the institution.', 'practice', 12, 'coso-ic:IC coso-ic:P14 iso-37002:MS nccg-2018:CONDUCT'),
+    'Tips from staff are the most common way fraud is uncovered.', 'practice', 12, 'coso-ic:IC coso-ic:P14 iso-37002:MS nccg-2018:CONDUCT'),
     i(13, 'monitoring', 'Internal Audit', 'Is there an internal audit function, in-house or outsourced, with a risk-based plan?', [
       'No internal audit.',
       'Ad hoc checks happen without a plan.',
       'Internal audit exists, but its plan is not based on risk.',
       'Internal audit, in-house or outsourced, works to an approved risk-based plan reporting to the board.',
-      'The plan is delivered, and reports go to the board or audit committee.',
+      'The plan is delivered as approved, and reports record findings and management responses.',
       'Internal audit quality is reviewed, and its plan adapts to emerging risks.',
     ], 'Internal audit charter, risk-based audit plan, audit reports to the board.',
     'If you have no internal auditor, contract one to review your two highest-risk processes each year.',
@@ -168,7 +168,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'Findings are listed, but without owners or deadlines.',
       'A tracker records every finding with an owner and a deadline.',
       'The tracker is reviewed by the board, and most findings close on time.',
-      'Repeat findings are rare, and root causes are addressed.',
+      'No finding repeats from the previous cycle, and a root cause is recorded for each.',
     ], 'Audit findings tracker, board review minutes.',
     'Put every open audit finding on one tracker with an owner and a deadline, and review it quarterly.',
     'Unresolved audit findings are the clearest signal to a funder that controls are not taken seriously.', 'process', 12, 'coso-ic:MA coso-ic:P17'),
@@ -182,7 +182,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
     ], 'Control testing plan, test results, board reports.',
     'Pick your ten most important controls and test a sample of each once a year.',
     'A control that has never been tested is a hope, not a control.', 'assurance', 26, 'coso-ic:MA coso-ic:P16 ifc-cgdf:CONTROL'),
-    i(16, 'board', 'Board Composition', "Is the board's composition, independence and skills mix reviewed and documented?", [
+    i(16, 'board', 'Board Composition', 'Is the composition, independence and skills mix of the board (or equivalent oversight body) reviewed and documented?', [
       'Board membership is informal or undocumented.',
       'Members are recorded, but their independence and skills are not.',
       'Skills are known informally; independence is not assessed.',
@@ -192,7 +192,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
     ], 'Board register, skills and independence matrix, appointment records.',
     'Build a simple matrix of the skills the board needs, mark who brings each, and fill the gaps at the next appointment.',
     'A board without the right skills or independence cannot challenge management.', 'policy', 12, 'ifc-cgdf:BOARD nccg-2018:BOARD iso-37000:MS'),
-    i(17, 'board', 'Board Evaluation', 'Does the board evaluate its own performance at least every two years?', [
+    i(17, 'board', 'Board Evaluation', 'Does the board (or equivalent oversight body) evaluate its own performance at least every two years?', [
       'The board has never evaluated itself.',
       'Informal discussions about the board happen occasionally.',
       'An evaluation was done once, with no follow-up.',
@@ -202,7 +202,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
     ], 'Evaluation method, completed evaluations, board action plans.',
     'Run a short self-evaluation survey of board members and agree three improvements.',
     'Boards that never assess themselves rarely notice when they stop adding value.', 'assurance', 26, 'ifc-cgdf:BOARD nccg-2018:BOARD'),
-    i(18, 'board', 'Board Committees', 'Are board committees (audit, finance, risk) chartered and meeting as their charters require?', [
+    i(18, 'board', 'Board Committees', 'Are committees of the board or oversight body (audit, finance, risk) chartered and meeting as their charters require?', [
       'No board committees.',
       'Committees exist in name only.',
       'Committees meet, but without written charters.',
@@ -212,7 +212,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
     ], 'Committee charters, meeting minutes, reports to the full board.',
     'Write a one-page charter for an audit and finance committee and schedule its meetings for the year.',
     'Committees give financial oversight the time and expertise a full board meeting cannot.', 'policy', 12, 'ifc-cgdf:BOARD nccg-2018:BOARD'),
-    i(19, 'risk-governance', 'Risk Appetite', 'Has the board approved a risk appetite statement for the main risk categories?', [
+    i(19, 'risk-governance', 'Risk Appetite', 'Has the board (or equivalent oversight body) approved a risk appetite statement for the main risk categories?', [
       'Risk appetite has never been discussed.',
       'Leaders hold informal views on acceptable risk.',
       'A draft statement exists but is not approved.',
@@ -221,7 +221,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'The appetite is reviewed yearly and adjusted with the strategy.',
     ], 'Board-approved risk appetite statement, board minutes, risk reports referring to it.',
     'Agree with the board, for each main risk category, how much risk the institution is willing to take.',
-    'Without a stated appetite, every risk decision depends on who happens to be deciding.', 'policy', 8, 'coso-erm:GC coso-erm:SO iso-31000:5'),
+    'Without a stated appetite, every risk decision depends on who happens to be deciding.', 'policy', 8, 'coso-erm:GC coso-erm:SO iso-31000:6.3'),
     i(20, 'risk-governance', 'Risk Register', 'Is there a risk register with owners, ratings and review dates?', [
       'No risk register.',
       'Risks are listed once, with no owners.',
@@ -258,10 +258,10 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'Indicators exist, but without thresholds.',
       'Key risk indicators are defined for top risks, with thresholds and a response when crossed.',
       'Indicators are tracked on schedule, and threshold breaches lead to recorded action.',
-      'Indicators are refined using experience, and they warn of risks before they happen.',
+      'Thresholds are recalibrated yearly using incidents and near-misses.',
     ], 'Key risk indicator definitions, tracking reports, breach responses.',
     'Pick one measurable warning sign for each of your top five risks, with a level that triggers action.',
-    'Early warning gives time to act before a risk becomes a loss.', 'system', 12, 'coso-erm:RR iso-31000:6.6'),
+    'Early warning gives time to act before a risk becomes a loss.', 'system', 12, 'coso-erm:PF iso-31000:6.6'),
     i(24, 'risk-treatment', 'Risk Reporting', 'Are risk reports reviewed by leadership and the board at least quarterly?', [
       'Risk is never reported.',
       'Risk is reported only after incidents.',

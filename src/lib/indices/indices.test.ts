@@ -43,10 +43,17 @@ assert.deepEqual(esScreening({ ...none, largeWorkforce: true }), { category: 'mo
 assert.deepEqual(esScreening({ ...none, physicalWorks: true, acquiresLand: true }), { category: 'high', flags: ['land'] })
 assert.deepEqual(esScreening({ ...none, lendsOrInvests: true, nearHeritage: true }), { category: 'low', flags: ['heritage', 'intermediary'] })
 const low = applicableIndicators(SAFEGUARDS, { esCategory: 'low', esFlags: [] }).map((i) => i.dimension)
-assert.deepEqual([...new Set(low)].sort(), ['esms', 'labour', 'stakeholders'])
+assert.deepEqual([...new Set(low)].sort(), ['community', 'esms', 'labour', 'stakeholders'], 'low risk: core system, labour, SEAH and stakeholders')
 const moderate = applicableIndicators(SAFEGUARDS, { esCategory: 'moderate', esFlags: ['land'] }).map((i) => i.dimension)
 assert.deepEqual([...new Set(moderate)].sort(), ['community', 'esms', 'labour', 'land', 'resources', 'stakeholders', 'vulnerable'])
 assert.equal(applicableIndicators(SAFEGUARDS, {}).length, 0, 'nothing scores before the screening is done')
+// Checkpoint 2 review fixes
+const lowIds = applicableIndicators(SAFEGUARDS, { esCategory: 'low', esFlags: [] }).map((x) => x.id)
+assert.ok(lowIds.includes('CRAFT-ESS-12'), 'SEAH/GBV is asked of every organisation, whatever its risk category')
+assert.ok(!lowIds.includes('CRAFT-ESS-04') && !lowIds.includes('CRAFT-ESS-05'), 'climate board oversight and sustainability reporting start at moderate risk')
+for (const m of [ORGANISATIONAL_HEALTH, CHANGE_READINESS, FIDUCIARY_CONTROLS, SAFEGUARDS])
+  for (const x of m.indicators)
+    assert.ok(!/(most frauds|where most fraud|more than any other|far more than|immediate loss of funding)/i.test(`${x.whyItMatters} ${x.recommendation}`), `${x.id}: no unsourced statistics`)
 // Task 7: registration and the preview gate
 import { FOUNDATION_MODULES } from '../foundationModules.ts'
 import { canSeePreview, FRAMEWORKS } from '../frameworks.ts'
