@@ -106,3 +106,10 @@ console.log('laws (final review fixes): ok')
 for (const j of new Set(LAW_REGISTER.map((e) => e.jurisdiction))) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `${j} has an entry for ${a}`)
 assert.ok(LAW_REGISTER.filter((e) => !PHASE1.includes(e.jurisdiction)).every((e) => e.review === 'pending'), 'phase 2 entries start pending')
 console.log('laws (all jurisdictions complete): ok')
+
+// Batch A, task 1: deferred review fixes in the data
+const byId = (id: string) => LAW_REGISTER.find((e) => e.id === id)!
+for (const id of ['US-company-1', 'US-data-1', 'SN-governance-1', 'CV-governance-1']) assert.ok(!byId(id).noLaw, `${id} is rated, not "no national law"`)
+assert.equal(byId('NG-sustainability-1').source.kind, 'secondary')
+assert.equal(byId('EG-company-2').source.url, 'https://www.icnl.org/resources/civic-freedom-monitor/egypt')
+console.log('laws (batch A data fixes): ok')
