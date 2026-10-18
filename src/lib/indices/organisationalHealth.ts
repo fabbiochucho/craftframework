@@ -11,7 +11,6 @@ export const ORGANISATIONAL_HEALTH: FoundationModule = {
   id: 'craft-health',
   no: '14',
   version: V,
-  preview: true,
   title: 'Organisational Effectiveness Index',
   question: 'Is the institution set up to deliver its strategy, and do its people make that happen?',
   intro:
