@@ -29,7 +29,7 @@ import {
   ESG_PILLARS, ESG_QUESTIONS, ESG_DOCS, EVIDENCE_LEVELS, questionsForPillar, docKey,
   pillarVerifiedScore, compositeEsgScore, compositeVerifiedScore,
   evidenceCoveragePct, confidenceFromCoverage, identifyGaps, identifyStrengths,
-  unansweredQuestions, getEsgBadge, financingPositioning,
+  unansweredQuestions, getEsgBadge, ratedAnswered, financingPositioning,
   RATING_AGENCY_MAP, RATING_AGENCY_REFERENCES, AGENCY_TRANSLATION_DISCLAIMER,
   type EsgPillar,
 } from '../lib/esg'
@@ -64,7 +64,7 @@ export function EsgAssessmentPanel() {
   const coveragePct = useMemo(() => evidenceCoveragePct(evidence), [evidence])
   const confidence = useMemo(() => confidenceFromCoverage(coveragePct), [coveragePct])
   const badge = useMemo(
-    () => getEsgBadge(verifiedComposite, answeredCount, coveragePct),
+    () => getEsgBadge(verifiedComposite, ratedAnswered(scores), coveragePct),
     [verifiedComposite, answeredCount, coveragePct],
   )
   const gaps = useMemo(() => identifyGaps(scores), [scores])

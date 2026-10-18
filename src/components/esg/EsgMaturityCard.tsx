@@ -11,7 +11,7 @@ export function EsgMaturityCard({ m }: { m: EsgMaturity }) {
       <CardContent className="space-y-4">
         <ol className="grid gap-2 sm:grid-cols-5" aria-label="ESG maturity stages">
           {ESG_STAGES.map((s) => (
-            <li key={s.n} className={`rounded-lg border p-3 text-sm ${s.n <= m.stage ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-500'}`}
+            <li key={s.n} className={`rounded-lg border p-3 text-sm ${s.n <= m.stage ? `border-emerald-300 bg-emerald-50 text-emerald-900${m.provisional ? ' border-dashed' : ''}` : 'border-slate-200 text-slate-500'}`}
               aria-current={s.n === m.stage ? 'step' : undefined}>
               <p className="text-xs font-semibold uppercase">Stage {s.n}</p>
               <p className="font-semibold">{s.name}</p>

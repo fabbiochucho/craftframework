@@ -98,3 +98,9 @@ console.log('reports (stage 2 additions): ok')
 
 assert.match(ATTRIBUTION_NOTICE, /TNFD/, 'TNFD named in the attribution notice')
 console.log('reports (TNFD attribution): ok')
+
+// Final review: TNFD's status note travels with its alignment report
+import { TNFD_STATUS_NOTE } from '../crosswalk.ts'
+assert.equal(buildAlignmentReport('tnfd', {}, {}).statusNote, TNFD_STATUS_NOTE)
+assert.equal(buildAlignmentReport('coso-ic', {}, {}).statusNote, undefined)
+console.log('reports (TNFD status note): ok')
