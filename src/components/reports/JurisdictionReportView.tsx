@@ -23,6 +23,7 @@ export function JurisdictionReportView({ r, org, onPrint }: { r: JurisdictionRep
           <section key={s.id} className="space-y-3">
             <h3 className="font-display text-lg font-bold text-emerald-900">{s.name}</h3>
             {!s.reviewed && <p className="text-sm text-slate-500">Not yet reviewed. Laws for this jurisdiction will appear once CRAFT has checked them.</p>}
+            {s.reviewed && s.pendingCount > 0 && <p className="text-xs text-amber-700">Partly reviewed: {s.pendingCount} {s.pendingCount === 1 ? 'entry is' : 'entries are'} still awaiting review and not shown.</p>}
             {s.areas.map(a => (
               <div key={a.area}>
                 <p className="text-xs font-semibold uppercase text-slate-500">{a.label}</p>
