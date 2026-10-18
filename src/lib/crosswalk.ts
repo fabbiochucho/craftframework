@@ -10,8 +10,9 @@
 
 import type { CrosswalkRef } from './foundationModules.ts'
 
-/** certifiable: an accredited body can certify against it · guidance: cannot be certified. */
-export type FrameworkKind = 'certifiable' | 'guidance' | 'framework' | 'regulation' | 'tool'
+/** certifiable: an accredited body can certify against it · verified: statements are verified by an
+ *  accredited body, not certified · guidance: cannot be certified. */
+export type FrameworkKind = 'certifiable' | 'verified' | 'guidance' | 'framework' | 'regulation' | 'tool'
 
 export interface ExternalFramework {
   id: string
@@ -109,8 +110,8 @@ export const EXTERNAL_FRAMEWORKS: ExternalFramework[] = [
     ['iso-27701', 'ISO/IEC 27701 Privacy information management'], ['iso-37001', 'ISO 37001 Anti-bribery management systems'],
     ['iso-37301', 'ISO 37301 Compliance management systems'], ['iso-42001', 'ISO/IEC 42001 AI management systems'],
     ['iso-45001', 'ISO 45001 Occupational health and safety management systems'], ['iso-50001', 'ISO 50001 Energy management systems'],
-    ['iso-14064-1', 'ISO 14064-1 Greenhouse gas quantification and reporting'],
   ] as const).map(([id, name]): ExternalFramework => ({ id, name, owner: 'ISO', kind: 'certifiable', elements: ms })),
+  { id: 'iso-14064-1', name: 'ISO 14064-1 Greenhouse gas quantification and reporting', owner: 'ISO', kind: 'verified', elements: ms },
   ...([
     ['iso-37000', 'ISO 37000 Governance of organisations'], ['iso-37002', 'ISO 37002 Whistleblowing management systems'],
     ['iso-26000', 'ISO 26000 Social responsibility'], ['iso-30414', 'ISO 30414 Human capital reporting'],
@@ -118,6 +119,17 @@ export const EXTERNAL_FRAMEWORKS: ExternalFramework[] = [
     ['iso-14067', 'ISO 14067 Carbon footprint of products'],
   ] as const).map(([id, name]): ExternalFramework => ({ id, name, owner: 'ISO', kind: 'guidance', elements: ms })),
 ]
+
+// Frameworks CRAFT already assesses in its own modules (see src/lib/frameworks.ts).
+const TOOL = el([['TOOL', 'The tool as a whole']])
+EXTERNAL_FRAMEWORKS.push(
+  { id: 'pact-omt', name: 'Organizational Mapping Tool (OMT)', owner: 'Pact', kind: 'tool', elements: TOOL },
+  { id: 'pact-oca', name: 'Organizational Capacity Assessment and Organizational Performance Index', owner: 'Pact', kind: 'tool', elements: TOOL },
+  { id: 'gf-pr', name: 'Principal Recipient financial reporting', owner: 'The Global Fund', kind: 'tool', elements: TOOL },
+  { id: 'gfa', name: 'GFA Business Diagnostic', owner: 'GFA Consulting Group', kind: 'tool', elements: TOOL },
+  { id: 'oecd-ai', name: 'OECD AI classification and UNESCO ethical impact assessment', owner: 'OECD and UNESCO', kind: 'guidance', elements: TOOL },
+  { id: 'g7-ai', name: 'G7 AI governance toolkit for the public sector', owner: 'G7', kind: 'guidance', elements: TOOL },
+)
 
 export function frameworkById(id: string): ExternalFramework | undefined {
   return EXTERNAL_FRAMEWORKS.find((f) => f.id === id)
