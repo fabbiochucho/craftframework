@@ -4,6 +4,8 @@ import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx } from '
 import {
   deriveFindings, computeOrgScore, getAccreditation, DerivedFinding, answeredCount, RiskStatus,
 } from '../lib/data'
+import { deriveModuleFindings } from '../lib/moduleFindings'
+import { useModuleProfile } from '../lib/moduleProfile'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
 function csvCell(v: string | number) {
@@ -37,7 +39,11 @@ export function ReportsPage() {
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
   const composite = computeOrgScore(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
-  const plan = useMemo(() => deriveFindings(orgScores, 2, planMonths), [orgScores, planMonths])
+  const [moduleProfile] = useModuleProfile()
+  const plan = useMemo(
+    () => [...deriveFindings(orgScores, 2, planMonths), ...deriveModuleFindings(orgScores, moduleProfile, planMonths)],
+    [orgScores, planMonths, moduleProfile],
+  )
   const criticals = plan.filter(p => p.severity === 'Critical')
   const answered = answeredCount(orgScores)
   const [toast, setToast] = useState<string | null>(null)
