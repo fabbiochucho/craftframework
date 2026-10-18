@@ -38,7 +38,7 @@ export const FIDUCIARY_CONTROLS: FoundationModule = {
       'Staff signed the code once; conflicts are not declared.',
       'An approved code and conflict policy require yearly signatures and declarations from staff and board.',
       'Signatures and declarations are recorded, and declared conflicts are managed and minuted.',
-      'Compliance with declarations is tested, breaches are handled consistently, and the code is reviewed every two years.',
+      'Declarations are checked against records, breaches are handled consistently, and the code is reviewed every two years.',
     ], 'Code of conduct, conflict-of-interest policy, signed declarations register, minutes recording managed conflicts.',
     'Introduce a yearly signed declaration of conflicts for all staff and board members and keep a register.',
     'Undeclared conflicts are behind many of the losses funders discover after the money has gone.', 'policy', 6, 'coso-ic:CE coso-ic:P1 nccg-2018:CONDUCT iso-37001:MS'),
