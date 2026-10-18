@@ -165,21 +165,36 @@ show index results (section 7).
 
 ## 6. Suggested CIP timeframe
 
-Replaces the severity spread in `dueMonthFor` (`src/lib/data.ts`); the existing `planMonths` (default 24) becomes the
-Standard plan length. Pure function `suggestTimeline(actions, profile, pace, fixedDates)` in `src/lib/cipTimeline.ts`
-with a self-check test.
+There is no default plan length. The severity of each gap sets its window, and the plan's length is simply the date its
+last action is due: a plan with a few Low gaps may take 4 months, one with many Critical gaps may need more than 24.
+Replaces the fixed 24-month spread in `dueMonthFor` / `CIP_PLAN_MONTHS_DEFAULT` (`src/lib/data.ts`); `planMonths`
+remains only as the "Target date" pace option. Pure function `suggestTimeline(actions, profile, pace, fixedDates)` in
+`src/lib/cipTimeline.ts` with a self-check test.
 
-1. Order: lower ladder rungs first; then dependencies (a `policy` action before `people` training on it; `system`
-   before `practice`); then Critical and High severity.
-2. Duration per action: from gap size (target score minus current), `actionType`, and never below `minWeeks`.
-   Change Readiness gaps add embedding time to the actions they affect.
-3. Capacity: at most N concurrent actions per owner (N from organisation size: 2 small, 3 medium, 5 large).
-4. Fixed dates: regulatory deadlines entered by the organisation, validation follow-up and expiry dates, funder deadlines.
-5. Output: three phases (0–3 months quick wins and critical gaps; 3–9 core systems; 9–18 embedding and practice
-   evidence, scaled to the plan length) and a suggested due date per action.
+Severity windows (Standard pace), measured from the plan's start:
 
-Pace options: Standard · Accelerated (compresses up to 40%, warns when an owner is overloaded) · Target date (fits the
-plan to a date and lists what cannot fit) · Extended · per-action override with a short reason.
+| Severity | Start | Target close |
+|---|---|---|
+| Critical | Immediately | Within 3 months |
+| High | Within 1 month | Within 6 months |
+| Moderate | Within 3 months | Within 12 months |
+| Low | When capacity allows | Within 18 months |
+
+1. Order: Critical first, then High, Moderate, Low; within a severity, lower ladder rungs first; dependencies always
+   respected (a `policy` action before `people` training on it; `system` before `practice`).
+2. Duration per action: from gap size (target score minus current) and `actionType`, never below `minWeeks`. If
+   `minWeeks` cannot fit inside the severity window, the action keeps `minWeeks` and is marked "needs longer than its
+   severity window" with the reason. Change Readiness gaps add embedding time to the actions they affect.
+3. Capacity: at most N concurrent actions per owner (N from organisation size: 2 small, 3 medium, 5 large); overflow
+   moves later actions back and is shown as the reason.
+4. Fixed dates: regulatory deadlines entered by the organisation, validation follow-up and expiry dates, funder
+   deadlines; an action tied to one is due before it, whatever its severity.
+5. Output: suggested start and due date per action, the resulting plan length, and phases derived from the actual
+   dates (quick wins and critical gaps · core systems · embedding and practice evidence).
+
+Pace options: Standard (the severity windows above) · Accelerated (shortens windows up to 40%, warns when an owner is
+overloaded) · Target date (fits the plan to a chosen date and lists what cannot fit) · Extended (lengthens windows for
+organisations with fewer people or less funding) · per-action override with a short reason.
 Guardrails: `minWeeks` is never compressed (the UI says why); acceleration never shortens validation validity, but can
 bring a follow-up check forward as today; the plan records its pace and every override, visible to validators and
 consented funders.
