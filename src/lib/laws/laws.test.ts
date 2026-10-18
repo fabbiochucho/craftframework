@@ -130,3 +130,12 @@ assert.equal(buildJurisdictionReport(['NG'], {}, {}, [], pend, ['NG']).sections[
 assert.equal(buildJurisdictionReport(['KE'], {}, {}, [], pend, ['NG']).sections[0].reviewed, false)
 assert.deepEqual(buildInternalCheck(pend, '2026-10-18', ['NG']).pending, [{ jurisdiction: 'KE', count: 1 }], 'approved jurisdictions leave the pending list')
 console.log('laws (approvals): ok')
+
+// Batch A, task 4: onboarding offers every country the register covers
+import { COUNTRIES } from '../countries.ts'
+assert.equal(COUNTRIES.length, 56, '54 African countries plus the UK and US')
+assert.deepEqual(COUNTRIES.slice(0, 3).map((c) => c.code), ['NG', 'KE', 'RW'], 'the familiar ten stay first')
+for (const c of COUNTRIES) assert.ok(LAW_JURISDICTIONS.includes(c.code), `${c.code} is a register jurisdiction`)
+assert.equal(COUNTRIES.find((c) => c.code === 'UK')!.flag, '\u{1F1EC}\u{1F1E7}')
+assert.equal(new Set(COUNTRIES.map((c) => c.code)).size, 56)
+console.log('laws (onboarding countries): ok')
