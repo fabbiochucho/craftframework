@@ -342,7 +342,9 @@ assert.equal(ir.version, 'v1 (102026)')
 const iso = buildIsoReadiness(['iso-27001', 'iso-31000'], { 'CRAFT-FCR-19': 1 }, {})
 assert.equal(iso.statement, ISO_STATEMENT)
 assert.equal(iso.standards.find((s) => s.id === 'iso-31000')?.kind, 'guidance')
-assert.ok(!JSON.stringify(iso).match(/\b(certified|compliant)\b/i), 'never claims certification or compliance')
+// Only CRAFT's own labels are checked: mapped question text is the organisation's assessment wording.
+const labels = JSON.stringify({ statement: iso.statement, standards: iso.standards.map((s) => ({ name: s.name, kind: s.kind, readiness: s.readiness })) })
+assert.ok(!/\b(certified|compliant|passes)\b/i.test(labels), 'report labels never claim certification or compliance')
 console.log('reports: ok')
 ```
 
@@ -363,7 +365,7 @@ export const ISO_STATEMENT = 'CRAFT helps organisations build and evidence the m
 
 **Files:**
 - Modify: `src/components/AppLayout.tsx` (add `print:hidden` to the sidebar, mobile drawer, top bar and floating chat button)
-- Modify: `src/components/ConsentBanner*.tsx` or wherever the consent banner renders (`print:hidden`)
+- Modify: `src/components/ConsentBanner.tsx`, `src/components/SupportBot.tsx`, `src/components/SessionTimer.tsx`, `src/components/OfflineBanner.tsx`, `src/components/AutoTranslate.tsx` (add `print:hidden` to each one's outermost fixed element)
 - Modify: `src/pages/ReportsPage.tsx` (three new report cards and a report view)
 - Create: `src/components/reports/ReportViews.tsx` (`IndexReportView`, `AlignmentReportView`, `IsoReadinessView`)
 
