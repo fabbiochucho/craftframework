@@ -46,7 +46,7 @@ function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, org
 function exportAlignmentCsv(r: ReturnType<typeof buildAlignmentReport>) {
   const header = 'Element,Label,Coverage,Answered,In scope,Average,Mapped question ids,Why mapped'
   const rows = r.elements.map(e => [e.id, csvCell(e.label), csvCell(COVERAGE_LABEL[e.coverage]), e.answered, e.applicable, e.mean ?? '', csvCell(e.indicators.map(i => i.id).join(' ')), csvCell(e.rationale.join(' | '))].join(','))
-  const blob = new Blob([[csvCell(r.title), csvCell(r.lensNote), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob([[csvCell(r.title), csvCell(r.lensNote), ...(r.statusNote ? [csvCell(r.statusNote)] : []), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

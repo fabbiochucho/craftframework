@@ -50,6 +50,8 @@ export interface NarrativeOrgContext {
   esgAnswered: number
   esgTotal: number
   esgGaps: EsgGap[]
+  /** ESG maturity stage label, e.g. "Stage 2: Efficiency (provisional ...)". */
+  esgStage?: string
   cipFindings: DerivedFinding[]
   scopeEmissions: ScopeEmissions
 }
@@ -189,7 +191,7 @@ function sectionGapAssessment(ctx: NarrativeOrgContext, requirements: StatutoryR
   return {
     id: 'gap-assessment', number: 6, title: 'Gap Assessment',
     blocks: [
-      { type: 'paragraph', text: `This entity's composite CRAFT readiness score is ${ctx.compositeScore}%, corresponding to accreditation ${ctx.accreditationLabel}. Its ESG Self-Assessment evidence-adjusted score is ${ctx.esgVerifiedScore.toFixed(2)} / 5 (${ctx.esgAnswered} / ${ctx.esgTotal} questions answered), rated ${ctx.esgBadge.letter} - ${ctx.esgBadge.label}${ctx.esgBadge.provisional ? ' (provisional, pending further evidence verification)' : ''}.` },
+      { type: 'paragraph', text: `This entity's composite CRAFT readiness score is ${ctx.compositeScore}%, corresponding to accreditation ${ctx.accreditationLabel}. Its ESG Self-Assessment evidence-adjusted score is ${ctx.esgVerifiedScore.toFixed(2)} / 5 (${ctx.esgAnswered} / ${ctx.esgTotal} questions answered), rated ${ctx.esgBadge.letter} - ${ctx.esgBadge.label}${ctx.esgBadge.provisional ? ' (provisional, pending further evidence verification)' : ''}.${ctx.esgStage ? ` ESG maturity: ${ctx.esgStage}.` : ''}` },
       { type: 'paragraph', text: ctx.implementationEvidence < 50
         ? `Implementation evidence stands at ${ctx.implementationEvidence}%, below the 50% threshold - under CRAFT's Paper Compliance Penalty Engine this caps accreditation at Level C regardless of the raw composite score, reflecting that policy-on-paper has not yet converted to system-enforced execution.`
         : `Implementation evidence stands at ${ctx.implementationEvidence}%, at or above the 50% threshold required to avoid the Paper Compliance Penalty cap.` },

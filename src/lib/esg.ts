@@ -515,12 +515,17 @@ export interface EsgBadge {
 
 const PROVISIONAL_COVERAGE_THRESHOLD = 70 // % of docs at "Strong"+ needed to lift the provisional flag
 
+/** The original twelve questions the letter rating is based on. Later questions (maturity, nature, value chain) inform the
+ *  maturity stage but don't withhold a rating from organisations that completed the original assessment. */
+export const RATED_QUESTION_IDS = ['ESG-E1', 'ESG-E2', 'ESG-E3', 'ESG-E4', 'ESG-S1', 'ESG-S2', 'ESG-S3', 'ESG-S4', 'ESG-G1', 'ESG-G2', 'ESG-G3', 'ESG-G4']
+export const ratedAnswered = (scores: Record<string, number>): number => RATED_QUESTION_IDS.filter((id) => id in scores).length
+
 export function getEsgBadge(
   verifiedScore: number,
   totalAnswered: number,
   evidenceCoverage: number,
 ): EsgBadge {
-  if (totalAnswered < ESG_QUESTIONS.length) {
+  if (totalAnswered < RATED_QUESTION_IDS.length) {
     return { letter: 'Unrated', label: 'Unrated - assessment incomplete', cls: 'bg-slate-100 text-slate-600 border-slate-300', provisional: true }
   }
   const provisional = evidenceCoverage < PROVISIONAL_COVERAGE_THRESHOLD

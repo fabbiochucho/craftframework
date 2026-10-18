@@ -9,7 +9,7 @@ import {
 import { derivePlan } from '../lib/moduleFindings'
 import { useModuleProfile } from '../lib/moduleProfile'
 import {
-  compositeVerifiedScore, evidenceCoveragePct, getEsgBadge, identifyGaps, ESG_QUESTIONS,
+  compositeVerifiedScore, evidenceCoveragePct, getEsgBadge, ratedAnswered, identifyGaps, ESG_QUESTIONS,
 } from '../lib/esg'
 import { REGULATORY_PILLARS, JurisdictionId } from '../lib/regulatory-context'
 import { MaterialityLens, MATERIALITY_LABEL } from '../lib/issb'
@@ -72,7 +72,7 @@ export function NarrativeReportPage() {
   const esgAnswered = Object.keys(esgScores).length
   const esgEvidenceCoverage = evidenceCoveragePct(esgEvidence)
   const esgVerified = compositeVerifiedScore(esgScores, esgEvidence)
-  const esgBadge = getEsgBadge(esgVerified, esgAnswered, esgEvidenceCoverage)
+  const esgBadge = getEsgBadge(esgVerified, ratedAnswered(esgScores), esgEvidenceCoverage)
   const esgGaps = identifyGaps(esgScores)
 
   const [moduleProfile] = useModuleProfile()
@@ -95,6 +95,7 @@ export function NarrativeReportPage() {
     esgVerifiedScore: esgVerified,
     esgAnswered,
     esgTotal: ESG_QUESTIONS.length,
+    esgStage: stageLabel(esgMaturity(esgScores, esgEvidence)),
     esgGaps,
     cipFindings,
     scopeEmissions: { scope3State: 'not_tracked' },

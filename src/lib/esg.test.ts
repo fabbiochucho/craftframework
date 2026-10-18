@@ -12,4 +12,12 @@ for (const q of ESG_QUESTIONS) {
   assert.ok(!/\b(compliant|certified)\b/i.test(q.question), `${q.id} wording`)
 }
 assert.ok(ESG_QUESTIONS.filter((q) => q.id.startsWith('ESG-N')).every((q) => q.frameworkRefs.includes('TNFD')))
+// Final review: adding questions must not cost existing organisations their rating
+import { getEsgBadge, ratedAnswered, RATED_QUESTION_IDS } from './esg.ts'
+assert.equal(RATED_QUESTION_IDS.length, 12)
+const legacy12 = Object.fromEntries(RATED_QUESTION_IDS.map((id) => [id, 4]))
+assert.equal(ratedAnswered(legacy12), 12)
+assert.equal(getEsgBadge(4.2, ratedAnswered(legacy12), 100).letter, 'AA', 'a complete original assessment keeps its rating')
+assert.equal(ratedAnswered({ 'ESG-N1': 4, 'ESG-G5': 3 }), 0, 'new questions do not count towards the rating')
+assert.equal(getEsgBadge(4.2, 11, 100).letter, 'Unrated')
 console.log('esg: ok')

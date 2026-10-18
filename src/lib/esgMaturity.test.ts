@@ -37,6 +37,6 @@ assert.ok(!/\b(compliant|certified)\b/i.test(JSON.stringify(ESG_STAGES)))
 import { stageLabel } from './esgMaturity.ts'
 assert.equal(stageLabel(none), 'Not yet at Foundations')
 assert.equal(stageLabel(top), 'Stage 5: Systemic leadership')
-assert.equal(stageLabel(l), 'Stage 4: Integrated value (provisional — answer 6 new questions to confirm)')
+assert.equal(stageLabel(l), 'Stage 4: Integrated value (provisional — answer 6 remaining questions to confirm)')
 assert.equal(stageLabel(esgMaturity(all(4), {})), 'Stage 5: Systemic leadership (self-reported — add evidence to confirm)')
 console.log('esgMaturity: ok')
