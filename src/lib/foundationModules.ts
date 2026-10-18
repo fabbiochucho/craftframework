@@ -24,7 +24,7 @@
 // ============================================================================
 
 import type { RubricQuestion } from './frameworks'
-import { MODULE_SCORE_PREFIX } from './data'
+import { MODULE_SCORE_PREFIX } from './data.ts'
 
 export type FoundationModuleId = 'craft-resilience' | 'craft-transformation' | 'craft-legacy'
 
@@ -34,10 +34,27 @@ export interface ModuleDimension {
   question: string
 }
 
+/** The kind of work closing a gap takes; drives the suggested CIP timeframe. */
+export type ActionType = 'policy' | 'process' | 'system' | 'people' | 'practice' | 'assurance'
+/** A link from a CRAFT indicator to an element of an external framework (see crosswalk.ts). */
+export type CrosswalkRef = { framework: string; ref: string }
+export type EsCategory = 'low' | 'moderate' | 'high'
+export type EsFlag = 'land' | 'biodiversity' | 'heritage' | 'intermediary'
+/** What the organisation has told CRAFT about itself; decides which indicators apply. */
+export interface ModuleProfile { publicBody?: boolean; esCategory?: EsCategory; esFlags?: EsFlag[] }
+/** When an indicator applies. Absent = always. */
+export type Applicability = { publicBody?: true; esCategories?: EsCategory[]; esFlag?: EsFlag }
+
 export interface ModuleIndicator extends RubricQuestion {
   dimension: string
   recommendation: string
   whyItMatters: string
+  version?: string
+  crosswalk?: CrosswalkRef[]
+  actionType?: ActionType
+  /** Shortest honest time, in weeks, to close the gap. */
+  minWeeks?: number
+  appliesWhen?: Applicability
 }
 
 export interface ModuleBand {
@@ -71,6 +88,11 @@ export interface FoundationModule {
   weakestLinkFloor: number
   /** Related CRAFT frameworks that reuse or deepen this module's evidence. */
   related: { frameworkId: string; label: string }[]
+  version?: string
+  /** Visible only to the Super Admin until founders sign off the content. */
+  preview?: boolean
+  /** Validating this module needs a specialist accreditation. */
+  specialist?: 'fiduciary' | 'safeguards'
 }
 
 const P = MODULE_SCORE_PREFIX
@@ -761,21 +783,40 @@ function meanOf(ids: string[], scores: Record<string, number>): number | null {
   return round2(answered.reduce((s, id) => s + scores[id], 0) / answered.length)
 }
 
-export function indicatorsForDimension(m: FoundationModule, dim: string): ModuleIndicator[] {
-  return m.indicators.filter(i => i.dimension === dim)
+export function applies(i: ModuleIndicator, p?: ModuleProfile): boolean {
+  const w = i.appliesWhen
+  if (!w || !p) return true
+  if (w.publicBody && !p.publicBody) return false
+  if (w.esFlag) return (p.esFlags ?? []).includes(w.esFlag)
+  if (w.esCategories) return !!p.esCategory && w.esCategories.includes(p.esCategory)
+  return true
+}
+
+/** Indicators that apply to this organisation. With no profile, every indicator applies. */
+export const applicableIndicators = (m: FoundationModule, p?: ModuleProfile): ModuleIndicator[] =>
+  m.indicators.filter(i => applies(i, p))
+
+/** Dimensions with at least one applicable indicator; the rest are out of scope, never scored 0. */
+export const applicableDimensions = (m: FoundationModule, p?: ModuleProfile): ModuleDimension[] => {
+  const inds = applicableIndicators(m, p)
+  return m.dimensions.filter(d => inds.some(i => i.dimension === d.key))
+}
+
+export function indicatorsForDimension(m: FoundationModule, dim: string, p?: ModuleProfile): ModuleIndicator[] {
+  return applicableIndicators(m, p).filter(i => i.dimension === dim)
 }
 
 /** Mean of the answered indicators in a dimension, or null when none answered. */
-export function dimensionScore(m: FoundationModule, dim: string, scores: Record<string, number>): number | null {
-  return meanOf(indicatorsForDimension(m, dim).map(i => i.id), scores)
+export function dimensionScore(m: FoundationModule, dim: string, scores: Record<string, number>, p?: ModuleProfile): number | null {
+  return meanOf(indicatorsForDimension(m, dim, p).map(i => i.id), scores)
 }
 
-export function compositeScore(m: FoundationModule, scores: Record<string, number>): number {
-  return meanOf(m.indicators.map(i => i.id), scores) ?? 0
+export function compositeScore(m: FoundationModule, scores: Record<string, number>, p?: ModuleProfile): number {
+  return meanOf(applicableIndicators(m, p).map(i => i.id), scores) ?? 0
 }
 
-export function answeredIn(m: FoundationModule, scores: Record<string, number>): number {
-  return m.indicators.filter(i => scores[i.id] != null).length
+export function answeredIn(m: FoundationModule, scores: Record<string, number>, p?: ModuleProfile): number {
+  return applicableIndicators(m, p).filter(i => scores[i.id] != null).length
 }
 
 export interface BandResult {
@@ -787,19 +828,19 @@ export interface BandResult {
   provisional: boolean
 }
 
-export function bandFor(m: FoundationModule, scores: Record<string, number>): BandResult | null {
-  const answered = answeredIn(m, scores)
+export function bandFor(m: FoundationModule, scores: Record<string, number>, p?: ModuleProfile): BandResult | null {
+  const answered = answeredIn(m, scores, p)
   if (answered === 0) return null
-  const composite = compositeScore(m, scores)
+  const composite = compositeScore(m, scores, p)
   const byComposite = [...m.bands].reverse().find(b => composite >= b.min) ?? m.bands[0]
-  const weakLinks = m.dimensions.filter(d => {
-    const s = dimensionScore(m, d.key, scores)
+  const weakLinks = applicableDimensions(m, p).filter(d => {
+    const s = dimensionScore(m, d.key, scores, p)
     return s != null && s < m.weakestLinkFloor
   })
   const capIndex = 1
   const uncappedIndex = m.bands.indexOf(byComposite)
   const band = weakLinks.length > 0 && uncappedIndex > capIndex ? m.bands[capIndex] : byComposite
-  return { band, uncapped: byComposite, weakLinks, provisional: answered < m.indicators.length }
+  return { band, uncapped: byComposite, weakLinks, provisional: answered < applicableIndicators(m, p).length }
 }
 
 export type LensStatus = 'not-assessed' | 'at-risk' | 'strained' | 'holds'
@@ -813,11 +854,11 @@ export interface LensResult {
   answered: number
 }
 
-export function evaluateLens(m: FoundationModule, lens: ModuleLens, scores: Record<string, number>): LensResult {
-  const score = meanOf(lens.indicatorIds, scores)
+export function evaluateLens(m: FoundationModule, lens: ModuleLens, scores: Record<string, number>, p?: ModuleProfile): LensResult {
   const inds = lens.indicatorIds
     .map(id => m.indicators.find(i => i.id === id))
-    .filter((i): i is ModuleIndicator => !!i)
+    .filter((i): i is ModuleIndicator => !!i && applies(i, p))
+  const score = meanOf(inds.map(i => i.id), scores)
   const answeredInds = inds.filter(i => scores[i.id] != null)
   const weakest = answeredInds.length
     ? answeredInds.reduce((a, b) => (scores[b.id] < scores[a.id] ? b : a))
@@ -834,15 +875,15 @@ export function evaluateLens(m: FoundationModule, lens: ModuleLens, scores: Reco
 }
 
 /** Answered indicators below "Defined" (3), weakest first - the priority action list. */
-export function priorityGaps(m: FoundationModule, scores: Record<string, number>): ModuleIndicator[] {
-  return m.indicators
+export function priorityGaps(m: FoundationModule, scores: Record<string, number>, p?: ModuleProfile): ModuleIndicator[] {
+  return applicableIndicators(m, p)
     .filter(i => scores[i.id] != null && scores[i.id] < 3)
     .sort((a, b) => scores[a.id] - scores[b.id])
 }
 
 /** Answered indicators at "Managed" (4) or above. */
-export function strengths(m: FoundationModule, scores: Record<string, number>): ModuleIndicator[] {
-  return m.indicators
+export function strengths(m: FoundationModule, scores: Record<string, number>, p?: ModuleProfile): ModuleIndicator[] {
+  return applicableIndicators(m, p)
     .filter(i => scores[i.id] != null && scores[i.id] >= 4)
     .sort((a, b) => scores[b.id] - scores[a.id])
 }
