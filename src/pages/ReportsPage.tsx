@@ -68,6 +68,8 @@ export function ReportsPage() {
   const answered = answeredCount(orgScores)
   const [toast, setToast] = useState<string | null>(null)
   const statusOf = (id: string): RiskStatus => cipStatuses[id] ?? 'To-be-Initiated'
+  // The organisation whose data is shown (a consultant viewing a client sees the client's name).
+  const orgName = currentOrg?.name ?? currentUser?.orgName ?? 'Workspace'
 
   // New reports draw on every assessment: core and indices (one score map), the ladder and ESG (their own stores).
   const [ladderScores] = useLegacyAssessment<Record<string, number>>('capital:scores', {})
@@ -152,7 +154,7 @@ export function ReportsPage() {
               className="mt-4"
               variant="outline"
               disabled={plan.length === 0}
-              onClick={() => { exportCsv(plan, statusOf, currentUser?.orgName ?? 'Workspace', planMonths); logActivity('Exported report', 'Capacity Plan (CSV)', 'Export'); setToast('✅ Capacity Plan exported as CSV.') }}
+              onClick={() => { exportCsv(plan, statusOf, orgName, planMonths); logActivity('Exported report', 'Capacity Plan (CSV)', 'Export'); setToast('✅ Capacity Plan exported as CSV.') }}
             >
               <Download className="h-4 w-4" /> Export CSV
             </Button>
@@ -203,14 +205,14 @@ export function ReportsPage() {
         </Card>
       </div>
 
-      {indexReport && <div className={hideUnless('index')}><IndexReportView r={indexReport} onPrint={() => printReport('index', `Index report: ${indexReport.title}`)} /></div>}
-      {alignment && <div className={hideUnless('alignment')}><AlignmentReportView r={alignment} onPrint={() => printReport('alignment', `Alignment: ${alignment.framework.name}`)} /></div>}
-      {iso && <div className={hideUnless('iso')}><IsoReadinessView r={iso} onPrint={() => printReport('iso', 'ISO certification readiness')} /></div>}
+      {indexReport && <div className={hideUnless('index')}><IndexReportView r={indexReport} org={orgName} onPrint={() => printReport('index', `Index report: ${indexReport.title}`)} /></div>}
+      {alignment && <div className={hideUnless('alignment')}><AlignmentReportView r={alignment} org={orgName} onPrint={() => printReport('alignment', `Alignment: ${alignment.framework.name}`)} /></div>}
+      {iso && <div className={hideUnless('iso')}><IsoReadinessView r={iso} org={orgName} onPrint={() => printReport('iso', 'ISO certification readiness')} /></div>}
 
       {/* Printable executive summary */}
       <Card className={`print:shadow-none print:border-0 ${hideUnless('summary')}`}>
         <CardHeader>
-          <CardTitle>Executive Summary: {currentUser?.orgName}</CardTitle>
+          <CardTitle>Executive Summary: {orgName}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-3">

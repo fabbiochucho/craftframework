@@ -1,7 +1,7 @@
 // One CRAFT index for one organisation: band, dimension scores, weakest answers, lenses and the plan actions it created.
 import { answeredIn, applicableDimensions, applicableIndicators, bandFor, compositeScore, dimensionScore, evaluateLens, priorityGaps,
   type BandResult, type FoundationModule, type LensResult, type ModuleProfile } from '../foundationModules.ts'
-import { deriveModuleFindings } from '../moduleFindings.ts'
+import { derivePlan } from '../moduleFindings.ts'
 import type { DerivedFinding } from '../data.ts'
 
 export interface IndexReport {
@@ -15,6 +15,8 @@ export interface IndexReport {
   dimensions: { name: string; score: number | null }[]
   weakest: { id: string; question: string; score: number }[]
   lenses: LensResult[]
+  /** Only the v1 (102026) indices create Capacity Improvement Plan actions. */
+  feedsPlan: boolean
   actions: DerivedFinding[]
 }
 
@@ -31,6 +33,8 @@ export function buildIndexReport(m: FoundationModule, scores: Record<string, num
     dimensions: applicableDimensions(m, p).map((d) => ({ name: d.name, score: dimensionScore(m, d.key, scores, p) })),
     weakest: priorityGaps(m, scores, p).slice(0, 5).map((i) => ({ id: i.id, question: i.question, score: scores[i.id] })),
     lenses: m.lenses.map((l) => evaluateLens(m, l, scores, p)),
-    actions: deriveModuleFindings(scores, p, planMonths).filter((a) => ids.has(a.id)),
+    feedsPlan: m.version === 'v1 (102026)',
+    // Taken from the whole plan so due dates match the CIP and its CSV exactly.
+    actions: derivePlan(scores, p, planMonths).filter((a) => ids.has(a.id)),
   }
 }
