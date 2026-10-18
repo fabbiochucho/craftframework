@@ -34,6 +34,17 @@ const COSO_PRINCIPLES: Array<[string, string]> = [
   ['P16', 'Ongoing and separate evaluations'], ['P17', 'Deficiencies reported and fixed'],
 ]
 
+// COSO ERM (2017) principles, CRAFT's own short wording.
+const ERM_PRINCIPLES: Array<[string, string]> = [
+  ['P1', 'Board oversight of risk'], ['P2', 'Operating structures in place'], ['P3', 'Desired culture defined'],
+  ['P4', 'Commitment to core values'], ['P5', 'Capable people attracted, developed and kept'],
+  ['P6', 'Operating context analysed'], ['P7', 'Risk appetite defined'], ['P8', 'Alternative strategies evaluated'],
+  ['P9', 'Objectives set'], ['P10', 'Risks identified'], ['P11', 'Severity of risk assessed'], ['P12', 'Risks prioritised'],
+  ['P13', 'Risk responses put in place'], ['P14', 'Portfolio view of risk developed'], ['P15', 'Significant change assessed'],
+  ['P16', 'Risk and performance reviewed'], ['P17', 'Risk management improved'], ['P18', 'Information and technology used'],
+  ['P19', 'Risk information communicated'], ['P20', 'Risk, culture and performance reported'],
+]
+
 export const EXTERNAL_FRAMEWORKS: ExternalFramework[] = [
   // ---- Fiduciary, governance and risk ----
   { id: 'coso-ic', name: 'COSO Internal Control — Integrated Framework (2013)', owner: 'COSO', kind: 'framework',
@@ -41,7 +52,7 @@ export const EXTERNAL_FRAMEWORKS: ExternalFramework[] = [
       ['IC', 'Information and communication'], ['MA', 'Monitoring activities'], ...COSO_PRINCIPLES]) },
   { id: 'coso-erm', name: 'COSO Enterprise Risk Management (2017)', owner: 'COSO', kind: 'framework',
     elements: el([['GC', 'Governance and culture'], ['SO', 'Strategy and objective-setting'], ['PF', 'Performance'],
-      ['RR', 'Review and revision'], ['ICR', 'Information, communication and reporting']]) },
+      ['RR', 'Review and revision'], ['ICR', 'Information, communication and reporting'], ...ERM_PRINCIPLES]) },
   { id: 'iso-31000', name: 'ISO 31000:2018 Risk management', owner: 'ISO', kind: 'guidance',
     elements: el([['4', 'Principles'], ['5', 'Framework'], ['6.3', 'Scope and context'], ['6.4', 'Risk assessment'],
       ['6.5', 'Risk treatment'], ['6.6', 'Monitoring and review'], ['6.7', 'Recording and reporting']]) },
@@ -89,7 +100,7 @@ export const EXTERNAL_FRAMEWORKS: ExternalFramework[] = [
     elements: el([['MEASURE', 'Engagement measured'], ['ENABLERS', 'Enablers in place'], ['ACTION', 'Results acted on']]) },
   { id: 'bsc', name: 'Balanced Scorecard', owner: 'Robert Kaplan and David Norton', kind: 'framework',
     elements: el([['FINANCIAL', 'Financial perspective'], ['CUSTOMER', 'People served perspective'], ['PROCESS', 'Internal process perspective'],
-      ['LEARNING', 'Learning and growth perspective']]) },
+      ['LEARNING', 'Learning and growth perspective'], ['CASCADE', 'Strategy translated into objectives, measures and targets, and cascaded']]) },
   // ---- Change management ----
   { id: 'adkar', name: 'ADKAR Model', owner: 'Prosci', kind: 'framework',
     elements: el([['AWARENESS', 'Awareness'], ['DESIRE', 'Desire'], ['KNOWLEDGE', 'Knowledge'], ['ABILITY', 'Ability'], ['REINFORCEMENT', 'Reinforcement']]) },

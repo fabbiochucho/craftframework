@@ -2,14 +2,15 @@
 import { frameworkById, type ExternalFramework } from '../crosswalk.ts'
 import { indicatorsFor } from '../crosswalkExisting.ts'
 import type { ModuleProfile } from '../foundationModules.ts'
-import { coverageOf, emptyCounts, type Coverage, type MappedIndicator } from './coverage.ts'
+import { coverageOf, emptyCounts, lensNote, type Coverage, type MappedIndicator } from './coverage.ts'
 import { ATTRIBUTION_NOTICE } from './legal.ts'
 
 export interface AlignmentReport {
   title: string
   framework: ExternalFramework
-  elements: { id: string; label: string; coverage: Coverage; mean: number | null; answered: number; applicable: number; indicators: MappedIndicator[] }[]
+  elements: { id: string; label: string; coverage: Coverage; mean: number | null; answered: number; applicable: number; indicators: MappedIndicator[]; rationale: string[] }[]
   counts: Record<Coverage, number>
+  lensNote: string
   footer: string
 }
 
@@ -22,9 +23,10 @@ export function buildAlignmentReport(frameworkId: string, scores: Record<string,
   if (!framework) throw new Error(`Unknown framework: ${frameworkId}`)
   const counts = emptyCounts()
   const elements = framework.elements.map((el) => {
-    const c = coverageOf(indicatorsFor(frameworkId, el.id), scores, p, lenses)
+    const entries = indicatorsFor(frameworkId, el.id)
+    const c = coverageOf(entries, scores, p, lenses)
     counts[c.coverage]++
-    return { id: el.id, label: el.label, ...c }
+    return { id: el.id, label: el.label, ...c, rationale: [...new Set(entries.map((e) => e.rationale[`${frameworkId}:${el.id}`]))] }
   })
-  return { title: `Alignment with ${framework.name} (CRAFT mapping)`, framework, elements, counts, footer: ATTRIBUTION_NOTICE }
+  return { title: `Alignment with ${framework.name} (CRAFT mapping)`, framework, elements, counts, lensNote: lensNote(lenses), footer: ATTRIBUTION_NOTICE }
 }

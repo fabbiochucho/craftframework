@@ -10,8 +10,10 @@ import {
 import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
 import {
   computeOrgScore, computeImplementationEvidence, computeCompositeIndices,
-  getAccreditation, deriveFindings, BRAND,
+  getAccreditation, deriveFindings, BRAND, CIP_PLAN_MONTHS_DEFAULT,
 } from '../lib/data'
+import { derivePlan } from '../lib/moduleFindings'
+import { useModuleProfile, useModuleProfiles } from '../lib/moduleProfile'
 
 // ============================================================================
 // Wallboard — a full-screen, auto-refreshing "livescreen" broadcast of the
@@ -112,6 +114,15 @@ export function WallboardPage() {
     return () => clearInterval(id)
   }, [isAggregate, organizations.length])
 
+  // Critical counts include index gaps, which depend on each organisation's saved screening answers. Until every
+  // organisation's answers have loaded (or if any request fails) the counts fall back to the core assessment only.
+  const orgIds = useMemo(() => organizations.map(o => o.id), [organizations])
+  const { profiles, complete: profilesReady } = useModuleProfiles(isAggregate ? orgIds : [], !!currentUser?.isDemo)
+  const [soloProfile] = useModuleProfile()
+  const criticalsFor = (s: Record<string, number>, p: Parameters<typeof derivePlan>[1] | null) =>
+    (p ? derivePlan(s, p, CIP_PLAN_MONTHS_DEFAULT) : deriveFindings(s)).filter(f => f.severity === 'Critical')
+  const criticalsNote = isAggregate && !profilesReady ? 'Core assessment gaps only' : 'Core assessment and index gaps'
+
   const aggregate = useMemo(() => {
     const rows = organizations.map(o => {
       const s = scores[o.id] || {}
@@ -120,7 +131,7 @@ export function WallboardPage() {
         name: o.name,
         composite: computeOrgScore(s),
         evidence: computeImplementationEvidence(s),
-        criticals: deriveFindings(s).filter(f => f.severity === 'Critical').length,
+        criticals: criticalsFor(s, profilesReady ? profiles[o.id] ?? {} : null).length,
       }
     })
     const mean = Math.round(rows.reduce((a, r) => a + r.composite, 0) / (rows.length || 1))
@@ -131,7 +142,7 @@ export function WallboardPage() {
       totalCriticals: rows.reduce((a, r) => a + r.criticals, 0),
       belowThreshold: rows.filter(r => r.evidence < 50).length,
     }
-  }, [organizations, scores])
+  }, [organizations, scores, profiles, profilesReady])
 
   const solo = useMemo(() => {
     const s = currentOrg ? scores[currentOrg.id] || {} : {}
@@ -139,9 +150,9 @@ export function WallboardPage() {
       composite: computeOrgScore(s),
       evidence: computeImplementationEvidence(s),
       indices: computeCompositeIndices(s),
-      criticals: deriveFindings(s).filter(f => f.severity === 'Critical'),
+      criticals: criticalsFor(s, soloProfile),
     }
-  }, [currentOrg, scores])
+  }, [currentOrg, scores, soloProfile])
 
   if (!currentUser) return null
 
@@ -221,14 +232,14 @@ export function WallboardPage() {
             <>
               <KpiTile icon={Building2} label="Institutions live" value={aggregate.count} tone="text-emerald-400" />
               <KpiTile icon={Activity} label="Mean composite" value={`${aggregate.mean}%`} tone={scoreTone(aggregate.mean).text} />
-              <KpiTile icon={AlertOctagon} label="Open critical risks" value={aggregate.totalCriticals} tone="text-rose-400" />
+              <KpiTile icon={AlertOctagon} label="Open critical risks" value={aggregate.totalCriticals} tone="text-rose-400" note={criticalsNote} />
               <KpiTile icon={ShieldCheck} label="Below self-score threshold" value={aggregate.belowThreshold} tone="text-amber-400" />
             </>
           ) : (
             <>
               <KpiTile icon={Activity} label="Composite score" value={`${solo.composite}%`} tone={scoreTone(solo.composite).text} />
               <KpiTile icon={ShieldCheck} label="Implementation self-score proxy" value={`${solo.evidence}%`} tone={scoreTone(solo.evidence).text} />
-              <KpiTile icon={AlertOctagon} label="Open critical risks" value={solo.criticals.length} tone="text-rose-400" />
+              <KpiTile icon={AlertOctagon} label="Open critical risks" value={solo.criticals.length} tone="text-rose-400" note={criticalsNote} />
               <KpiTile icon={Building2} label="Composite indices" value={solo.indices.length} tone="text-emerald-400" />
             </>
           )}
@@ -290,13 +301,14 @@ export function WallboardPage() {
   )
 }
 
-function KpiTile({ icon: Icon, label, value, tone }: { icon: typeof Activity; label: string; value: string | number; tone: string }) {
+function KpiTile({ icon: Icon, label, value, tone, note }: { icon: typeof Activity; label: string; value: string | number; tone: string; note?: string }) {
   return (
     <div className="flex flex-col justify-between rounded-3xl border border-white/10 bg-white/[0.03] p-6">
       <Icon className={`h-7 w-7 ${tone}`} />
       <div className="mt-4">
         <p className={`font-display text-5xl font-black leading-none ${tone}`}>{value}</p>
         <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+        {note && <p className="mt-1 text-[11px] text-slate-500">{note}</p>}
       </div>
     </div>
   )

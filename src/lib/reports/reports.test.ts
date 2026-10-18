@@ -33,9 +33,13 @@ assert.ok(withLens.applicable > withoutLens.applicable, 'switching the lens on a
 assert.equal(COVERAGE_LABEL['not-mapped'], 'No CRAFT question mapped')
 assert.equal(alignmentAvailable('coso-ic'), true)
 assert.equal(alignmentAvailable('pact-omt'), false, 'frameworks with fewer than 5 mapped questions are not offered')
+// Two low answers out of many: a gap, but on limited evidence
 const low = buildAlignmentReport('coso-ic', { 'CRAFT-FCR-01': 0, 'CRAFT-FCR-03': 1 }, {})
-assert.equal(low.elements.find((e) => e.id === 'CE')?.coverage, 'gap')
-assert.equal(low.counts.gap >= 1, true)
+assert.equal(low.elements.find((e) => e.id === 'CE')?.coverage, 'gap-limited')
+assert.equal(COVERAGE_LABEL['gap-limited'], 'Gap (limited evidence)')
+assert.equal(low.counts['gap-limited'] >= 1, true)
+const p3zero = buildAlignmentReport('coso-ic', Object.fromEntries(p3.map((e) => [e.id, 0])), {})
+assert.equal(p3zero.elements.find((e) => e.id === 'P3')?.coverage, 'gap', 'enough low answers: a gap')
 // Non-applicable (Review Focus 2): a PFM indicator for a non-public body
 const pefa = buildAlignmentReport('pefa', { 'CRAFT-FCR-27': 1 }, {})
 const v = pefa.elements.find((e) => e.id === 'V')!
@@ -80,3 +84,14 @@ const resilience = FOUNDATION_MODULES.find((m) => m.id === 'craft-resilience')!
 assert.equal(buildIndexReport(resilience, {}, {}, 24).feedsPlan, false)
 assert.equal(buildIndexReport(ORGANISATIONAL_HEALTH, {}, {}, 24).feedsPlan, true)
 console.log('reports (final review): ok')
+
+// Stage 2 additions: lenses named on reports; unanswered index has no composite; every element says why it is mapped
+assert.equal(buildAlignmentReport('coso-ic', {}, {}).lensNote, 'Thematic lenses included: none')
+assert.match(buildAlignmentReport('ifrs-s2', {}, {}, [lensEntry!.lens!]).lensNote, /^Thematic lenses included: \w/)
+assert.ok(!/none/.test(buildIsoReadiness(['iso-14001'], {}, {}, [lensEntry!.lens!]).lensNote))
+assert.equal(buildIndexReport(ORGANISATIONAL_HEALTH, {}, {}, 24).composite, null, 'nothing answered: no composite, not 0')
+const bscCascade = buildAlignmentReport('bsc', {}, {}).elements.find((e) => e.id === 'CASCADE')!
+assert.ok(bscCascade.rationale.length > 0 && bscCascade.rationale.every((t) => t.length > 10))
+const bscFin = buildAlignmentReport('bsc', {}, {}).elements.find((e) => e.id === 'FINANCIAL')!
+assert.ok(bscFin.rationale.some((t) => /budget/i.test(t)), 'question-level reasons reach the report')
+console.log('reports (stage 2 additions): ok')

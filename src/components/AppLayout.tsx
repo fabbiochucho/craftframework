@@ -212,7 +212,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div data-sensitive-workspace translate="no" className="flex h-screen bg-emerald-50/30 font-sans print:block print:h-auto print:bg-white">
       {sidebarOpen && (
-        <div className="fixed inset-0 z-20 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-20 bg-black/40 lg:hidden print:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Vault sidebar */}
@@ -379,13 +379,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-1 flex-col overflow-y-auto print:overflow-visible">
           {currentUser.isDemo && (
-            <div className="flex items-center justify-center gap-2 bg-amber-400 px-4 py-1.5 text-center text-xs font-semibold text-slate-900">
+            <div className="flex items-center justify-center gap-2 bg-amber-400 px-4 py-1.5 text-center text-xs font-semibold text-slate-900 print:hidden">
               <Users className="h-3.5 w-3.5" />
               Demo Mode: sample data for exploration only. Nothing here is saved to a live workspace.
             </div>
           )}
           {isViewingClient && currentOrg && (
-            <div className="flex flex-wrap items-center justify-center gap-2 bg-blue-600 px-4 py-1.5 text-center text-xs font-semibold text-white">
+            <div className="flex flex-wrap items-center justify-center gap-2 bg-blue-600 px-4 py-1.5 text-center text-xs font-semibold text-white print:hidden">
               <Eye className="h-3.5 w-3.5" />
               Viewing <strong>{currentOrg.name}</strong> — read-only client workspace.
               <button

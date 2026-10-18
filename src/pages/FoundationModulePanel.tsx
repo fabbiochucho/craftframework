@@ -167,7 +167,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
             </>
           )}
         </Card>
-        <Stat label="Composite Score" value={`${composite.toFixed(2)} / 5`} hint="Mean across answered indicators" accent={compositeAccent} />
+        <Stat label="Composite Score" value={answered === 0 ? '—' : `${composite.toFixed(2)} / 5`} hint="Mean across answered indicators" accent={compositeAccent} />
         <Card className="p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Weak Links</p>
           <p className={cn('mt-2 text-3xl font-bold', band?.weakLinks.length ? 'text-rose-600' : 'text-slate-800')}>

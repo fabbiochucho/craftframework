@@ -13,6 +13,7 @@ import { EXTERNAL_FRAMEWORKS } from '../lib/crosswalk'
 import { buildIndexReport } from '../lib/reports/indexReport'
 import { alignmentAvailable, buildAlignmentReport } from '../lib/reports/alignmentReport'
 import { buildIsoReadiness } from '../lib/reports/isoReadiness'
+import { COVERAGE_LABEL } from '../lib/reports/coverage'
 import { AlignmentReportView, IndexReportView, IsoReadinessView } from '../components/reports/ReportViews'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
@@ -39,9 +40,9 @@ function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, org
 }
 
 function exportAlignmentCsv(r: ReturnType<typeof buildAlignmentReport>) {
-  const header = 'Element,Label,Coverage,Answered,In scope,Average,Mapped question ids'
-  const rows = r.elements.map(e => [e.id, csvCell(e.label), e.coverage, e.answered, e.applicable, e.mean ?? '', csvCell(e.indicators.map(i => i.id).join(' '))].join(','))
-  const blob = new Blob([[csvCell(r.title), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const header = 'Element,Label,Coverage,Answered,In scope,Average,Mapped question ids,Why mapped'
+  const rows = r.elements.map(e => [e.id, csvCell(e.label), csvCell(COVERAGE_LABEL[e.coverage]), e.answered, e.applicable, e.mean ?? '', csvCell(e.indicators.map(i => i.id).join(' ')), csvCell(e.rationale.join(' | '))].join(','))
+  const blob = new Blob([[csvCell(r.title), csvCell(r.lensNote), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -95,7 +96,8 @@ export function ReportsPage() {
     if (!printTarget) return
     const done = () => setPrintTarget(null)
     window.addEventListener('afterprint', done)
-    const t = window.setTimeout(() => window.print(), 50)
+    // print() returns once the dialog closes; resetting here too lets the same report print again where afterprint never fires.
+    const t = window.setTimeout(() => { window.print(); done() }, 50)
     return () => { window.clearTimeout(t); window.removeEventListener('afterprint', done) }
   }, [printTarget])
   const hideUnless = (t: PrintTarget) => (printTarget && printTarget !== t ? 'print:hidden' : '')

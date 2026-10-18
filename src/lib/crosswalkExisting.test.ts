@@ -27,4 +27,20 @@ assert.ok(!has(CORE_DOMAIN_REFS, 'Sustainability & Financing', 'ifrs-s1', 'STRAT
 assert.ok(!has(CORE_DOMAIN_REFS, 'Grant Management', 'pefa', 'V'), 'donor grants are not government budget execution')
 assert.ok(has(CORE_DOMAIN_REFS, 'USG Compliance', 'coso-ic', 'CE') && has(CORE_DOMAIN_REFS, 'International Donor Compliance', 'gf-pr', 'TOOL'))
 assert.ok(!has(LADDER_DOMAIN_REFS, 'Legal Structure & Registration', 'ifc-cgdf', 'COMMIT'), 'legal constitution is not commitment to governance')
+// Strengthened links: the cascade, not one perspective, at domain level; perspectives on the questions that name them
+const entry = (id: string) => INDICATOR_CATALOGUE.find((e) => e.id === id)!
+const refd = (id: string, fw: string, ref: string) => entry(id).refs.some((r) => r.framework === fw && r.ref === ref)
+assert.ok(has(CORE_DOMAIN_REFS, 'Strategy & Planning', 'bsc', 'CASCADE') && !has(CORE_DOMAIN_REFS, 'Strategy & Planning', 'bsc', 'FINANCIAL'))
+for (const id of ['SP-04', 'SP-05', 'SP-06']) for (const p of ['FINANCIAL', 'CUSTOMER', 'PROCESS', 'LEARNING']) assert.ok(refd(id, 'bsc', p), `${id} → bsc:${p}`)
+assert.ok(refd('SP-15', 'bsc', 'FINANCIAL') && refd('SP-13', 'bsc', 'LEARNING'))
+assert.ok(!refd('SP-13', 'bsc', 'FINANCIAL'), 'a culture question is not the financial perspective')
+assert.ok(refd('SP-13', 'mck-7s', 'STRATEGY'), 'question-level refs add to the domain refs')
+// Emergency preparedness: risk response, not ERM performance as a whole
+assert.ok(!has(CORE_DOMAIN_REFS, 'Emergency Preparedness', 'coso-erm', 'PF'))
+for (const id of ['EPR-02', 'EPR-08', 'EPR-13', 'EPR-20']) assert.ok(refd(id, 'coso-erm', 'P13') && refd(id, 'iso-31000', '6.5'), `${id} → risk response`)
+assert.ok(refd('EPR-03', 'coso-erm', 'P16') && refd('EPR-03', 'coso-erm', 'P17'))
+assert.ok(!refd('EPR-01', 'coso-erm', 'P13') && refd('EPR-01', 'iso-22301', 'MS'))
+// Every mapping says why
+for (const e of INDICATOR_CATALOGUE) for (const r of e.refs) assert.ok(e.rationale[`${r.framework}:${r.ref}`]?.length > 10, `rationale for ${e.id} → ${r.framework}:${r.ref}`)
+assert.match(entry('SP-15').rationale['bsc:FINANCIAL'], /budget/i)
 console.log('crosswalkExisting: ok')
