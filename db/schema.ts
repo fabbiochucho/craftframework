@@ -1995,3 +1995,11 @@ export const directoryProfileViews = pgTable('directory_profile_views', {
   day: date('day', { mode: 'string' }).notNull(),
   views: integer('views').notNull().default(0),
 }, (t) => [primaryKey({ columns: [t.kind, t.profileId, t.day] })])
+
+// Laws register approvals: a Super Admin approves all of a jurisdiction's entries after founder or counsel review.
+export const lawApprovals = pgTable('law_approvals', {
+  jurisdiction: text('jurisdiction').primaryKey(),
+  approvedBy: text('approved_by').notNull(),
+  registerVersion: text('register_version').notNull(),
+  approvedAt: timestamp('approved_at', { withTimezone: true }).notNull().defaultNow(),
+})

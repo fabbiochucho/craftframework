@@ -121,3 +121,12 @@ assert.equal(isRecheckDue({ ...ok, source: { ...ok.source, checked: '2025-10-18'
 const staleReport = buildJurisdictionReport(['NG'], {}, {}, [], [approved({ ...ok, source: { ...ok.source, checked: '2024-01-01' } })], [], '2026-10-18')
 assert.equal(staleReport.sections[0].areas[0].laws[0].recheckDue, true)
 console.log('laws (re-check warning): ok')
+
+// Batch A, task 3: in-app approval per jurisdiction
+import { applyApprovals } from './jurisdictionReport.ts'
+const pend: LawEntry[] = [ok, { ...ok, id: 'KE-data-1', jurisdiction: 'KE' }]
+assert.deepEqual(applyApprovals(pend, ['NG']).map((e) => e.review), ['approved', 'pending'])
+assert.equal(buildJurisdictionReport(['NG'], {}, {}, [], pend, ['NG']).sections[0].reviewed, true, 'an approved jurisdiction shows its laws')
+assert.equal(buildJurisdictionReport(['KE'], {}, {}, [], pend, ['NG']).sections[0].reviewed, false)
+assert.deepEqual(buildInternalCheck(pend, '2026-10-18', ['NG']).pending, [{ jurisdiction: 'KE', count: 1 }], 'approved jurisdictions leave the pending list')
+console.log('laws (approvals): ok')
