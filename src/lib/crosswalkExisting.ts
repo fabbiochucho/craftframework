@@ -33,15 +33,15 @@ export const CORE_DOMAIN_REFS = table({
   'Audit & Assurance': 'coso-ic:MA coso-ic:P16 nccg-2018:ASSURANCE pefa:VII',
   'Ethics & Anti-Fraud': 'coso-ic:P1 coso-ic:P8 iso-37001:MS iso-37002:MS nccg-2018:CONDUCT',
   'Grant Management': 'coso-ic:CA coso-ic:MA gf-pr:TOOL',
-  'Program & Project Mgmt': 'bsc:PROCESS mck-7s:SYSTEMS',
-  'Monitoring, Evaluation & Learning': 'bsc:LEARNING mck-ohi:INNOVATION',
+  'Program & Project Mgmt': 'bsc:PROCESS mck-7s:SYSTEMS iso-9001:MS',
+  'Monitoring, Evaluation & Learning': 'bsc:LEARNING mck-ohi:INNOVATION iso-9001:MS',
   'Partnerships & Stakeholders': 'mck-ohi:EXTERNAL ifc-cgdf:STAKEHOLDERS afdb-iss:OS10',
   'USG Compliance': 'coso-ic:CE coso-ic:CA coso-ic:MA iso-37301:MS',
   'International Donor Compliance': 'coso-ic:CE coso-ic:CA coso-ic:MA iso-37301:MS gf-pr:TOOL',
   'Digital Systems & Cyber': 'iso-27001:MS iso-27701:MS nist-csf-2:GV nist-csf-2:ID nist-csf-2:PR nist-csf-2:DE nist-csf-2:RS nist-csf-2:RC',
   'Emergency Preparedness': 'iso-22301:MS nist-csf-2:RC coso-erm:PF',
   'Research & Innovation': 'mck-ohi:INNOVATION bsc:LEARNING',
-  'PMO & Delivery': 'bsc:PROCESS mck-ohi:COORDINATION',
+  'PMO & Delivery': 'bsc:PROCESS mck-ohi:COORDINATION iso-9001:MS',
   'Climate Governance': 'ifrs-s2:GOV ifrs-s2:STRAT ifrs-s2:RISK',
   'Env. & Social Safeguards': 'afdb-iss:OS1 afdb-iss:OS2 afdb-iss:OS4 afdb-iss:OS10 iso-14001:MS',
   'Climate Finance Access': 'ifrs-s2:STRAT ifrs-s1:STRAT',
@@ -109,13 +109,15 @@ export interface CatalogueEntry {
   question: string
   refs: CrosswalkRef[]
   applies: (p?: ModuleProfile) => boolean
+  /** Core questions in a thematic lens are asked only when that lens is switched on. */
+  lens?: string
 }
 
 const always = () => true
 
 /** Every indicator CRAFT asks, with the framework elements it relates to. */
 export const INDICATOR_CATALOGUE: CatalogueEntry[] = [
-  ...MOCK_QUESTIONS.map((q): CatalogueEntry => ({ id: q.id, source: 'core', sourceName: 'Core assessment', question: q.question, refs: CORE_DOMAIN_REFS[q.domain] ?? [], applies: always })),
+  ...MOCK_QUESTIONS.map((q): CatalogueEntry => ({ id: q.id, source: 'core', sourceName: 'Core assessment', question: q.question, refs: CORE_DOMAIN_REFS[q.domain] ?? [], applies: always, ...(q.lens ? { lens: q.lens } : {}) })),
   ...LADDER_INDICATORS.map((q): CatalogueEntry => ({ id: q.id, source: 'ladder', sourceName: 'Capital Readiness Ladder', question: q.question, refs: LADDER_DOMAIN_REFS[q.domain] ?? [], applies: always })),
   ...ESG_QUESTIONS.map((q): CatalogueEntry => ({ id: q.id, source: 'esg', sourceName: 'ESG Self-Assessment', question: q.question, refs: ESG_PILLAR_REFS[q.pillar] ?? [], applies: always })),
   ...FOUNDATION_MODULES.flatMap((m) => m.indicators.map((i): CatalogueEntry => ({
