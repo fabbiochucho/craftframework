@@ -5,7 +5,14 @@ import { LAW_REGISTER, LAW_DATA_VERSION } from '../src/lib/laws/register.ts'
 import { LAW_AREAS, jurisdictionName } from '../src/lib/laws/types.ts'
 
 const batch = process.argv[2] ?? 'phase1'
-const BATCHES = { phase1: ['NG', 'KE', 'ZA', 'MA', 'EG', 'SN', 'MU', 'CV', 'US', 'UK', 'EU'] }
+const BATCHES = {
+  phase1: ['NG', 'KE', 'ZA', 'MA', 'EG', 'SN', 'MU', 'CV', 'US', 'UK', 'EU'],
+  north: ['DZ', 'LY', 'MR', 'TN'],
+  west: ['BJ', 'BF', 'CI', 'GM', 'GH', 'GN', 'GW', 'LR', 'ML', 'NE', 'SL', 'TG'],
+  central: ['BI', 'CM', 'CF', 'TD', 'CG', 'CD', 'GQ', 'GA', 'ST'],
+  east: ['KM', 'DJ', 'ER', 'ET', 'MG', 'RW', 'SC', 'SO', 'SS', 'SD', 'TZ', 'UG'],
+  southern: ['AO', 'BW', 'SZ', 'LS', 'MW', 'MZ', 'NA', 'ZM', 'ZW'],
+}
 const ids = BATCHES[batch] ?? batch.split(',')
 // Escape backslashes first, then pipes, so text can never break out of its table cell.
 const cell = (s) => String(s ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ')

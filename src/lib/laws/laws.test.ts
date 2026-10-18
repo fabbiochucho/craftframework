@@ -100,3 +100,8 @@ assert.ok(csvRows.some((r) => r[0] === 'Kenya' && r[2] === 'Not yet reviewed'), 
 assert.ok(csvRows.some((r) => r[0] === 'Nigeria' && /1 entry still awaiting review/.test(String(r[2]))), 'partly reviewed jurisdiction says so in the CSV')
 assert.ok(csvRows.some((r) => r[0] === 'Nigeria' && r[2] === 'Nigeria Data Protection Act'), 'approved laws still listed')
 console.log('laws (final review fixes): ok')
+
+// Every jurisdiction in the register covers all areas, and phase 2 entries start pending
+for (const j of new Set(LAW_REGISTER.map((e) => e.jurisdiction))) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `${j} has an entry for ${a}`)
+assert.ok(LAW_REGISTER.filter((e) => !PHASE1.includes(e.jurisdiction)).every((e) => e.review === 'pending'), 'phase 2 entries start pending')
+console.log('laws (all jurisdictions complete): ok')
