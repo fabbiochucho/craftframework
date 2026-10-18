@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { AppLayout } from '../components/AppLayout'
 import { AssessmentFrameworkPage } from '../pages/AssessmentFrameworkPage'
 
-export const Route = createFileRoute('/assessment/$frameworkId')({
+export const Route = createFileRoute('/assessment_/$frameworkId')({
   component: AssessmentFrameworkRoute,
 })
 
