@@ -3,9 +3,9 @@ import { FileText, Download, Printer, Scale, ShieldCheck } from 'lucide-react'
 import { useWorkspace, useScoresCtx, useCIPCtx, useEntityProfileCtx } from '../lib/context'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import {
-  deriveFindings, computeOrgScore, getAccreditation, getReadinessClassification,
+  computeOrgScore, getAccreditation, getReadinessClassification,
 } from '../lib/data'
-import { deriveModuleFindings } from '../lib/moduleFindings'
+import { derivePlan } from '../lib/moduleFindings'
 import { useModuleProfile } from '../lib/moduleProfile'
 import {
   compositeVerifiedScore, evidenceCoveragePct, getEsgBadge, identifyGaps, ESG_QUESTIONS,
@@ -75,10 +75,7 @@ export function NarrativeReportPage() {
   const esgGaps = identifyGaps(esgScores)
 
   const [moduleProfile] = useModuleProfile()
-  const cipFindings = useMemo(
-    () => [...deriveFindings(orgScores, 2, planMonths), ...deriveModuleFindings(orgScores, moduleProfile, planMonths)],
-    [orgScores, planMonths, moduleProfile],
-  )
+  const cipFindings = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths), [orgScores, planMonths, moduleProfile])
 
   const ctx: NarrativeOrgContext = {
     orgName: currentOrg?.name || '[Insert Organization Name]',
