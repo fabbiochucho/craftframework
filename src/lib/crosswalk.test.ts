@@ -16,6 +16,8 @@ for (const need of ['coso-ic', 'coso-erm', 'iso-31000', 'ifc-cgdf', 'nccg-2018',
 assert.equal(frameworkById('iso-31000')?.kind, 'guidance', 'ISO 31000 is guidance, never certifiable')
 assert.equal(frameworkById('iso-37002')?.kind, 'guidance')
 assert.equal(frameworkById('iso-27001')?.kind, 'certifiable')
+assert.equal(frameworkById('iso-14064-1')?.kind, 'verified', 'GHG statements are verified, not certified')
+for (const existing of ['pact-omt', 'pact-oca', 'gf-pr', 'gfa', 'oecd-ai', 'g7-ai']) assert.ok(frameworkById(existing), `existing CRAFT framework registered: ${existing}`)
 assert.equal(frameworkById('coso-ic')?.elements.length, 22, 'COSO IC: 5 components + 17 principles')
 
 assert.deepEqual(crosswalkProblems([{ indicatorId: 'A', refs: [{ framework: 'coso-ic', ref: 'CE' }] }]), [])
