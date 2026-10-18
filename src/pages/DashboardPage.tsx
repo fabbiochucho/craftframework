@@ -8,9 +8,12 @@ import { Lock, AlertOctagon, ShieldCheck, ArrowRight, Gauge, ClipboardList, Glob
 import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useLensCtx } from '../lib/context'
 import {
   computeOrgScore, computeTierScore, computeCompositeIndices,
-  getAccreditation, deriveFindings, severityStyle, PAPER_COMPLIANCE_THRESHOLD,
+  getAccreditation, severityStyle, PAPER_COMPLIANCE_THRESHOLD,
   TIER_NAMES, answeredCount, CLIMATE_QUESTIONS, lensQuestionCount,
 } from '../lib/data'
+import { CIP_PLAN_MONTHS_DEFAULT } from '../lib/data'
+import { derivePlan } from '../lib/moduleFindings'
+import { useModuleProfile } from '../lib/moduleProfile'
 import {
   Card, CardHeader, CardTitle, CardContent, Stat, StatusBadge, ProgressBar, Button,
   Table, Thead, Tbody, Th, Td,
@@ -30,7 +33,8 @@ export function DashboardPage() {
     () => TIER_NAMES.map((name, i) => ({ name: name.split(' ')[0], full: name, value: computeTierScore(orgScores, i + 1, activeLenses) })),
     [orgScores, activeLenses],
   )
-  const findings = useMemo(() => deriveFindings(orgScores), [orgScores])
+  const [moduleProfile] = useModuleProfile()
+  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT), [orgScores, moduleProfile])
   const answered = answeredCount(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
   const penalty = answered > 0 && implementationEvidence < PAPER_COMPLIANCE_THRESHOLD

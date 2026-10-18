@@ -4,6 +4,8 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { FOUNDATION_MODULES, applicableIndicators } from '../src/lib/foundationModules.ts'
 import { frameworkById } from '../src/lib/crosswalk.ts'
 import { CATEGORY_LABEL, SCREENING_QUESTIONS } from '../src/lib/indices/safeguards.ts'
+import { QUESTION_LINKS } from '../src/lib/crosswalkExisting.ts'
+import { MOCK_QUESTIONS } from '../src/lib/data.ts'
 
 const V = 'v1 (102026)'
 // Escape backslashes first, then pipes, so text can never break out of its table cell.
@@ -61,6 +63,18 @@ out.push(
   `- **${CATEGORY_LABEL.low}:** everyone else.`,
   '- Questions 4 to 7 also switch on the land, biodiversity, heritage and lending areas, whatever the category.',
   '- Every organisation is asked the core system, labour, SEAH and stakeholder questions.', '',
+)
+
+const elementLabel = (t) => {
+  const [fw, ref] = t.split(':')
+  const f = frameworkById(fw)
+  return `${f?.name ?? fw}: ${f?.elements.find((e) => e.id === ref)?.label ?? ref}`
+}
+out.push(
+  '## Question-level links in the core assessment', '',
+  'Most core questions are mapped by domain. These are also linked one by one, because only some questions in their domain match the element.', '',
+  '| Id | Question | Linked to | Why |', '|---|---|---|---|',
+  ...Object.entries(QUESTION_LINKS).map(([id, l]) => `| ${id} | ${cell(MOCK_QUESTIONS.find((q) => q.id === id)?.question)} | ${cell(l.refs.split(' ').map(elementLabel).join('; '))} | ${cell(l.why)} |`), '',
 )
 
 mkdirSync('docs/indices', { recursive: true })

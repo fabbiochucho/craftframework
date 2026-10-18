@@ -48,7 +48,7 @@ export function ConsentBanner() {
       aria-label="Analytics consent"
       data-testid="consent-banner"
       onKeyDown={e => { if (e.key === 'Escape' && reopened) closeConsentSettings() }}
-      className="fixed inset-x-0 bottom-0 z-[60] max-h-[90vh] overflow-y-auto border border-slate-200 bg-white p-4 shadow-2xl sm:inset-x-auto sm:bottom-4 sm:left-4 sm:max-w-md sm:rounded-2xl"
+      className="fixed inset-x-0 bottom-0 z-[60] print:hidden max-h-[90vh] overflow-y-auto border border-slate-200 bg-white p-4 shadow-2xl sm:inset-x-auto sm:bottom-4 sm:left-4 sm:max-w-md sm:rounded-2xl"
     >
       <h2 ref={heading} tabIndex={-1} className="font-display text-base font-bold text-emerald-900 focus:outline-none">
         {reopened ? 'Cookie & analytics settings' : 'Help us improve CRAFT?'}

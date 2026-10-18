@@ -324,7 +324,7 @@ export function AutoTranslate() {
       role="status"
       aria-live="polite"
       translate="no"
-      className="pointer-events-none fixed bottom-4 left-4 z-[100] flex items-center gap-2 rounded-full bg-slate-900/85 px-3 py-1.5 text-xs font-medium text-white shadow-lg"
+      className="pointer-events-none fixed bottom-4 left-4 z-[100] print:hidden flex items-center gap-2 rounded-full bg-slate-900/85 px-3 py-1.5 text-xs font-medium text-white shadow-lg"
     >
       <Languages className="h-3.5 w-3.5 animate-pulse" />
       <span>{t('tx.translating', 'Translating…')}</span>

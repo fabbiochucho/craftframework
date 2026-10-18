@@ -67,3 +67,13 @@ assert.equal(canSeePreview('super_admin'), true)
 assert.equal(canSeePreview('admin'), false)
 assert.equal(canSeePreview(undefined), false)
 console.log('indices: ok')
+
+// Stage 2: high-risk safeguards cap (spec 2.4)
+import { bandFor } from '../foundationModules.ts'
+const allFives = Object.fromEntries(SAFEGUARDS.indicators.map((x) => [x.id, 5]))
+const highRisk = { esCategory: 'high' as const, esFlags: [] }
+assert.equal(bandFor(SAFEGUARDS, allFives, highRisk)?.band.label, 'Developing', 'high risk without an independent assessment caps at Developing')
+assert.match(bandFor(SAFEGUARDS, allFives, highRisk)?.capReason ?? '', /independent/i)
+assert.equal(bandFor(SAFEGUARDS, allFives, { ...highRisk, esIndependentAssessment: true })?.band.label, 'Exemplary')
+assert.equal(bandFor(SAFEGUARDS, allFives, { esCategory: 'moderate', esFlags: [] })?.band.label, 'Exemplary', 'moderate risk is not capped')
+console.log('indices (stage 2): ok')

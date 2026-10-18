@@ -211,7 +211,7 @@ export function SupportBot() {
         type="button"
         disabled={!mounted}
         onClick={() => setIsOpen((open) => !open)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className="fixed bottom-6 right-6 z-40 print:hidden flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
         aria-label={isOpen ? 'Close support chat' : 'Open support chat'}
         aria-expanded={isOpen}
         aria-controls="support-chat-dialog"
@@ -225,7 +225,7 @@ export function SupportBot() {
           role="dialog"
           aria-labelledby="support-chat-title"
           aria-modal="false"
-          className="fixed bottom-24 right-4 z-50 flex h-[min(600px,calc(100dvh-8rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl sm:right-6"
+          className="fixed bottom-24 right-4 z-50 print:hidden flex h-[min(600px,calc(100dvh-8rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl sm:right-6"
         >
           <header className="bg-blue-600 p-4 text-white">
             <h2 id="support-chat-title" className="font-semibold">craftframework Support</h2>
