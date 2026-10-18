@@ -1,11 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FileBarChart, FileText, FileSpreadsheet, Download, Printer } from 'lucide-react'
-import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx, useLensCtx } from '../lib/context'
 import {
   computeOrgScore, getAccreditation, DerivedFinding, answeredCount, RiskStatus,
 } from '../lib/data'
 import { derivePlan } from '../lib/moduleFindings'
 import { useModuleProfile } from '../lib/moduleProfile'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { FOUNDATION_MODULES } from '../lib/foundationModules'
+import { canSeePreview } from '../lib/frameworks'
+import { EXTERNAL_FRAMEWORKS } from '../lib/crosswalk'
+import { buildIndexReport } from '../lib/reports/indexReport'
+import { alignmentAvailable, buildAlignmentReport } from '../lib/reports/alignmentReport'
+import { buildIsoReadiness } from '../lib/reports/isoReadiness'
+import { AlignmentReportView, IndexReportView, IsoReadinessView } from '../components/reports/ReportViews'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
 function csvCell(v: string | number) {
@@ -30,6 +38,21 @@ function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, org
   URL.revokeObjectURL(url)
 }
 
+function exportAlignmentCsv(r: ReturnType<typeof buildAlignmentReport>) {
+  const header = 'Element,Label,Coverage,Answered,In scope,Average,Mapped question ids'
+  const rows = r.elements.map(e => [e.id, csvCell(e.label), e.coverage, e.answered, e.applicable, e.mean ?? '', csvCell(e.indicators.map(i => i.id).join(' '))].join(','))
+  const blob = new Blob([[csvCell(r.title), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `CRAFT_Alignment_${r.framework.id}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+type PrintTarget = 'summary' | 'index' | 'alignment' | 'iso' | null
+const ISO_IDS = EXTERNAL_FRAMEWORKS.filter(f => f.owner === 'ISO')
+
 export function ReportsPage() {
   const { currentUser } = useAuthCtx()
   const { currentOrg } = useWorkspace()
@@ -46,9 +69,39 @@ export function ReportsPage() {
   const [toast, setToast] = useState<string | null>(null)
   const statusOf = (id: string): RiskStatus => cipStatuses[id] ?? 'To-be-Initiated'
 
+  // New reports draw on every assessment: core and indices (one score map), the ladder and ESG (their own stores).
+  const [ladderScores] = useLegacyAssessment<Record<string, number>>('capital:scores', {})
+  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const { activeLenses } = useLensCtx()
+  const lenses = useMemo(() => Object.entries(activeLenses).filter(([, on]) => on).map(([k]) => k), [activeLenses])
+  const allScores = useMemo(() => ({ ...orgScores, ...ladderScores, ...esgScores }), [orgScores, ladderScores, esgScores])
+  const modules = FOUNDATION_MODULES.filter(m => !m.preview || canSeePreview(currentUser?.role))
+  const alignable = EXTERNAL_FRAMEWORKS.filter(f => f.owner !== 'ISO' && alignmentAvailable(f.id))
+  const [indexId, setIndexId] = useState('')
+  const [frameworkId, setFrameworkId] = useState('')
+  const [isoIds, setIsoIds] = useState<string[]>([])
+  const indexReport = useMemo(() => {
+    const m = modules.find(x => x.id === indexId)
+    return m ? buildIndexReport(m, allScores, moduleProfile, planMonths) : null
+  }, [indexId, allScores, moduleProfile, planMonths])
+  const alignment = useMemo(() => (frameworkId ? buildAlignmentReport(frameworkId, allScores, moduleProfile, lenses) : null), [frameworkId, allScores, moduleProfile, lenses])
+  const iso = useMemo(() => (isoIds.length ? buildIsoReadiness(isoIds, allScores, moduleProfile, lenses) : null), [isoIds, allScores, moduleProfile, lenses])
+
+  // Print only the chosen report: everything else on the page is hidden while printing.
+  const [printTarget, setPrintTarget] = useState<PrintTarget>(null)
+  useEffect(() => {
+    if (!printTarget) return
+    const done = () => setPrintTarget(null)
+    window.addEventListener('afterprint', done)
+    const t = window.setTimeout(() => window.print(), 50)
+    return () => { window.clearTimeout(t); window.removeEventListener('afterprint', done) }
+  }, [printTarget])
+  const hideUnless = (t: PrintTarget) => (printTarget && printTarget !== t ? 'print:hidden' : '')
+  const printReport = (t: Exclude<PrintTarget, null>, label: string) => { logActivity('Exported report', label, 'Export'); setPrintTarget(t) }
+
   return (
     <div className="space-y-6">
-      <div>
+      <div className={printTarget ? 'print:hidden' : ''}>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500">
           <FileBarChart className="h-4 w-4 text-emerald-600" /> Export Center
         </p>
@@ -59,14 +112,14 @@ export function ReportsPage() {
       </div>
 
       {answered === 0 && (
-        <Card>
+        <Card className="print:hidden">
           <CardContent className="p-6 text-sm text-slate-500">
             Complete your assessment first. Reports populate automatically once you have answered questions.
           </CardContent>
         </Card>
       )}
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 print:hidden">
         <Card>
           <CardContent className="p-6">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
@@ -79,7 +132,7 @@ export function ReportsPage() {
             <Button
               className="mt-4"
               disabled={answered === 0}
-              onClick={() => { logActivity('Exported report', 'Executive Summary (PDF)', 'Export'); window.print(); setToast('🔒 Executive Summary prepared (print to PDF).') }}
+              onClick={() => { printReport('summary', 'Executive Summary (PDF)'); setToast('🔒 Executive Summary prepared (print to PDF).') }}
             >
               <Printer className="h-4 w-4" /> Print / Save as PDF
             </Button>
@@ -107,8 +160,55 @@ export function ReportsPage() {
         </Card>
       </div>
 
+      {/* New reports: choose, view, print */}
+      <div className="grid gap-5 md:grid-cols-3 print:hidden">
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <h3 className="font-display text-lg font-bold text-emerald-900">Index report</h3>
+            <p className="text-sm text-slate-500">Band, dimension scores, weakest answers and the plan actions an index created.</p>
+            <label className="block text-xs font-medium text-slate-600" htmlFor="rep-index">Index</label>
+            <select id="rep-index" className="w-full rounded-lg border border-slate-300 p-2 text-sm" value={indexId} onChange={e => setIndexId(e.target.value)}>
+              <option value="">Choose an index</option>
+              {modules.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+            </select>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <h3 className="font-display text-lg font-bold text-emerald-900">Framework alignment</h3>
+            <p className="text-sm text-slate-500">How your answers line up with each element of a framework funders and regulators use.</p>
+            <label className="block text-xs font-medium text-slate-600" htmlFor="rep-fw">Framework</label>
+            <select id="rep-fw" className="w-full rounded-lg border border-slate-300 p-2 text-sm" value={frameworkId} onChange={e => setFrameworkId(e.target.value)}>
+              <option value="">Choose a framework</option>
+              {alignable.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+            {alignment && <Button variant="outline" size="sm" onClick={() => { exportAlignmentCsv(alignment); logActivity('Exported report', `Alignment (CSV): ${alignment.framework.name}`, 'Export') }}><Download className="h-4 w-4" /> Export CSV</Button>}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="space-y-3 p-6">
+            <h3 className="font-display text-lg font-bold text-emerald-900">ISO certification readiness</h3>
+            <p className="text-sm text-slate-500">Choose the standards you are working towards.</p>
+            <fieldset className="max-h-48 space-y-1 overflow-y-auto text-sm">
+              <legend className="sr-only">ISO standards</legend>
+              {ISO_IDS.map(f => (
+                <label key={f.id} className="flex items-start gap-2">
+                  <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={isoIds.includes(f.id)}
+                    onChange={e => setIsoIds(e.target.checked ? [...isoIds, f.id] : isoIds.filter(x => x !== f.id))} />
+                  <span>{f.name}{f.kind === 'guidance' ? ' (guidance, for reference)' : f.kind === 'verified' ? ' (verified)' : ''}</span>
+                </label>
+              ))}
+            </fieldset>
+          </CardContent>
+        </Card>
+      </div>
+
+      {indexReport && <div className={hideUnless('index')}><IndexReportView r={indexReport} onPrint={() => printReport('index', `Index report: ${indexReport.title}`)} /></div>}
+      {alignment && <div className={hideUnless('alignment')}><AlignmentReportView r={alignment} onPrint={() => printReport('alignment', `Alignment: ${alignment.framework.name}`)} /></div>}
+      {iso && <div className={hideUnless('iso')}><IsoReadinessView r={iso} onPrint={() => printReport('iso', 'ISO certification readiness')} /></div>}
+
       {/* Printable executive summary */}
-      <Card className="print:shadow-none print:border-0">
+      <Card className={`print:shadow-none print:border-0 ${hideUnless('summary')}`}>
         <CardHeader>
           <CardTitle>Executive Summary: {currentUser?.orgName}</CardTitle>
         </CardHeader>
