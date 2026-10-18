@@ -30,8 +30,8 @@ The register is information, not legal advice. Reports say "readiness" and "alig
 
 ## 3. Phasing
 
-1. **Phase 1 (this build, local):** register structure, tests, jurisdiction report, internal check, and full sourced entries for **NG, KE, US, UK, ZA, MA, EG, SN, MU, CV**. Ships after founder approval of the entries.
-2. **Phase 2 (cloud):** routines research the remaining 47 jurisdictions in regional batches (North, West, Central, East, Southern), each opening a pull request with one data file. Same review gate.
+1. **Phase 1 (this build, local):** register structure, tests, jurisdiction report, internal check, and full sourced entries for **NG, KE, US, UK, EU, ZA, MA, EG, SN, MU, CV**. Ships after founder approval of the entries.
+2. **Phase 2 (cloud):** routines research the remaining 46 African countries in regional batches (North, West, Central, East, Southern), each opening a pull request with one data file. Same review gate.
 
 ## 4. Data model
 
