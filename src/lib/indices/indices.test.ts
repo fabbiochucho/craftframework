@@ -47,4 +47,16 @@ assert.deepEqual([...new Set(low)].sort(), ['esms', 'labour', 'stakeholders'])
 const moderate = applicableIndicators(SAFEGUARDS, { esCategory: 'moderate', esFlags: ['land'] }).map((i) => i.dimension)
 assert.deepEqual([...new Set(moderate)].sort(), ['community', 'esms', 'labour', 'land', 'resources', 'stakeholders', 'vulnerable'])
 assert.equal(applicableIndicators(SAFEGUARDS, {}).length, 0, 'nothing scores before the screening is done')
+// Task 7: registration and the preview gate
+import { FOUNDATION_MODULES } from '../foundationModules.ts'
+import { canSeePreview, FRAMEWORKS } from '../frameworks.ts'
+const allIds = FOUNDATION_MODULES.flatMap((m) => m.indicators.map((x) => x.id))
+assert.equal(new Set(allIds).size, allIds.length, 'indicator ids unique across all modules')
+for (const fid of ['craft-health', 'craft-change', 'craft-fiduciary', 'craft-safeguards']) {
+  assert.ok(FOUNDATION_MODULES.some((m) => m.id === fid), `${fid} in FOUNDATION_MODULES`)
+  assert.equal(FRAMEWORKS.find((f) => f.id === fid)?.preview, true, `${fid} registered as preview`)
+}
+assert.equal(canSeePreview('super_admin'), true)
+assert.equal(canSeePreview('admin'), false)
+assert.equal(canSeePreview(undefined), false)
 console.log('indices: ok')

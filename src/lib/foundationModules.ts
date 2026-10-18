@@ -25,6 +25,10 @@
 
 import type { RubricQuestion } from './frameworks'
 import { MODULE_SCORE_PREFIX } from './data.ts'
+import { ORGANISATIONAL_HEALTH } from './indices/organisationalHealth.ts'
+import { CHANGE_READINESS } from './indices/changeReadiness.ts'
+import { FIDUCIARY_CONTROLS } from './indices/fiduciaryControls.ts'
+import { SAFEGUARDS } from './indices/safeguards.ts'
 
 export type FoundationModuleId =
   | 'craft-resilience' | 'craft-transformation' | 'craft-legacy'
@@ -767,7 +771,10 @@ const LEGACY: FoundationModule = {
   ],
 }
 
-export const FOUNDATION_MODULES: FoundationModule[] = [RESILIENCE, TRANSFORMATION, LEGACY]
+export const FOUNDATION_MODULES: FoundationModule[] = [
+  RESILIENCE, TRANSFORMATION, LEGACY,
+  ORGANISATIONAL_HEALTH, CHANGE_READINESS, FIDUCIARY_CONTROLS, SAFEGUARDS,
+]
 
 export function getFoundationModule(id: string): FoundationModule | undefined {
   return FOUNDATION_MODULES.find(m => m.id === id)

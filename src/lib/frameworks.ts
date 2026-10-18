@@ -28,6 +28,10 @@ export type FrameworkId =
   | 'craft-resilience'
   | 'craft-transformation'
   | 'craft-legacy'
+  | 'craft-health'
+  | 'craft-change'
+  | 'craft-fiduciary'
+  | 'craft-safeguards'
 
 // Visual theme per framework - financial/compliance work stays in the DiBadili
 // emerald palette; AI ethics switches to indigo to separate "tech ethics" from
@@ -46,6 +50,8 @@ export interface FrameworkMeta {
   blurb: string
   /** Lucide icon name, resolved by the page via a small icon map. */
   icon: string
+  /** Shown only to the Super Admin (content awaiting founder sign-off). */
+  preview?: boolean
 }
 
 export const FRAMEWORKS: FrameworkMeta[] = [
@@ -170,7 +176,54 @@ export const FRAMEWORKS: FrameworkMeta[] = [
       'Does the institution outlast the people who built it? Twelve indicators across institutional memory, leadership pipeline, governance renewal, long-term finance, mission integrity and intergenerational stewardship - tested over three legacy horizons.',
     icon: 'Landmark',
   },
+  {
+    id: 'craft-health',
+    name: 'CRAFT Organisational Health & Effectiveness Index',
+    short: 'Health',
+    authority: 'CRAFT · v1 (102026)',
+    scale: 'fiduciary-0-5',
+    theme: 'emerald',
+    blurb: 'Is the institution set up to deliver its strategy? 24 indicators across direction, leadership, design, accountability, culture, engagement, capabilities and outside focus.',
+    icon: 'HeartPulse',
+    preview: true,
+  },
+  {
+    id: 'craft-change',
+    name: 'CRAFT Change Readiness & Adoption Index',
+    short: 'Change',
+    authority: 'CRAFT · v1 (102026)',
+    scale: 'fiduciary-0-5',
+    theme: 'emerald',
+    blurb: 'Can the institution deliver a change, including its own improvement plan, so that it sticks? 18 indicators from the case for change to making it last.',
+    icon: 'Repeat',
+    preview: true,
+  },
+  {
+    id: 'craft-fiduciary',
+    name: 'CRAFT Fiduciary Controls & Risk Management Index',
+    short: 'Fiduciary',
+    authority: 'CRAFT · v1 (102026) · specialist validation',
+    scale: 'fiduciary-0-5',
+    theme: 'slate',
+    blurb: "Would a funder's money be safe and well accounted for? 24 indicators on internal control, governance and risk, plus 3 for public bodies.",
+    icon: 'ShieldCheck',
+    preview: true,
+  },
+  {
+    id: 'craft-safeguards',
+    name: 'CRAFT Environmental & Social Safeguards Index',
+    short: 'Safeguards',
+    authority: 'CRAFT · v1 (102026) · specialist validation',
+    scale: 'fiduciary-0-5',
+    theme: 'slate',
+    blurb: 'Does the institution avoid harm to people and the environment? A short screening decides which of 10 safeguard areas apply.',
+    icon: 'Leaf',
+    preview: true,
+  },
 ]
+
+/** Preview frameworks are visible only to the Super Admin until the founders sign off their content. */
+export const canSeePreview = (role: string | undefined): boolean => role === 'super_admin'
 
 export function getFramework(id: string | undefined): FrameworkMeta | undefined {
   return FRAMEWORKS.find(f => f.id === id)
