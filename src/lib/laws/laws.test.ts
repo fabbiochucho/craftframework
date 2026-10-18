@@ -79,3 +79,13 @@ assert.equal(buildJurisdictionReport(['NG'], low, {}, [], fixtures).sections[0].
 assert.ok(jr.footer.startsWith(LAW_FOOTER))
 assert.ok(!/\b(compliant|certified)\b|compliance with/i.test(JSON.stringify({ t: jr.title, f: LAW_FOOTER })))
 console.log('laws (report): ok')
+
+import { buildInternalCheck } from './internalCheck.ts'
+const notes: LawEntry = { ...ok, id: 'NG-data-2', craftNotes: [{ duty: 'registration', note: 'Register with NDPC', status: 'done' }, { duty: 'cross-border', note: 'Transfer basis', status: 'needed' }] }
+const stale: LawEntry = { ...ok, id: 'NG-labour-1', area: 'labour', source: { ...ok.source, checked: '2025-10-17' } }
+const fresh: LawEntry = { ...ok, id: 'NG-labour-2', area: 'labour', source: { ...ok.source, checked: '2025-10-18' } }
+const ic = buildInternalCheck([notes, stale, fresh], '2026-10-18')
+assert.equal(ic.duties[0].status, 'needed', 'needed duties first')
+assert.deepEqual(ic.recheckDue.map((e) => e.id), ['NG-labour-1'], 'older than 12 months is due; exactly 12 months is not')
+assert.deepEqual(ic.pending, [{ jurisdiction: 'NG', count: 3 }])
+console.log('laws (internal check): ok')
