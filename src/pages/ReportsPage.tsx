@@ -15,8 +15,8 @@ import { alignmentAvailable, buildAlignmentReport } from '../lib/reports/alignme
 import { buildIsoReadiness } from '../lib/reports/isoReadiness'
 import { COVERAGE_LABEL } from '../lib/reports/coverage'
 import { AlignmentReportView, IndexReportView, IsoReadinessView } from '../components/reports/ReportViews'
-import { buildJurisdictionReport, reportJurisdictions } from '../lib/laws/jurisdictionReport'
-import { LAW_AREAS, LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
+import { buildJurisdictionReport, jurisdictionCsvRows, reportJurisdictions } from '../lib/laws/jurisdictionReport'
+import { LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
 import { JurisdictionReportView } from '../components/reports/JurisdictionReportView'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
@@ -56,8 +56,7 @@ function exportAlignmentCsv(r: ReturnType<typeof buildAlignmentReport>) {
 
 function exportJurisdictionCsv(r: ReturnType<typeof buildJurisdictionReport>) {
   const header = 'Jurisdiction,Area,Law,Citation,Regulator,Rating,Answered,In scope,Source kind,Source,Checked'
-  const rows = r.sections.flatMap(s => s.areas.flatMap(a => a.laws.map(l => [csvCell(s.name), csvCell(LAW_AREAS[a.area]), csvCell(l.entry.title), csvCell(l.entry.citation), csvCell(l.entry.regulator ?? ''),
-    csvCell(l.coverage === 'no-law' ? 'No national law' : COVERAGE_LABEL[l.coverage]), l.answered, l.applicable, l.entry.source.kind, csvCell(l.entry.source.url), l.entry.source.checked].join(','))))
+  const rows = jurisdictionCsvRows(r).map(row => row.map(v => (typeof v === 'number' ? v : csvCell(v))).join(','))
   const blob = new Blob([[csvCell(r.title), csvCell(r.version), csvCell(r.lensNote), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -233,7 +232,7 @@ export function ReportsPage() {
         <Card>
           <CardContent className="space-y-3 p-6">
             <h3 className="font-display text-lg font-bold text-emerald-900">Jurisdiction alignment</h3>
-            <p className="text-sm text-slate-500">Laws that apply where you are registered and operate, and how far your answers show readiness. Information, not legal advice.</p>
+            <p className="text-sm text-slate-500">Laws that apply where you are registered and operate, and how far your answers show readiness. Laws appear once CRAFT has reviewed them. Information, not legal advice.</p>
             <fieldset className="max-h-48 space-y-1 overflow-y-auto text-sm">
               <legend className="sr-only">Jurisdictions</legend>
               {LAW_JURISDICTIONS.map(j => (

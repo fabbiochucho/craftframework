@@ -28,7 +28,7 @@ assert.match(bad({ summary: Array(61).fill('word').join(' ') }).join(), /60 word
 assert.match(bad({ extraQuestions: ['NOPE-01'] }).join(), /unknown question/)
 assert.match(registerProblems([ok, ok], today).join(), /duplicate/)
 assert.match(bad({ title: '' }).join(), /title/)
-assert.deepEqual(registerProblems(LAW_REGISTER, today), [], 'the shipped register is valid')
+assert.deepEqual(registerProblems(LAW_REGISTER, new Date().toISOString().slice(0, 10)), [], 'the shipped register is valid today')
 assert.deepEqual(lawsFor(['NG'], { approvedOnly: true }).filter((e) => e.review !== 'approved'), [])
 console.log('laws (register): ok')
 
@@ -89,3 +89,14 @@ assert.equal(ic.duties[0].status, 'needed', 'needed duties first')
 assert.deepEqual(ic.recheckDue.map((e) => e.id), ['NG-labour-1'], 'older than 12 months is due; exactly 12 months is not')
 assert.deepEqual(ic.pending, [{ jurisdiction: 'NG', count: 3 }])
 console.log('laws (internal check): ok')
+
+// Final review: partial approval is visible; the CSV explains unreviewed and partly reviewed jurisdictions
+import { jurisdictionCsvRows } from './jurisdictionReport.ts'
+const partial = buildJurisdictionReport(['NG', 'KE'], {}, {}, [], [...fixtures, { ...ok, id: 'NG-labour-9', area: 'labour' }])
+assert.equal(partial.sections.find((s) => s.id === 'NG')!.pendingCount, 1, 'pending entries in a reviewed jurisdiction are counted')
+assert.equal(partial.sections.find((s) => s.id === 'KE')!.pendingCount, 1)
+const csvRows = jurisdictionCsvRows(partial)
+assert.ok(csvRows.some((r) => r[0] === 'Kenya' && r[2] === 'Not yet reviewed'), 'unreviewed jurisdiction gets a CSV row')
+assert.ok(csvRows.some((r) => r[0] === 'Nigeria' && /1 entry still awaiting review/.test(String(r[2]))), 'partly reviewed jurisdiction says so in the CSV')
+assert.ok(csvRows.some((r) => r[0] === 'Nigeria' && r[2] === 'Nigeria Data Protection Act'), 'approved laws still listed')
+console.log('laws (final review fixes): ok')
