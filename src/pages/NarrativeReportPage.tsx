@@ -75,7 +75,7 @@ export function NarrativeReportPage() {
   const esgGaps = identifyGaps(esgScores)
 
   const [moduleProfile] = useModuleProfile()
-  const cipFindings = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths), [orgScores, planMonths, moduleProfile])
+  const cipFindings = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths, 2, esgScores), [orgScores, planMonths, moduleProfile, esgScores])
 
   const ctx: NarrativeOrgContext = {
     orgName: currentOrg?.name || '[Insert Organization Name]',

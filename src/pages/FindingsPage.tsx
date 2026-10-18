@@ -1,3 +1,4 @@
+import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { useMemo, useState } from 'react'
 import { AlertTriangle, Search, Filter, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -16,7 +17,8 @@ export function FindingsPage() {
   const [severity, setSeverity] = useState('')
 
   const [moduleProfile] = useModuleProfile()
-  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT), [orgScores, moduleProfile])
+  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT, 2, esgScores), [orgScores, moduleProfile, esgScores])
 
   const filtered = useMemo(
     () =>
