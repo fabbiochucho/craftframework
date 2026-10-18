@@ -39,4 +39,11 @@ assert.equal(stageLabel(none), 'Not yet at Foundations')
 assert.equal(stageLabel(top), 'Stage 5: Systemic leadership')
 assert.equal(stageLabel(l), 'Stage 4: Integrated value (provisional — answer 6 remaining questions to confirm)')
 assert.equal(stageLabel(esgMaturity(all(4), {})), 'Stage 5: Systemic leadership (self-reported — add evidence to confirm)')
+// Minor fixes: the new-questions notice is for organisations that answered the original assessment
+import { NEW_ESG_IDS, shouldShowNewQuestionsNotice } from './esgMaturity.ts'
+assert.equal(NEW_ESG_IDS.length, 8)
+assert.equal(shouldShowNewQuestionsNotice({}), false)
+assert.equal(shouldShowNewQuestionsNotice({ 'ESG-N1': 3 }), false, 'a new user who only answered a new question')
+assert.equal(shouldShowNewQuestionsNotice({ 'ESG-E1': 3 }), true, 'answered an original question, new ones pending')
+assert.equal(shouldShowNewQuestionsNotice({ 'ESG-E1': 3, ...Object.fromEntries(NEW_ESG_IDS.map((id) => [id, 3])) }), false, 'all new questions answered')
 console.log('esgMaturity: ok')

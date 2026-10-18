@@ -589,19 +589,19 @@ export const RATING_AGENCY_MAP: RatingAgencyMapping[] = [
   },
   {
     dimension: 'Governance',
-    craftSignal: 'Board oversight, anti-corruption controls, risk management, transparency & disclosure (ESG-G1 to ESG-G4)',
+    craftSignal: 'Board oversight, anti-corruption controls, risk management, transparency & disclosure, materiality, strategy integration and collective action (ESG-G1 to ESG-G6, ESG-V2)',
     agencyLens: 'Management quality, governance structure, internal controls, reporting reliability',
     creditRelevance: 'Weak governance is one of the most common drivers of negative rating actions.',
   },
   {
     dimension: 'Environmental',
-    craftSignal: 'GHG emissions management, resource/waste efficiency, environmental compliance, climate risk exposure (ESG-E1 to ESG-E4)',
+    craftSignal: 'GHG emissions management, resource/waste efficiency, environmental compliance, climate risk exposure, reduction targets and nature (ESG-E1 to ESG-E5, ESG-N1 to ESG-N3)',
     agencyLens: 'Physical and transition climate risk, regulatory exposure, asset and capex impact',
     creditRelevance: 'Can affect operating costs, capital expenditure, asset values and regulatory risk over the rating horizon.',
   },
   {
     dimension: 'Social',
-    craftSignal: 'Labor practices, health & safety, DEI, community & stakeholder engagement (ESG-S1 to ESG-S4)',
+    craftSignal: 'Labor practices, health & safety, DEI, community & stakeholder engagement and value chain (ESG-S1 to ESG-S4, ESG-V1)',
     agencyLens: 'Social licence to operate, litigation exposure, workforce and community relations',
     creditRelevance: 'Can translate into operational disruption, regulatory intervention or reputational and revenue impact.',
   },

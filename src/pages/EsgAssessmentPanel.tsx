@@ -1,5 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { esgMaturity } from '../lib/esgMaturity'
+import { esgMaturity, shouldShowNewQuestionsNotice } from '../lib/esgMaturity'
+import { useAuthCtx, useWorkspace } from '../lib/context'
 import { EsgMaturityCard } from '../components/esg/EsgMaturityCard'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
@@ -106,14 +107,18 @@ export function EsgAssessmentPanel() {
 
   const maturity = useMemo(() => esgMaturity(scores, evidence), [scores, evidence])
   // One-time notice for organisations that answered before the eight new questions were added.
-  const NEW_IDS = ['ESG-G5', 'ESG-E5', 'ESG-N1', 'ESG-N2', 'ESG-N3', 'ESG-G6', 'ESG-V1', 'ESG-V2']
-  const [noticeDismissed, setNoticeDismissed] = useState(() => {
-    try { return localStorage.getItem('craft:esg-new-questions-2026-10') === '1' } catch { return false }
-  })
-  const showNotice = !noticeDismissed && Object.keys(scores).length > 0 && NEW_IDS.some((id) => !(id in scores))
+  const { currentUser } = useAuthCtx()
+  const { currentOrg } = useWorkspace()
+  // Remembered per organisation in this browser.
+  const noticeKey = `craft:esg-new-questions-2026-10:${currentOrg?.id ?? currentUser?.orgId ?? 'workspace'}`
+  const [dismissedKeys, setDismissedKeys] = useState<string[]>([])
+  const noticeDismissed = dismissedKeys.includes(noticeKey) || (() => {
+    try { return localStorage.getItem(noticeKey) === '1' } catch { return false }
+  })()
+  const showNotice = !noticeDismissed && shouldShowNewQuestionsNotice(scores)
   const dismissNotice = () => {
-    setNoticeDismissed(true)
-    try { localStorage.setItem('craft:esg-new-questions-2026-10', '1') } catch { /* private mode: notice returns next visit */ }
+    setDismissedKeys((k) => [...k, noticeKey])
+    try { localStorage.setItem(noticeKey, '1') } catch { /* private mode: notice returns next visit */ }
   }
 
   return (
@@ -125,7 +130,6 @@ export function EsgAssessmentPanel() {
           <button type="button" onClick={dismissNotice} className="text-xs font-semibold underline">Dismiss</button>
         </div>
       )}
-      <EsgMaturityCard m={maturity} />
       <LegacySaveStatus status={evidenceStatus} />
       <p className="text-sm text-amber-700">Evidence confidence is self-reported, not independent verification or an external ESG rating.</p>
       {/* Header */}
@@ -172,6 +176,8 @@ export function EsgAssessmentPanel() {
           </p>
         </Card>
       </div>
+
+      <EsgMaturityCard m={maturity} />
 
       {/* Disclaimer - a self-assessment is never a final/independent rating */}
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
