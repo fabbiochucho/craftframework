@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { FileText, Download, Printer, Scale, ShieldCheck } from 'lucide-react'
 import { useWorkspace, useScoresCtx, useCIPCtx, useEntityProfileCtx } from '../lib/context'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { esgMaturity, stageLabel } from '../lib/esgMaturity'
 import {
   computeOrgScore, getAccreditation, getReadinessClassification,
 } from '../lib/data'
@@ -209,6 +210,7 @@ export function NarrativeReportPage() {
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">ESG Rating</p>
           <p className="mt-1 text-2xl font-bold text-emerald-900">{esgBadge.letter}</p>
+          <p className="mt-1 text-xs text-slate-600">{stageLabel(esgMaturity(esgScores, esgEvidence))}</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Open Gaps</p>
