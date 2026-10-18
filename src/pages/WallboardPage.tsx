@@ -13,7 +13,8 @@ import {
   getAccreditation, deriveFindings, BRAND, CIP_PLAN_MONTHS_DEFAULT,
 } from '../lib/data'
 import { derivePlan } from '../lib/moduleFindings'
-import { useModuleProfile, useModuleProfiles } from '../lib/moduleProfile'
+import { useModuleProfile, useModuleProfiles, useOrgStates } from '../lib/moduleProfile'
+import { useLegacyAssessment } from '../lib/legacy-assessment'
 
 // ============================================================================
 // Wallboard — a full-screen, auto-refreshing "livescreen" broadcast of the
@@ -114,14 +115,17 @@ export function WallboardPage() {
     return () => clearInterval(id)
   }, [isAggregate, organizations.length])
 
-  // Critical counts include index gaps, which depend on each organisation's saved screening answers. Until every
-  // organisation's answers have loaded (or if any request fails) the counts fall back to the core assessment only.
+  // Critical counts include index and ESG-maturity gaps, which depend on each organisation's saved screening and ESG
+  // answers. Until every organisation's answers have loaded (or if any request fails) the counts fall back to the core assessment only.
   const orgIds = useMemo(() => organizations.map(o => o.id), [organizations])
-  const { profiles, complete: profilesReady } = useModuleProfiles(isAggregate ? orgIds : [], !!currentUser?.isDemo)
+  const { profiles, complete: profilesLoaded } = useModuleProfiles(isAggregate ? orgIds : [], !!currentUser?.isDemo)
+  const { values: esgByOrg, complete: esgLoaded } = useOrgStates<Record<string, number>>(isAggregate ? orgIds : [], 'esg:scores', !!currentUser?.isDemo)
+  const profilesReady = profilesLoaded && esgLoaded
   const [soloProfile] = useModuleProfile()
-  const criticalsFor = (s: Record<string, number>, p: Parameters<typeof derivePlan>[1] | null) =>
-    (p ? derivePlan(s, p, CIP_PLAN_MONTHS_DEFAULT) : deriveFindings(s)).filter(f => f.severity === 'Critical')
-  const criticalsNote = isAggregate && !profilesReady ? 'Core assessment gaps only' : 'Core assessment and index gaps'
+  const [soloEsg] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const criticalsFor = (s: Record<string, number>, p: Parameters<typeof derivePlan>[1] | null, esg: Record<string, number> = {}) =>
+    (p ? derivePlan(s, p, CIP_PLAN_MONTHS_DEFAULT, 2, esg) : deriveFindings(s)).filter(f => f.severity === 'Critical')
+  const criticalsNote = isAggregate && !profilesReady ? 'Core assessment gaps only' : 'Core, index and ESG gaps'
 
   const aggregate = useMemo(() => {
     const rows = organizations.map(o => {
@@ -131,7 +135,7 @@ export function WallboardPage() {
         name: o.name,
         composite: computeOrgScore(s),
         evidence: computeImplementationEvidence(s),
-        criticals: criticalsFor(s, profilesReady ? profiles[o.id] ?? {} : null).length,
+        criticals: criticalsFor(s, profilesReady ? profiles[o.id] ?? {} : null, esgByOrg[o.id] ?? {}).length,
       }
     })
     const mean = Math.round(rows.reduce((a, r) => a + r.composite, 0) / (rows.length || 1))
@@ -142,7 +146,7 @@ export function WallboardPage() {
       totalCriticals: rows.reduce((a, r) => a + r.criticals, 0),
       belowThreshold: rows.filter(r => r.evidence < 50).length,
     }
-  }, [organizations, scores, profiles, profilesReady])
+  }, [organizations, scores, profiles, profilesReady, esgByOrg])
 
   const solo = useMemo(() => {
     const s = currentOrg ? scores[currentOrg.id] || {} : {}
@@ -150,9 +154,9 @@ export function WallboardPage() {
       composite: computeOrgScore(s),
       evidence: computeImplementationEvidence(s),
       indices: computeCompositeIndices(s),
-      criticals: criticalsFor(s, soloProfile),
+      criticals: criticalsFor(s, soloProfile, soloEsg),
     }
-  }, [currentOrg, scores, soloProfile])
+  }, [currentOrg, scores, soloProfile, soloEsg])
 
   if (!currentUser) return null
 
