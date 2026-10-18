@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react'
 import { FileBarChart, FileText, FileSpreadsheet, Download, Printer } from 'lucide-react'
 import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx } from '../lib/context'
 import {
-  deriveFindings, computeOrgScore, getAccreditation, DerivedFinding, answeredCount, RiskStatus,
+  computeOrgScore, getAccreditation, DerivedFinding, answeredCount, RiskStatus,
 } from '../lib/data'
-import { deriveModuleFindings } from '../lib/moduleFindings'
+import { derivePlan } from '../lib/moduleFindings'
 import { useModuleProfile } from '../lib/moduleProfile'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
@@ -16,7 +16,7 @@ function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, org
   const header = 'ID,Topic,Domain,Tier,Severity,Score,Owner,Due,Status,Mitigation Action'
   const rows = plan.map(r =>
     [
-      r.id, csvCell(r.topic), csvCell(r.domain), r.tier, r.severity, r.score,
+      r.id, csvCell(r.topic), csvCell(r.domain), r.tier || '', r.severity, r.score,
       csvCell(r.owner), csvCell(r.dueDate), csvCell(statusOf(r.id)), csvCell(r.mitigation),
     ].join(','),
   )
@@ -40,10 +40,7 @@ export function ReportsPage() {
   const composite = computeOrgScore(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
   const [moduleProfile] = useModuleProfile()
-  const plan = useMemo(
-    () => [...deriveFindings(orgScores, 2, planMonths), ...deriveModuleFindings(orgScores, moduleProfile, planMonths)],
-    [orgScores, planMonths, moduleProfile],
-  )
+  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths), [orgScores, planMonths, moduleProfile])
   const criticals = plan.filter(p => p.severity === 'Critical')
   const answered = answeredCount(orgScores)
   const [toast, setToast] = useState<string | null>(null)

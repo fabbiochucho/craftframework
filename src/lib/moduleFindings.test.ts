@@ -1,6 +1,6 @@
 // Self-check: `node src/lib/moduleFindings.test.ts`
 import assert from 'node:assert/strict'
-import { deriveModuleFindings } from './moduleFindings.ts'
+import { deriveModuleFindings, derivePlan } from './moduleFindings.ts'
 import { computeOrgScore, deriveFindings } from './data.ts'
 
 const scores = { 'CRAFT-OHE-01': 1, 'CRAFT-OHE-02': 4, 'CRAFT-FCR-25': 0, 'CRAFT-RES-01': 0 }
@@ -15,4 +15,9 @@ assert.deepEqual(deriveModuleFindings({}, {}, 24), [], 'nothing answered, nothin
 const core = { 'GOV-01': 1 }
 assert.equal(computeOrgScore({ ...core, ...scores }), computeOrgScore(core), 'index answers never change the core composite')
 assert.ok(!deriveFindings({ ...core, ...scores }).some((x) => x.id.startsWith('CRAFT-')), 'core plan never contains index ids')
+// One plan, sorted together (checkpoint 1)
+const mixed = derivePlan({ 'GOV-01': 3, 'GOV-02': 2, 'CRAFT-OHE-01': 0 }, {}, 24)
+assert.equal(mixed[0].id, 'CRAFT-OHE-01', 'a critical index gap sorts above core high/moderate gaps')
+const twoCritical = derivePlan({ 'GOV-01': 0, 'CRAFT-OHE-01': 0 }, {}, 24)
+assert.notEqual(twoCritical[0].dueMonth, twoCritical[1].dueMonth, 'core and index actions share one schedule, not two bunched ones')
 console.log('moduleFindings: ok')
