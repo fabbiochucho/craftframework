@@ -1,3 +1,4 @@
+import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { useEffect, useMemo, useState } from 'react'
 import { TrendingUp, CalendarRange, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -37,7 +38,8 @@ export function CIPPage() {
   }
 
   const [moduleProfile] = useModuleProfile()
-  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths), [orgScores, planMonths, moduleProfile])
+  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths, 2, esgScores), [orgScores, planMonths, moduleProfile, esgScores])
 
   const summary = useMemo(() => {
     const counts: Record<RiskStatus, number> = {

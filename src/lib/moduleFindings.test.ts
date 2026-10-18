@@ -21,3 +21,15 @@ assert.equal(mixed[0].id, 'CRAFT-OHE-01', 'a critical index gap sorts above core
 const twoCritical = derivePlan({ 'GOV-01': 0, 'CRAFT-OHE-01': 0 }, {}, 24)
 assert.notEqual(twoCritical[0].dueMonth, twoCritical[1].dueMonth, 'core and index actions share one schedule, not two bunched ones')
 console.log('moduleFindings: ok')
+
+import { deriveEsgFindings } from './moduleFindings.ts'
+// Review Focus 4: no ESG scores means the plan is unchanged
+assert.deepEqual(derivePlan({ 'GOV-01': 0 }, {}, 24), derivePlan({ 'GOV-01': 0 }, {}, 24, 2, {}))
+// Only gaps up to the next stage; unanswered criteria are not actions
+const esg = { 'ESG-E3': 3, 'ESG-S1': 3, 'ESG-G1': 3, 'ESG-G2': 1, 'ESG-G5': 2, 'ESG-N3': 0 }
+const ef = deriveEsgFindings(esg, 24)
+assert.deepEqual(ef.map((f) => f.id).sort(), ['ESG-G2', 'ESG-G5'], 'stage-4 gap ESG-N3 is not added while stage 1 is incomplete (Review Focus 3)')
+assert.equal(ef.find((f) => f.id === 'ESG-G2')!.severity, 'Critical')
+assert.equal(ef.find((f) => f.id === 'ESG-G5')!.severity, 'High')
+assert.ok(derivePlan({}, {}, 24, 2, esg).some((f) => f.id === 'ESG-G2'), 'ESG actions reach the plan')
+console.log('moduleFindings (ESG): ok')

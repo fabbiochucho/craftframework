@@ -18,6 +18,7 @@ import { AlignmentReportView, IndexReportView, IsoReadinessView } from '../compo
 import { buildJurisdictionReport, jurisdictionCsvRows, reportJurisdictions } from '../lib/laws/jurisdictionReport'
 import { LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
 import { JurisdictionReportView } from '../components/reports/JurisdictionReportView'
+import { esgMaturity, stageLabel } from '../lib/esgMaturity'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
 
 function csvCell(v: string | number) {
@@ -45,7 +46,7 @@ function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, org
 function exportAlignmentCsv(r: ReturnType<typeof buildAlignmentReport>) {
   const header = 'Element,Label,Coverage,Answered,In scope,Average,Mapped question ids,Why mapped'
   const rows = r.elements.map(e => [e.id, csvCell(e.label), csvCell(COVERAGE_LABEL[e.coverage]), e.answered, e.applicable, e.mean ?? '', csvCell(e.indicators.map(i => i.id).join(' ')), csvCell(e.rationale.join(' | '))].join(','))
-  const blob = new Blob([[csvCell(r.title), csvCell(r.lensNote), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob([[csvCell(r.title), csvCell(r.lensNote), ...(r.statusNote ? [csvCell(r.statusNote)] : []), '', header, ...rows, '', csvCell(r.footer)].join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -79,7 +80,9 @@ export function ReportsPage() {
   const composite = computeOrgScore(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
   const [moduleProfile] = useModuleProfile()
-  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths), [orgScores, planMonths, moduleProfile])
+  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
+  const [esgEvidence] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
+  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths, 2, esgScores), [orgScores, planMonths, moduleProfile, esgScores])
   const criticals = plan.filter(p => p.severity === 'Critical')
   const answered = answeredCount(orgScores)
   const [toast, setToast] = useState<string | null>(null)
@@ -89,7 +92,6 @@ export function ReportsPage() {
 
   // New reports draw on every assessment: core and indices (one score map), the ladder and ESG (their own stores).
   const [ladderScores] = useLegacyAssessment<Record<string, number>>('capital:scores', {})
-  const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const { activeLenses } = useLensCtx()
   const lenses = useMemo(() => Object.entries(activeLenses).filter(([, on]) => on).map(([k]) => k), [activeLenses])
   const allScores = useMemo(() => ({ ...orgScores, ...ladderScores, ...esgScores }), [orgScores, ladderScores, esgScores])
@@ -277,6 +279,7 @@ export function ReportsPage() {
               <p className="text-2xl font-bold text-emerald-900">{implementationEvidence}%</p>
             </div>
           </div>
+          <p className="mt-4 text-sm text-slate-700"><span className="font-semibold">ESG maturity:</span> {stageLabel(esgMaturity(esgScores, esgEvidence))}</p>
           <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">
             Top Critical Risks ({criticals.length})
           </p>

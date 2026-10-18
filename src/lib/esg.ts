@@ -127,6 +127,42 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     financingNote: 'Aligns directly with ISSB/TCFD disclosure expectations now written into many lending covenants.',
   },
 
+  {
+    id: 'ESG-E5', pillar: 'Environmental', domain: 'Targets & Reduction', frameworkRefs: ['IFRS S2', 'SBTi (reference)'],
+    question: 'Are there time-bound reduction targets for emissions, energy, water or waste, with a plan to meet them?',
+    soe: { 0: 'No targets exist.', 1: 'Aspirations are stated without numbers or dates.', 2: 'Some numeric targets exist but have no plan or owner.',
+      3: 'Time-bound targets for the main impacts have an owner and a plan.', 4: 'Progress against targets is tracked and reported to leadership.', 5: 'Targets are science-informed, externally reviewed and met or on track.' },
+    evidence: 'Target statement, reduction plan, progress reports.',
+    recommendation: 'Set one or two time-bound reduction targets for your largest impacts, name an owner and review progress quarterly.',
+    financingNote: 'Green and sustainability-linked finance is priced against credible, time-bound targets.',
+  },
+  {
+    id: 'ESG-N1', pillar: 'Environmental', domain: 'Nature: Locate & Evaluate', frameworkRefs: ['TNFD', 'IFRS S1'],
+    question: 'Has the organisation located where its sites, supply chain or activities interface with nature, including sensitive areas, and evaluated its dependencies and impacts on nature?',
+    soe: { 0: 'Nature is not considered.', 1: 'Some sites near sensitive areas are known informally.', 2: 'Sites are listed but dependencies and impacts are not evaluated.',
+      3: 'Sites and key supply chains are mapped against sensitive areas and the main dependencies and impacts are evaluated.', 4: 'The evaluation covers the value chain and is updated regularly.', 5: 'The evaluation uses recognised data sources and is reviewed independently.' },
+    evidence: 'Site map against protected and key biodiversity areas, dependency and impact screening.',
+    recommendation: 'Map your sites and main supply sources against protected and high-biodiversity areas, then list what you depend on (water, soil, ecosystems) and what you affect.',
+    financingNote: 'Funders and investors increasingly ask for nature screening alongside climate, following the TNFD approach.',
+  },
+  {
+    id: 'ESG-N2', pillar: 'Environmental', domain: 'Nature: Assess & Prepare', frameworkRefs: ['TNFD', 'IFRS S1'],
+    question: 'Are nature-related risks and opportunities assessed and managed alongside other risks, with responses prioritised?',
+    soe: { 0: 'Nature risks are not considered.', 1: 'Nature risks are discussed occasionally.', 2: 'Some nature risks are listed but not assessed.',
+      3: 'Material nature risks and opportunities are assessed and in the risk register with responses.', 4: 'Responses are funded, owned and reviewed.', 5: 'Nature risk management shapes strategy and investment decisions.' },
+    evidence: 'Risk register entries, nature risk assessment, response plans.',
+    recommendation: 'Add your material nature risks to the risk register with an owner and a response, and review them with other risks.',
+    financingNote: 'Unmanaged nature dependencies (for example water) are a growing credit and operational risk for lenders.',
+  },
+  {
+    id: 'ESG-N3', pillar: 'Environmental', domain: 'Nature: Metrics & Targets', frameworkRefs: ['TNFD', 'IFRS S1'],
+    question: 'Are nature-related metrics and targets set and reported (for example land use change, pollution, water from stressed areas)?',
+    soe: { 0: 'No nature metrics are tracked.', 1: 'Ad hoc figures exist.', 2: 'Some metrics are tracked without targets.',
+      3: 'Core nature metrics are tracked with targets.', 4: 'Metrics and progress are reported publicly.', 5: 'Metrics are assured and aligned with recognised disclosure frameworks.' },
+    evidence: 'Metric definitions, data, targets, published report.',
+    recommendation: 'Choose a few core nature metrics that match your impacts, set targets and report them each year.',
+    financingNote: 'Measured nature metrics let funders track outcomes and support nature-positive finance.',
+  },
   // --- Social ------------------------------------------------------------
   {
     id: 'ESG-S1',
@@ -201,6 +237,15 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     financingNote: 'IFC Performance Standards and most DFI social safeguards require a functioning grievance mechanism as a baseline condition.',
   },
 
+  {
+    id: 'ESG-V1', pillar: 'Social', domain: 'Value Chain', frameworkRefs: ['GRI 308', 'GRI 414', 'IFRS S2'],
+    question: 'Does the organisation work with suppliers and partners to measure and reduce value-chain impacts, including indirect emissions and nature impacts?',
+    soe: { 0: 'Suppliers are not engaged on sustainability.', 1: 'Expectations are mentioned informally.', 2: 'A supplier code exists but is not monitored.',
+      3: 'Main suppliers are screened and engaged on key impacts.', 4: 'Value-chain data is collected and reduction programmes run with partners.', 5: 'Value-chain results are verified and drive sourcing decisions.' },
+    evidence: 'Supplier code, screening records, engagement programme, value-chain data.',
+    recommendation: 'Screen your main suppliers on environmental and social impacts and agree improvement actions with the highest-impact ones.',
+    financingNote: 'Buyers and investors now ask for value-chain emissions and supplier due diligence.',
+  },
   // --- Governance ----------------------------------------------------------
   {
     id: 'ESG-G1',
@@ -273,6 +318,33 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     evidence: 'Annual report, audited financial statements, ESG/sustainability disclosure.',
     recommendation: 'Add a one-page ESG summary to your existing annual report before building a standalone sustainability report.',
     financingNote: 'Consistent, timely disclosure is what ESG-linked loans and sustainability-linked bonds price against.',
+  },
+  {
+    id: 'ESG-G5', pillar: 'Governance', domain: 'Materiality', frameworkRefs: ['GRI 3', 'IFRS S1'],
+    question: "Has a materiality assessment identified the organisation's most significant ESG issues, reviewed at least every two years?",
+    soe: { 0: 'No materiality assessment.', 1: 'Issues are chosen informally by management.', 2: 'A one-off assessment exists but is out of date.',
+      3: 'A documented assessment with stakeholder input is reviewed at least every two years.', 4: 'Material issues drive targets and reporting.', 5: 'The assessment covers financial and impact materiality and is reviewed by the board.' },
+    evidence: 'Materiality assessment, stakeholder input, board minutes.',
+    recommendation: 'Run a materiality assessment with input from staff, partners and communities, and repeat it at least every two years.',
+    financingNote: 'Materiality shows funders that ESG effort targets what matters most.',
+  },
+  {
+    id: 'ESG-G6', pillar: 'Governance', domain: 'Strategy Integration', frameworkRefs: ['IFRS S1', 'TCFD', 'TNFD'],
+    question: 'Is sustainability built into strategy, budgets and investment decisions, with named board-level oversight?',
+    soe: { 0: 'Sustainability is separate from strategy.', 1: 'Mentioned in strategy without resources.', 2: 'Some budget is set aside but decisions ignore it.',
+      3: 'Strategy and budgets include sustainability goals with named board oversight.', 4: 'Investment decisions test sustainability impacts and risks.', 5: 'Performance and pay are linked to sustainability outcomes.' },
+    evidence: 'Strategic plan, budget lines, board terms of reference, investment papers.',
+    recommendation: 'Name a board member or committee responsible for sustainability and add sustainability goals to the strategy and budget.',
+    financingNote: 'Board-level oversight is a core expectation in IFRS S1 and S2 and in DFI governance reviews.',
+  },
+  {
+    id: 'ESG-V2', pillar: 'Governance', domain: 'Collective Impact', frameworkRefs: ['SDGs (reference)'],
+    question: 'Does the organisation contribute to sector, landscape or SDG-level collective action and report its impact?',
+    soe: { 0: 'No external collaboration.', 1: 'Occasional participation in events.', 2: 'Member of initiatives without commitments.',
+      3: 'Active in at least one collective initiative with stated commitments.', 4: 'Leads or co-leads initiatives and reports contribution.', 5: 'Collective results are measured and reported against the SDGs.' },
+    evidence: 'Initiative memberships, commitments, impact reports.',
+    recommendation: 'Join one sector or landscape initiative relevant to your material issues and report what you contribute.',
+    financingNote: 'Collective action strengthens the case for blended and outcome-based finance.',
   },
 ]
 
@@ -443,12 +515,17 @@ export interface EsgBadge {
 
 const PROVISIONAL_COVERAGE_THRESHOLD = 70 // % of docs at "Strong"+ needed to lift the provisional flag
 
+/** The original twelve questions the letter rating is based on. Later questions (maturity, nature, value chain) inform the
+ *  maturity stage but don't withhold a rating from organisations that completed the original assessment. */
+export const RATED_QUESTION_IDS = ['ESG-E1', 'ESG-E2', 'ESG-E3', 'ESG-E4', 'ESG-S1', 'ESG-S2', 'ESG-S3', 'ESG-S4', 'ESG-G1', 'ESG-G2', 'ESG-G3', 'ESG-G4']
+export const ratedAnswered = (scores: Record<string, number>): number => RATED_QUESTION_IDS.filter((id) => id in scores).length
+
 export function getEsgBadge(
   verifiedScore: number,
   totalAnswered: number,
   evidenceCoverage: number,
 ): EsgBadge {
-  if (totalAnswered < ESG_QUESTIONS.length) {
+  if (totalAnswered < RATED_QUESTION_IDS.length) {
     return { letter: 'Unrated', label: 'Unrated - assessment incomplete', cls: 'bg-slate-100 text-slate-600 border-slate-300', provisional: true }
   }
   const provisional = evidenceCoverage < PROVISIONAL_COVERAGE_THRESHOLD
@@ -512,19 +589,19 @@ export const RATING_AGENCY_MAP: RatingAgencyMapping[] = [
   },
   {
     dimension: 'Governance',
-    craftSignal: 'Board oversight, anti-corruption controls, risk management, transparency & disclosure (ESG-G1 to ESG-G4)',
+    craftSignal: 'Board oversight, anti-corruption controls, risk management, transparency & disclosure, materiality, strategy integration and collective action (ESG-G1 to ESG-G6, ESG-V2)',
     agencyLens: 'Management quality, governance structure, internal controls, reporting reliability',
     creditRelevance: 'Weak governance is one of the most common drivers of negative rating actions.',
   },
   {
     dimension: 'Environmental',
-    craftSignal: 'GHG emissions management, resource/waste efficiency, environmental compliance, climate risk exposure (ESG-E1 to ESG-E4)',
+    craftSignal: 'GHG emissions management, resource/waste efficiency, environmental compliance, climate risk exposure, reduction targets and nature (ESG-E1 to ESG-E5, ESG-N1 to ESG-N3)',
     agencyLens: 'Physical and transition climate risk, regulatory exposure, asset and capex impact',
     creditRelevance: 'Can affect operating costs, capital expenditure, asset values and regulatory risk over the rating horizon.',
   },
   {
     dimension: 'Social',
-    craftSignal: 'Labor practices, health & safety, DEI, community & stakeholder engagement (ESG-S1 to ESG-S4)',
+    craftSignal: 'Labor practices, health & safety, DEI, community & stakeholder engagement and value chain (ESG-S1 to ESG-S4, ESG-V1)',
     agencyLens: 'Social licence to operate, litigation exposure, workforce and community relations',
     creditRelevance: 'Can translate into operational disruption, regulatory intervention or reputational and revenue impact.',
   },
