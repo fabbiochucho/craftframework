@@ -38,8 +38,13 @@ export function LawsRegisterPanel() {
               return (
                 <tr key={id}>
                   <Td>{jurisdictionName(id)} ({id})</Td><Td>{n}</Td>
-                  <Td>{r ? <span className="text-xs text-emerald-800">Approved by {r.approvedBy} · {new Date(r.approvedAt).toLocaleDateString()}{r.registerVersion !== LAW_DATA_VERSION ? ` · for ${r.registerVersion} (register since updated)` : ''}</span> : <span className="text-xs text-slate-500">Pending review</span>}</Td>
-                  <Td><Button size="sm" variant={r ? 'outline' : 'primary'} disabled={busy === id} onClick={() => void change(id, !r)}>{r ? 'Revoke' : 'Approve'}</Button></Td>
+                  <Td>{!r ? <span className="text-xs text-slate-500">Pending review</span>
+                    : r.registerVersion !== LAW_DATA_VERSION ? <span className="text-xs text-amber-700">Needs re-approval: approved for {r.registerVersion}; the register has changed since</span>
+                    : <span className="text-xs text-emerald-800">Approved{r.approvedBy ? ` by ${r.approvedBy}` : ''} · {new Date(r.approvedAt).toLocaleDateString()}</span>}</Td>
+                  <Td className="space-x-1">
+                    {(!r || r.registerVersion !== LAW_DATA_VERSION) && <Button size="sm" disabled={busy === id} onClick={() => void change(id, true)}>{r ? 'Re-approve' : 'Approve'}</Button>}
+                    {r && <Button size="sm" variant="outline" disabled={busy === id} onClick={() => void change(id, false)}>Revoke</Button>}
+                  </Td>
                 </tr>
               )
             })}</Tbody></Table>

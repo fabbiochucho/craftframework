@@ -771,7 +771,8 @@ export const nudgeRequest = <T>(action: 'preview' | 'send', emails: string[], no
   })
 
 // --- Laws register approvals (/api/law-approvals; changes are Super Admin only) ------------------------------------
-export interface LawApproval { jurisdiction: string; approvedBy: string; registerVersion: string; approvedAt: string }
+/** `approvedBy` is only sent to Super Admins. */
+export interface LawApproval { jurisdiction: string; approvedBy?: string; registerVersion: string; approvedAt: string }
 
 export async function fetchLawApprovals(signal?: AbortSignal): Promise<LawApproval[]> {
   try {

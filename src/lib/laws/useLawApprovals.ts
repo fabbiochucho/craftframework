@@ -1,6 +1,7 @@
 // Approved jurisdictions for the laws register, loaded once per page and refreshable after a Super Admin change.
 import { useCallback, useEffect, useState } from 'react'
 import { fetchLawApprovals, type LawApproval } from '../api'
+import { currentApprovals } from './jurisdictionReport'
 
 export function useLawApprovals() {
   const [records, setRecords] = useState<LawApproval[]>([])
@@ -11,5 +12,6 @@ export function useLawApprovals() {
     return () => controller.abort()
   }, [tick])
   const reload = useCallback(() => setTick((t) => t + 1), [])
-  return { records, approved: records.map((r) => r.jurisdiction), reload }
+  // Only approvals for the current register version count in reports.
+  return { records, approved: currentApprovals(records), reload }
 }

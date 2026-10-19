@@ -139,3 +139,14 @@ for (const c of COUNTRIES) assert.ok(LAW_JURISDICTIONS.includes(c.code), `${c.co
 assert.equal(COUNTRIES.find((c) => c.code === 'UK')!.flag, '\u{1F1EC}\u{1F1E7}')
 assert.equal(new Set(COUNTRIES.map((c) => c.code)).size, 56)
 console.log('laws (onboarding countries): ok')
+
+// PR #88 review: an approval only counts for the register version it was given for
+import { currentApprovals } from './jurisdictionReport.ts'
+{
+  const recs = [
+    { jurisdiction: 'NG', registerVersion: 'CRAFT-LAW 1.2 (2026-10-18)' },
+    { jurisdiction: 'KE', registerVersion: 'CRAFT-LAW 1.1 (2026-10-01)' },
+  ]
+  assert.deepEqual(currentApprovals(recs, 'CRAFT-LAW 1.2 (2026-10-18)'), ['NG'], 'an approval for an earlier register version needs re-approval')
+  console.log('laws (approval versions): ok')
+}
