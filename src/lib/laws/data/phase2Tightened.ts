@@ -43,6 +43,31 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     regulator: 'the Ghana Investment Promotion Authority', source: O('https://gipa.gov.gh/'),
     reformNote: 'Act 1173 removed the blanket minimum capital requirements for most foreign-owned enterprises; check its regulations.',
   },
+
+  // ---- Uganda ----
+  'UG-company-2': { source: O('https://www.ngobureau.go.ug/') },
+  'UG-labour-1': { source: O('https://mglsd.go.ug/') },
+  'UG-tax-1': {
+    citation: 'Income Tax Act (Cap. 338, 2023 revised edition), as amended; Value Added Tax Act, as amended by annual tax amendment acts',
+    source: O('https://ura.go.ug/'),
+  },
+  'UG-competition-1': {
+    citation: 'Competition Act, 2023 (assented February 2024, in force 19 April 2024); Competition Regulations, 2025 (S.I. No. 60 of 2025)',
+    regulator: 'the Ministry of Trade, Industry and Cooperatives', source: O('https://www.mtic.go.ug/'),
+    reformNote: 'The Act is run by the ministry; there is no independent competition authority yet.',
+  },
+  'UG-consumer-1': {
+    title: 'No comprehensive consumer protection law in force', citation: 'A Consumer Protection Bill is still pending; consumer rules sit in sector laws and the Competition Act, 2023',
+    regulator: null, noLaw: true,
+    summary: 'No standalone consumer protection law is in force; a bill is pending. Consumer rules sit in sector legislation and the Competition Act. Treat consumers fairly to good-practice standards and watch for the new law.',
+    source: S('https://eprcug.org/eprc-in-the-news/is-ugandas-consumer-really-protected/'),
+  },
+  'UG-sanctions-1': {
+    title: 'Anti-Terrorism Act and Anti-Money Laundering Act (UN targeted financial sanctions)',
+    citation: 'Anti-Terrorism Act, 2002, as amended; Anti-Money Laundering Act, 2013, as amended', source: O('https://www.fia.go.ug/'),
+  },
+  'UG-forex-1': { source: O('https://www.bou.or.ug/') },
+  'UG-licensing-1': { source: O('https://ugandainvest.go.ug/') },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
