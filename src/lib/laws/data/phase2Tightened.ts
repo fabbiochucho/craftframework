@@ -408,6 +408,42 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'ST-forex-1': { source: O('https://www.bcstp.st/') },
   'ST-integrity-1': { source: O('https://www.bcstp.st/') },
 
+  // ---- Ethiopia ----
+  'ET-integrity-2': { citation: 'Proclamation No. 780/2013, as amended, including by Amendment Proclamation No. 1387/2025' },
+  'ET-tax-1': {
+    citation: 'Federal Income Tax Proclamation No. 979/2016, as amended by Proclamation No. 1395/2025 (from July 2025); VAT Proclamation of 2024',
+    source: O('https://www.mor.gov.et/'),
+    reformNote: 'The 2025 amendment added an alternative minimum tax (2.5% of turnover) and lowered the permanent establishment threshold to 91 days.',
+  },
+  'ET-sanctions-1': { citation: 'Proclamation No. 780/2013 on money laundering and terrorist financing, as amended (including No. 1387/2025), with regulations giving effect to UN Security Council resolutions' },
+  'ET-forex-1': { source: O('https://nbe.gov.et/') },
+  'ET-licensing-1': { source: O('https://investethiopia.gov.et/') },
+
+  // ---- Madagascar ----
+  'MG-integrity-2': {
+    citation: 'Law No. 2023-026 on money laundering and terrorist financing, replacing Law No. 2018-043',
+    source: O('https://www.assemblee-nationale.mg/wp-content/uploads/2024/02/Loi-n%C2%B0-2023-026-Blanchiment-de-capitaux.pdf'),
+  },
+  'MG-tax-1': { source: O('https://www.impots.mg/') },
+  'MG-consumer-1': {
+    title: 'Law on guarantees and consumer protection', noLaw: false, citation: 'Law No. 2015-014',
+    regulator: 'the Ministry of Commerce', source: S('https://leap.unep.org/en/countries/mg/national-legislation/loi-ndeg-2015-014-sur-les-garanties-et-la-protection-des'),
+    summary: 'Sets consumer rights to information, legal and commercial guarantees, fair contract terms and safe products, with controls and penalties enforced by the trade ministry.',
+  },
+  'MG-sanctions-1': { citation: 'Law No. 2023-026 on money laundering and terrorist financing, with implementing rules on targeted financial sanctions' },
+  'MG-forex-1': { source: O('https://www.banky-foibe.mg/') },
+  'MG-licensing-1': { source: O('https://edbm.mg/') },
+
+  // ---- Djibouti ----
+  'DJ-data-1': {
+    title: 'Digital Code (Book I: personal data protection)', noLaw: false,
+    citation: 'Digital Code adopted by the National Assembly on 30 June 2025 (about 800 articles; Book I on personal data)',
+    regulator: 'the Commission Nationale de Protection des Données Personnelles (CNDP)',
+    summary: 'Requires a lawful basis and transparency for processing personal data, data protection by design, data subject rights, breach notification within 72 hours and a data protection officer, with heavy penalties, overseen by the national data protection commission.',
+    source: S('https://www.jonesday.com/en/insights/2025/07/national-assembly-of-the-republic-of-djibouti-approves-digital-code'),
+    reformNote: 'Reports differ on whether the CNDP is operational yet; confirm before relying on registration or authorisation duties.',
+  },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
