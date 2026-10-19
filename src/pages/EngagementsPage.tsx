@@ -3,7 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { Handshake } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { trackEvent } from '../lib/analytics'
-import { scopeText, TYPE_LABEL, type EngagementScope, type EngagementType } from '../lib/engagements'
+import { INDEX_SCOPE_NAMES, scopeText, TYPE_LABEL, type EngagementScope, type EngagementType } from '../lib/engagements'
+import { SPECIALISM_INDEX, SPECIALISMS } from '../lib/specialisms'
 
 // Validator system PR 2: engagements. Every permission is enforced by
 // /api/engagements; this page only reflects what the server allows.
@@ -111,6 +112,7 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
   const [target, setTarget] = useState({ validatorId: params.get('validatorId') ?? '', validatorFirmId: params.get('validatorFirmId') ?? '', funderFirmId: params.get('funderFirmId') ?? '', organizationProfileId: params.get('organizationProfileId') ?? '' })
   const [actFirm, setActFirm] = useState('')
   const [levels, setLevels] = useState('')
+  const [indices, setIndices] = useState<string[]>([])
   const [days, setDays] = useState('90')
   const [rereview, setRereview] = useState(false)
   const [q, setQ] = useState('')
@@ -135,7 +137,7 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
           try {
             await api('/api/engagements', { method: 'POST', json: {
               side, type, accessDays: Number(days) || 90, requiresRereview: rereview,
-              scope: lv.length ? { kind: 'levels', levels: lv } : { kind: 'whole' },
+              scope: { ...(lv.length ? { kind: 'levels', levels: lv } : { kind: 'whole' }), ...(indices.length ? { indices } : {}) },
               ...(side === 'organization' ? (type === 'funder_review' ? { funderFirmId: target.funderFirmId } : { validatorId: target.validatorId || undefined, validatorFirmId: target.validatorFirmId || undefined })
                 : { organizationProfileId: target.organizationProfileId, ...(side === 'funder' ? { funderFirmId: actFirm || funderFirms[0]?.id } : { validatorFirmId: actFirm || undefined }) }),
             } })
@@ -148,6 +150,19 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
           {side === 'funder' && funderFirms.length > 1 && <Select label="Funding partner" options={funderFirms.map((f) => ({ value: f.id, label: f.name }))} value={actFirm} onChange={setActFirm} />}
           {side === 'validator' && validatorFirms.length > 0 && <Select label="On behalf of firm" placeholder="Myself" options={validatorFirms.map((f) => ({ value: f.id, label: f.name }))} value={actFirm} onChange={setActFirm} />}
           <Input label="Levels in scope (comma-separated, blank = whole ladder)" value={levels} onChange={(e) => setLevels(e.target.value)} placeholder="e.g. 1, 2, 3" />
+          <fieldset className="space-y-1 sm:col-span-2">
+            <legend className="text-sm font-medium text-slate-700">CRAFT indices to validate alongside the ladder (optional)</legend>
+            {Object.entries(INDEX_SCOPE_NAMES).map(([k, name]) => {
+              const specialist = SPECIALISMS.some((s) => SPECIALISM_INDEX[s] === k)
+              return (
+                <label key={k} className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" className="h-4 w-4 accent-emerald-600" checked={indices.includes(k)}
+                    onChange={(e) => setIndices(e.target.checked ? [...indices, k] : indices.filter((x) => x !== k))} />
+                  {name}{specialist ? <span className="text-xs text-slate-500">(needs a specialist-accredited validator)</span> : null}
+                </label>
+              )
+            })}
+          </fieldset>
           <Input label="Access window (days, max 365)" type="number" value={days} onChange={(e) => setDays(e.target.value)} />
           <label className="flex items-center gap-2 self-end text-sm font-medium text-slate-700">
             <input type="checkbox" checked={rereview} onChange={(e) => setRereview(e.target.checked)} className="h-4 w-4 accent-emerald-600" /> Funder requires re-review
