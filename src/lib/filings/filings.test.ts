@@ -43,4 +43,10 @@ assert.equal(nextDue(has(/pension/i)!, ctx), null, 'tied to each payday, so no f
 const ob = toObligation(has(/VAT return/)!, ctx, 'Finance Manager')
 assert.equal(ob.type, 'regulatory_filing'); assert.equal(ob.frequency, 'monthly'); assert.equal(ob.nextDueDate, '2026-10-21'); assert.equal(ob.country, 'NG')
 assert.match(ob.notes ?? '', /Nigeria Tax Administration Act/)
+// Kenya
+const ke = (re: RegExp) => FILINGS.find((f) => f.jurisdiction === 'KE' && re.test(f.name))!
+assert.equal(nextDue(ke(/PAYE/), ctx), '2026-11-09')
+assert.equal(nextDue(ke(/VAT/), ctx), '2026-10-20')
+assert.equal(nextDue(ke(/Withholding/), ctx), null, 'within five working days of each deduction')
+assert.ok(ke(/SHIF/) && ke(/Housing Levy/) && ke(/NSSF/))
 console.log('filings: ok')
