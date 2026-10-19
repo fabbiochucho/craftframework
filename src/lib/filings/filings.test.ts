@@ -60,3 +60,15 @@ assert.equal(nextDue(za(/IRP6/), ctx), '2026-12-31', 'year-end provisional payme
 assert.equal(nextDue(za(/EMP501/), ctx), '2026-10-31')
 assert.equal(nextDue(za(/ITR14/), ctx), '2026-12-31', '12 months after the December 2025 year end')
 console.log('filings: ok')
+
+// Coverage: every jurisdiction in the laws register either has filings or a stated reason why not
+import { FILING_GAPS, FILING_JURISDICTIONS } from './index.ts'
+import { LAW_JURISDICTIONS } from '../laws/types.ts'
+for (const j of LAW_JURISDICTIONS) {
+  assert.ok(FILING_JURISDICTIONS.includes(j) !== Boolean(FILING_GAPS[j]), `${j}: filings or a gap note, not both`)
+}
+assert.match(FILING_GAPS.EU, /national/i, 'EU filings are made in each member state')
+const gb = (re: RegExp) => FILINGS.find((f) => f.jurisdiction === 'UK' && re.test(f.name))!
+assert.equal(nextDue(gb(/confirmation statement/i), ctx), null)
+assert.equal(nextDue(gb(/PAYE/), ctx), '2026-10-22')
+assert.equal(nextDue(FILINGS.find((f) => f.id === 'us-941')!, ctx), '2026-10-31')
