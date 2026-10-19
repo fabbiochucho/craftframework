@@ -18,10 +18,12 @@
 import { and, eq, gt, lte } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
-  accessGrants, auditLogs, engagementDeclarations, engagementMembers, organizations, users, validationEngagements, validatorProfiles,
+  accessGrants, auditLogs, engagementDeclarations, engagementMembers, organizations, users, validationEngagements, validatorProfiles, validatorSpecialisms,
 } from '../../db/schema.js'
 import { declarationFor, GRANT_ROLE, type EngagementType } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
+import { heldSpecialisms, missingSpecialisms, type Specialism } from '../../src/lib/specialisms.js'
+import type { EngagementScope } from '../../src/lib/engagements.js'
 
 const audit = (actor: string, action: string, target: string, orgId: string) =>
   db.insert(auditLogs).values({ actor, action, target, category: 'Engagement', orgId })
@@ -29,6 +31,13 @@ const audit = (actor: string, action: string, target: string, orgId: string) =>
 export async function accreditationOf(email: string): Promise<string | null> {
   const [v] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.email, email))
   return v ? effectiveAccreditation(v) : null
+}
+
+/** The specialisms a scope needs that this validator does not currently hold (spec §7). */
+export async function specialismsMissing(email: string, scope: EngagementScope): Promise<Specialism[]> {
+  if (!scope.indices?.length) return []
+  const rows = await db.select({ specialism: validatorSpecialisms.specialism }).from(validatorSpecialisms).where(eq(validatorSpecialisms.email, email))
+  return missingSpecialisms(scope, heldSpecialisms(rows, (await accreditationOf(email)) ?? 'registered'))
 }
 
 // A reason this person must not be a validator for the organisation, or null.

@@ -20,7 +20,7 @@ import {
 import { scopeText, type EngagementScope } from '../../src/lib/engagements.js'
 import { credentialLabel, effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 import { STATUS_LABEL, type Status } from '../../src/lib/validationLifecycle.js'
-import { generateVerificationId, standardWording } from '../../src/lib/validationStatement.js'
+import { generateVerificationId, indexResultsFromSnapshot, indexResultsHeading, standardWording, type PublicIndexResult } from '../../src/lib/validationStatement.js'
 import { FRAMEWORKS, METHOD_LABEL, OUTCOME_LABEL, type Method, type Outcome } from '../../src/lib/validationReview.js'
 import { describeValidation, statusHistory } from './validation-lifecycle.js'
 
@@ -58,6 +58,8 @@ export type PublicView = {
   rungName: string
   /** A scope that skips level 1 confirms levels instead of a rung (validatedRung is then 0). */
   confirmedLevels: ConfirmedLevel[] | null
+  /** CRAFT indices validated alongside the ladder: a band each, never scores or evidence (spec §7). */
+  indexResults: PublicIndexResult[] | null
   validators: Array<{ name: string; role: string; accreditation: string; credentials: Array<{ body: string; number: string; status: string }> }>
   firm: string | null
   validatorType: string
@@ -133,6 +135,7 @@ export async function buildPublicView(v: ValidationRow, now = new Date()): Promi
     outcome: v.outcome as Outcome, outcomeLabel: OUTCOME_LABEL[v.outcome as Outcome], validatedRung: v.validatedRung,
     rungName: fw.levels.find((l) => l.level === v.validatedRung)?.name ?? '',
     confirmedLevels: snap.partialScope && Array.isArray(snap.confirmedLevels) ? snap.confirmedLevels : null,
+    indexResults: indexResultsFromSnapshot(snap),
     validators, firm: type === 'funder_review' ? (fFirm?.name ?? null) : (vFirm?.name ?? null),
     validatorType: type === 'funder_review' ? `Funding partner${fFirm?.nature ? ` (${fFirm.nature})` : ''}` : vFirm ? (vFirm.nature ?? 'Validator firm') : 'Independent consultant',
     engagedBy: snap.engagement?.engagedBy ?? '',
@@ -222,6 +225,7 @@ export async function renderStatementPdf(view: PublicView, url: string): Promise
   row('Registration number', view.organization.registrationNumber ?? 'Not provided')
   row('Scope', view.scope)
   row('Outcome', `${view.outcomeLabel}${view.outcome === 'not_validated' ? '' : view.confirmedLevels ? ` — ${confirmedText(view.confirmedLevels)}` : ` — rung ${view.validatedRung}: ${view.rungName}`}`)
+  if (view.indexResults) row(indexResultsHeading(view.indexResults), view.indexResults.map((r) => `${r.name}: ${r.band ?? 'no band'}`).join('; '))
   row('Label', view.statement)
   row('Validator(s)', view.validators.map((x) => `${x.name} (${x.role}; ${x.accreditation})`).join('; ') || '—')
   const cred = view.validators.flatMap((x) => x.credentials.map((c) => `${x.name}: ${c.body} ${c.number} (${c.status})`))
