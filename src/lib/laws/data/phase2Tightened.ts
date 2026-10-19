@@ -146,6 +146,25 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   },
   'BW-forex-1': { source: O('https://www.bankofbotswana.bw/') },
   'BW-licensing-1': { source: O('https://www.bitc.co.bw/') },
+
+  // ---- Namibia ----
+  'NA-data-1': { citation: 'A Data Protection Bill (drafted 2021, revised) was still being finalised in July 2026; only the constitutional right to privacy (Article 13) applies' },
+  'NA-governance-1': { source: O('https://www.nsx.com.na/') },
+  'NA-sustainability-1': { source: O('https://www.meft.gov.na/') },
+  'NA-eia-1': { source: O('https://www.meft.gov.na/') },
+  'NA-tax-1': { citation: 'Income Tax Act 24 of 1981 and Value-Added Tax Act 10 of 2000, as amended', source: O('https://www.namra.org.na/') },
+  'NA-competition-1': { source: O('https://www.nacc.com.na/') },
+  'NA-sanctions-1': {
+    title: 'Prevention and Combating of Terrorist and Proliferation Activities Act (UN targeted financial sanctions)',
+    citation: 'Act 4 of 2014, as amended by Act 8 of 2023 (in force 25 July 2023), and its regulations; Financial Intelligence Act 13 of 2012, as amended',
+    source: O('https://www.fic.na/'),
+  },
+  'NA-forex-1': { source: O('https://www.bon.com.na/') },
+  'NA-licensing-1': {
+    title: 'Foreign Investments Act', citation: 'Act 27 of 1990, as amended; the Namibia Investment Promotion Act 9 of 2016 was never brought into force',
+    regulator: 'the Namibia Investment Promotion and Development Board (Office of the President)', source: O('https://nipdb.com/'),
+    reformNote: 'An Investment Promotion and Facilitation Bill is expected to replace both Acts; check its status.',
+  },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
