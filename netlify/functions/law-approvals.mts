@@ -27,7 +27,9 @@ export default async (req: Request) => {
 
     if (req.method === 'GET' && sub === '') {
       const rows = await db.select().from(lawApprovals)
-      return json({ approvals: rows.map((r) => ({ jurisdiction: r.jurisdiction, approvedBy: r.approvedBy, registerVersion: r.registerVersion, approvedAt: r.approvedAt })) })
+      // The approver's address is personal data; only Super Admins see it.
+      const admin = isSuperAdmin(caller.email) && caller.role === 'super_admin'
+      return json({ approvals: rows.map((r) => ({ jurisdiction: r.jurisdiction, registerVersion: r.registerVersion, approvedAt: r.approvedAt, ...(admin ? { approvedBy: r.approvedBy } : {}) })) })
     }
 
     // Changes: Super Admin only (the server allowlist, never a client field), same-origin, with MFA.
@@ -41,15 +43,20 @@ export default async (req: Request) => {
       const parsed = approveSchema.safeParse(await req.json().catch(() => null))
       if (!parsed.success) return json({ error: 'Send a two-letter jurisdiction code and the register version.' }, 400)
       const { jurisdiction, registerVersion } = parsed.data
-      await db.insert(lawApprovals).values({ jurisdiction, approvedBy: caller.email, registerVersion })
-        .onConflictDoUpdate({ target: lawApprovals.jurisdiction, set: { approvedBy: caller.email, registerVersion, approvedAt: new Date() } })
-      await db.insert(auditLogs).values({ actor: caller.email, action: `Approved laws register entries (${registerVersion})`, target: jurisdiction, category: 'Config' })
+      // The approval and its audit row stand or fall together.
+      await db.transaction(async (tx) => {
+        await tx.insert(lawApprovals).values({ jurisdiction, approvedBy: caller.email, registerVersion })
+          .onConflictDoUpdate({ target: lawApprovals.jurisdiction, set: { approvedBy: caller.email, registerVersion, approvedAt: new Date() } })
+        await tx.insert(auditLogs).values({ actor: caller.email, action: `Approved laws register entries (${registerVersion})`, target: jurisdiction, category: 'Config' })
+      })
       return json({ ok: true })
     }
 
     if (req.method === 'DELETE' && JURISDICTION.test(sub)) {
-      await db.delete(lawApprovals).where(eq(lawApprovals.jurisdiction, sub))
-      await db.insert(auditLogs).values({ actor: caller.email, action: 'Revoked laws register approval', target: sub, category: 'Config' })
+      await db.transaction(async (tx) => {
+        const gone = await tx.delete(lawApprovals).where(eq(lawApprovals.jurisdiction, sub)).returning({ j: lawApprovals.jurisdiction })
+        if (gone.length) await tx.insert(auditLogs).values({ actor: caller.email, action: 'Revoked laws register approval', target: sub, category: 'Config' })
+      })
       return json({ ok: true })
     }
 
