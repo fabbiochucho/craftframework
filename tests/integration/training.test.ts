@@ -93,7 +93,8 @@ describe('validator training and accreditation', () => {
       assert.equal((await t(null, m, p, m === 'POST' ? {} : undefined)).status, 401, `${m} ${p}`)
     }
     const me = (await t(LEARNER, 'GET', 'me')).body
-    assert.equal(me.modules.length, 8)
+    assert.equal(me.modules.length, 9, 'eight modules plus module 9 (the CRAFT indices); specialist modules are listed separately')
+    assert.deepEqual(me.specialist.map((s: any) => s.moduleId), ['s1', 's2'])
     assert.equal(me.progress.pct, 0)
     assert.equal((await rows('SELECT count(*)::int n FROM training_cases'))[0].n, 4)
     assert.equal((await rows('SELECT count(*)::int n FROM training_capstones'))[0].n, 1)
@@ -200,8 +201,11 @@ describe('validator training and accreditation', () => {
 
   it('draws a timed exam from the bank with retake and yearly limits', async () => {
     await makeValidator(); await finishModules(LEARNER)
+    // Back to the 20 starter questions (module 9 adds 20 more) to exercise the small-bank rule.
+    await rows("UPDATE training_questions SET active = false WHERE module_id = 'm9'")
     const exam = await startExam()
     assert.equal(exam.questions.length, 20, 'the starter bank has 20 exam questions, so all are drawn')
+    assert.ok(exam.questions.every((q: any) => !/^q-s[12]-/.test(q.id)), 'specialist questions never appear in the knowledge exam')
     assert.match(exam.note ?? '', /fewer than 40/)
     assert.ok(exam.questions.every((q: any) => !('correctIndex' in q) && !('explanation' in q)))
     assert.equal((await startExam()).id, exam.id, 'resumes the attempt in progress')
@@ -353,9 +357,9 @@ describe('validator training and accreditation', () => {
     await rows("UPDATE training_progress SET completed_at = now() - interval '13 months'")
     const state = (await t(LEARNER, 'GET', 'renewal')).body
     assert.equal(state.ready, false); assert.equal(state.open, true)
-    assert.equal(state.items.find((i: any) => i.key === 'videos').detail, '0 of 8 done', 'last year’s watching does not count')
+    assert.equal(state.items.find((i: any) => i.key === 'videos').detail, '0 of 9 done', 'last year’s watching does not count')
     assert.equal((await t(LEARNER, 'POST', 'renewal/complete')).status, 409)
-    for (const m of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8']) assert.equal((await t(LEARNER, 'POST', `modules/${m}/watch`)).status, 200)
+    for (const m of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9']) assert.equal((await t(LEARNER, 'POST', `modules/${m}/watch`)).status, 200)
     assert.equal((await t(LEARNER, 'POST', 'renewal/complete')).status, 409, 'CPD, drill and declaration are still missing')
     assert.equal((await t(LEARNER, 'POST', 'renewal/cpd', { hours: 5, activity: 'ACCA CPD', occurredOn: '2026-09-01' })).status, 201)
     assert.equal((await t(LEARNER, 'POST', 'renewal/cpd', { hours: 30, activity: 'x', occurredOn: '2026-09-01' })).status, 400)

@@ -10,6 +10,7 @@
 import { blockingIndicators, currentRung, LADDER_INDICATORS, LADDER_LEVELS, levelAchieved, levelScore } from './capitalReadiness.ts'
 import { optimismBias, paperCompliancePenalty } from './frameworks.ts'
 import type { EngagementScope } from './engagements.ts'
+import { applicableIndicators, bandFor, FOUNDATION_MODULES, type ModuleProfile } from './foundationModules.ts'
 
 export const METHODS = ['document_review', 'sample_testing', 'interviews', 'site_visit', 'combined'] as const
 export type Method = (typeof METHODS)[number]
@@ -32,6 +33,12 @@ export type ReviewStatus = (typeof REVIEW_STATUSES)[number]
 export type FrameworkIndicator = { id: string; level: number; domain: string; question: string }
 export type FrameworkDef = {
   key: string
+  /** 'rung': a ladder of levels (the engagement's framework). 'band': a CRAFT index, validated alongside it (spec §7). */
+  result: 'rung' | 'band'
+  /** Band frameworks: the band label the scores earn, or null when nothing is answered. */
+  band?: (scores: Record<string, number>, p?: ModuleProfile) => string | null
+  /** Band frameworks: the indicators that apply to an organisation with this module profile. */
+  indicatorsFor?: (p?: ModuleProfile) => FrameworkIndicator[]
   name: string
   version: string
   /** legacy-state key holding the organisation's self-scores (Record<indicatorId, 0-5>) */
@@ -47,12 +54,54 @@ export type FrameworkDef = {
 
 export const FRAMEWORKS: Record<string, FrameworkDef> = {
   'capital-readiness': {
-    key: 'capital-readiness', name: 'CRAFT Capital Readiness Ladder', version: 'ICARF v4.0', scoresKey: 'capital:scores',
+    key: 'capital-readiness', result: 'rung', name: 'CRAFT Capital Readiness Ladder', version: 'ICARF v4.0', scoresKey: 'capital:scores',
     levels: LADDER_LEVELS.map((l) => ({ level: l.level, name: l.name })),
     indicators: LADDER_INDICATORS.map((i) => ({ id: i.id, level: i.level, domain: i.domain, question: i.question })),
     rung: currentRung, levelScore, levelAchieved,
     blocking: (scores) => blockingIndicators(scores).map((i) => i.id),
   },
+  ...indexFrameworks(),
+}
+
+// The v1 (102026) indices as band frameworks. Self-scores live in /api/responses ('responses').
+// Which indicators apply follows the organisation's module profile ('modules:profile'), as in self-assessment.
+function indexFrameworks(): Record<string, FrameworkDef> {
+  const out: Record<string, FrameworkDef> = {}
+  for (const m of FOUNDATION_MODULES.filter((x) => x.version === 'v1 (102026)')) {
+    const toFw = (inds: typeof m.indicators): FrameworkIndicator[] =>
+      inds.map((i) => ({ id: i.id, level: 0, domain: m.dimensions.find((d) => d.key === i.dimension)?.name ?? i.dimension, question: i.question }))
+    out[m.id] = {
+      key: m.id, result: 'band', name: `CRAFT ${m.title}`, version: m.version ?? '', scoresKey: 'responses', levels: [],
+      indicators: toFw(m.indicators),
+      indicatorsFor: (p) => toFw(applicableIndicators(m, p)),
+      rung: () => 0, levelScore: () => 0, levelAchieved: () => false,
+      blocking: (scores) => m.indicators.filter((i) => scores[i.id] != null && scores[i.id] <= 2).map((i) => i.id),
+      band: (scores, p) => bandFor(m, scores, p)?.band.label ?? null,
+    }
+  }
+  return out
+}
+
+export type ScopedIndicator = FrameworkIndicator & { framework: string }
+
+/** The band frameworks (indices) in an engagement's scope. */
+export function scopeIndices(scope: EngagementScope): FrameworkDef[] {
+  return (scope.indices ?? []).map((k) => FRAMEWORKS[k]).filter((f): f is FrameworkDef => !!f && f.result === 'band')
+}
+
+/** Every indicator in scope: the ladder's in-scope levels, then each index's indicators that apply to the organisation. */
+export function allInScope(fw: FrameworkDef, scope: EngagementScope, profile?: ModuleProfile): ScopedIndicator[] {
+  return [
+    ...indicatorsInScope(fw, scope).map((i) => ({ ...i, framework: fw.key })),
+    ...scopeIndices(scope).flatMap((f) => (f.indicatorsFor?.(profile) ?? f.indicators).map((i) => ({ ...i, framework: f.key }))),
+  ]
+}
+
+export type IndexResult = { key: string; name: string; version: string; band: string | null }
+
+/** The band each index in scope earns on the final scores. Bands only: never scores or evidence. */
+export function indexResults(scope: EngagementScope, final: Record<string, number>, profile?: ModuleProfile): IndexResult[] {
+  return scopeIndices(scope).map((f) => ({ key: f.key, name: f.name, version: f.version, band: f.band!(cleanScores(final, new Set(f.indicators.map((i) => i.id))), profile) }))
 }
 
 /** Indicators in an engagement's scope (whole framework or the listed levels). */
@@ -126,18 +175,18 @@ export function levelsAchieved(fw: FrameworkDef, scores: Record<string, number>,
 }
 
 export type TrustDeltaRow = {
-  id: string; level: number; domain: string; question: string
+  id: string; framework: string; level: number; domain: string; question: string
   self: number | null; validator: number | null; delta: number | null; optimismBias: number | null
 }
 export type TrustDeltaRowWithCap = TrustDeltaRow & { negotiated: number | null; paperCap: PaperCap | null; final: number | null }
 
 /** Self vs validator score per in-scope indicator (live, as the validator scores). */
-export function trustDelta(fw: FrameworkDef, scope: EngagementScope, self: Record<string, number>, validator: Record<string, number>): TrustDeltaRow[] {
-  return indicatorsInScope(fw, scope).map((i) => {
+export function trustDelta(fw: FrameworkDef, scope: EngagementScope, self: Record<string, number>, validator: Record<string, number>, profile?: ModuleProfile): TrustDeltaRow[] {
+  return allInScope(fw, scope, profile).map((i) => {
     const s = self[i.id] ?? null
     const v = validator[i.id] ?? null
     return {
-      id: i.id, level: i.level, domain: i.domain, question: i.question, self: s, validator: v,
+      id: i.id, framework: i.framework, level: i.level, domain: i.domain, question: i.question, self: s, validator: v,
       delta: s != null && v != null ? s - v : null,
       optimismBias: s != null && v != null ? optimismBias({ prScore: s, assessorScore: v }) : null,
     }
@@ -147,10 +196,10 @@ export function trustDelta(fw: FrameworkDef, scope: EngagementScope, self: Recor
 /** Trust Delta rows with the negotiated score, any paper-compliance cap on it, and the score that stands. */
 export function trustDeltaWithCaps(
   fw: FrameworkDef, scope: EngagementScope, self: Record<string, number>, validator: Record<string, number>,
-  negotiated: Record<string, number>, sufficiency: Record<string, Sufficiency | null | undefined>,
+  negotiated: Record<string, number>, sufficiency: Record<string, Sufficiency | null | undefined>, profile?: ModuleProfile,
 ): TrustDeltaRowWithCap[] {
   const caps = paperCaps(negotiated, sufficiency)
-  return trustDelta(fw, scope, self, validator).map((t) => ({
+  return trustDelta(fw, scope, self, validator, profile).map((t) => ({
     ...t, negotiated: negotiated[t.id] ?? null, paperCap: caps[t.id] ?? null, final: caps[t.id]?.capped ?? negotiated[t.id] ?? validator[t.id] ?? null,
   }))
 }
@@ -170,12 +219,14 @@ export type FinaliseInput = {
   outcome: Outcome | null
   qualifications: Qualification[]
   now?: Date
+  /** The organisation's module profile: which index indicators apply. */
+  profile?: ModuleProfile
 }
 
 /** Everything that stops a review being finalised, as plain sentences. Empty = ready. */
 export function finalisationProblems(i: FinaliseInput): string[] {
   const problems: string[] = []
-  const inScope = indicatorsInScope(i.fw, i.scope)
+  const inScope = allInScope(i.fw, i.scope, i.profile)
   const missing = inScope.filter((x) => i.validatorScores[x.id] == null)
   if (missing.length) problems.push(`Score every indicator in scope (${missing.length} not yet scored)`)
   if (!i.method) problems.push('Record the method used')
@@ -216,4 +267,15 @@ export function canonicalJson(value: unknown): string {
     return `{${Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`).join(',')}}`
   }
   return JSON.stringify(value) ?? 'null'
+}
+
+/** Only a rung framework (the ladder) can be an engagement's framework; indices are added through scope.indices. */
+export const isPrimaryFramework = (key: string): boolean => FRAMEWORKS[key]?.result === 'rung'
+
+/** Indicators a validation's improvement actions may link: the framework's, plus every indicator its frozen review covered. */
+export function knownIndicatorIds(fw: FrameworkDef | undefined, snapshot: unknown): Set<string> {
+  const ids = new Set((fw?.indicators ?? []).map((i) => i.id))
+  const list = (snapshot as { indicators?: unknown } | null)?.indicators
+  if (Array.isArray(list)) for (const i of list) if (i && typeof (i as { id?: unknown }).id === 'string') ids.add((i as { id: string }).id)
+  return ids
 }

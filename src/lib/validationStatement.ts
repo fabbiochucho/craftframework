@@ -77,3 +77,17 @@ export function cleanPublicOptions(input: unknown): PublicOptions {
   }
   return out
 }
+
+export type PublicIndexResult = { name: string; version: string; band: string | null }
+
+/** The band per CRAFT index from a frozen snapshot (schema 2), or null when it has none. Bands only (spec §7). */
+export function indexResultsFromSnapshot(snap: unknown): PublicIndexResult[] | null {
+  const s = (snap && typeof snap === 'object' ? snap : {}) as { schema?: unknown; indices?: unknown }
+  if (typeof s.schema !== 'number' || s.schema < 2 || !Array.isArray(s.indices)) return null
+  const out = s.indices
+    .filter((x): x is { name: string; version: string; band: unknown } => !!x && typeof x === 'object' && typeof (x as any).name === 'string' && typeof (x as any).version === 'string')
+    .map((x) => ({ name: x.name, version: x.version, band: typeof x.band === 'string' ? x.band : null }))
+  return out.length ? out : null
+}
+
+export const indexResultsHeading = (r: PublicIndexResult[]) => `CRAFT index results (${[...new Set(r.map((x) => x.version))].join(', ')})`

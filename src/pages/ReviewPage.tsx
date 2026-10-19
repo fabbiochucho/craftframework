@@ -9,7 +9,7 @@ import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
 // debrief is open, what freezes) is enforced by /api/validation-reviews.
 
 type Row = {
-  id: string; level: number; domain: string; question: string; self: number | null; validator: number | null; delta: number | null; optimismBias: number | null
+  id: string; framework?: string; level: number; domain: string; question: string; self: number | null; validator: number | null; delta: number | null; optimismBias: number | null
   sufficiency?: string | null; comment?: string; evidenceRef?: string; orgResponse?: string; negotiated?: number | null
   paperCap?: { negotiated: number; capped: number; message: string } | null; final?: number | null; evidence?: LinkedEvidence[]
 }
@@ -25,6 +25,8 @@ type View = {
   qualifications?: Array<{ id: string; text: string; indicatorIds: string[] }>; problems?: string[]
   rungs?: { self: number; validator: number } | null; partialScope?: boolean; confirmedLevels?: Confirmation[] | null; scored?: number; total?: number
   indicators?: Array<{ id: string; level: number; question: string }>; evidence?: LinkedEvidence[]
+  /** CRAFT indices validated alongside the ladder, the band each would get so far, and any specialism block. */
+  indices?: Array<{ key: string; name: string; version: string }>; indexBands?: Array<{ key: string; band: string | null }>; specialismBlock?: string | null
   outcome?: Outcome; validatedRung?: number | null; sha256?: string; finalisedAt?: string; snapshot?: any
 }
 
@@ -89,6 +91,7 @@ export function ReviewPage({ id }: { id: string }) {
         </div>
       )}
       {v.indicators && v.evidence && <OrgEvidence id={id} v={v} act={act} call={call} />}
+      {v.specialismBlock && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{v.specialismBlock}</p>}
       {v.status === 'finalised' ? <Frozen v={v} /> : v.rows && v.lead !== undefined ? <Reviewer v={v} act={act} call={call} /> : v.rows ? <OrgDebrief v={v} act={act} call={call} />
         : <p className="text-sm text-slate-600">{v.status === 'not_started' ? 'The review has not started.' : 'The review is in progress. You will see the validator\'s scores and comments when the debrief opens.'}</p>}
     </div>
@@ -117,6 +120,21 @@ function Reviewer({ v, act, call }: { v: View; act: Act; call: Call }) {
         return rows.length ? (
           <Card key={lvl.level}>
             <CardHeader><CardTitle>Level {lvl.level}: {lvl.name}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {rows.map((r) => <IndicatorRow key={r.id} r={r} debrief={debrief} lead={!!v.lead} act={act} call={call} />)}
+            </CardContent>
+          </Card>
+        ) : null
+      })}
+      {(v.indices ?? []).map((ix) => {
+        const rows = v.rows!.filter((r) => r.framework === ix.key)
+        const band = v.indexBands?.find((b) => b.key === ix.key)?.band
+        return rows.length ? (
+          <Card key={ix.key}>
+            <CardHeader>
+              <CardTitle>{ix.name} ({ix.version})</CardTitle>
+              <p className="text-sm text-slate-600">Band on the scores so far: <strong>{band ?? 'not yet scored'}</strong>. Only the band is published, never the scores.</p>
+            </CardHeader>
             <CardContent className="space-y-4">
               {rows.map((r) => <IndicatorRow key={r.id} r={r} debrief={debrief} lead={!!v.lead} act={act} call={call} />)}
             </CardContent>
@@ -305,6 +323,7 @@ function Frozen({ v }: { v: View }) {
         </CardHeader>
         <CardContent className="space-y-1 text-sm text-slate-700">
           <p>Method: {METHOD_LABEL[s.method as Method]} · Fieldwork {s.fieldwork.start} to {s.fieldwork.end}</p>
+          {Array.isArray(s.indices) && s.indices.length > 0 && <p>CRAFT index results: {s.indices.map((ix: any) => `${ix.name}: ${ix.band ?? 'no band'}`).join('; ')}</p>}
           {s.partialScope && <p>This scope skips level 1, so it confirms levels rather than a rung: {(s.confirmedLevels as Confirmation[]).map((c) => `level ${c.level} ${c.achieved ? 'achieved' : 'not achieved'}`).join('; ')}.</p>}
           <p>Self-assessed rung then: {s.selfRung} · Team: {s.team.map((t: any) => `${t.name} (${t.role})`).join(', ')}</p>
           {s.outcomeSummary && <p>{s.outcomeSummary}</p>}
