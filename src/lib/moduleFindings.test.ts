@@ -31,9 +31,10 @@ assert.equal(t.planMonths, Math.max(...t.actions.map((x) => x.dueMonth)), 'plan 
 const legacy = planTimeline({ 'GOV-01': 3 }, {}, 6)
 assert.ok(legacy.planMonths <= 6, 'a 6-month target keeps a moderate gap within 6 months')
 // Low change readiness slows people and practice actions
-const chg = 'CRAFT-CHG-01'
-assert.ok(planTimeline({ 'GOV-01': 0, [chg]: 0 }, {}, DEFAULT_TIMELINE).actions.find((x) => x.id === chg)!.flags!.some((f) => /embedding/.test(f)) ||
-  !planTimeline({ [chg]: 0 }, {}, DEFAULT_TIMELINE).actions.some((x) => ['people', 'practice'].includes(x.actionType ?? '')), 'change readiness feeds the timeline')
+const chg = 'CRAFT-CHG-04' // a 'people' action
+const chgAction = planTimeline({ [chg]: 0 }, {}, DEFAULT_TIMELINE).actions.find((x) => x.id === chg)!
+assert.equal(chgAction.actionType, 'people')
+assert.ok(chgAction.flags!.some((f) => /embedding/.test(f)), 'low change readiness (from the answers) adds embedding time')
 console.log('moduleFindings: ok')
 
 import { deriveEsgFindings } from './moduleFindings.ts'

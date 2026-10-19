@@ -44,6 +44,30 @@ export interface TimelineResult {
 
 export const DEFAULT_TIMELINE: TimelineSettings = { pace: 'standard', orgSize: 'medium', overrides: {}, fixedDates: {} }
 
+const PACES: Pace[] = ['standard', 'accelerated', 'target', 'extended']
+const SIZES: OrgSize[] = ['small', 'medium', 'large']
+const isRecord = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x)
+
+/** Saved settings from any client version, made safe to schedule with. */
+export function normaliseTimeline(raw: Partial<TimelineSettings> | null | undefined): TimelineSettings {
+  const r = (isRecord(raw) ? raw : {}) as Partial<TimelineSettings>
+  const out: TimelineSettings = {
+    pace: PACES.includes(r.pace as Pace) ? r.pace! : 'standard',
+    orgSize: SIZES.includes(r.orgSize as OrgSize) ? r.orgSize! : 'medium',
+    overrides: {}, fixedDates: {},
+  }
+  if (typeof r.targetMonths === 'number' && Number.isFinite(r.targetMonths) && r.targetMonths > 0) out.targetMonths = r.targetMonths
+  if (typeof r.startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.startDate)) out.startDate = r.startDate
+  if (typeof r.changeReadiness === 'number' && Number.isFinite(r.changeReadiness)) out.changeReadiness = r.changeReadiness
+  if (isRecord(r.overrides)) for (const [k, v] of Object.entries(r.overrides)) {
+    if (isRecord(v) && typeof v.dueWeek === 'number' && v.dueWeek > 0 && typeof v.reason === 'string') out.overrides[k] = { dueWeek: Math.round(v.dueWeek), reason: v.reason }
+  }
+  if (isRecord(r.fixedDates)) for (const [k, v] of Object.entries(r.fixedDates)) {
+    if (isRecord(v) && typeof v.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v.date) && typeof v.label === 'string') out.fixedDates[k] = { date: v.date, label: v.label }
+  }
+  return out
+}
+
 export const PACE_LABEL: Record<Pace, string> = {
   standard: 'Standard', accelerated: 'Accelerated', target: 'Target date', extended: 'Extended',
 }
@@ -73,8 +97,12 @@ function paceFactor(inputs: TimelineInput[], s: TimelineSettings): number {
 }
 
 export function suggestTimeline(inputs: TimelineInput[], settings: TimelineSettings): TimelineResult {
-  const s = { ...DEFAULT_TIMELINE, ...settings }
+  const s = normaliseTimeline(settings)
   const factor = paceFactor(inputs, s)
+  // Durations are never more than 40% shorter; a Target date stretches window ends, never starts.
+  const durationFactor = Math.max(0.6, Math.min(1, factor))
+  const startFactor = s.pace === 'target' ? Math.min(1, factor) : factor
+  const missed: string[] = []
   const start = s.startDate ?? new Date().toISOString().slice(0, 10)
   const cap = CAPACITY[s.orgSize]
   const embed = s.changeReadiness !== undefined && s.changeReadiness < 2.5
@@ -92,27 +120,31 @@ export function suggestTimeline(inputs: TimelineInput[], settings: TimelineSetti
     const type = a.actionType ?? 'process'
     const flags: string[] = []
     const min = a.minWeeks ?? 0
-    let duration = Math.max(Math.round(BASE_WEEKS[type] * Math.min(1, factor)), min, 1)
+    let duration = Math.max(Math.round(BASE_WEEKS[type] * durationFactor), min, 1)
     if (embed && (type === 'people' || type === 'practice')) {
       duration = Math.ceil(duration * 1.25)
       flags.push('Adds embedding time because change readiness is below 2.5')
     }
-    let [winStart, winEnd] = WINDOWS[a.severity].map((w) => Math.round(w * factor))
+    let winStart = Math.round(WINDOWS[a.severity][0] * startFactor)
+    let winEnd = Math.round(WINDOWS[a.severity][1] * factor)
     const fixed = s.fixedDates[a.id]
-    if (fixed) {
-      const deadline = Math.max(0, weeksUntil(start, fixed.date))
-      winEnd = Math.min(winEnd, deadline)
+    const deadline = fixed ? weeksUntil(start, fixed.date) : null
+    if (deadline !== null) {
+      winEnd = Math.min(winEnd, Math.max(0, deadline))
       winStart = Math.min(winStart, Math.max(0, deadline - duration))
-      flags.push(`Due before ${fixed.label} (${fixed.date})`)
     }
     // Prerequisites in the same domain finish first
     const need = PREREQ[type]
     let earliest = winStart
+    let waitsFor: string | null = null
     if (need) {
       for (const p of ordered) {
-        if (p.domain === a.domain && (p.actionType ?? 'process') === need) earliest = Math.max(earliest, schedule(p).dueWeek)
+        if (p.domain !== a.domain || (p.actionType ?? 'process') !== need) continue
+        const due = schedule(p).dueWeek
+        if (due > earliest) { earliest = due; waitsFor = p.id }
       }
     }
+    if (waitsFor) flags.push(`Waits for ${waitsFor} (${need} first) until week ${earliest}`)
     // ponytail: counts any overlap in the range, not peak concurrency; slightly conservative
     const slots = busy.get(a.owner) ?? []
     let startWeek = earliest
@@ -127,7 +159,11 @@ export function suggestTimeline(inputs: TimelineInput[], settings: TimelineSetti
     const ov = s.overrides[a.id]
     if (ov) {
       dueWeek = Math.max(ov.dueWeek, startWeek + Math.max(min, 1))
-      flags.push(`Override: due week ${dueWeek} (${ov.reason})${dueWeek > ov.dueWeek ? `; kept to the minimum of ${min} weeks` : ''}`)
+      flags.push(`Override: due week ${dueWeek} (${ov.reason})${dueWeek > ov.dueWeek ? `; kept to the minimum of ${Math.max(min, 1)} weeks` : ''}`)
+    }
+    if (fixed && deadline !== null) {
+      if (dueWeek <= deadline) flags.push(`Due before ${fixed.label} (${fixed.date})`)
+      else { flags.push(`Cannot meet ${fixed.label} (${fixed.date}): due week ${dueWeek}`); missed.push(a.id) }
     }
     slots.push([startWeek, dueWeek])
     busy.set(a.owner, slots)
@@ -140,9 +176,9 @@ export function suggestTimeline(inputs: TimelineInput[], settings: TimelineSetti
   const actions = ordered.map(schedule)
   const planWeeks = actions.reduce((m, x) => Math.max(m, x.dueWeek), 0)
   const targetWeeks = s.pace === 'target' && s.targetMonths ? monthsToWeeks(s.targetMonths) : null
-  const cannotFit = targetWeeks === null ? [] : actions.filter((x) => x.dueWeek > targetWeeks).map((x) => x.id)
+  const cannotFit = [...new Set([...(targetWeeks === null ? [] : actions.filter((x) => x.dueWeek > targetWeeks).map((x) => x.id)), ...missed])]
   const warnings: string[] = []
   if (s.pace === 'accelerated') warnings.push('Accelerated pace: windows are 40% shorter. Check owners can carry the extra load.')
-  if (cannotFit.length) warnings.push(`${cannotFit.length} action(s) cannot finish by the target date at their minimum duration.`)
+  if (cannotFit.length) warnings.push(`${cannotFit.length} action(s) cannot finish by the target or fixed date.`)
   return { actions, planWeeks, planMonths: weeksToMonths(planWeeks), cannotFit, warnings }
 }
