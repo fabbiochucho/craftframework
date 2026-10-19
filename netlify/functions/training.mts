@@ -424,7 +424,8 @@ export default async (req: Request) => {
           if (passed) await tx.insert(validatorSpecialisms).values({ email, specialism: s, grantedAt: now, grantedBy: 'training programme', attemptId: at.id }).onConflictDoNothing()
         })
         await audit(email, `submitted ${SPECIALISM_LABEL[s]} specialist assessment: ${r.score}/${r.total} ${passed ? 'passed; specialism granted' : 'not passed'}`, at.id, passed ? 'Accreditation' : 'Training')
-        return json({ ...r, passed, review: qs.map((q) => ({ id: q.id, prompt: q.prompt, options: q.options, yours: p.data.answers[q.id] ?? null, correctIndex: q.correctIndex, explanation: q.explanation })) })
+        // The bank is small, so answers are shown only after a pass: a retake must not be a copying exercise.
+        return json({ ...r, passed, review: passed ? qs.map((q) => ({ id: q.id, prompt: q.prompt, options: q.options, yours: p.data.answers[q.id] ?? null, correctIndex: q.correctIndex, explanation: q.explanation })) : [] })
       }
       return notFound()
     }

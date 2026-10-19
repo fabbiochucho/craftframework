@@ -116,3 +116,19 @@ import { reviewMetrics, validatorStats } from './validatorQuality.ts'
   assert.equal(st.meanIndexGap, 4)
   console.log('indexValidation (statistics): ok')
 }
+
+// Review C1: only a rung framework can be an engagement's framework; indices ride in scope.indices
+import { isPrimaryFramework } from './validationReview.ts'
+assert.equal(isPrimaryFramework('capital-readiness'), true)
+assert.equal(isPrimaryFramework('craft-fiduciary'), false, 'an index cannot be the main framework (it would skip the specialism check)')
+assert.equal(isPrimaryFramework('nope'), false)
+console.log('indexValidation (primary framework): ok')
+
+// Review I2: a validation's improvement actions may link any indicator its frozen review covered, index ones included
+import { knownIndicatorIds } from './validationReview.ts'
+{
+  const k = knownIndicatorIds(FRAMEWORKS['capital-readiness'], { indicators: [{ id: 'CRAFT-FCR-02', framework: 'craft-fiduciary' }, { bad: 1 }] })
+  assert.ok(k.has('CRL-1A') && k.has('CRAFT-FCR-02') && !k.has('CRAFT-FCR-03'))
+  assert.ok(knownIndicatorIds(FRAMEWORKS['capital-readiness'], null).has('CRL-1A'), 'old validations: the ladder')
+  console.log('indexValidation (actions): ok')
+}
