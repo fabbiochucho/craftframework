@@ -150,3 +150,16 @@ import { currentApprovals } from './jurisdictionReport.ts'
   assert.deepEqual(currentApprovals(recs, 'CRAFT-LAW 1.2 (2026-10-18)'), ['NG'], 'an approval for an earlier register version needs re-approval')
   console.log('laws (approval versions): ok')
 }
+
+// Tightening the 46 phase 2 countries: every patch names a real entry and lands in the register
+import { PHASE2_PATCHES, TIGHTENED } from './data/phase2Tightened.ts'
+{
+  const ids = new Set(LAW_REGISTER.map((e) => e.id))
+  for (const id of Object.keys(PHASE2_PATCHES)) assert.ok(ids.has(id), `patch for unknown entry ${id}`)
+  const gh = LAW_REGISTER.find((e) => e.id === 'GH-licensing-1')!
+  assert.match(gh.citation, /Act 1173/)
+  assert.equal(gh.source.checked, TIGHTENED)
+  assert.equal(gh.review, 'pending', 'tightening never approves anything')
+  assert.ok(LAW_REGISTER.filter((e) => e.id in PHASE2_PATCHES).every((e) => registerProblems([e]).length === 0), 'patched entries stay valid')
+  console.log('laws (phase 2 tightening): ok')
+}
