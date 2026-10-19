@@ -1,4 +1,5 @@
 // One CRAFT index for one organisation: band, dimension scores, weakest answers, lenses and the plan actions it created.
+import type { TimelineSettings } from '../cipTimeline.ts'
 import { answeredIn, applicableDimensions, applicableIndicators, bandFor, compositeScore, dimensionScore, evaluateLens, priorityGaps,
   type BandResult, type FoundationModule, type LensResult, type ModuleProfile } from '../foundationModules.ts'
 import { derivePlan } from '../moduleFindings.ts'
@@ -21,7 +22,7 @@ export interface IndexReport {
   actions: DerivedFinding[]
 }
 
-export function buildIndexReport(m: FoundationModule, scores: Record<string, number>, p: ModuleProfile, planMonths: number): IndexReport {
+export function buildIndexReport(m: FoundationModule, scores: Record<string, number>, p: ModuleProfile, timeline: TimelineSettings | number): IndexReport {
   const ids = new Set(m.indicators.map((i) => i.id))
   return {
     title: m.title,
@@ -36,6 +37,6 @@ export function buildIndexReport(m: FoundationModule, scores: Record<string, num
     lenses: m.lenses.map((l) => evaluateLens(m, l, scores, p)),
     feedsPlan: m.version === 'v1 (102026)',
     // Taken from the whole plan so due dates match the CIP and its CSV exactly.
-    actions: derivePlan(scores, p, planMonths).filter((a) => ids.has(a.id)),
+    actions: derivePlan(scores, p, timeline).filter((a) => ids.has(a.id)),
   }
 }

@@ -4,13 +4,15 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
-  engagementMembers, firms, organizations, validationConcerns, validationEngagements, validationRatings, validationRereviews, validationReviews, validations, validatorProfiles,
+  engagementMembers, firms, organizations, responses, validationConcerns, validationEngagements, validationRatings, validationRereviews, validationReviews, validations, validatorProfiles,
   type ValidationRow,
 } from '../../db/schema.js'
 import { decryptField } from './crypto.js'
 import { describeValidation } from './validation-lifecycle.js'
 import { confirmedLevelsFor, publicUrlFor } from './public-validation.js'
-import { cleanScores, FRAMEWORKS } from '../../src/lib/validationReview.js'
+import { cleanScores, FRAMEWORKS, scopeIndices, type FrameworkDef } from '../../src/lib/validationReview.js'
+import type { EngagementScope } from '../../src/lib/engagements.js'
+import type { ModuleProfile } from '../../src/lib/foundationModules.js'
 import {
   isConfirmedStatus, outOfLine, positionsByValidator, reReviewFlags, reviewMetrics, summariseRatings, validatorStats,
   type DevMapperSummary, type Flag, type RatingSummary, type ReviewMetrics, type ValidatorStats,
@@ -18,9 +20,30 @@ import {
 
 /** The organisation's own scores for a framework, from its saved assessment. */
 export async function loadSelfScores(orgId: string, key: string, ids: Set<string>): Promise<Record<string, number>> {
+  // CRAFT index answers share the per-organisation responses store with the core bank.
+  if (key === 'responses') {
+    const rows = ids.size ? await db.select({ q: responses.questionId, s: responses.score }).from(responses).where(and(eq(responses.orgId, orgId), inArray(responses.questionId, [...ids]))) : []
+    return cleanScores(Object.fromEntries(rows.map((r) => [r.q, r.s])), ids)
+  }
   const [row] = await db.select().from(legacyWorkspaceState).where(and(eq(legacyWorkspaceState.orgId, orgId), eq(legacyWorkspaceState.key, key)))
   if (!row) return {}
   try { return cleanScores(JSON.parse(decryptField(row.value)), ids) } catch { return {} }
+}
+
+/** Self-scores for everything in an engagement's scope: the ladder's store plus each index's. */
+export async function loadScopeSelfScores(orgId: string, fw: FrameworkDef, scope: EngagementScope, ids: Set<string>): Promise<Record<string, number>> {
+  const keys = [...new Set([fw.scoresKey, ...scopeIndices(scope).map((f) => f.scoresKey)])]
+  return Object.assign({}, ...(await Promise.all(keys.map((k) => loadSelfScores(orgId, k, ids)))))
+}
+
+/** The organisation's module profile ('modules:profile'): which index indicators apply to it. */
+export async function loadModuleProfile(orgId: string): Promise<ModuleProfile> {
+  const [row] = await db.select().from(legacyWorkspaceState).where(and(eq(legacyWorkspaceState.orgId, orgId), eq(legacyWorkspaceState.key, 'modules:profile')))
+  if (!row) return {}
+  try {
+    const v = JSON.parse(decryptField(row.value))
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as ModuleProfile) : {}
+  } catch { return {} }
 }
 
 export type FinalisedReview = {
