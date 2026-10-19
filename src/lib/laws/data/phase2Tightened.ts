@@ -277,6 +277,45 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   },
   'CI-licensing-1': { source: O('https://cepici.ci/') },
 
+  // ---- The Gambia ----
+  'GM-data-1': { citation: 'Personal Data Protection and Privacy Act, 2025 (passed 29 September 2025, assented 7 November 2025)' },
+  'GM-labour-1': {
+    title: 'Labour Act, 2023', citation: 'Labour Act 2023, replacing the Labour Act 2007', source: O('https://assembly.gm/documents/318'),
+    reformNote: 'A Labour (Amendment) Bill, 2026 on private recruitment agencies was published in July 2026; check its status.',
+  },
+  'GM-tax-1': { source: O('https://www.gra.gm/') },
+  'GM-competition-1': { source: O('https://gcc.gm/') },
+  'GM-consumer-1': { source: O('https://gcc.gm/') },
+  'GM-forex-1': { source: O('https://www.cbg.gm/') },
+  'GM-licensing-1': { source: O('https://www.giepa.gm/') },
+
+  // ---- Guinea ----
+  'GN-competition-1': {
+    title: 'Competition law not yet in operation',
+    citation: 'A competition law created a National Competition Committee, which is not yet functional; ECOWAS rules apply to cross-border practices',
+    source: S('https://unctad.org/node/35389'),
+  },
+  'GN-consumer-1': {
+    title: 'Law on consumer protection, control of goods and services and fraud repression', noLaw: false,
+    citation: 'Law No. L/94/003/CTRN', regulator: 'the National Council for Consumer Protection and the Ministry of Commerce',
+    summary: 'Sets consumer rights and the duties of economic operators, with controls on the quality of goods and services and penalties for fraud. Its consumer council still needs implementing rules.',
+    source: S('https://leap.unep.org/en/countries/gn/national-legislation/loi-no-l94003ctrn-relative-la-protection-des-consommateurs-au'),
+  },
+  'GN-forex-1': { source: O('https://www.bcrg-guinee.org/') },
+
+  // ---- Liberia ----
+  'LR-integrity-1': { source: O('https://www.lacc.gov.lr/') },
+  'LR-tax-1': { source: O('https://revenue.lra.gov.lr/') },
+  'LR-competition-1': {
+    title: 'Competition Law of Liberia', noLaw: false, citation: 'Act to Enact the Competition Law of Liberia (2016)',
+    regulator: 'the Ministry of Commerce and Industry (no competition authority yet)',
+    summary: 'Prohibits anti-competitive agreements and abuse of market power to support an efficient free market. No dedicated authority has been set up, and the government plans a combined competition and consumer protection law aligned with ECOWAS rules.',
+    source: S('https://liblaw.org/document-category/legislative-acts-by-year/2016/'),
+  },
+  'LR-sanctions-1': { source: O('https://www.cbl.org.lr/') },
+  'LR-forex-1': { source: O('https://www.cbl.org.lr/') },
+  'LR-licensing-1': { source: O('https://nic.gov.lr/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
