@@ -474,6 +474,32 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   // ---- Sudan ----
   'SD-forex-1': { source: O('https://cbos.gov.sd/') },
 
+  // ---- Angola ----
+  'AO-tax-1': { source: O('https://agt.minfin.gov.ao/') },
+
+  // ---- Eswatini ----
+  'SZ-tax-1': { source: O('https://www.ers.org.sz/') },
+  'SZ-competition-1': { citation: 'Competition Act, 2007 (in force 1 April 2008)', source: O('https://www.compco.co.sz/'),
+    reformNote: 'A COMESA-supported review of the Competition Act, 2007 and the Fair Trading Act, 2001 began in 2024; check for amendments.' },
+  'SZ-consumer-1': { citation: 'No standalone consumer protection act; the Fair Trading Act, 2001 and the consumer-welfare provisions of the Competition Act, 2007 apply (both under review)', source: O('https://www.compco.co.sz/') },
+  'SZ-forex-1': { source: O('https://www.centralbank.org.sz/') },
+
+  // ---- Lesotho ----
+  'LS-competition-1': {
+    citation: 'A Competition Act, 2022 was published on 9 September 2022 but its commencement had not been confirmed; general commercial law applies meanwhile',
+    source: S('https://www.afriwise.com/blog/lesothos-competition-act-2022-on-the-verge-of-implementation'),
+    reformNote: 'Watch for the commencement notice of the Competition Act, 2022.',
+  },
+  'LS-licensing-1': { source: O('https://lndc.org.ls/') },
+
+  // ---- Mozambique ----
+  'MZ-data-1': {
+    citation: 'No general data protection law yet: a draft law has been consulted on (Council of Ministers approval reported in March 2026); the Constitution (Article 71), Law No. 3/2017 and the 2026 Cybersecurity (Law No. 13/2026) and Cybercrime (Law No. 14/2026) laws apply',
+    source: S('https://aimnews.org/2026/08/25/intic-alerta-para-desafios-na-proteccao-de-dados-pessoais-em-mocambique/'),
+  },
+  'MZ-tax-1': { source: O('https://www.at.gov.mz/') },
+  'MZ-forex-1': { source: O('https://www.bancomoc.mz/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
