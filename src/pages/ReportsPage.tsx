@@ -16,7 +16,7 @@ import { buildIsoReadiness } from '../lib/reports/isoReadiness'
 import { COVERAGE_LABEL } from '../lib/reports/coverage'
 import { AlignmentReportView, IndexReportView, IsoReadinessView } from '../components/reports/ReportViews'
 import { buildJurisdictionReport, jurisdictionCsvRows, reportJurisdictions } from '../lib/laws/jurisdictionReport'
-import { LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
+import { CONTINENTAL_JURISDICTIONS, LAW_JURISDICTIONS, jurisdictionName } from '../lib/laws/types'
 import { JurisdictionReportView } from '../components/reports/JurisdictionReportView'
 import { esgMaturity, stageLabel } from '../lib/esgMaturity'
 import { useLawApprovals } from '../lib/laws/useLawApprovals'
@@ -240,7 +240,7 @@ export function ReportsPage() {
             <p className="text-sm text-slate-500">Laws that apply where you are registered and operate, and how far your answers show readiness. Laws appear once CRAFT has reviewed them. Information, not legal advice.</p>
             <fieldset className="max-h-48 space-y-1 overflow-y-auto text-sm">
               <legend className="sr-only">Jurisdictions</legend>
-              {LAW_JURISDICTIONS.map(j => (
+              {[...LAW_JURISDICTIONS, ...CONTINENTAL_JURISDICTIONS].map(j => (
                 <label key={j} className="flex items-start gap-2">
                   <input type="checkbox" className="mt-0.5 accent-emerald-600" checked={chosenJurisdictions.includes(j)} onChange={e => toggleJurisdiction(j, e.target.checked)} />
                   <span>{jurisdictionName(j)}</span>
