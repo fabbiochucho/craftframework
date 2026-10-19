@@ -18,6 +18,7 @@ export function CoverageChip({ c }: { c: Coverage }) {
 
 const today = () => new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
 const fmt = (n: number | null) => (n === null ? '—' : n.toFixed(2))
+const LENS_STATUS_LABEL = { 'not-assessed': 'not assessed', 'at-risk': 'at risk', strained: 'strained', holds: 'holds' } as const
 
 function Shell({ title, subtitle, org, onPrint, footer, children }: { title: string; subtitle: string; org: string; onPrint: () => void; footer?: string; children: React.ReactNode }) {
   return (
@@ -55,6 +56,14 @@ export function IndexReportView({ r, org, onPrint }: { r: IndexReport; org: stri
         <thead><tr className="text-xs uppercase text-slate-500"><th className="py-1 pr-3">Dimension</th><th>Score (0–5)</th></tr></thead>
         <tbody>{r.dimensions.map(d => <tr key={d.name} className="border-t border-slate-100"><td className="py-1 pr-3">{d.name}</td><td>{fmt(d.score)}</td></tr>)}</tbody>
       </table>
+      {r.lenses.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-slate-800">Lenses</h3>
+          <ul className="mt-1 space-y-1 text-sm text-slate-700">{r.lenses.map(l => (
+            <li key={l.lens.key}><span className="font-semibold">{l.lens.name}</span>: {l.score === null ? 'Not assessed' : `${l.score.toFixed(2)} / 5 (${LENS_STATUS_LABEL[l.status]})`}{l.weakest ? ` · fix first: ${l.weakest.question}` : ''}</li>
+          ))}</ul>
+        </div>
+      )}
       {r.weakest.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-slate-800">Weakest answers</h3>
