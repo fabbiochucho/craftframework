@@ -44,6 +44,8 @@ export interface NarrativeOrgContext {
   accreditationLabel: string
   implementationEvidence: number
   planMonths: number
+  /** Timeline pace label, e.g. Standard. */
+  planPace?: string
   lens: MaterialityLens
   esgBadge: EsgBadge
   esgVerifiedScore: number
@@ -233,7 +235,7 @@ function sectionFirstReportingYear(ctx: NarrativeOrgContext): NarrativeSection {
   return {
     id: 'first-report', number: 8, title: 'Expected Year of First Sustainability Reporting',
     blocks: [
-      { type: 'paragraph', text: `Based on the entity's chosen ${ctx.planMonths}-month Capacity Improvement Plan (submitted ${today()}), ${ctx.orgName} targets its first fully compliant sustainability disclosure for the period ending ${PLACEHOLDER('financial year-end date')}, around ${target}, issued concurrently with its mainstream Annual Report and Accounts.` },
+      { type: 'paragraph', text: `Based on the entity's ${ctx.planMonths}-month Capacity Improvement Plan, suggested from the severity of its gaps${ctx.planPace ? ` at the ${ctx.planPace} pace` : ''} (submitted ${today()}), ${ctx.orgName} targets its first fully compliant sustainability disclosure for the period ending ${PLACEHOLDER('financial year-end date')}, around ${target}, issued concurrently with its mainstream Annual Report and Accounts.` },
       { type: 'list', items: [
         'Phase 1 - Submission of this implementation plan, foundational capacity building, launch of the formal gap assessment (see Section 6).',
         'Phase 2 - Deployment of data-collection systems, vendor contract updates (see Section 3), internal dry-run using the most recent operational data.',
