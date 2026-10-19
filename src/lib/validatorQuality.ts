@@ -37,8 +37,8 @@ export function summariseRatings(ratings: { stars: number; status: string }[]): 
 
 // ---- What a frozen review says about itself -------------------------------------------------------------------
 
-export type SnapshotIndicator = { self: number | null; final: number | null }
-export type SnapshotLike = { selfRung?: unknown; validatedRung?: unknown; impliedRung?: unknown; indicators?: unknown }
+export type SnapshotIndicator = { self: number | null; final: number | null; framework?: string }
+export type SnapshotLike = { selfRung?: unknown; validatedRung?: unknown; impliedRung?: unknown; indicators?: unknown; indices?: unknown }
 
 export type ReviewMetrics = {
   outcome: string
@@ -50,6 +50,10 @@ export type ReviewMetrics = {
   gap: number | null
   /** impliedRung − selfRung; negative when the validator placed the organisation below its own view. */
   rungDelta: number | null
+  /** CRAFT indices validated alongside the ladder (schema 2), counted separately from rung validations. */
+  indices?: number
+  /** Mean absolute self-vs-final difference over index indicators only. */
+  indexGap?: number | null
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
@@ -59,9 +63,16 @@ export function reviewMetrics(outcome: string, snapshot: SnapshotLike | null | u
   const impliedRung = num(snapshot?.impliedRung)
   const validatedRung = num(snapshot?.validatedRung)
   const list = Array.isArray(snapshot?.indicators) ? (snapshot!.indicators as SnapshotIndicator[]) : []
-  const diffs = list.flatMap((i) => (typeof i?.self === 'number' && typeof i?.final === 'number' ? [Math.abs(i.self - i.final)] : []))
-  const gap = diffs.length ? Math.round((diffs.reduce((a, b) => a + b, 0) / diffs.length) * 100) / 100 : null
-  return { outcome, selfRung, validatedRung, impliedRung, gap, rungDelta: selfRung !== null && impliedRung !== null ? impliedRung - selfRung : null }
+  // Schema 1 snapshots carry no framework: every indicator is the ladder's.
+  const isLadder = (i: SnapshotIndicator) => !i?.framework || i.framework === 'capital-readiness'
+  const gapOf = (xs: SnapshotIndicator[]) => {
+    const diffs = xs.flatMap((i) => (typeof i?.self === 'number' && typeof i?.final === 'number' ? [Math.abs(i.self - i.final)] : []))
+    return diffs.length ? Math.round((diffs.reduce((a, b) => a + b, 0) / diffs.length) * 100) / 100 : null
+  }
+  return {
+    outcome, selfRung, validatedRung, impliedRung, gap: gapOf(list.filter(isLadder)), rungDelta: selfRung !== null && impliedRung !== null ? impliedRung - selfRung : null,
+    indices: Array.isArray(snapshot?.indices) ? snapshot!.indices.length : 0, indexGap: gapOf(list.filter((i) => !isLadder(i))),
+  }
 }
 
 // ---- Validator statistics --------------------------------------------------------------------------------------
@@ -77,6 +88,9 @@ export type ValidatorStats = {
   meanRungDelta: number | null
   withdrawn: number
   concerns: number
+  /** Validations that included at least one CRAFT index, and the mean index gap across them. */
+  indexValidations?: number
+  meanIndexGap?: number | null
 }
 
 const mean = (xs: number[]): number | null => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null)
@@ -92,6 +106,8 @@ export function validatorStats(reviews: ReviewMetrics[], extra: { withdrawn?: nu
     meanGap: mean(reviews.flatMap((r) => (r.gap === null ? [] : [r.gap]))),
     meanRungDelta: mean(reviews.flatMap((r) => (r.rungDelta === null ? [] : [r.rungDelta]))),
     withdrawn: extra.withdrawn ?? 0, concerns: extra.concerns ?? 0,
+    indexValidations: reviews.filter((r) => (r.indices ?? 0) > 0).length,
+    meanIndexGap: mean(reviews.flatMap((r) => (r.indexGap === null || r.indexGap === undefined ? [] : [r.indexGap]))),
   }
 }
 
