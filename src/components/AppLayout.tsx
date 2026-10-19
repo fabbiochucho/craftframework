@@ -15,7 +15,7 @@ import { MfaPrompt } from '../pages/workspace/shared'
 import { useOfflineSecurity } from '../hooks/use-offline-security'
 import { BRAND, getAccreditation, computeOrgScore } from '../lib/data'
 import { ShieldCheck, Handshake,
-  LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart,
+  LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart, Calculator,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
   BarChart3, Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap,
@@ -52,6 +52,7 @@ const workspaceNav = [
   { to: '/findings', label: 'Findings', icon: AlertTriangle },
   { to: '/verify', label: 'Trust Delta & Verify', icon: Scale },
   { to: '/cip', label: 'Capacity Plan', icon: TrendingUp },
+  { to: '/risk', label: 'Quantified Risk', icon: Calculator },
   { to: '/finance-triangulation', label: 'Finance Triangulation', icon: Banknote },
   { to: '/data-room', label: 'Data Room & Evidence', icon: FolderCheck },
   { to: '/obligations', label: 'Obligations & Compliance', icon: CalendarClock },
