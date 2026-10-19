@@ -2,7 +2,7 @@ import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { useMemo, useState } from 'react'
 import { AlertTriangle, Search, Filter, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import { CIP_PLAN_MONTHS_DEFAULT, severityStyle, TIER_NAMES } from '../lib/data'
+import { severityStyle, TIER_NAMES } from '../lib/data'
 import { derivePlan } from '../lib/moduleFindings'
 import { useModuleProfile } from '../lib/moduleProfile'
 import { useWorkspace, useScoresCtx, useCIPCtx } from '../lib/context'
@@ -11,14 +11,14 @@ import { Card, CardContent, Input, Select, StatusBadge, Button } from '../compon
 export function FindingsPage() {
   const { currentOrg } = useWorkspace()
   const { scores } = useScoresCtx()
-  const { cipStatuses } = useCIPCtx()
+  const { cipStatuses, timeline } = useCIPCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
   const [query, setQuery] = useState('')
   const [severity, setSeverity] = useState('')
 
   const [moduleProfile] = useModuleProfile()
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
-  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT, 2, esgScores), [orgScores, moduleProfile, esgScores])
+  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, timeline, 2, esgScores), [orgScores, moduleProfile, timeline, esgScores])
 
   const filtered = useMemo(
     () =>
