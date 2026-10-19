@@ -88,24 +88,8 @@ export interface DataRoomItem {
 // Reference data - Pan-African countries & per-archetype sectors
 // ----------------------------------------------------------------------------
 
-export interface Country {
-  code: string
-  name: string
-  flag: string
-}
-
-export const COUNTRIES: Country[] = [
-  { code: 'NG', name: 'Nigeria', flag: '🇳🇬' },
-  { code: 'KE', name: 'Kenya', flag: '🇰🇪' },
-  { code: 'RW', name: 'Rwanda', flag: '🇷🇼' },
-  { code: 'ZA', name: 'South Africa', flag: '🇿🇦' },
-  { code: 'GH', name: 'Ghana', flag: '🇬🇭' },
-  { code: 'TZ', name: 'Tanzania', flag: '🇹🇿' },
-  { code: 'UG', name: 'Uganda', flag: '🇺🇬' },
-  { code: 'ET', name: 'Ethiopia', flag: '🇪🇹' },
-  { code: 'SN', name: 'Senegal', flag: '🇸🇳' },
-  { code: 'CI', name: "Côte d'Ivoire", flag: '🇨🇮' },
-]
+export { COUNTRIES, type Country } from './countries'
+import { COUNTRIES } from './countries'
 
 export function countryName(code: string): string {
   return COUNTRIES.find(c => c.code === code)?.name ?? code

@@ -74,7 +74,7 @@ export function NarrativeReportPage() {
   const esgEvidenceCoverage = evidenceCoveragePct(esgEvidence)
   const esgVerified = compositeVerifiedScore(esgScores, esgEvidence)
   const esgBadge = getEsgBadge(esgVerified, ratedAnswered(esgScores), esgEvidenceCoverage)
-  const esgGaps = identifyGaps(esgScores)
+  const esgGaps = useMemo(() => identifyGaps(esgScores), [esgScores])
 
   const [moduleProfile] = useModuleProfile()
   const cipPlan = useMemo(() => planTimeline(orgScores, moduleProfile, timeline, 2, esgScores), [orgScores, timeline, moduleProfile, esgScores])
@@ -108,7 +108,8 @@ export function NarrativeReportPage() {
   const doc = useMemo(() => buildNarrativeDocument(ctx), [
     ctx.orgName, ctx.archetype, ctx.country, ctx.businessSector, selectedJurisdictions.join(','),
     ctx.regSector, ctx.compositeScore, ctx.accreditationLevel, ctx.implementationEvidence, ctx.planMonths, ctx.planPace,
-    lens, ctx.esgVerifiedScore, ctx.esgAnswered, esgGaps.length, cipFindings.length,
+    // Depend on the lists themselves, not their lengths, so a changed gap or action is never shown stale.
+    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings,
   ])
 
   function download() {

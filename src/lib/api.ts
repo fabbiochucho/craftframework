@@ -769,3 +769,28 @@ export const nudgeRequest = <T>(action: 'preview' | 'send', emails: string[], no
   adminAnalyticsRequest<T>(`/nudges/${action}`, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ emails, note: note.trim() || undefined }),
   })
+
+// --- Laws register approvals (/api/law-approvals; changes are Super Admin only) ------------------------------------
+/** `approvedBy` is only sent to Super Admins. */
+export interface LawApproval { jurisdiction: string; approvedBy?: string; registerVersion: string; approvedAt: string }
+
+export async function fetchLawApprovals(signal?: AbortSignal): Promise<LawApproval[]> {
+  try {
+    const body = (await jsonOrThrow(await fetch('/api/law-approvals', { cache: 'no-store', signal }))) as { approvals: LawApproval[] }
+    return body.approvals
+  } catch (err) {
+    if (!signal?.aborted) console.error('fetchLawApprovals failed', err)
+    return []
+  }
+}
+
+/** Approve (or, with `approve: false`, revoke) a jurisdiction's law entries. Throws with the server message on failure. */
+export async function setLawApproval(jurisdiction: string, approve: boolean, registerVersion: string): Promise<void> {
+  const res = approve
+    ? await fetch('/api/law-approvals', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jurisdiction, registerVersion }) })
+    : await fetch(`/api/law-approvals/${encodeURIComponent(jurisdiction)}`, { method: 'DELETE' })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({})) as { error?: string }
+    throw new Error(body.error === 'mfa_required' ? 'Confirm your two-step sign-in, then try again.' : body.error ?? `Request failed (${res.status})`)
+  }
+}
