@@ -354,6 +354,34 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     source: O('https://alfandegas.mef.gw/wp-content/uploads/2025/03/Codigo-do-Investimento-da-Guine-Bissau.pdf'),
   },
 
+  // ---- Burundi ----
+  'BI-data-1': {
+    citation: 'The National Assembly adopted a personal data protection law on 15 January 2026 (with an independent supervisory authority); promulgation not yet confirmed. Confidentiality rules also appear in the 2022 cybercrime law',
+    source: S('https://www.osiris.sn/burundi-le-parlement-adopte-une-loi-cle-sur-la-protection-des-donnees.html'),
+    reformNote: 'Once promulgated, the new law will replace this "no law" entry; check the Official Bulletin.',
+  },
+  'BI-tax-1': { source: O('https://www.obr.bi/') },
+  'BI-forex-1': { source: O('https://www.brb.bi/') },
+
+  // ---- Cameroon ----
+  'CM-data-1': {
+    citation: 'Law No. 2024/017 of 23 December 2024 (applicable from 23 June 2026 after an 18-month transition)', regulator: 'the Autorité de Protection des Données Personnelles (APDP)',
+    source: S('https://cio-mag.com/protection-des-donnees-au-cameroun-la-course-contre-la-montre-avant-juin-2026/'),
+    reformNote: 'Transfers outside Cameroon need equivalent protection and the authority\'s prior authorisation; check the implementing texts now that the Law applies.',
+  },
+  'CM-procurement-1': { source: O('https://www.armp.cm/') },
+  'CM-tax-1': { source: O('https://www.impots.cm/') },
+  'CM-sanctions-1': { citation: 'CEMAC Regulation No. 01/CEMAC/UMAC/CM of 2016, as revised by Regulation No. 02/24/CEMAC/UMAC/CM of 20 December 2024', source: O('https://anif.cm/') },
+  'CM-licensing-1': { source: O('https://www.investiraucameroun.com/') },
+
+  // ---- Central African Republic ----
+  'CF-sanctions-1': { citation: 'CEMAC Regulation No. 01/CEMAC/UMAC/CM of 2016, as revised by Regulation No. 02/24/CEMAC/UMAC/CM of 20 December 2024', source: O('https://www.beac.int/') },
+  'CF-licensing-1': { citation: 'Investment Charter, Law of 2018, replacing Law No. 01-010 of 2001', source: S('https://investmentpolicy.unctad.org/investment-laws/laws/524/central-african-republic-central-african-republic-investment-charter-2018') },
+
+  // ---- Chad ----
+  'TD-sanctions-1': { citation: 'CEMAC Regulation No. 01/CEMAC/UMAC/CM of 2016, as revised by Regulation No. 02/24/CEMAC/UMAC/CM of 20 December 2024', source: O('https://www.beac.int/') },
+  'TD-licensing-1': { citation: 'Law No. 006/PR/2008 of 3 January 2008 on the Investment Charter', source: O('https://anie-tchad.com/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
