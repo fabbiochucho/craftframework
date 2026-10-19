@@ -186,6 +186,22 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     source: O('https://www.fiu.co.zw/'),
   },
   'ZW-forex-1': { source: O('https://www.rbz.co.zw/') },
+  // ---- Algeria ----
+  // The Journal officiel (JORADP) is the official source of Algerian legislation; several regulators' sites are unreachable from abroad.
+  'DZ-company-1': { source: O('https://www.joradp.dz/') },
+  'DZ-data-1': { citation: 'Law No. 18-07 of 10 June 2018, as amended by Law No. 25-11 of 24 July 2025', source: O('https://anpdp.dz/'),
+    reformNote: 'Law No. 25-11 (2025) revised core definitions and principles; check its implementing texts on data protection officers and impact assessments.' },
+  'DZ-integrity-1': { source: O('https://www.joradp.dz/') },
+  'DZ-integrity-2': { source: O('https://www.joradp.dz/') },
+  'DZ-procurement-1': { source: O('https://www.joradp.dz/') },
+  'DZ-labour-1': { source: O('https://www.joradp.dz/') },
+  'DZ-tax-1': { source: O('https://www.mfdgi.gov.dz/') },
+  'DZ-competition-1': { source: O('https://www.conseil-concurrence.dz/') },
+  'DZ-consumer-1': { source: O('https://www.joradp.dz/') },
+  'DZ-sanctions-1': { citation: 'Law No. 05-01 of 2005 on money laundering and terrorist financing, as amended in 2023, with implementing decrees on freezing', source: O('https://www.joradp.dz/') },
+  'DZ-forex-1': { source: O('https://www.bank-of-algeria.dz/') },
+  'DZ-licensing-1': { source: O('https://www.joradp.dz/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
