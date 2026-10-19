@@ -7,11 +7,13 @@ import {
   validationEngagements, validatorProfiles, type EngagementMemberRow, type ValidationEngagementRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
-import { accessConflict, accreditationOf, reconcileEngagement, sweepEngagements } from '../lib/engagement-access.js'
+import { accessConflict, accreditationOf, reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
+import { missingSpecialismMessage } from '../../src/lib/specialisms.js'
+import { isPrimaryFramework } from '../../src/lib/validationReview.js'
 import { logger } from '../lib/logger.js'
 import {
   DEFAULT_ACCESS_DAYS, ENGAGEMENT_TYPES, engagementLabel, engagementStatusFrom, grantExpiry, INVITE_VALID_DAYS, MAX_ACCESS_DAYS,
-  mayCreateType, mayJoinTeam, parseScope, declarationFor, type EngagementType, type PartyStatus, type Side,
+  mayCreateType, mayJoinTeam, parseScope, declarationFor, type EngagementScope, type EngagementType, type PartyStatus, type Side,
 } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 
@@ -222,6 +224,11 @@ export default async (req: Request) => {
       if (!allowed) return forbidden()
       if (side === 'validator' && decision === 'accept' && !e.validatorFirmId && e.validatorEmail &&
         !mayJoinTeam(e.type as EngagementType, await accreditationOf(e.validatorEmail))) return forbidden()
+      // A specialist index in scope needs the specialism (spec §7).
+      if (side === 'validator' && decision === 'accept' && e.type === 'independent_validation' && e.validatorEmail) {
+        const missing = await specialismsMissing(e.validatorEmail, e.scope as EngagementScope)
+        if (missing.length) return json({ error: missingSpecialismMessage(missing) }, 403)
+      }
       const now = new Date()
       const set: Partial<typeof validationEngagements.$inferInsert> = { updatedAt: now }
       const status: PartyStatus = decision === 'accept' ? 'accepted' : 'declined'
@@ -281,6 +288,10 @@ export default async (req: Request) => {
       if (p.data.fundedDisclosure && !p.data.disclosure) return bad('Describe who engaged or paid you')
       const type = e.type as EngagementType
       if (!mayJoinTeam(type, await accreditationOf(caller.email))) return forbidden()
+      if (type === 'independent_validation') {
+        const missing = await specialismsMissing(caller.email, e.scope as EngagementScope)
+        if (missing.length) return json({ error: missingSpecialismMessage(missing) }, 403)
+      }
       const tie = await accessConflict(e.orgId, caller.email)
       if (tie) return conflict(`${tie}, so you cannot declare independence for this engagement`)
       const d = declarationFor(type)
@@ -324,6 +335,8 @@ async function addMember(e: ValidationEngagementRow, members: EngagementMemberRo
     const [profile] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.email, email))
     if (!profile) return bad('They need a validator profile first')
     if (!mayJoinTeam(type, effectiveAccreditation(profile))) return json({ error: 'Only currently accredited validators can join an independent validation; other work is labelled "Review by [name]"' }, 403)
+    const missing = await specialismsMissing(email, e.scope as EngagementScope)
+    if (missing.length) return json({ error: missingSpecialismMessage(missing) }, 403)
     if (e.validatorFirmId && !(await isActiveMemberOf(e.validatorFirmId, email))) return bad('They are not an active member of the validator firm')
   } else if (!e.funderFirmId || !(await isActiveMemberOf(e.funderFirmId, email))) {
     return bad('A funder review team is made of the funding partner\'s own staff')
@@ -346,6 +359,8 @@ async function create(caller: { email: string; orgId: string; name: string }, fi
   if (!mayCreateType(d.side, d.type)) return json({ error: 'A funding partner can only create a funder review, never an independent validation' }, 403)
   const scope = parseScope(d.scope)
   if (!scope) return bad('Invalid scope')
+  // Indices are validated alongside the ladder (scope.indices), never as the engagement's framework, so the specialism check always applies.
+  if (d.framework && !isPrimaryFramework(d.framework)) return bad('Choose the ladder as the framework; add CRAFT indices to the scope')
   const now = new Date()
   const base = {
     id: `eng_${crypto.randomUUID()}`, framework: d.framework ?? 'capital-readiness', scope, type: d.type, createdBy: caller.email, createdBySide: d.side,
@@ -373,6 +388,8 @@ async function create(caller: { email: string; orgId: string; name: string }, fi
         const [v] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.id, d.validatorId))
         if (!v) return bad('Validator not found')
         if (!mayJoinTeam(d.type, effectiveAccreditation(v))) return json({ error: 'Only a currently accredited validator can perform an independent validation' }, 403)
+        const missing = await specialismsMissing(v.email, scope)
+        if (missing.length) return json({ error: missingSpecialismMessage(missing) }, 403)
         const tie = await accessConflict(orgId, v.email)
         if (tie) return conflict(`${tie}, so they cannot validate it`)
         shape = { validatorEmail: v.email, validatorStatus: 'pending', funderStatus: 'not_required' }
@@ -399,6 +416,10 @@ async function create(caller: { email: string; orgId: string; name: string }, fi
     const [me] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.email, caller.email))
     if (!me) return bad('Create your validator profile first')
     if (!mayJoinTeam(d.type, effectiveAccreditation(me))) return json({ error: 'Only a currently accredited validator can perform an independent validation' }, 403)
+    if (d.type === 'independent_validation') {
+      const missing = await specialismsMissing(caller.email, scope)
+      if (missing.length) return json({ error: missingSpecialismMessage(missing) }, 403)
+    }
     if (d.validatorFirmId && firmMap.get(d.validatorFirmId)?.kind !== 'validator_firm') return forbidden()
     const target = await orgFromProfile()
     if (!target) return bad('Choose an organisation from the directory')
