@@ -107,6 +107,31 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     citation: 'Act No. 17 of 2022, repealing the Zambia Development Agency Act, 2006', source: O('https://www.zda.org.zm/'),
     reformNote: 'A Zambia Development Agency (Amendment) Bill, 2026 would change the Board; check its status.',
   },
+
+  // ---- Tanzania ----
+  'TZ-data-1': { source: O('https://pdpc.go.tz/') },
+  'TZ-integrity-1': { source: O('https://www.pccb.go.tz/') },
+  'TZ-labour-1': { source: O('https://www.kazi.go.tz/') },
+  'TZ-tax-1': { citation: 'Income Tax Act (Cap. 332) and Value Added Tax Act (Cap. 148), as amended by annual finance acts', source: O('https://www.tra.go.tz/') },
+  'TZ-competition-1': {
+    citation: 'Fair Competition Act (Cap. 285, R.E. 2023), as amended by Act No. 13 of 2024; Fair Competition (Abuse of Dominant Position) Regulations, 2026',
+    source: O('https://fcc.go.tz/'), reformNote: 'The 2024 amendments raised the dominance threshold to 40% and added joint dominance.',
+  },
+  'TZ-consumer-1': {
+    citation: 'Fair Competition Act (Cap. 285, R.E. 2023), as amended by Act No. 13 of 2024 (price display and consumer complaints to the Commission)',
+    source: O('https://fcc.go.tz/'),
+  },
+  'TZ-sanctions-1': {
+    title: 'Anti-Money Laundering Act and Prevention of Terrorism Act (UN targeted financial sanctions)',
+    citation: 'Anti-Money Laundering Act (Cap. 423) and Prevention of Terrorism Act (Cap. 19), with regulations giving effect to UN Security Council resolutions',
+    source: O('https://www.fiu.go.tz/'),
+  },
+  'TZ-forex-1': { citation: 'Foreign Exchange Act, 1992 (Cap. 271), as amended', source: O('https://www.bot.go.tz/') },
+  'TZ-licensing-1': {
+    title: 'Investment and Special Economic Zones Act, 2025', citation: 'Act No. 6 of 2025, repealing the Tanzania Investment Act, 2022 and the export processing and special economic zones laws',
+    regulator: 'the Tanzania Investment and Special Economic Zones Authority (TISEZA)', source: O('https://www.tiseza.go.tz/'),
+    reformNote: 'TISEZA merged the Tanzania Investment Centre and the Export Processing Zones Authority in 2025; check transitional rules for existing incentive certificates.',
+  },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
