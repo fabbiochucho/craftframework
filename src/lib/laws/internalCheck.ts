@@ -9,12 +9,12 @@ export interface InternalCheck {
 const ORDER = { needed: 0, done: 1, 'n/a': 2 } as const
 
 /** `today` is YYYY-MM-DD; an entry is due for re-checking once its source was checked more than 12 months ago. */
-export function buildInternalCheck(entries: LawEntry[], today: string): InternalCheck {
+export function buildInternalCheck(entries: LawEntry[], today: string, approvedJurisdictions: string[] = []): InternalCheck {
   const yearAgo = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`
   const duties = entries.flatMap((e) => (e.craftNotes ?? []).map((n) => ({ jurisdiction: jurisdictionName(e.jurisdiction), law: e.title, ...n })))
     .sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.jurisdiction.localeCompare(b.jurisdiction))
   const counts = new Map<string, number>()
-  for (const e of entries) if (e.review === 'pending') counts.set(e.jurisdiction, (counts.get(e.jurisdiction) ?? 0) + 1)
+  for (const e of entries) if (e.review === 'pending' && !approvedJurisdictions.includes(e.jurisdiction)) counts.set(e.jurisdiction, (counts.get(e.jurisdiction) ?? 0) + 1)
   return {
     duties,
     recheckDue: entries.filter((e) => e.source.checked < yearAgo),

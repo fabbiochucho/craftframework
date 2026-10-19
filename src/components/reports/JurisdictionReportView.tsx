@@ -38,6 +38,7 @@ export function JurisdictionReportView({ r, org, onPrint }: { r: JurisdictionRep
                     {l.entry.regulator && <p className="text-xs text-slate-500">Regulator: {l.entry.regulator}</p>}
                     <p className="mt-1 text-slate-700">{l.entry.summary}</p>
                     {l.entry.reformNote && <p className="mt-1 text-xs text-amber-700">{l.entry.reformNote}</p>}
+                    {l.recheckDue && <p className="mt-1 text-xs text-amber-700">Re-check due: the source was last checked over 12 months ago, so the law may have changed.</p>}
                     <p className="mt-1 text-xs text-slate-500">
                       <a href={l.entry.source.url} target="_blank" rel="noreferrer" className="underline">Source</a>
                       {l.entry.source.kind === 'secondary' ? ' (secondary source, verify)' : ' (official)'} · checked {l.entry.source.checked}
