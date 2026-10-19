@@ -23,6 +23,11 @@ export function isRecheckDue(e: LawEntry, today: string): boolean {
 }
 
 /** Entries count as approved when the data file says so or a Super Admin approved their jurisdiction in the app. */
+/** Jurisdictions approved for this register version; an approval for an earlier version needs re-approval. */
+export function currentApprovals(records: Array<{ jurisdiction: string; registerVersion: string }>, version: string = LAW_DATA_VERSION): string[] {
+  return records.filter((r) => r.registerVersion === version).map((r) => r.jurisdiction)
+}
+
 export function applyApprovals(entries: LawEntry[], approvedJurisdictions: string[]): LawEntry[] {
   if (approvedJurisdictions.length === 0) return entries
   return entries.map((e) => (e.review !== 'approved' && approvedJurisdictions.includes(e.jurisdiction) ? { ...e, review: 'approved' as const } : e))
