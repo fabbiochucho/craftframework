@@ -2,6 +2,7 @@
 // returned as aggregates, except the onboarding table, which lists people for the Super Admin only.
 // Pure maths lives in src/lib/adminAnalytics.ts; the caller (admin-analytics.mts) enforces Super Admin + MFA.
 import { and, eq, gte, inArray, isNotNull } from 'drizzle-orm'
+import { isSpecialistModuleId } from '../../src/lib/specialisms.js'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import {
@@ -163,7 +164,7 @@ export async function buildAnalytics(range: RangeKey, now = new Date()) {
   const profiles = (await db.select().from(validatorProfiles)).filter((p) => inRange(p.createdAt, since))
   const emails = new Set(profiles.map((p) => p.email))
   const [modules, tProgress, attempts, subs, tCases, tCaps, tQuestions] = await Promise.all([
-    db.select().from(trainingModules), db.select().from(trainingProgress), db.select().from(trainingExamAttempts),
+    db.select().from(trainingModules).then((ms) => ms.filter((m) => !isSpecialistModuleId(m.id))), db.select().from(trainingProgress), db.select().from(trainingExamAttempts).where(eq(trainingExamAttempts.assessment, 'knowledge')),
     db.select().from(trainingSubmissions), db.select({ id: trainingCases.id }).from(trainingCases).where(eq(trainingCases.active, true)),
     db.select({ id: trainingCapstones.id }).from(trainingCapstones).where(eq(trainingCapstones.active, true)),
     db.select().from(trainingQuestions),

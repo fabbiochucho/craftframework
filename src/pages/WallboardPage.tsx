@@ -10,9 +10,10 @@ import {
 import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
 import {
   computeOrgScore, computeImplementationEvidence, computeCompositeIndices,
-  getAccreditation, deriveFindings, BRAND, CIP_PLAN_MONTHS_DEFAULT,
+  getAccreditation, deriveFindings, BRAND,
 } from '../lib/data'
 import { derivePlan } from '../lib/moduleFindings'
+import { DEFAULT_TIMELINE } from '../lib/cipTimeline'
 import { useModuleProfile, useModuleProfiles, useOrgStates } from '../lib/moduleProfile'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 
@@ -124,7 +125,7 @@ export function WallboardPage() {
   const [soloProfile] = useModuleProfile()
   const [soloEsg] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const criticalsFor = (s: Record<string, number>, p: Parameters<typeof derivePlan>[1] | null, esg: Record<string, number> = {}) =>
-    (p ? derivePlan(s, p, CIP_PLAN_MONTHS_DEFAULT, 2, esg) : deriveFindings(s)).filter(f => f.severity === 'Critical')
+    (p ? derivePlan(s, p, DEFAULT_TIMELINE, 2, esg) : deriveFindings(s)).filter(f => f.severity === 'Critical')
   // Demo sessions don't load ESG answers per organisation, so the label must not claim ESG gaps there.
   const criticalsNote = isAggregate && !profilesReady ? 'Core assessment gaps only' : currentUser?.isDemo ? 'Core assessment and index gaps' : 'Core, index and ESG gaps'
 

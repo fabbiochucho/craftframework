@@ -30,23 +30,45 @@ export const TYPE_LABEL: Record<EngagementType, string> = {
   funder_review: 'Funder review',
 }
 
-export type EngagementScope = { kind: 'whole' } | { kind: 'levels'; levels: number[] }
+/** The ladder (whole or some levels), plus any v1 (102026) CRAFT indices validated alongside it (spec §7). */
+export type EngagementScope = ({ kind: 'whole' } | { kind: 'levels'; levels: number[] }) & { indices?: string[] }
+
+/** The CRAFT indices an engagement can include, in display order. */
+export const INDEX_SCOPE_NAMES: Record<string, string> = {
+  'craft-health': 'Organisational Effectiveness',
+  'craft-change': 'Change Readiness & Adoption',
+  'craft-fiduciary': 'Fiduciary Controls & Risk Management',
+  'craft-safeguards': 'Environmental & Social Safeguards',
+}
+
+// Untrusted indices input -> a list of known, distinct index keys; [] for none; null when invalid.
+function parseIndices(input: unknown): string[] | null {
+  if (input == null) return []
+  if (!Array.isArray(input)) return null
+  if (new Set(input).size !== input.length || input.some((k) => typeof k !== 'string' || !(k in INDEX_SCOPE_NAMES))) return null
+  return Object.keys(INDEX_SCOPE_NAMES).filter((k) => input.includes(k))
+}
 
 // Untrusted scope input -> a normalised scope, or null when invalid.
 export function parseScope(input: unknown): EngagementScope | null {
   if (input == null) return { kind: 'whole' }
-  const s = input as { kind?: unknown; levels?: unknown }
-  if (s.kind === 'whole') return { kind: 'whole' }
+  const s = input as { kind?: unknown; levels?: unknown; indices?: unknown }
+  const indices = parseIndices(s.indices)
+  if (indices === null) return null
+  const withIndices = <T extends object>(base: T) => (indices.length ? { ...base, indices } : base)
+  if (s.kind === 'whole') return withIndices({ kind: 'whole' as const })
   if (s.kind === 'levels' && Array.isArray(s.levels)) {
     const unique = [...new Set(s.levels)]
     const levels = unique.filter((l): l is number => Number.isInteger(l) && l >= 1 && l <= 99).sort((a, b) => a - b)
-    return levels.length && levels.length === unique.length ? { kind: 'levels', levels } : null
+    return levels.length && levels.length === unique.length ? withIndices({ kind: 'levels' as const, levels }) : null
   }
   return null
 }
 
 export function scopeText(scope: EngagementScope): string {
-  return scope.kind === 'whole' ? 'Whole ladder' : `Levels ${scope.levels.join(', ')}`
+  const ladder = scope.kind === 'whole' ? 'Whole ladder' : `Levels ${scope.levels.join(', ')}`
+  const indices = (scope.indices ?? []).map((k) => INDEX_SCOPE_NAMES[k] ?? k)
+  return indices.length ? `${ladder}; CRAFT indices: ${indices.join(', ')}` : ladder
 }
 
 // An engagement is active once every required party has accepted. Any decline ends it.

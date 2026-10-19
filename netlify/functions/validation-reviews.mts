@@ -14,18 +14,20 @@ import { grantAllows } from '../lib/access-policy.js'
 import { fieldLookupHashes } from '../lib/crypto.js'
 import { decodeEvidence } from '../lib/evidence-storage.js'
 import { HttpError, requireOrgAccess } from '../lib/orgAccess.js'
-import { reconcileEngagement, sweepEngagements } from '../lib/engagement-access.js'
+import { reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
 import { logger } from '../lib/logger.js'
 import { engagementLabel, GRANT_ROLE, type EngagementScope, type EngagementType } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 import { FOLLOW_UP_MODES, issuedValidity, validityProblems } from '../../src/lib/validationLifecycle.js'
 import { generateVerificationId } from '../../src/lib/validationStatement.js'
 import { ensureStatement } from '../lib/public-validation.js'
-import { loadSelfScores } from '../lib/validator-quality.js'
+import { loadModuleProfile, loadScopeSelfScores } from '../lib/validator-quality.js'
+import { missingSpecialismMessage } from '../../src/lib/specialisms.js'
+import type { ModuleProfile } from '../../src/lib/foundationModules.js'
 import { recordStatusHistory, sendDebriefNotice, syncCheckpoints } from '../lib/validation-lifecycle.js'
 import {
-  canonicalJson, cappedNegotiated, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indicatorsInScope, levelConfirmations, levelsAchieved,
-  METHODS, OUTCOMES, paperCaps, SUFFICIENCY, supportsRung, trustDeltaWithCaps, type Outcome, type PaperCap, type Sufficiency,
+  allInScope, canonicalJson, isPrimaryFramework, cappedNegotiated, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indexResults, indicatorsInScope, levelConfirmations, levelsAchieved,
+  METHODS, scopeIndices, OUTCOMES, paperCaps, SUFFICIENCY, supportsRung, trustDeltaWithCaps, type Outcome, type PaperCap, type Sufficiency,
 } from '../../src/lib/validationReview.js'
 
 // /api/validation-reviews/:engagementId — validator system PR 3 (spec: "Review, outcome and freeze").
@@ -80,6 +82,10 @@ const finaliseSchema = z.object({
 
 type Ctx = {
   e: ValidationEngagementRow
+  /** The organisation's module profile: which index indicators are in scope. */
+  profile: ModuleProfile
+  /** Set when a named validator lacks a specialism the scope needs; they cannot review. */
+  specialismBlock: string | null
   members: EngagementMemberRow[]
   review: ValidationReviewRow | null
   me: EngagementMemberRow | null
@@ -88,7 +94,6 @@ type Ctx = {
   lead: boolean
 }
 
-const selfScores = loadSelfScores
 
 export default async (req: Request) => {
   try {
@@ -116,12 +121,19 @@ export default async (req: Request) => {
       reviewer = !!g && g.role === GRANT_ROLE && g.status === 'active' && grantAllows(g, 'read')
     }
     if (!me && !org) return notFound()
-    const ctx: Ctx = { e, members, review: review ?? null, me, org, reviewer, lead: reviewer && me!.role === 'lead' }
     const fw = FRAMEWORKS[e.framework]
-    if (!fw) return bad('Unsupported framework')
+    if (!fw || !isPrimaryFramework(fw.key)) return bad('Unsupported framework')
     const scope = e.scope as EngagementScope
-    const inScope = indicatorsInScope(fw, scope)
+    // A specialist index needs the specialism on every reviewer of an independent validation (funder reviews are the
+    // funder's own staff), checked again here in case it lapsed since joining.
+    const missing = reviewer && e.type === 'independent_validation' ? await specialismsMissing(caller.email, scope) : []
+    const specialismBlock = missing.length ? missingSpecialismMessage(missing) : null
+    if (specialismBlock) reviewer = false
+    const profile = scopeIndices(scope).length ? await loadModuleProfile(e.orgId) : {}
+    const ctx: Ctx = { e, members, review: review ?? null, me, org, reviewer, lead: reviewer && me!.role === 'lead', profile, specialismBlock }
+    const inScope = allInScope(fw, scope, profile)
     const ids = new Set(inScope.map((i) => i.id))
+    const selfScores = (orgId: string, _key: string, idSet: Set<string>) => loadScopeSelfScores(orgId, fw, scope, idSet)
 
     if (req.method === 'GET' && !sub) return json(await view(ctx, fw, scope, ids))
 
@@ -189,7 +201,7 @@ export default async (req: Request) => {
     }
 
     // The remaining writes are the reviewer team's.
-    if (!ctx.reviewer) return frozen ? conflict('This review is finalised') : forbidden()
+    if (!ctx.reviewer) return frozen ? conflict('This review is finalised') : ctx.specialismBlock ? json({ error: ctx.specialismBlock }, 403) : forbidden()
     if (frozen) return conflict('This review is finalised')
     const ensure = async (): Promise<ValidationReviewRow> => {
       if (ctx.review) return ctx.review
@@ -295,6 +307,13 @@ export default async (req: Request) => {
       const p = finaliseSchema.safeParse(await readBody())
       if (!p.success) return bad('Choose an outcome')
       const r = await ensure()
+      // Every validator named on the record must hold the specialisms its indices need at the moment it is frozen.
+      if (e.type === 'independent_validation') {
+        for (const m of members.filter((x) => x.status === 'named')) {
+          const gap = await specialismsMissing(m.email, scope)
+          if (gap.length) return bad('This review cannot be finalised yet', { problems: [`${m.email}: ${missingSpecialismMessage(gap)}`] })
+        }
+      }
       const result = await locked(r.id, async (tx, row) => {
         if (row.status === 'finalised') return conflict('This review is finalised')
         const [scoreRows, debriefRows, qualRows] = await Promise.all([
@@ -308,7 +327,7 @@ export default async (req: Request) => {
         const sufficiency = sufficiencyOf(scoreRows, ids)
         const problems = finalisationProblems({
           fw, scope, validatorScores, negotiated, sufficiency, method: row.method as never, fieldworkStart: row.fieldworkStart, fieldworkEnd: row.fieldworkEnd,
-          outcome: p.data.outcome, qualifications: quals,
+          outcome: p.data.outcome, qualifications: quals, profile: ctx.profile,
         })
         if (problems.length) return bad('This review cannot be finalised yet', { problems })
 
@@ -324,7 +343,7 @@ export default async (req: Request) => {
         if (validityIssues.length) return bad('This review cannot be finalised yet', { problems: validityIssues })
         const achieved = levelsAchieved(fw, final, scope)
         const now = new Date()
-        const snapshot = JSON.parse(JSON.stringify(await buildSnapshot({ e, members, fw, scope, row, scoreRows, debriefRows, quals, self, final, validatorScores, negotiated, caps, evidenceLinks, rung, achieved, outcome: p.data.outcome, summary: p.data.summary ?? '', finalisedAt: now, finalisedByEmail: caller.email })))
+        const snapshot = JSON.parse(JSON.stringify(await buildSnapshot({ profile: ctx.profile, e, members, fw, scope, row, scoreRows, debriefRows, quals, self, final, validatorScores, negotiated, caps, evidenceLinks, rung, achieved, outcome: p.data.outcome, summary: p.data.summary ?? '', finalisedAt: now, finalisedByEmail: caller.email })))
         // Hash the JSON-typed form: it is what Postgres stores, so anyone can re-hash the stored snapshot.
         const sha = createHash('sha256').update(canonicalJson(snapshot)).digest('hex')
         await tx.update(validationReviews).set({
@@ -337,7 +356,7 @@ export default async (req: Request) => {
           // The issued validation: validity, follow-up schedule, and the indicators a follow-up re-checks
           // (the qualified ones plus those holding back the next rung). It supersedes the previous current one.
           const issued = issuedValidity(p.data.outcome, now, choice?.months)
-          const tracked = [...new Set([...quals.flatMap((q) => q.indicatorIds), ...fw.blocking(cleanScores(final, ids))])]
+          const tracked = [...new Set([...quals.flatMap((q) => q.indicatorIds), ...fw.blocking(cleanScores(final, ids)), ...scopeIndices(scope).flatMap((f) => f.blocking(cleanScores(final, ids)))])]
           issuedId = `val_${crypto.randomUUID()}`
           const previous = await tx.select({ id: validations.id }).from(validations)
             .where(and(eq(validations.orgId, e.orgId), eq(validations.framework, fw.key), eq(validations.status, 'current')))
@@ -393,7 +412,11 @@ async function locked(reviewId: string, fn: (tx: Parameters<Parameters<typeof db
 
 async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: EngagementScope, ids: Set<string>) {
   const { e, review } = ctx
-  const base = { engagementStatus: e.status, framework: { key: fw.key, name: fw.name, version: fw.version }, scope, type: e.type }
+  const selfScores = (orgId: string, _key: string, idSet: Set<string>) => loadScopeSelfScores(orgId, fw, scope, idSet)
+  const base = {
+    engagementStatus: e.status, framework: { key: fw.key, name: fw.name, version: fw.version }, scope, type: e.type,
+    indices: scopeIndices(scope).map((f) => ({ key: f.key, name: f.name, version: f.version })), specialismBlock: ctx.specialismBlock,
+  }
   if (review?.status === 'finalised') {
     return { ...base, status: 'finalised', outcome: review.outcome, validatedRung: review.validatedRung, sha256: review.snapshotSha256, finalisedAt: review.finalisedAt, snapshot: review.snapshot }
   }
@@ -411,12 +434,12 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
     const caps = paperCaps(negotiated, sufficiency)
     const evidence = await linkedEvidence(e.id)
     if (evidence.length) await audit(ctx.me!.email, `viewed ${evidence.length} linked evidence item${evidence.length === 1 ? '' : 's'}`, e.id, e.orgId)
-    const rows = trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiency).map((t) => {
+    const rows = trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiency, ctx.profile).map((t) => {
       const s = scoreRows.find((x) => x.indicatorId === t.id)
       const d = debriefRows.find((x) => x.indicatorId === t.id)
       return { ...t, sufficiency: s?.sufficiency ?? null, comment: s?.comment ?? '', evidenceRef: s?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '', evidence: evidence.filter((x) => x.indicatorId === t.id) }
     })
-    const problems = finalisationProblems({ fw, scope, validatorScores, negotiated, sufficiency, method: (review?.method ?? null) as never, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null, outcome: null, qualifications: quals })
+    const problems = finalisationProblems({ fw, scope, validatorScores, negotiated, sufficiency, method: (review?.method ?? null) as never, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null, outcome: null, qualifications: quals, profile: ctx.profile })
       .filter((x) => x !== 'Choose an outcome')
     return {
       ...base, status: review?.status ?? 'draft', lead: ctx.lead, method: review?.method ?? null, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null,
@@ -424,6 +447,8 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
       partialScope: !supportsRung(scope),
       rungs: supportsRung(scope) ? { self: impliedRung(fw, self, scope), validator: impliedRung(fw, finalScores(validatorScores, cappedNegotiated(negotiated, caps)), scope) } : null,
       confirmedLevels: supportsRung(scope) ? null : levelConfirmations(fw, finalScores(validatorScores, cappedNegotiated(negotiated, caps)), scope),
+      // The band each index would get on the scores so far (a preview for the team; final at freeze).
+      indexBands: indexResults(scope, finalScores(validatorScores, cappedNegotiated(negotiated, caps)), ctx.profile),
       scored: Object.keys(validatorScores).length, total: ids.size,
     }
   }
@@ -435,8 +460,8 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
     const evidence = await linkedEvidence(e.id)
     return {
       ...base, status: 'debrief', method: review.method, fieldworkStart: review.fieldworkStart, fieldworkEnd: review.fieldworkEnd, levels: fw.levels,
-      indicators: indicatorsInScope(fw, scope), evidence,
-      rows: trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiencyOf(scoreRows, ids)).map((t) => {
+      indicators: allInScope(fw, scope, ctx.profile), evidence,
+      rows: trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiencyOf(scoreRows, ids), ctx.profile).map((t) => {
         const s = scoreRows.find((x) => x.indicatorId === t.id)
         const d = debriefRows.find((x) => x.indicatorId === t.id)
         return { ...t, comment: s?.comment ?? '', orgResponse: d?.orgResponse ?? '' }
@@ -444,7 +469,7 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
     }
   }
   // Before the debrief the organisation sees only the evidence it has linked.
-  return { ...base, status: review ? 'in_progress' : 'not_started', ...(ctx.org ? { indicators: indicatorsInScope(fw, scope), evidence: await linkedEvidence(e.id) } : {}) }
+  return { ...base, status: review ? 'in_progress' : 'not_started', ...(ctx.org ? { indicators: allInScope(fw, scope, ctx.profile), evidence: await linkedEvidence(e.id) } : {}) }
 }
 
 const sufficiencyOf = (scoreRows: Array<{ indicatorId: string; sufficiency: string }>, ids: Set<string>): Record<string, Sufficiency> =>
@@ -486,6 +511,7 @@ async function evidenceOptions(email: string, superAdmin: boolean) {
 }
 
 type SnapshotInput = {
+  profile: ModuleProfile
   e: ValidationEngagementRow; members: EngagementMemberRow[]; fw: (typeof FRAMEWORKS)[string]; scope: EngagementScope; row: ValidationReviewRow
   scoreRows: Array<typeof validationScores.$inferSelect>; debriefRows: Array<typeof validationDebriefs.$inferSelect>
   quals: Array<{ id: string; text: string; indicatorIds: string[] }>
@@ -514,9 +540,16 @@ async function buildSnapshot(s: SnapshotInput) {
   const engagedBy = e.createdBySide === 'organization' ? (org?.name ?? '') : e.createdBySide === 'funder' ? (firmName(e.funderFirmId) ?? '') : (firmName(e.validatorFirmId) ?? team[0]?.name ?? '')
   const label = engagementLabel({ type: e.type as EngagementType, funderName: firmName(e.funderFirmId), engagedBy, members: team.map((t) => ({ name: t.name, accreditation: t.accreditation })) })
   const levelsInScope = [...new Set(indicatorsInScope(fw, s.scope).map((i) => i.level))]
+  const inScope = allInScope(fw, s.scope, s.profile)
   return {
-    schema: 1,
+    // 2: CRAFT indices validated alongside the ladder (spec §7). Schema 1 snapshots have no `indices` and no per-indicator `framework`.
+    schema: 2,
     framework: { key: fw.key, name: fw.name, version: fw.version },
+    indices: indexResults(s.scope, s.final, s.profile).map((r) => {
+      const own = new Set(inScope.filter((i) => i.framework === r.key).map((i) => i.id))
+      return { ...r, qualifications: s.quals.filter((q) => q.indicatorIds.some((x) => own.has(x))).map((q) => q.text) }
+    }),
+    moduleProfile: s.profile,
     scope: s.scope,
     engagement: { id: e.id, type: e.type, label: label.label, statement: label.statement, engagedBy, createdBySide: e.createdBySide, requiresRereview: e.requiresRereview },
     organization: { name: org?.name ?? '', country: org?.country ?? '' },
@@ -528,11 +561,11 @@ async function buildSnapshot(s: SnapshotInput) {
     partialScope: !supportsRung(s.scope), confirmedLevels: supportsRung(s.scope) ? null : levelConfirmations(fw, s.final, s.scope),
     selfRung: impliedRung(fw, s.self, s.scope), levelsAchieved: s.achieved,
     levelScores: levelsInScope.map((l) => ({ level: l, self: fw.levelScore(l, s.self), validator: fw.levelScore(l, s.validatorScores), final: fw.levelScore(l, s.final) })),
-    indicators: indicatorsInScope(fw, s.scope).map((i) => {
+    indicators: inScope.map((i) => {
       const sc = s.scoreRows.find((x) => x.indicatorId === i.id)
       const d = s.debriefRows.find((x) => x.indicatorId === i.id)
       return {
-        id: i.id, level: i.level, domain: i.domain, self: s.self[i.id] ?? null, validator: s.validatorScores[i.id] ?? null, negotiated: s.negotiated[i.id] ?? null, final: s.final[i.id] ?? null,
+        id: i.id, framework: i.framework, level: i.level, domain: i.domain, self: s.self[i.id] ?? null, validator: s.validatorScores[i.id] ?? null, negotiated: s.negotiated[i.id] ?? null, final: s.final[i.id] ?? null,
         sufficiency: sc?.sufficiency ?? null, comment: sc?.comment ?? '', evidenceRef: sc?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '',
         // Paper-compliance cap on the negotiated score, when it applied.
         paperCap: s.caps[i.id] ? { negotiated: s.caps[i.id].negotiated, capped: s.caps[i.id].capped } : null,

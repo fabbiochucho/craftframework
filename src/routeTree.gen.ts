@@ -47,6 +47,7 @@ import { Route as PreAssessmentRouteImport } from './routes/pre-assessment'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RegulatoryComplianceRouteImport } from './routes/regulatory-compliance'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as RiskRouteImport } from './routes/risk'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SubprocessorsRouteImport } from './routes/subprocessors'
@@ -293,6 +294,11 @@ const RegulatoryComplianceRoute = RegulatoryComplianceRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RiskRoute = RiskRouteImport.update({
+  id: '/risk',
+  path: '/risk',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SecurityRoute = SecurityRouteImport.update({
@@ -651,6 +657,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
+  '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/subprocessors': typeof SubprocessorsRoute
@@ -748,6 +755,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
+  '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/subprocessors': typeof SubprocessorsRoute
@@ -846,6 +854,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
+  '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/subprocessors': typeof SubprocessorsRoute
@@ -945,6 +954,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
+    | '/risk'
     | '/security'
     | '/settings'
     | '/subprocessors'
@@ -1042,6 +1052,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
+    | '/risk'
     | '/security'
     | '/settings'
     | '/subprocessors'
@@ -1139,6 +1150,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/regulatory-compliance'
     | '/reports'
+    | '/risk'
     | '/security'
     | '/settings'
     | '/subprocessors'
@@ -1237,6 +1249,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   RegulatoryComplianceRoute: typeof RegulatoryComplianceRoute
   ReportsRoute: typeof ReportsRoute
+  RiskRoute: typeof RiskRoute
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
   SubprocessorsRoute: typeof SubprocessorsRoute
@@ -1561,6 +1574,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/risk': {
+      id: '/risk'
+      path: '/risk'
+      fullPath: '/risk'
+      preLoaderRoute: typeof RiskRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/security': {
@@ -2016,6 +2036,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   RegulatoryComplianceRoute: RegulatoryComplianceRoute,
   ReportsRoute: ReportsRoute,
+  RiskRoute: RiskRoute,
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
   SubprocessorsRoute: SubprocessorsRoute,

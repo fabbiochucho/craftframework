@@ -13,6 +13,8 @@ import {
 import {
   SEED_BADGES, SEED_CALIBRATION, SEED_CAPSTONE, SEED_CASES, SEED_MODULES, SEED_QUESTIONS,
 } from '../../src/lib/trainingSeed.js'
+import { SEED_INDEX_MODULES, SEED_INDEX_QUESTIONS } from '../../src/lib/trainingSeedIndices.js'
+import { isSpecialistModuleId } from '../../src/lib/specialisms.js'
 import {
   accreditedUntilOnPass, allPartsPassed, capstoneResult, earnedBadges, STEPS, type BadgeKey, type RubricCriterion,
 } from '../../src/lib/validatorTraining.js'
@@ -26,7 +28,11 @@ export const audit = (actor: string, action: string, target: string, category = 
 // deletions) made by the programme team are never overwritten.
 export async function ensureSeed(): Promise<void> {
   const [flag] = await db.select().from(trainingSettings).where(eq(trainingSettings.key, 'seeded'))
-  if (flag) return
+  if (!flag) await seedProgramme()
+  await seedIndexContent()
+}
+
+async function seedProgramme(): Promise<void> {
   await db.insert(trainingModules).values(SEED_MODULES.map((m) => ({
     id: m.id, position: m.position, title: m.title, outcome: m.outcome, script: m.script, exercises: m.exercises as any,
     scenario: m.scenario, reflectionPrompt: m.reflectionPrompt,
@@ -38,6 +44,22 @@ export async function ensureSeed(): Promise<void> {
   await db.insert(trainingBadges).values(SEED_BADGES).onConflictDoNothing()
   await db.insert(trainingSettings).values({ key: 'seeded', value: new Date().toISOString() }).onConflictDoNothing()
 }
+
+// The CRAFT indices content (module 9, specialist S1 and S2): added once, to new and existing databases alike.
+// Inserts never overwrite, so a module the programme team already edited is left as it is.
+async function seedIndexContent(): Promise<void> {
+  const [flag] = await db.select().from(trainingSettings).where(eq(trainingSettings.key, 'seeded-indices'))
+  if (flag) return
+  await db.insert(trainingModules).values(SEED_INDEX_MODULES.map((m) => ({
+    id: m.id, position: m.position, title: m.title, outcome: m.outcome, script: m.script, exercises: m.exercises as any,
+    scenario: m.scenario, reflectionPrompt: m.reflectionPrompt,
+  }))).onConflictDoNothing()
+  await db.insert(trainingQuestions).values(SEED_INDEX_QUESTIONS).onConflictDoNothing()
+  await db.insert(trainingSettings).values({ key: 'seeded-indices', value: new Date().toISOString() }).onConflictDoNothing()
+}
+
+/** Core modules only: specialist modules (s1, s2) never count towards accreditation or renewal. */
+export const coreModules = <T extends { id: string }>(mods: T[]): T[] => mods.filter((m) => !isSpecialistModuleId(m.id))
 
 // --- roles --------------------------------------------------------------------
 export async function staffRole(email: string): Promise<'programme_team' | 'lead_validator' | null> {
@@ -57,6 +79,7 @@ export async function isMarker(email: string): Promise<boolean> {
 export async function completedModuleIds(email: string): Promise<string[]> {
   const mods = await db.select({ id: trainingModules.id }).from(trainingModules)
   const rows = await db.select({ moduleId: trainingProgress.moduleId, step: trainingProgress.step }).from(trainingProgress).where(eq(trainingProgress.email, email))
+  // Includes specialist modules; callers that gate core steps filter with coreModules.
   const done = new Map<string, Set<string>>()
   for (const r of rows) done.set(r.moduleId, (done.get(r.moduleId) ?? new Set()).add(r.step))
   return mods.filter((m) => STEPS.every((s) => done.get(m.id)?.has(s))).map((m) => m.id)
@@ -65,7 +88,7 @@ export async function completedModuleIds(email: string): Promise<string[]> {
 // --- assessment status ------------------------------------------------------------
 export async function assessmentParts(email: string) {
   const [attempts, cases, capstones, subs] = await Promise.all([
-    db.select().from(trainingExamAttempts).where(eq(trainingExamAttempts.email, email)),
+    db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.email, email), eq(trainingExamAttempts.assessment, 'knowledge'))),
     db.select().from(trainingCases).where(eq(trainingCases.active, true)).orderBy(asc(trainingCases.position)),
     db.select().from(trainingCapstones).where(eq(trainingCapstones.active, true)),
     db.select().from(trainingSubmissions).where(eq(trainingSubmissions.email, email)),
@@ -105,7 +128,7 @@ export async function badgesFor(emails: string[]): Promise<Map<string, Array<{ k
     db.select().from(trainingProgress).where(inArray(trainingProgress.email, emails)),
     db.select().from(trainingDrills).where(inArray(trainingDrills.email, emails)),
     db.select().from(trainingSubmissions).where(and(inArray(trainingSubmissions.email, emails), eq(trainingSubmissions.kind, 'capstone'), eq(trainingSubmissions.status, 'passed'))),
-    db.select({ id: trainingModules.id }).from(trainingModules),
+    db.select({ id: trainingModules.id }).from(trainingModules).then(coreModules),
   ])
   const marks = subs.length ? await db.select().from(trainingMarks).where(inArray(trainingMarks.submissionId, subs.map((s) => s.id))) : []
   const capstoneRows = subs.length ? await db.select().from(trainingCapstones) : []
