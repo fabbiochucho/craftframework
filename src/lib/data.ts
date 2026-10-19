@@ -2107,6 +2107,13 @@ export interface DerivedFinding {
   owner: string
   dueMonth: number
   dueDate: string
+  /** Set by the suggested timeline (cipTimeline.ts). */
+  actionType?: import('./cipTimeline.ts').ActionType
+  minWeeks?: number
+  startWeek?: number
+  dueWeek?: number
+  phase?: 1 | 2 | 3
+  flags?: string[]
 }
 
 // Accountable owner inferred from the question's domain.
