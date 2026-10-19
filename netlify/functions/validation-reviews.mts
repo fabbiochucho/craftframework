@@ -26,7 +26,7 @@ import { missingSpecialismMessage } from '../../src/lib/specialisms.js'
 import type { ModuleProfile } from '../../src/lib/foundationModules.js'
 import { recordStatusHistory, sendDebriefNotice, syncCheckpoints } from '../lib/validation-lifecycle.js'
 import {
-  allInScope, canonicalJson, cappedNegotiated, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indexResults, indicatorsInScope, levelConfirmations, levelsAchieved,
+  allInScope, canonicalJson, isPrimaryFramework, cappedNegotiated, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indexResults, indicatorsInScope, levelConfirmations, levelsAchieved,
   METHODS, scopeIndices, OUTCOMES, paperCaps, SUFFICIENCY, supportsRung, trustDeltaWithCaps, type Outcome, type PaperCap, type Sufficiency,
 } from '../../src/lib/validationReview.js'
 
@@ -122,10 +122,11 @@ export default async (req: Request) => {
     }
     if (!me && !org) return notFound()
     const fw = FRAMEWORKS[e.framework]
-    if (!fw) return bad('Unsupported framework')
+    if (!fw || !isPrimaryFramework(fw.key)) return bad('Unsupported framework')
     const scope = e.scope as EngagementScope
-    // A specialist index needs the specialism on every reviewer, checked again here in case it lapsed since joining.
-    const missing = reviewer ? await specialismsMissing(caller.email, scope) : []
+    // A specialist index needs the specialism on every reviewer of an independent validation (funder reviews are the
+    // funder's own staff), checked again here in case it lapsed since joining.
+    const missing = reviewer && e.type === 'independent_validation' ? await specialismsMissing(caller.email, scope) : []
     const specialismBlock = missing.length ? missingSpecialismMessage(missing) : null
     if (specialismBlock) reviewer = false
     const profile = scopeIndices(scope).length ? await loadModuleProfile(e.orgId) : {}
@@ -306,6 +307,13 @@ export default async (req: Request) => {
       const p = finaliseSchema.safeParse(await readBody())
       if (!p.success) return bad('Choose an outcome')
       const r = await ensure()
+      // Every validator named on the record must hold the specialisms its indices need at the moment it is frozen.
+      if (e.type === 'independent_validation') {
+        for (const m of members.filter((x) => x.status === 'named')) {
+          const gap = await specialismsMissing(m.email, scope)
+          if (gap.length) return bad('This review cannot be finalised yet', { problems: [`${m.email}: ${missingSpecialismMessage(gap)}`] })
+        }
+      }
       const result = await locked(r.id, async (tx, row) => {
         if (row.status === 'finalised') return conflict('This review is finalised')
         const [scoreRows, debriefRows, qualRows] = await Promise.all([
