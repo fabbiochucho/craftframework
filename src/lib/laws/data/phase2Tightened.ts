@@ -183,7 +183,7 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     source: O('https://www.fiu.co.zw/'),
   },
   'ZW-forex-1': { source: O('https://www.rbz.co.zw/') },
-  'ZW-licensing-1': { citation: 'Zimbabwe Investment and Development Agency Act [Chapter 14:37], Act No. 6 of 2020', source: O('https://zidainvest.com/') },
+  'ZW-licensing-1': { citation: 'Zimbabwe Investment and Development Agency Act [Chapter 14:37], Act No. 10 of 2019 (gazetted 7 February 2020)', source: O('https://zidainvest.com/') },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
