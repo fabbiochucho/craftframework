@@ -13,6 +13,8 @@ export type DueRule =
   | { kind: 'annual-after-year-end'; months: number }
   | { kind: 'annual-fixed'; month: number; day: number }
   | { kind: 'semi-annual-fixed'; dates: Array<{ month: number; day: number }> }
+  /** Instalments on a day of given months of the accounting year (month 1 is the month after the year end). */
+  | { kind: 'instalments'; months: number[]; day: number }
   /** Due relative to an event with no fixed date (a payday, the AGM): shown as guidance, with no calendar date. */
   | { kind: 'event'; text: string }
   | { kind: 'one-off'; text: string }
@@ -75,13 +77,21 @@ export function nextDue(f: StatutoryFiling, ctx: DueContext): string | null {
       }
       return null
     }
+    case 'instalments': {
+      const [em] = ctx.yearEnd.split('-').map(Number)
+      const all = [ty - 1, ty, ty + 1].flatMap((y) => r.months.map((k) => {
+        const total = y * 12 + em + k - 1 // month k after the year end of year y (0-based month index)
+        return iso(Math.floor(total / 12), (total % 12) + 1, r.day)
+      })).sort()
+      return all.find((d) => d >= ctx.today) ?? null
+    }
     default:
       return null
   }
 }
 
 const FREQUENCY: Record<DueRule['kind'], ObligationFrequency> = {
-  monthly: 'monthly', 'annual-after-year-end': 'annual', 'annual-fixed': 'annual', 'semi-annual-fixed': 'semi-annual', event: 'monthly', 'one-off': 'one-off',
+  monthly: 'monthly', instalments: 'quarterly', 'annual-after-year-end': 'annual', 'annual-fixed': 'annual', 'semi-annual-fixed': 'semi-annual', event: 'monthly', 'one-off': 'one-off',
 }
 
 /** An entry for the obligations register. Filings with no calendar date (event-based) should be shown as guidance instead. */
