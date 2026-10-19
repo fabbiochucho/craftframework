@@ -17,12 +17,12 @@ import {
   clampSessionTimeout,
   SESSION_TIMEOUT_DEFAULT,
   clampPlanMonths,
-  CIP_PLAN_MONTHS_DEFAULT,
   LensId,
   defaultActiveLenses,
   Archetype,
 } from './data'
 import * as api from './api'
+import { DEFAULT_TIMELINE, type TimelineSettings } from './cipTimeline'
 import { offlineDB } from './offline/db'
 import { queueAndSync } from './offline/sync-engine'
 import type { JurisdictionId, SectorArchetype } from './regulatory-context'
@@ -201,10 +201,9 @@ interface AccessContextType {
 interface CIPContextType {
   cipStatuses: Record<string, RiskStatus>
   updateCIPStatus: (riskId: string, status: RiskStatus) => void
-  // Self-determinable Capacity Development Plan length, in months - the user
-  // picks it, and every generated due date is scheduled to fit inside it.
-  planMonths: number
-  setPlanMonths: (months: number) => void
+  // Suggested-timeline settings (pace, start date, size, overrides, fixed dates); see cipTimeline.ts.
+  timeline: TimelineSettings
+  setTimeline: (t: TimelineSettings) => void
 }
 
 interface LensContextType {
@@ -352,9 +351,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [entityProfile, setEntityProfileState, profileSaveStatus] = useTenantState<EntityProfile>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
     archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
   }, !!activeClientOrgId)
-  // Capacity Development Plan length, in months - self-determinable (see
-  // CIPPage), defaults to the original 24-month horizon.
-  const [planMonths, setPlanMonthsState] = useTenantState<number>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'cip-plan-months', CIP_PLAN_MONTHS_DEFAULT, !!activeClientOrgId)
+  // Capacity Improvement Plan timeline settings; the plan length follows from them (spec §6).
+  const [timeline, setTimelineState] = useTenantState<TimelineSettings>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'cip:timeline', DEFAULT_TIMELINE, !!activeClientOrgId)
   useEffect(() => {
     if (!currentUser || currentUser.isDemo || activeClientOrgId) return
     if (profileSaveStatus === 'ready' || profileSaveStatus === 'saved') {
@@ -779,10 +777,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser])
 
-  const setPlanMonths = useCallback((months: number) => {
+  const setTimeline = useCallback((t: TimelineSettings) => {
     if (readOnlyRef.current) return
-    setPlanMonthsState(clampPlanMonths(months))
-  }, [setPlanMonthsState])
+    setTimelineState({ ...DEFAULT_TIMELINE, ...t, targetMonths: t.targetMonths === undefined ? undefined : clampPlanMonths(t.targetMonths) })
+  }, [setTimelineState])
 
   // A portfolio-mandated lens can never be switched off by the institution.
   const setLensActive = useCallback(
@@ -1271,8 +1269,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   )
 
   const cipValue = useMemo<CIPContextType>(
-    () => ({ cipStatuses, updateCIPStatus, planMonths, setPlanMonths }),
-    [cipStatuses, updateCIPStatus, planMonths, setPlanMonths],
+    () => ({ cipStatuses, updateCIPStatus, timeline, setTimeline }),
+    [cipStatuses, updateCIPStatus, timeline, setTimeline],
   )
 
   const lensValue = useMemo<LensContextType>(

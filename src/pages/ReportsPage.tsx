@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { FileBarChart, FileText, FileSpreadsheet, Download, Printer } from 'lucide-react'
 import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx, useLensCtx, useEntityProfileCtx } from '../lib/context'
 import {
-  computeOrgScore, getAccreditation, DerivedFinding, answeredCount, RiskStatus,
+  computeOrgScore, getAccreditation, answeredCount, RiskStatus,
 } from '../lib/data'
-import { derivePlan } from '../lib/moduleFindings'
+import { planTimeline, type PlanTimeline } from '../lib/moduleFindings'
+import { PACE_LABEL } from '../lib/cipTimeline'
 import { useModuleProfile } from '../lib/moduleProfile'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { FOUNDATION_MODULES } from '../lib/foundationModules'
@@ -25,15 +26,16 @@ function csvCell(v: string | number) {
   return `"${String(v).replace(/"/g, '""')}"`
 }
 
-function exportCsv(plan: DerivedFinding[], statusOf: (id: string) => string, orgName: string, planMonths: number) {
-  const header = 'ID,Topic,Domain,Tier,Severity,Score,Owner,Due,Status,Mitigation Action'
-  const rows = plan.map(r =>
+function exportCsv(t: PlanTimeline, statusOf: (id: string) => string, orgName: string) {
+  const header = 'ID,Topic,Domain,Tier,Severity,Score,Owner,Phase,Start week,Due week,Due,Status,Mitigation Action,Notes'
+  const rows = t.actions.map(r =>
     [
       r.id, csvCell(r.topic), csvCell(r.domain), r.tier || '', r.severity, r.score,
-      csvCell(r.owner), csvCell(r.dueDate), csvCell(statusOf(r.id)), csvCell(r.mitigation),
+      csvCell(r.owner), r.phase ?? '', r.startWeek ?? '', r.dueWeek ?? '', csvCell(r.dueDate), csvCell(statusOf(r.id)), csvCell(r.mitigation),
+      csvCell((r.flags ?? []).join('; ')),
     ].join(','),
   )
-  const meta = `CRAFT ${planMonths}-Month Capacity Plan,${csvCell(orgName)}`
+  const meta = `CRAFT ${t.planMonths}-Month Capacity Plan,${csvCell(orgName)},Pace: ${PACE_LABEL[t.settings.pace]}${t.settings.startDate ? `,Starts ${t.settings.startDate}` : ''},Overrides: ${Object.keys(t.settings.overrides).length}`
   const blob = new Blob([[meta, '', header, ...rows].join('\n')], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -74,7 +76,7 @@ export function ReportsPage() {
   const { currentUser } = useAuthCtx()
   const { currentOrg } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
-  const { cipStatuses, planMonths } = useCIPCtx()
+  const { cipStatuses, timeline } = useCIPCtx()
   const { logActivity } = useAuditCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
   const composite = computeOrgScore(orgScores)
@@ -82,7 +84,9 @@ export function ReportsPage() {
   const [moduleProfile] = useModuleProfile()
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const [esgEvidence] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
-  const plan = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths, 2, esgScores), [orgScores, planMonths, moduleProfile, esgScores])
+  const cipPlan = useMemo(() => planTimeline(orgScores, moduleProfile, timeline, 2, esgScores), [orgScores, timeline, moduleProfile, esgScores])
+  const plan = cipPlan.actions
+  const planMonths = cipPlan.planMonths
   const criticals = plan.filter(p => p.severity === 'Critical')
   const answered = answeredCount(orgScores)
   const [toast, setToast] = useState<string | null>(null)
@@ -102,8 +106,8 @@ export function ReportsPage() {
   const [isoIds, setIsoIds] = useState<string[]>([])
   const indexReport = useMemo(() => {
     const m = modules.find(x => x.id === indexId)
-    return m ? buildIndexReport(m, allScores, moduleProfile, planMonths) : null
-  }, [indexId, allScores, moduleProfile, planMonths])
+    return m ? buildIndexReport(m, allScores, moduleProfile, timeline) : null
+  }, [indexId, allScores, moduleProfile, timeline])
   const alignment = useMemo(() => (frameworkId ? buildAlignmentReport(frameworkId, allScores, moduleProfile, lenses) : null), [frameworkId, allScores, moduleProfile, lenses])
   const iso = useMemo(() => (isoIds.length ? buildIsoReadiness(isoIds, allScores, moduleProfile, lenses) : null), [isoIds, allScores, moduleProfile, lenses])
   // Jurisdiction alignment starts from the organisation's home country and listed jurisdictions; the user can change the list.
@@ -182,7 +186,7 @@ export function ReportsPage() {
               className="mt-4"
               variant="outline"
               disabled={plan.length === 0}
-              onClick={() => { exportCsv(plan, statusOf, orgName, planMonths); logActivity('Exported report', 'Capacity Plan (CSV)', 'Export'); setToast('✅ Capacity Plan exported as CSV.') }}
+              onClick={() => { exportCsv(cipPlan, statusOf, orgName); logActivity('Exported report', 'Capacity Plan (CSV)', 'Export'); setToast('✅ Capacity Plan exported as CSV.') }}
             >
               <Download className="h-4 w-4" /> Export CSV
             </Button>
