@@ -186,6 +186,23 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     source: O('https://www.fiu.co.zw/'),
   },
   'ZW-forex-1': { source: O('https://www.rbz.co.zw/') },
+  // ---- Malawi ----
+  'MW-company-2': { source: O('https://www.ngora.mw/') },
+  'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
+  'MW-labour-1': { source: O('https://www.labour.gov.mw/') },
+  'MW-eia-1': { source: O('https://www.mepa.mw/') },
+  'MW-sustainability-1': { source: O('https://www.mepa.mw/') },
+  'MW-tax-1': { source: O('https://www.mra.mw/') },
+  'MW-competition-1': { source: O('https://www.cftc.mw/') },
+  'MW-consumer-1': { source: O('https://www.cftc.mw/') },
+  'MW-sanctions-1': {
+    title: 'Financial Crimes Act and Suppression of Terrorist Financing and Proliferation Regulations (UN targeted financial sanctions)',
+    citation: 'Financial Crimes Act No. 14 of 2017; Financial Crimes (Suppression of Terrorist Financing and Proliferation) Regulations, 2017',
+    source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf'),
+  },
+  'MW-forex-1': { source: O('https://www.rbm.mw/') },
+  'MW-licensing-1': { source: O('https://mitc.mw/') },
+
   'ZW-licensing-1': { citation: 'Zimbabwe Investment and Development Agency Act [Chapter 14:37], Act No. 10 of 2019 (gazetted 7 February 2020)', source: O('https://zidainvest.com/') },
 }
 
