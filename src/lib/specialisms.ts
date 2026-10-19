@@ -41,3 +41,6 @@ export function specialistPassed(score: number, total: number): boolean {
 
 export const missingSpecialismMessage = (missing: Specialism[]) =>
   `This engagement includes a specialist index. Every validator on it needs the ${missing.map((s) => SPECIALISM_LABEL[s]).join(' and ')} specialism.`
+
+/** Specialist modules (s1, s2, ...) sit outside the core programme: not needed for accreditation or renewal. */
+export const isSpecialistModuleId = (id: string) => /^s\d+$/.test(id)
