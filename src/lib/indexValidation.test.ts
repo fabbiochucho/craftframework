@@ -84,3 +84,15 @@ import { isSpecialistModuleId } from './specialisms.ts'
   assert.deepEqual(['m1', 'm9', 's1', 's2'].map(isSpecialistModuleId), [false, false, true, true])
   console.log('indexValidation (training): ok')
 }
+
+// Public page and statement: index bands from the frozen snapshot (schema 2); schema 1 has none
+import { indexResultsFromSnapshot, indexResultsHeading } from './validationStatement.ts'
+{
+  assert.equal(indexResultsFromSnapshot({ schema: 1 }), null)
+  assert.equal(indexResultsFromSnapshot(null), null)
+  const r = indexResultsFromSnapshot({ schema: 2, indices: [{ key: 'craft-change', name: 'CRAFT Change Readiness & Adoption Index', version: 'v1 (102026)', band: 'Functional', qualifications: ['q'] }, { bad: true }] })
+  assert.deepEqual(r, [{ name: 'CRAFT Change Readiness & Adoption Index', version: 'v1 (102026)', band: 'Functional' }], 'band only: no qualifications or scores leak through')
+  assert.equal(indexResultsFromSnapshot({ schema: 2, indices: [] }), null)
+  assert.equal(indexResultsHeading(r!), 'CRAFT index results (v1 (102026))')
+  console.log('indexValidation (public): ok')
+}
