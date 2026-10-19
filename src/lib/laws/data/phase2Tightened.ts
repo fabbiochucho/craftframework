@@ -421,7 +421,7 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
 
   // ---- Madagascar ----
   'MG-integrity-2': {
-    citation: 'Law No. 2023-026 on money laundering and terrorist financing, replacing Law No. 2018-043',
+    citation: 'Law No. 2023-026 on money laundering and terrorist financing',
     source: O('https://www.assemblee-nationale.mg/wp-content/uploads/2024/02/Loi-n%C2%B0-2023-026-Blanchiment-de-capitaux.pdf'),
   },
   'MG-tax-1': { source: O('https://www.impots.mg/') },
@@ -430,7 +430,7 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     regulator: 'the Ministry of Commerce', source: S('https://leap.unep.org/en/countries/mg/national-legislation/loi-ndeg-2015-014-sur-les-garanties-et-la-protection-des'),
     summary: 'Sets consumer rights to information, legal and commercial guarantees, fair contract terms and safe products, with controls and penalties enforced by the trade ministry.',
   },
-  'MG-sanctions-1': { citation: 'Law No. 2023-026 on money laundering and terrorist financing, with implementing rules on targeted financial sanctions' },
+  'MG-sanctions-1': { citation: 'Law No. 2023-026 on money laundering and terrorist financing, as implemented by national regulations' },
   'MG-forex-1': { source: O('https://www.banky-foibe.mg/') },
   'MG-licensing-1': { source: O('https://edbm.mg/') },
 
