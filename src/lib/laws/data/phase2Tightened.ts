@@ -382,6 +382,32 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'TD-sanctions-1': { citation: 'CEMAC Regulation No. 01/CEMAC/UMAC/CM of 2016, as revised by Regulation No. 02/24/CEMAC/UMAC/CM of 20 December 2024', source: O('https://www.beac.int/') },
   'TD-licensing-1': { citation: 'Law No. 006/PR/2008 of 3 January 2008 on the Investment Charter', source: O('https://anie-tchad.com/') },
 
+  // ---- Republic of the Congo ----
+  'CG-sanctions-1': { citation: 'CEMAC Regulation No. 01/CEMAC/UMAC/CM of 2016, as revised by Regulation No. 02/24/CEMAC/UMAC/CM of 20 December 2024', source: O('https://www.beac.int/') },
+  'CG-licensing-1': { citation: 'Law No. 6-2003 of 18 January 2003 on the Investment Charter', source: O('https://www.sgg.cg/') },
+
+  // ---- Democratic Republic of the Congo ----
+  'CD-tax-1': { source: O('https://dgi.gouv.cd/') },
+  'CD-competition-1': { citation: 'Law No. 18/020 of 9 July 2018 on freedom of prices and competition' },
+  'CD-forex-1': { source: O('https://www.bcc.cd/') },
+  'CD-licensing-1': { source: O('https://anapi.cd/') },
+
+  // ---- Equatorial Guinea ----
+  'GQ-data-1': { citation: 'Law No. 1/2016 of 22 July 2016', reformNote: 'The data protection authority the Law creates is not yet operational, so enforcement is limited; follow the Law\'s consent and security rules anyway.' },
+  'GQ-sanctions-1': { citation: 'CEMAC Regulation No. 01/CEMAC/UMAC/CM of 2016, as revised by Regulation No. 02/24/CEMAC/UMAC/CM of 20 December 2024', source: O('https://www.beac.int/') },
+
+  // ---- Gabon ----
+  'GA-tax-1': { source: O('https://dgi.ga/') },
+  'GA-consumer-1': {
+    citation: 'No national consumer law: CEMAC consumer rules apply, and a bill transposing CEMAC Directive No. 02/19-UEAC-639-CM-33 of 8 April 2019 is in preparation',
+    reformNote: 'A ministry for consumer affairs was created in January 2023; watch for the transposing law.',
+  },
+  'GA-sanctions-1': { citation: 'CEMAC Regulation No. 01/CEMAC/UMAC/CM of 2016, as revised by Regulation No. 02/24/CEMAC/UMAC/CM of 20 December 2024', source: O('https://www.beac.int/') },
+
+  // ---- São Tomé and Príncipe ----
+  'ST-forex-1': { source: O('https://www.bcstp.st/') },
+  'ST-integrity-1': { source: O('https://www.bcstp.st/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
