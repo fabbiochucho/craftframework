@@ -202,6 +202,43 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'DZ-forex-1': { source: O('https://www.bank-of-algeria.dz/') },
   'DZ-licensing-1': { source: O('https://www.joradp.dz/') },
 
+  // ---- Libya ----
+  'LY-company-1': { citation: 'Law No. 23 of 2010, as amended by Law No. 7 of 2023', source: S('https://lawsociety.ly/en/legislation/law-no-23-of-2010-regarding-commercial-activity/10/') },
+  'LY-integrity-2': { source: O('https://cbl.gov.ly/') },
+  'LY-competition-1': {
+    title: 'Competition provisions of the Law on Commercial Activity', noLaw: false,
+    citation: 'Law No. 23 of 2010, Title 11 (articles 1282-1307), as amended by Law No. 7 of 2023; Executive Regulations, Resolution No. 6 of 2024 (in force 14 April 2024)',
+    regulator: 'the Competition Council', source: S('https://alp.unescwa.org/legislations/resolution-no-62024-regarding-issuance-executive-regulations-regarding-provisions'),
+    summary: 'Prohibits anti-competitive agreements and abuse of a dominant position (presumed above a 30% market share), with a Competition Council created in 2023 that can stop infringing practices. Implementing regulations took effect in April 2024.',
+  },
+  'LY-consumer-1': {
+    title: 'Consumer protection provisions of the Law on Commercial Activity', noLaw: false,
+    citation: 'Law No. 23 of 2010, Title 11, as amended by Law No. 7 of 2023; Executive Regulations, Resolution No. 6 of 2024',
+    regulator: 'the Competition Council and the Ministry of Economy', source: S('https://alp.unescwa.org/legislations/resolution-no-62024-regarding-issuance-executive-regulations-regarding-provisions'),
+    summary: 'Sets consumer rights to information, fair pricing and safe goods and services within the commercial law, with implementing regulations in force since April 2024.',
+  },
+  'LY-sanctions-1': { source: O('https://cbl.gov.ly/') },
+  'LY-forex-1': { source: O('https://cbl.gov.ly/') },
+
+  // ---- Mauritania ----
+  'MR-data-1': {
+    citation: 'Law No. 2017-020 of 22 July 2017; the Personal Data Protection Authority (APD) was constituted in 2022 (Decree No. 2022-013), but whether the Law is fully in force is unclear',
+    reformNote: 'With the authority now constituted, treat the Law as likely to be enforced and confirm its status before relying on this entry.',
+  },
+  'MR-procurement-1': { source: O('https://www.armp.mr/') },
+  'MR-forex-1': { source: O('https://www.bcm.mr/') },
+
+  // ---- Tunisia ----
+  'TN-integrity-2': { source: O('https://www.ctaf.gov.tn/') },
+  'TN-labour-1': {
+    citation: 'Law No. 66-27 of 1966, as amended, including Law No. 2025-9 of 21 May 2025 on employment contracts and subcontracting',
+    reformNote: 'Law No. 2025-9 makes open-ended contracts the rule, limits fixed-term contracts to set cases, bans labour subcontracting for core activities and caps probation; check its effect on existing contracts.',
+  },
+  'TN-tax-1': { source: O('https://www.finances.gov.tn/') },
+  'TN-sanctions-1': { source: O('https://www.ctaf.gov.tn/') },
+  'TN-forex-1': { source: O('https://www.bct.gov.tn/') },
+  'TN-licensing-1': { source: O('https://tia.gov.tn/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
