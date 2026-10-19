@@ -9,6 +9,7 @@ import {
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { accessConflict, accreditationOf, reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
 import { missingSpecialismMessage } from '../../src/lib/specialisms.js'
+import { isPrimaryFramework } from '../../src/lib/validationReview.js'
 import { logger } from '../lib/logger.js'
 import {
   DEFAULT_ACCESS_DAYS, ENGAGEMENT_TYPES, engagementLabel, engagementStatusFrom, grantExpiry, INVITE_VALID_DAYS, MAX_ACCESS_DAYS,
@@ -358,6 +359,8 @@ async function create(caller: { email: string; orgId: string; name: string }, fi
   if (!mayCreateType(d.side, d.type)) return json({ error: 'A funding partner can only create a funder review, never an independent validation' }, 403)
   const scope = parseScope(d.scope)
   if (!scope) return bad('Invalid scope')
+  // Indices are validated alongside the ladder (scope.indices), never as the engagement's framework, so the specialism check always applies.
+  if (d.framework && !isPrimaryFramework(d.framework)) return bad('Choose the ladder as the framework; add CRAFT indices to the scope')
   const now = new Date()
   const base = {
     id: `eng_${crypto.randomUUID()}`, framework: d.framework ?? 'capital-readiness', scope, type: d.type, createdBy: caller.email, createdBySide: d.side,

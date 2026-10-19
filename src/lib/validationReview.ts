@@ -268,3 +268,14 @@ export function canonicalJson(value: unknown): string {
   }
   return JSON.stringify(value) ?? 'null'
 }
+
+/** Only a rung framework (the ladder) can be an engagement's framework; indices are added through scope.indices. */
+export const isPrimaryFramework = (key: string): boolean => FRAMEWORKS[key]?.result === 'rung'
+
+/** Indicators a validation's improvement actions may link: the framework's, plus every indicator its frozen review covered. */
+export function knownIndicatorIds(fw: FrameworkDef | undefined, snapshot: unknown): Set<string> {
+  const ids = new Set((fw?.indicators ?? []).map((i) => i.id))
+  const list = (snapshot as { indicators?: unknown } | null)?.indicators
+  if (Array.isArray(list)) for (const i of list) if (i && typeof (i as { id?: unknown }).id === 'string') ids.add((i as { id: string }).id)
+  return ids
+}

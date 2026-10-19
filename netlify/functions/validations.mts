@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
   auditLogs, engagementMembers, firmMembers, firms, organizations, validationCheckpoints, validationCipActions, validationConcerns, validationEvents, validationFunderConsents,
-  validations, type EngagementMemberRow, type ValidationRow,
+  validations, validationReviews, type EngagementMemberRow, type ValidationRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { contactsFor, describeValidation, notify, recordStatusHistory, statusHistory, syncCheckpoints } from '../lib/validation-lifecycle.js'
@@ -15,7 +15,7 @@ import {
   cipActionProblems, cipDoneProblems, cipProgress, EVENT_DECISIONS, FOLLOW_UP_MODES, isStarred, MATERIAL_EVENTS, MATERIAL_EVENT_KEYS, progressLine, reportingDeadline,
   statusAfterDecision, MS_DAY, STATUS_LABEL,
 } from '../../src/lib/validationLifecycle.js'
-import { FRAMEWORKS } from '../../src/lib/validationReview.js'
+import { FRAMEWORKS, knownIndicatorIds } from '../../src/lib/validationReview.js'
 
 // /api/validations — the issued validation's lifecycle (validator system PR 5).
 //
@@ -170,7 +170,9 @@ export default async (req: Request) => {
     if (sub === 'cip-actions') {
       if (!ctx.org) return forbidden()
       if (!editable) return conflict('This validation is closed')
-      const known = new Set((FRAMEWORKS[v.framework]?.indicators ?? []).map((i) => i.id))
+      // The ladder's indicators plus every indicator the frozen review covered (CRAFT indices included).
+      const [frozen] = await db.select({ snapshot: validationReviews.snapshot }).from(validationReviews).where(eq(validationReviews.id, v.reviewId))
+      const known = knownIndicatorIds(FRAMEWORKS[v.framework], frozen?.snapshot ?? null)
       if (req.method === 'POST' && !eid) {
         const p = cipCreateSchema.safeParse(await readBody())
         if (!p.success) return bad('Say what will be done and link it to at least one indicator')
