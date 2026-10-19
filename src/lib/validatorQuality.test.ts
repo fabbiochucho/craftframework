@@ -18,7 +18,7 @@ const snap = { selfRung: 5, impliedRung: 3, validatedRung: 3, indicators: [{ sel
 const m = reviewMetrics('validated', snap)
 assert.equal(m.gap, 1) // (2 + 0 + 1) / 3
 assert.equal(m.rungDelta, -2)
-assert.deepEqual(reviewMetrics('not_validated', null), { outcome: 'not_validated', selfRung: null, validatedRung: null, impliedRung: null, gap: null, rungDelta: null })
+assert.deepEqual(reviewMetrics('not_validated', null), { outcome: 'not_validated', selfRung: null, validatedRung: null, impliedRung: null, gap: null, rungDelta: null, indices: 0, indexGap: null })
 
 // Statistics.
 const st = validatorStats([m, reviewMetrics('not_validated', { selfRung: 2, impliedRung: 1, indicators: [] }), reviewMetrics('validated_with_qualifications', { selfRung: 3, impliedRung: 3, validatedRung: 3, indicators: [{ self: 2, final: 2 }] })], { withdrawn: 1, concerns: 2 })

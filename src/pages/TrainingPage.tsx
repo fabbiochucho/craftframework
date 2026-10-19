@@ -18,6 +18,7 @@ export type TrainingMe = {
   assessment: { examPassed: boolean; examAllowed: boolean; examReason: string | null; examNextAt: string | null; attemptsThisYear: number; examInProgress: string | null; casesPassed: number; casesTotal: number; capstonePassed: boolean; trainingComplete: boolean }
   renewal: null | { until: string; open: boolean; opensAt: string; ready: boolean }
   learningLog: Array<{ moduleId: string; text: string; at: string }>
+  specialist?: Array<{ specialism: string; label: string; moduleId: string; moduleTitle: string | null; moduleComplete: boolean; current: boolean }>
 }
 
 const STEP_LABEL: Record<string, string> = { watch: 'Watch', try: 'Try', decide: 'Decide', check: 'Check', reflect: 'Reflect' }
@@ -119,6 +120,18 @@ export function TrainingPage() {
         ) : <p className="text-sm text-slate-500">None yet. Ladder Climber, Evidence Hawk, Clear Conscience, Calibrated and Riverbend Solved are earned through the modules, the calibration drill and the capstone.</p>}
       </section>
 
+      {(me.specialist ?? []).some((s) => s.moduleTitle) && (
+        <Card>
+          <CardHeader><CardTitle>Specialist modules</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p className="text-slate-600">Optional. Each leads to a specialist assessment, needed to validate the Fiduciary Controls or Safeguards index.</p>
+            {(me.specialist ?? []).filter((s) => s.moduleTitle).map((s) => (
+              <p key={s.moduleId}><Link to="/training/module/$moduleId" params={{ moduleId: s.moduleId }} className="font-medium text-emerald-700 hover:underline">{s.moduleTitle}</Link>{s.moduleComplete ? ' · complete' : ''}{s.current ? ' · specialism held' : ''}</p>
+            ))}
+            <Link to="/training/assessment" className="text-emerald-700 hover:underline">Specialist assessments →</Link>
+          </CardContent>
+        </Card>
+      )}
       {me.learningLog.length > 0 && (
         <section aria-labelledby="log-h">
           <h2 id="log-h" className="mb-3 text-lg font-semibold text-slate-800">Learning log</h2>

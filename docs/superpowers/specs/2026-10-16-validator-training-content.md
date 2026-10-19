@@ -102,6 +102,39 @@ Every module follows the same five steps:
 - **Scenario:** after finalising, the organisation asks you to "fix a typo" in the frozen scores.
 - **Check:** what the public page shows and never shows; the standard "what this validation means" wording.
 
+### Module 9. The CRAFT indices (added 2026-10-19, indices spec §7.1)
+*Outcome: validate an index alongside the ladder and report its band honestly.* Required for every validator.
+- **Video script:** four indices beside the ladder; bands not rungs (Fragile to Exemplary); the weakest-link cap
+  (any dimension below 1.75 caps the band at Developing); provisional bands; scoring index indicators on evidence;
+  the paper-compliance cap on every framework; only bands are published; the two specialist indices; "aligned
+  with", never "certified" or "compliant". Full draft: `src/lib/trainingSeedIndices.ts` (module `m9`).
+- **Try:** classify statements as a ladder rung, an index band or neither.
+- **Scenario:** an accredited validator without the fiduciary specialism is asked to stay on an engagement that
+  includes the Fiduciary Controls index.
+- **Check:** 5 questions; 20 new questions join the knowledge exam bank.
+
+### Specialist S1. Fiduciary Controls & Risk Management
+*Outcome: validate whether a funder's money would be safe, well accounted for and protected from the risks that matter.*
+Optional; leads to the fiduciary specialism.
+- **Video script:** the nine dimensions; design versus operation; testing segregation of duties and reconciliations;
+  risk appetite, key risk indicators and treatment plans; the Fraud exposure, Funder reporting and Board oversight
+  lenses; public financial management for public bodies only. Full draft: module `s1`.
+- **Try:** design or operation? **Scenario:** a small organisation with no segregation of payment duties.
+- **Specialist assessment:** 15 questions, 30 minutes, pass mark 80%; a pass grants the specialism, which counts
+  only while the main accreditation is current.
+
+### Specialist S2. Environmental & Social Safeguards
+*Outcome: validate whether an institution avoids harm to people and the environment, and puts it right when harm happens.*
+Optional; leads to the safeguards specialism.
+- **Video script:** the ten safeguard areas; screening by E&S category and flags, and challenging a wrong screening;
+  the cap for high-risk operations without an independent impact assessment; evidence from affected people;
+  survivor-centred practice. Full draft: module `s2`.
+- **Try:** does the Land & Resettlement area apply? **Scenario:** a high-risk project whose impact assessment was
+  written in-house.
+- **Specialist assessment:** as S1.
+
+The 21 October video run (modules 1–8) is unaffected; these scripts are for a later run.
+
 ## Capstone simulation: "Riverbend Health Trust"
 
 A 4-hour end-to-end validation of a fictional organisation in the sandbox, built so the obvious answer is
