@@ -346,6 +346,14 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'TG-sanctions-1': { source: O('https://www.centif.tg/') },
   'TG-licensing-1': { source: O('https://apizf.org/') },
 
+  // ---- Guinea-Bissau ----
+  'GW-data-1': { citation: 'No data protection law has been enacted; Law No. 5/2010 on the information society has limited provisions, and the ECOWAS Supplementary Act on personal data applies regionally' },
+  'GW-procurement-1': { source: O('https://arcp.gw/') },
+  'GW-licensing-1': {
+    citation: 'Investment Code, Law of 6 July 2011 (numbered 3/2011 by UNCTAD and 13/2011 in the Ministry of Finance copy); mining, oil, forestry and free zones have separate rules',
+    source: O('https://alfandegas.mef.gw/wp-content/uploads/2025/03/Codigo-do-Investimento-da-Guine-Bissau.pdf'),
+  },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
