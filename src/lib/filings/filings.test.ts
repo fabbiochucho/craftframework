@@ -53,4 +53,10 @@ assert.equal(nextDue(ke(/Instalment tax/), ctx), '2026-12-20', 'the 20th of mont
 assert.equal(nextDue(ke(/Instalment tax/), { today, yearEnd: '06-30' }), '2026-10-20', 'July start: months 4, 6, 9, 12 are October, December, March, June')
 assert.equal(nextDue(ke(/Instalment tax/), { today: '2026-10-21', yearEnd: '06-30' }), '2026-12-20')
 assert.ok(ke(/annual return/i).notes!.match(/28|42/), 'the conflicting deadline is stated')
+// South Africa
+const za = (re: RegExp) => FILINGS.find((f) => f.jurisdiction === 'ZA' && re.test(f.name))!
+assert.equal(nextDue(za(/EMP201/), ctx), '2026-11-07')
+assert.equal(nextDue(za(/IRP6/), ctx), '2026-12-31', 'year-end provisional payment')
+assert.equal(nextDue(za(/EMP501/), ctx), '2026-10-31')
+assert.equal(nextDue(za(/ITR14/), ctx), '2026-12-31', '12 months after the December 2025 year end')
 console.log('filings: ok')
