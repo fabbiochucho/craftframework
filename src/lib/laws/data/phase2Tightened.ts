@@ -89,6 +89,24 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   },
   'RW-forex-1': { source: O('https://www.bnr.rw/') },
   'RW-licensing-1': { citation: 'Law No. 006/2021 on investment promotion and facilitation', source: O('https://rdb.rw/') },
+
+  // ---- Zambia ----
+  'ZM-company-2': { citation: 'Act No. 16 of 2009', reformNote: 'The Non-Governmental Organisations Bill No. 6 of 2025 would repeal and replace the 2009 Act; check its status.' },
+  'ZM-integrity-1': { source: O('https://acc.gov.zm/') },
+  'ZM-labour-1': { source: O('https://www.mlss.gov.zm/') },
+  'ZM-tax-1': { citation: 'Income Tax Act (Cap. 323) and Value Added Tax Act (Cap. 331), as amended by annual finance acts', source: O('https://www.zra.org.zm/') },
+  'ZM-competition-1': { source: O('https://www.ccpc.org.zm/') },
+  'ZM-consumer-1': { source: O('https://www.ccpc.org.zm/') },
+  'ZM-sanctions-1': {
+    title: 'Anti-Terrorism and Non-Proliferation Act (UN targeted financial sanctions)',
+    citation: 'Anti-Terrorism and Non-Proliferation Act No. 6 of 2018; Financial Intelligence Centre Act No. 46 of 2010, as amended',
+    source: O('https://www.fic.gov.zm/'),
+  },
+  'ZM-forex-1': { source: O('https://www.boz.zm/') },
+  'ZM-licensing-1': {
+    citation: 'Act No. 17 of 2022, repealing the Zambia Development Agency Act, 2006', source: O('https://www.zda.org.zm/'),
+    reformNote: 'A Zambia Development Agency (Amendment) Bill, 2026 would change the Board; check its status.',
+  },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
