@@ -1,6 +1,5 @@
 // Kenya: recurring statutory filings, checked 19 October 2026. Payroll items (PAYE, NSSF, SHIF, Housing Levy) are
 // due around the 9th of the following month; VAT by the 20th; withholding tax within five working days of deduction.
-// Not yet included (dates unconfirmed): the Companies Act 2015 annual return and corporate instalment tax.
 import type { StatutoryFiling } from './index.ts'
 
 const C = '2026-10-19'
@@ -9,6 +8,21 @@ const S = (url: string) => ({ url, kind: 'secondary' as const, checked: C })
 const CAL = 'https://biasharaguide.co.ke/articles/tax-deadlines-calendar-kenya/'
 
 export const KE_FILINGS: StatutoryFiling[] = [
+  {
+    id: 'ke-annual-return', jurisdiction: 'KE', name: 'Companies Registry annual return', authority: 'Business Registration Service (BRS), Registrar of Companies',
+    appliesTo: ['company'], due: { kind: 'event', text: 'shortly after each anniversary of incorporation' },
+    dueText: 'Filed on the eCitizen BRS portal after each anniversary of incorporation (the return date).',
+    legalBasis: 'Companies Act 2015, section 705',
+    notes: 'Sources give 28, 30 or 42 days after the anniversary; file within 28 days to be safe and confirm with BRS. Persistent non-filing can lead to strike-off.',
+    source: O('https://brs.go.ke/'),
+  },
+  {
+    id: 'ke-instalment', jurisdiction: 'KE', name: 'Instalment tax', authority: 'Kenya Revenue Authority (KRA)',
+    appliesTo: ['company'], due: { kind: 'instalments', months: [4, 6, 9, 12], day: 20 },
+    dueText: 'Four instalments of 25% (of the lower of 110% of the previous year\'s tax or the current year\'s estimate), by the 20th day of the 4th, 6th, 9th and 12th months of the accounting year.',
+    legalBasis: 'Income Tax Act (Cap. 470)', notes: 'Not payable by persons on Turnover Tax.',
+    source: O('https://www.kra.go.ke/individual/filing-paying/types-of-taxes/installment-tax'),
+  },
   {
     id: 'ke-cit', jurisdiction: 'KE', name: 'Corporate income tax return', authority: 'Kenya Revenue Authority (KRA)',
     appliesTo: ['company'], due: { kind: 'annual-after-year-end', months: 6 },
