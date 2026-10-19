@@ -1,6 +1,7 @@
 // Self-check: `node src/lib/moduleFindings.test.ts`
 import assert from 'node:assert/strict'
-import { deriveModuleFindings, derivePlan } from './moduleFindings.ts'
+import { deriveModuleFindings, derivePlan, planTimeline } from './moduleFindings.ts'
+import { DEFAULT_TIMELINE } from './cipTimeline.ts'
 import { computeOrgScore, deriveFindings } from './data.ts'
 
 const scores = { 'CRAFT-OHE-01': 1, 'CRAFT-OHE-02': 4, 'CRAFT-FCR-25': 0, 'CRAFT-RES-01': 0 }
@@ -18,8 +19,22 @@ assert.ok(!deriveFindings({ ...core, ...scores }).some((x) => x.id.startsWith('C
 // One plan, sorted together (checkpoint 1)
 const mixed = derivePlan({ 'GOV-01': 3, 'GOV-02': 2, 'CRAFT-OHE-01': 0 }, {}, 24)
 assert.equal(mixed[0].id, 'CRAFT-OHE-01', 'a critical index gap sorts above core high/moderate gaps')
-const twoCritical = derivePlan({ 'GOV-01': 0, 'CRAFT-OHE-01': 0 }, {}, 24)
-assert.notEqual(twoCritical[0].dueMonth, twoCritical[1].dueMonth, 'core and index actions share one schedule, not two bunched ones')
+// Stage 3: dates come from the suggested timeline (Ruling: replaces "two criticals get different months")
+const twoCritical = derivePlan({ 'GOV-01': 0, 'CRAFT-OHE-01': 0 }, {}, DEFAULT_TIMELINE)
+for (const x of twoCritical) assert.ok(x.dueWeek! > 0 && x.dueWeek! <= 26 && x.phase === 1, `${x.id} is a critical gap, closed early in phase 1`)
+assert.equal(twoCritical.find((x) => x.id === 'CRAFT-OHE-01')!.actionType, 'policy', 'index actions carry their action type')
+const dated = derivePlan({ 'GOV-01': 0 }, {}, { ...DEFAULT_TIMELINE, startDate: '2027-01-04' })
+assert.match(dated[0].dueDate, /^2027-\d{2}-\d{2}$/, 'with a start date, due dates are real dates')
+const t = planTimeline({ 'GOV-01': 3, 'GOV-02': 2 }, {}, DEFAULT_TIMELINE)
+assert.equal(t.planMonths, Math.max(...t.actions.map((x) => x.dueMonth)), 'plan length is when the last action is due')
+// A number is the old plan-length argument: the Target date pace
+const legacy = planTimeline({ 'GOV-01': 3 }, {}, 6)
+assert.ok(legacy.planMonths <= 6, 'a 6-month target keeps a moderate gap within 6 months')
+// Low change readiness slows people and practice actions
+const chg = 'CRAFT-CHG-04' // a 'people' action
+const chgAction = planTimeline({ [chg]: 0 }, {}, DEFAULT_TIMELINE).actions.find((x) => x.id === chg)!
+assert.equal(chgAction.actionType, 'people')
+assert.ok(chgAction.flags!.some((f) => /embedding/.test(f)), 'low change readiness (from the answers) adds embedding time')
 console.log('moduleFindings: ok')
 
 import { deriveEsgFindings } from './moduleFindings.ts'

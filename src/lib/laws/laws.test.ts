@@ -106,3 +106,47 @@ console.log('laws (final review fixes): ok')
 for (const j of new Set(LAW_REGISTER.map((e) => e.jurisdiction))) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `${j} has an entry for ${a}`)
 assert.ok(LAW_REGISTER.filter((e) => !PHASE1.includes(e.jurisdiction)).every((e) => e.review === 'pending'), 'phase 2 entries start pending')
 console.log('laws (all jurisdictions complete): ok')
+
+// Batch A, task 1: deferred review fixes in the data
+const byId = (id: string) => LAW_REGISTER.find((e) => e.id === id)!
+for (const id of ['US-company-1', 'US-data-1', 'SN-governance-1', 'CV-governance-1']) assert.ok(!byId(id).noLaw, `${id} is rated, not "no national law"`)
+assert.equal(byId('NG-sustainability-1').source.kind, 'secondary')
+assert.equal(byId('EG-company-2').source.url, 'https://www.icnl.org/resources/civic-freedom-monitor/egypt')
+console.log('laws (batch A data fixes): ok')
+
+// Batch A, task 2: organisations see when an entry is due for re-checking
+import { isRecheckDue } from './jurisdictionReport.ts'
+assert.equal(isRecheckDue({ ...ok, source: { ...ok.source, checked: '2025-10-17' } }, '2026-10-18'), true)
+assert.equal(isRecheckDue({ ...ok, source: { ...ok.source, checked: '2025-10-18' } }, '2026-10-18'), false)
+const staleReport = buildJurisdictionReport(['NG'], {}, {}, [], [approved({ ...ok, source: { ...ok.source, checked: '2024-01-01' } })], [], '2026-10-18')
+assert.equal(staleReport.sections[0].areas[0].laws[0].recheckDue, true)
+console.log('laws (re-check warning): ok')
+
+// Batch A, task 3: in-app approval per jurisdiction
+import { applyApprovals } from './jurisdictionReport.ts'
+const pend: LawEntry[] = [ok, { ...ok, id: 'KE-data-1', jurisdiction: 'KE' }]
+assert.deepEqual(applyApprovals(pend, ['NG']).map((e) => e.review), ['approved', 'pending'])
+assert.equal(buildJurisdictionReport(['NG'], {}, {}, [], pend, ['NG']).sections[0].reviewed, true, 'an approved jurisdiction shows its laws')
+assert.equal(buildJurisdictionReport(['KE'], {}, {}, [], pend, ['NG']).sections[0].reviewed, false)
+assert.deepEqual(buildInternalCheck(pend, '2026-10-18', ['NG']).pending, [{ jurisdiction: 'KE', count: 1 }], 'approved jurisdictions leave the pending list')
+console.log('laws (approvals): ok')
+
+// Batch A, task 4: onboarding offers every country the register covers
+import { COUNTRIES } from '../countries.ts'
+assert.equal(COUNTRIES.length, 56, '54 African countries plus the UK and US')
+assert.deepEqual(COUNTRIES.slice(0, 3).map((c) => c.code), ['NG', 'KE', 'RW'], 'the familiar ten stay first')
+for (const c of COUNTRIES) assert.ok(LAW_JURISDICTIONS.includes(c.code), `${c.code} is a register jurisdiction`)
+assert.equal(COUNTRIES.find((c) => c.code === 'UK')!.flag, '\u{1F1EC}\u{1F1E7}')
+assert.equal(new Set(COUNTRIES.map((c) => c.code)).size, 56)
+console.log('laws (onboarding countries): ok')
+
+// PR #88 review: an approval only counts for the register version it was given for
+import { currentApprovals } from './jurisdictionReport.ts'
+{
+  const recs = [
+    { jurisdiction: 'NG', registerVersion: 'CRAFT-LAW 1.2 (2026-10-18)' },
+    { jurisdiction: 'KE', registerVersion: 'CRAFT-LAW 1.1 (2026-10-01)' },
+  ]
+  assert.deepEqual(currentApprovals(recs, 'CRAFT-LAW 1.2 (2026-10-18)'), ['NG'], 'an approval for an earlier register version needs re-approval')
+  console.log('laws (approval versions): ok')
+}
