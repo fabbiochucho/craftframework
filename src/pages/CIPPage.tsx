@@ -26,7 +26,7 @@ const PACE_HINT: Record<Pace, string> = {
 }
 
 export function CIPPage() {
-  const { currentOrg } = useWorkspace()
+  const { currentOrg, readOnly } = useWorkspace()
   const { scores } = useScoresCtx()
   const { cipStatuses, updateCIPStatus, timeline, setTimeline } = useCIPCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
@@ -63,7 +63,7 @@ export function CIPPage() {
           </p>
           {t.warnings.map(w => <p key={w} className="mt-1 text-sm text-amber-700">{w}</p>)}
         </div>
-        <TimelineControls value={timeline} onChange={setTimeline} />
+        <TimelineControls value={timeline} onChange={setTimeline} readOnly={readOnly} />
       </div>
       {plan.length === 0 ? (
         <Card>
@@ -129,10 +129,10 @@ export function CIPPage() {
                           <p className="whitespace-nowrap">Weeks {r.startWeek}–{r.dueWeek} · due {r.dueDate}</p>
                           <p className="text-slate-500">Phase {r.phase}{t.cannotFit.includes(r.id) ? ' · cannot fit the target' : ''}</p>
                           {r.flags?.map(f => <p key={f} className="mt-0.5 max-w-xs text-amber-700">{f}</p>)}
-                          <button type="button" className="mt-1 text-emerald-700 underline" onClick={() => setAdjusting(adjusting === r.id ? null : r.id)}>
+                          {!readOnly && <button type="button" className="mt-1 text-emerald-700 underline" onClick={() => setAdjusting(adjusting === r.id ? null : r.id)}>
                             {adjusting === r.id ? 'Close' : 'Adjust'}
-                          </button>
-                          {adjusting === r.id && <AdjustAction action={r} value={timeline} onChange={setTimeline} />}
+                          </button>}
+                          {!readOnly && adjusting === r.id && <AdjustAction action={r} value={timeline} onChange={setTimeline} />}
                         </Td>
                         <Td>
                           <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${sev.bg} ${sev.text} ${sev.border}`}>
@@ -162,7 +162,7 @@ export function CIPPage() {
   )
 }
 
-function TimelineControls({ value, onChange }: { value: TimelineSettings; onChange: (t: TimelineSettings) => void }) {
+function TimelineControls({ value, onChange, readOnly }: { value: TimelineSettings; onChange: (t: TimelineSettings) => void; readOnly: boolean }) {
   const set = (patch: Partial<TimelineSettings>) => onChange({ ...value, ...patch })
   return (
     <Card className="w-full max-w-sm space-y-3 p-4 sm:w-auto">
@@ -170,7 +170,7 @@ function TimelineControls({ value, onChange }: { value: TimelineSettings; onChan
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pace</p>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {(Object.keys(PACE_LABEL) as Pace[]).map(p => (
-            <button key={p} type="button" aria-pressed={value.pace === p}
+            <button key={p} type="button" aria-pressed={value.pace === p} disabled={readOnly}
               onClick={() => set({ pace: p, targetMonths: p === 'target' ? value.targetMonths ?? 12 : value.targetMonths })}
               className={cn('rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors',
                 value.pace === p ? 'border-emerald-500 bg-emerald-100 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:bg-emerald-50')}>
@@ -182,10 +182,12 @@ function TimelineControls({ value, onChange }: { value: TimelineSettings; onChan
       </div>
       {value.pace === 'target' && (
         <Input label={`Target (months, ${CIP_PLAN_MONTHS_MIN}–${CIP_PLAN_MONTHS_MAX})`} type="number" min={CIP_PLAN_MONTHS_MIN} max={CIP_PLAN_MONTHS_MAX}
-          defaultValue={value.targetMonths ?? 12} key={value.targetMonths}
+          defaultValue={value.targetMonths ?? 12} key={value.targetMonths} disabled={readOnly}
           onBlur={e => { const n = Number(e.target.value); if (Number.isInteger(n) && n >= CIP_PLAN_MONTHS_MIN && n <= CIP_PLAN_MONTHS_MAX) set({ targetMonths: n }) }} />
       )}
-      <Input label="Plan start date" type="date" value={value.startDate ?? ''} onChange={e => set({ startDate: e.target.value || undefined })} />
+      {/* Saved on blur so a half-typed date never clears the saved one. */}
+      <Input label="Plan start date" type="date" defaultValue={value.startDate ?? ''} key={value.startDate ?? ''} disabled={readOnly}
+        onBlur={e => { const d = e.target.value; if (d !== (value.startDate ?? '') && (d === '' || /^\d{4}-\d{2}-\d{2}$/.test(d))) set({ startDate: d || undefined }) }} />
       <Select label="Organisation size (actions one owner can run at once)" value={value.orgSize}
         onChange={v => set({ orgSize: v as OrgSize })}
         options={[{ value: 'small', label: 'Small (2)' }, { value: 'medium', label: 'Medium (3)' }, { value: 'large', label: 'Large (5)' }]} />

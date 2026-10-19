@@ -72,3 +72,29 @@ assert.ok(emb.durationWeeks > base && emb.flags.some((f) => /embedding/i.test(f)
 
 assert.equal(suggestTimeline([], DEFAULT_TIMELINE).planMonths, 0)
 console.log('cipTimeline: ok')
+
+// Review fixes (stage 3)
+import { normaliseTimeline } from './cipTimeline.ts'
+{
+  // 1. A fixed date that capacity or a prerequisite pushes past is reported, never claimed as met
+  const crowd = ['k1', 'k2', 'k3', 'k4'].map((id) => a(id, 'Critical', { actionType: 'policy' }))
+  const r = suggestTimeline([...crowd, a('lo', 'Moderate', { score: 2 })], { ...DEFAULT_TIMELINE, orgSize: 'small', startDate: '2027-01-04', fixedDates: { lo: { date: '2027-02-01', label: 'Reg' } } })
+  const lo = byId(r, 'lo')
+  assert.ok(lo.dueWeek <= 4 || (lo.flags.some((f) => /Cannot meet Reg/.test(f)) && r.cannotFit.includes('lo')), 'a missed fixed date is flagged and listed')
+  const past = suggestTimeline([a('p', 'High')], { ...DEFAULT_TIMELINE, startDate: '2027-01-04', fixedDates: { p: { date: '2026-12-01', label: 'Old' } } })
+  assert.ok(byId(past, 'p').flags.some((f) => /Cannot meet Old/.test(f)), 'a fixed date before the plan starts cannot be met')
+  // 2. Target pace: durations never shrink below 60%, window starts never stretch
+  const tiny = suggestTimeline([a('s', 'Moderate', { score: 2, actionType: 'system' }), a('l', 'Moderate', { score: 2 })], { ...DEFAULT_TIMELINE, pace: 'target', targetMonths: 1 })
+  assert.ok(byId(tiny, 's').durationWeeks >= 6, 'a 10-week system action is at most 40% shorter')
+  assert.ok(tiny.cannotFit.length > 0, 'a 1-month target lists what cannot fit')
+  const wide = suggestTimeline([a('c', 'Critical'), a('h', 'High')], { ...DEFAULT_TIMELINE, pace: 'target', targetMonths: 24 })
+  assert.ok(byId(wide, 'h').startWeek <= 4, 'a long target never delays the start of a High action')
+  // 3. A dependent that waits on a later prerequisite says so
+  const wait = suggestTimeline([a('cp', 'Critical', { actionType: 'people' }), a('lp', 'Moderate', { score: 2, actionType: 'policy' })], DEFAULT_TIMELINE)
+  assert.ok(byId(wait, 'cp').flags.some((f) => /Waits for lp/.test(f)))
+  // 4. Saved settings from older or newer clients never break the plan
+  const n = normaliseTimeline({ pace: 'warp', orgSize: 'huge' } as never)
+  assert.equal(n.pace, 'standard'); assert.equal(n.orgSize, 'medium'); assert.deepEqual(n.overrides, {}); assert.deepEqual(n.fixedDates, {})
+  assert.equal(suggestTimeline([a('z1', 'High'), a('z2', 'High'), a('z3', 'High'), a('z4', 'High')], { orgSize: 'huge' } as never).actions.length, 4, 'unknown size does not hang')
+  console.log('cipTimeline (review fixes): ok')
+}

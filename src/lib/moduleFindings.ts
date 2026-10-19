@@ -6,7 +6,7 @@ import { applicableIndicators, FOUNDATION_MODULES, type ActionType, type ModuleP
 import { esgMaturity } from './esgMaturity.ts'
 import { CHANGE_READINESS } from './indices/changeReadiness.ts'
 import { answeredIn, compositeScore } from './foundationModules.ts'
-import { DEFAULT_TIMELINE, suggestTimeline, weekToDate, weeksToMonths, type TimelineResult, type TimelineSettings } from './cipTimeline.ts'
+import { DEFAULT_TIMELINE, normaliseTimeline, suggestTimeline, weekToDate, weeksToMonths, type TimelineResult, type TimelineSettings } from './cipTimeline.ts'
 
 const V1 = 'v1 (102026)'
 
@@ -70,7 +70,7 @@ export type PlanTimeline = Omit<TimelineResult, 'actions'> & { actions: DerivedF
 
 /** A number is the old plan-length setting: the Target date pace. */
 export const asTimelineSettings = (s: TimelineSettings | number): TimelineSettings =>
-  typeof s === 'number' ? { ...DEFAULT_TIMELINE, pace: 'target', targetMonths: s } : s
+  typeof s === 'number' ? { ...DEFAULT_TIMELINE, pace: 'target', targetMonths: s } : normaliseTimeline(s)
 
 /** The whole Capacity Improvement Plan scheduled on the suggested timeline (spec §6). */
 export function planTimeline(
