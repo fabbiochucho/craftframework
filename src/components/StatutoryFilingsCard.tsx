@@ -3,7 +3,7 @@ import { Landmark } from 'lucide-react'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
 import { useEntityProfileCtx } from '../lib/context'
 import type { Obligation } from '../lib/obligations'
-import { FILING_JURISDICTIONS, filingsFor, nextDue, toObligation, type EntityKind } from '../lib/filings'
+import { FILING_GAPS, FILING_JURISDICTIONS, filingsFor, nextDue, toObligation, type EntityKind } from '../lib/filings'
 import { jurisdictionName } from '../lib/laws/types'
 
 const KINDS: Array<{ id: EntityKind; label: string }> = [
@@ -35,6 +35,7 @@ export function StatutoryFilingsCard({ existing, onAdd, readOnly }: { existing: 
         <p className="text-sm text-slate-600">Recurring returns and remittances the law requires: company registry, tax, payroll and anti-money-laundering. Information, not legal or tax advice; check the source.</p>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
+        {FILING_GAPS[entityProfile.country] && <p className="rounded bg-amber-50 p-2 text-amber-800">{jurisdictionName(entityProfile.country)}: {FILING_GAPS[entityProfile.country]}</p>}
         <div className="grid gap-3 sm:grid-cols-3">
           <Select label="Country" value={country} onChange={setCountry} options={FILING_JURISDICTIONS.map((j) => ({ value: j, label: jurisdictionName(j) }))} />
           <Input label="Financial year end (MM-DD)" value={yearEnd} onChange={(e) => setYearEnd(e.target.value)} placeholder="12-31" />

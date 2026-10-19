@@ -12,6 +12,9 @@ import { ISLAND_FILINGS } from './islands.ts'
 import { NORTH2_FILINGS } from './north2.ts'
 import { WEST2_FILINGS } from './west2.ts'
 import { CENTRAL_FILINGS } from './central.ts'
+import { EAST2_FILINGS } from './east2.ts'
+import { SOUTHERN_FILINGS } from './southern.ts'
+import { OTHER_FILINGS } from './other.ts'
 
 /** Who a filing applies to. An organisation is usually several at once (for example a company that employs staff). */
 export type EntityKind = 'company' | 'ngo' | 'business-name' | 'employer' | 'vat-registered'
@@ -43,9 +46,16 @@ export interface StatutoryFiling {
   source: { url: string; kind: 'official' | 'secondary'; checked: string }
 }
 
-export const FILINGS: StatutoryFiling[] = [...NG_FILINGS, ...KE_FILINGS, ...ZA_FILINGS, ...GH_FILINGS, ...EAST_FILINGS, ...NW1_FILINGS, ...ISLAND_FILINGS, ...NORTH2_FILINGS, ...WEST2_FILINGS, ...CENTRAL_FILINGS]
+export const FILINGS: StatutoryFiling[] = [...NG_FILINGS, ...KE_FILINGS, ...ZA_FILINGS, ...GH_FILINGS, ...EAST_FILINGS, ...NW1_FILINGS, ...ISLAND_FILINGS, ...NORTH2_FILINGS, ...WEST2_FILINGS, ...CENTRAL_FILINGS, ...EAST2_FILINGS, ...SOUTHERN_FILINGS, ...OTHER_FILINGS]
 
 export const FILING_JURISDICTIONS = [...new Set(FILINGS.map((f) => f.jurisdiction))]
+
+const NO_SOURCE = 'No reliable current source for filing dates was found on 19 October 2026; check with the tax authority.'
+/** Jurisdictions in the laws register with no filings listed, and why. */
+export const FILING_GAPS: Record<string, string> = {
+  EU: 'EU law sets the rules (for example the VAT Directive), but returns are filed nationally in each member state.',
+  ...Object.fromEntries(['BI', 'CF', 'DJ', 'ER', 'GW', 'KM', 'NE', 'SD', 'SO', 'SS', 'ST'].map((j) => [j, NO_SOURCE])),
+}
 
 export function filingsFor(jurisdiction: string, kinds: EntityKind[]): StatutoryFiling[] {
   return FILINGS.filter((f) => f.jurisdiction === jurisdiction && f.appliesTo.some((k) => kinds.includes(k)))
