@@ -444,6 +444,36 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     reformNote: 'Reports differ on whether the CNDP is operational yet; confirm before relying on registration or authorisation duties.',
   },
 
+  // ---- Comoros ----
+  'KM-forex-1': { source: O('https://banque-comores.km/') },
+  'KM-integrity-1': { source: O('https://banque-comores.km/') },
+
+  // ---- Seychelles ----
+  'SC-tax-1': { source: O('https://src.gov.sc/') },
+  'SC-forex-1': { source: O('https://www.cbs.sc/') },
+  'SC-licensing-1': { citation: 'Seychelles Investment Act, 2010 (Act 31 of 2010), as amended by Act 15 of 2021; investment regulations of 2022', source: O('https://www.gazette.sc/') },
+
+  // ---- Somalia ----
+  'SO-integrity-1': { source: O('https://frc.gov.so/') },
+  'SO-labour-1': {
+    title: 'Labour Law', citation: 'Law No. 36 of 2024, replacing the Labour Code (Law No. 65 of 1972); launched in 2026',
+    source: S('https://allafrica.com/stories/202602090088.html'),
+  },
+  'SO-tax-1': { source: O('https://mof.gov.so/') },
+  'SO-sanctions-1': { source: O('https://frc.gov.so/') },
+  'SO-forex-1': { source: O('https://centralbank.gov.so/') },
+  'SO-licensing-1': {
+    title: 'Investment Law', citation: 'Investment Law passed by the Senate on 29 November 2025, establishing the Somali Investment Authority (SOMINVEST) and a National Investment Council',
+    regulator: 'the Somali Investment Authority (SOMINVEST)', source: S('https://dawan.africa/news/somalias-upper-house-approves-bill-aimed-at-attracting-investments'),
+    reformNote: 'Check the Law\'s promulgation and its regulations; a model bilateral investment treaty framework is being drafted.',
+  },
+
+  // ---- South Sudan ----
+  'SS-forex-1': { source: O('https://boss.gov.ss/') },
+
+  // ---- Sudan ----
+  'SD-forex-1': { source: O('https://cbos.gov.sd/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
