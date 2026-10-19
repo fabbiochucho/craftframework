@@ -280,7 +280,7 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   // ---- The Gambia ----
   'GM-data-1': { citation: 'Personal Data Protection and Privacy Act, 2025 (passed 29 September 2025, assented 7 November 2025)' },
   'GM-labour-1': {
-    title: 'Labour Act, 2023', citation: 'Labour Act 2023, replacing the Labour Act 2007', source: O('https://assembly.gm/documents/318'),
+    title: 'Labour Act, 2023', citation: 'Labour Act 2023 (184 sections, in force)', source: O('https://assembly.gm/documents/318'),
     reformNote: 'A Labour (Amendment) Bill, 2026 on private recruitment agencies was published in July 2026; check its status.',
   },
   'GM-tax-1': { source: O('https://www.gra.gm/') },
