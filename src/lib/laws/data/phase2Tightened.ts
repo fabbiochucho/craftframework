@@ -239,6 +239,44 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'TN-forex-1': { source: O('https://www.bct.gov.tn/') },
   'TN-licensing-1': { source: O('https://tia.gov.tn/') },
 
+  // ---- Benin ----
+  // The Secrétariat Général du Gouvernement (sgg.gouv.bj) publishes Benin's laws and decrees.
+  'BJ-integrity-2': { source: O('https://sgg.gouv.bj/') },
+  'BJ-procurement-1': { source: O('https://armp.bj/') },
+  'BJ-labour-1': { source: O('https://sgg.gouv.bj/') },
+  'BJ-consumer-1': { source: O('https://sgg.gouv.bj/') },
+  'BJ-sanctions-1': {
+    citation: 'Law No. 2018-17 on money laundering and terrorist financing, as amended by Law No. 2020-25; a new uniform law covering proliferation financing (Law No. 2024-01) was adopted in January 2024',
+    source: O('https://sgg.gouv.bj/'), reformNote: 'Confirm that Law No. 2024-01 has been promulgated and has replaced Law No. 2018-17.',
+  },
+  'BJ-licensing-1': { citation: 'Law No. 2020-02 of 20 March 2020 on the Investment Code, replacing Law No. 90-002; Decree No. 2021-005', source: O('https://investbenin.bj/') },
+
+  // ---- Burkina Faso ----
+  'BF-consumer-1': {
+    title: 'Consumer provisions of the law on competition', noLaw: false,
+    citation: 'Law No. 016-2017/AN on the organisation of competition (consumer information, invoicing, guarantees and misleading advertising)',
+    regulator: 'the Commission Nationale de la Concurrence et de la Consommation (CNCC)', source: O('https://www.an.bf/'),
+    summary: 'Protects consumers within the competition law: a right to information on goods and services, invoices, guarantees and after-sales service, and a ban on misleading advertising, overseen by the national competition and consumer commission.',
+  },
+  'BF-sanctions-1': {
+    citation: 'Law No. 016-2016/AN of 3 May 2016 (WAEMU uniform law on money laundering and terrorist financing); a law extending it to proliferation financing was adopted in 2024',
+    source: O('https://www.centif.bf/'),
+  },
+
+  // ---- Côte d'Ivoire ----
+  'CI-procurement-1': {
+    regulator: "the Autorité de Régulation de la Commande Publique (ARCOP), formerly the ANRMP", source: O('https://arcop.ci/'),
+    reformNote: 'An ordinance adopted in January 2025 renamed the regulator ARCOP and extended it to public-private partnerships; check for a revised procurement code.',
+  },
+  'CI-eia-1': { citation: 'Law No. 2023-900 of 23 November 2023 on the Environment Code, which replaced Law No. 96-766; Decree No. 96-894 on impact studies (check for a replacement decree)' },
+  'CI-sustainability-1': { title: 'Environment Code', citation: 'Law No. 2023-900 of 23 November 2023, replacing Law No. 96-766' },
+  'CI-tax-1': { source: O('https://www.dgi.gouv.ci/') },
+  'CI-sanctions-1': {
+    citation: 'Ordinance No. 2023-875 of 23 November 2023 on money laundering, terrorist financing and proliferation financing, replacing Law No. 2016-992',
+    source: O('https://www.centif.ci/'),
+  },
+  'CI-licensing-1': { source: O('https://cepici.ci/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
