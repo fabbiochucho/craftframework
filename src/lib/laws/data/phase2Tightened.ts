@@ -68,6 +68,27 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   },
   'UG-forex-1': { source: O('https://www.bou.or.ug/') },
   'UG-licensing-1': { source: O('https://ugandainvest.go.ug/') },
+
+  // ---- Rwanda ----
+  'RW-data-1': { source: O('https://dpo.gov.rw/') },
+  'RW-integrity-1': { source: O('https://www.ombudsman.gov.rw/') },
+  'RW-labour-1': { source: O('https://www.mifotra.gov.rw/') },
+  'RW-tax-1': {
+    title: 'Law establishing taxes on income and Law on value added tax',
+    citation: 'Law No. 027/2022, as amended by Law No. 051/2023 and Law No. 014/2025; VAT Law No. 049/2023, as amended by Law No. 009/2025',
+    source: O('https://www.rra.gov.rw/en/laws-policies-and-rulings'),
+  },
+  'RW-competition-1': {
+    citation: 'Law No. 011/2026 of 26/02/2026, replacing Law No. 36/2012', source: O('https://rica.gov.rw/'),
+    reformNote: 'The 2026 law is new; check its implementing regulations, including merger notification thresholds.',
+  },
+  'RW-consumer-1': { citation: 'Law No. 011/2026 of 26/02/2026, replacing Law No. 36/2012', source: O('https://rica.gov.rw/') },
+  'RW-sanctions-1': {
+    title: 'Law on money laundering, terrorist financing and proliferation financing (UN targeted financial sanctions)',
+    citation: 'Law No. 028/2023 of 19/05/2023', source: O('https://www.fic.gov.rw/'),
+  },
+  'RW-forex-1': { source: O('https://www.bnr.rw/') },
+  'RW-licensing-1': { citation: 'Law No. 006/2021 on investment promotion and facilitation', source: O('https://rdb.rw/') },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
