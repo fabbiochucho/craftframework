@@ -316,6 +316,36 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'LR-forex-1': { source: O('https://www.cbl.org.lr/') },
   'LR-licensing-1': { source: O('https://nic.gov.lr/') },
 
+  // ---- Mali ----
+  'ML-data-1': { source: O('https://www.apdp.ml/') },
+  'ML-procurement-1': { source: O('https://www.armds.ml/') },
+  'ML-tax-1': { source: O('https://www.dgi.gouv.ml/') },
+  'ML-consumer-1': {
+    title: 'Law on consumer protection', noLaw: false, citation: 'Law No. 2015-036 of 16 July 2015; Decree No. 2016-0482/P-RM; complemented by the 2018 law on fraudulent commercial practices',
+    regulator: 'the Ministry of Trade', source: S('https://www.labase-lextenso.fr/l-essentiel-droits-africains-des-affaires/2018-n10/mali-la-loi-du-12-juin-2018-relative-aux-pratiques-commerciales-frauduleuses-DAA111s5'),
+    summary: 'Sets consumer rights to information, fair terms, safe goods and services and redress, with rules on advertising and consumer credit; a 2018 law adds penalties for fraudulent commercial practices.',
+  },
+  'ML-licensing-1': { source: O('https://apimali.gov.ml/') },
+
+  // ---- Niger ----
+  'NE-consumer-1': { citation: 'Niger has adopted specific consumer protection rules, but their text and number were not confirmed; consumer rules otherwise sit in commercial and sector legislation' },
+
+  // ---- Sierra Leone ----
+  'SL-data-1': {
+    citation: 'A Data Protection and Right to Access Information Bill, 2025 completed national validation in November 2025, and a National Data Protection Policy was approved in April 2026; no law is yet in force',
+    source: O('https://moice.gov.sl/'),
+  },
+  'SL-competition-1': { citation: 'A draft Competition Bill has not been enacted; ECOWAS rules apply to cross-border practices' },
+  'SL-tax-1': { source: O('https://www.nra.gov.sl/') },
+  'SL-licensing-1': { source: O('https://www.sliepa.gov.sl/') },
+
+  // ---- Togo ----
+  'TG-data-1': { source: O('https://ipdcp.tg/') },
+  'TG-procurement-1': { source: O('https://arcop.tg/') },
+  'TG-tax-1': { source: O('https://www.otr.tg/') },
+  'TG-sanctions-1': { source: O('https://www.centif.tg/') },
+  'TG-licensing-1': { source: O('https://apizf.org/') },
+
   // ---- Malawi ----
   'MW-company-2': { source: O('https://www.ngora.mw/') },
   'MW-integrity-2': { citation: 'Financial Crimes Act No. 14 of 2017 (in force 17 February 2017)', source: O('https://www.fia.gov.mw/publications/Financial%20Crimes%20Act%20No%2014%20of%202017.pdf') },
