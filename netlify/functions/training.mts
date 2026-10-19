@@ -5,14 +5,18 @@ import { db } from '../../db/index.js'
 import {
   firmMembers, firms, trainingActivity, trainingBadges, trainingCalibrationItems, trainingCapstones, trainingCases, trainingCpd,
   trainingDeclarations, trainingDrills, trainingExamAttempts, trainingMarks, trainingModules, trainingProgress, trainingQuestions,
-  trainingStaff, trainingSubmissions, validatorCredentials, validatorProfiles,
+  trainingStaff, trainingSubmissions, validatorCredentials, validatorProfiles, validatorSpecialisms,
   type TrainingExercise,
 } from '../../db/schema.js'
 import { forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger } from '../lib/logger.js'
 import {
-  assessmentParts, audit, badgesFor, completedModuleIds, ensureSeed, isMarker, isProgrammeTeam, maybeAccredit,
+  assessmentParts, audit, badgesFor, completedModuleIds, coreModules, ensureSeed, isMarker, isProgrammeTeam, maybeAccredit,
 } from '../lib/training.js'
+import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
+import {
+  heldSpecialisms, isSpecialistModuleId, SPECIALISM_LABEL, SPECIALISM_MODULE, SPECIALISMS, SPECIALIST_EXAM, specialistPassed, type Specialism,
+} from '../../src/lib/specialisms.js'
 import { LADDER_INDICATORS, currentRung } from '../../src/lib/capitalReadiness.js'
 import {
   accreditationState, calibrationScore, canSubmitCase, capstoneResult, CAPSTONE, CASES, caseResult, checkPassed, dayKey, DRILL,
@@ -47,6 +51,7 @@ const notFound = () => json({ error: 'Not found' }, 404)
 const bad = (error: string) => json({ error }, 400)
 const conflict = (error: string) => json({ error }, 409)
 const rid = (p: string) => `${p}_${crypto.randomUUID()}`
+const EXAM_GRACE_MS = SPECIALIST_EXAM.graceSeconds * 1000
 const DECLARATION = 'I remain independent of every organisation I validate, I have disclosed any relationship that could threaten that independence, and the list of current client relationships below is complete.'
 
 // --- schemas ---------------------------------------------------------------------
@@ -127,7 +132,7 @@ async function completeStep(email: string, moduleId: string, step: string, revis
 async function renewalState(email: string, until: Date, now: Date) {
   const start = renewalWindowStart(until)
   const [mods, prog, cpd, drills, decls] = await Promise.all([
-    db.select().from(trainingModules).orderBy(asc(trainingModules.position)),
+    db.select().from(trainingModules).orderBy(asc(trainingModules.position)).then(coreModules),
     db.select().from(trainingProgress).where(and(eq(trainingProgress.email, email), eq(trainingProgress.step, 'watch'))),
     db.select().from(trainingCpd).where(and(eq(trainingCpd.email, email), gte(trainingCpd.occurredOn, dayKey(start)))),
     db.select().from(trainingDrills).where(and(eq(trainingDrills.email, email), eq(trainingDrills.purpose, 'renewal'), gte(trainingDrills.takenAt, start))),
@@ -149,7 +154,7 @@ async function renewalState(email: string, until: Date, now: Date) {
 async function expireStaleAttempts(email: string, now: Date) {
   const open = await db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.email, email), eq(trainingExamAttempts.status, 'in_progress')))
   for (const a of open) {
-    if (!examOnTime(a.startedAt, now)) {
+    if (now.getTime() > a.deadline.getTime() + EXAM_GRACE_MS) {
       await db.update(trainingExamAttempts).set({ status: 'expired', score: 0, submittedAt: now }).where(eq(trainingExamAttempts.id, a.id))
     }
   }
@@ -161,6 +166,27 @@ function sanitizeSub(s: typeof trainingSubmissions.$inferSelect, marks: Array<ty
     id: s.id, attempt: s.attempt, status: s.status, percent: s.resultPercent === null ? null : Number(s.resultPercent), submittedAt: s.submittedAt,
     feedback: done ? marks.filter((m) => m.comment).map((m) => m.comment) : [], marksReceived: marks.length,
   }
+}
+
+// The learner's specialist modules, specialisms and assessment state (indices spec §7.1).
+async function specialistState(email: string, profile: typeof validatorProfiles.$inferSelect | null, modules: Array<{ id: string; title: string; complete: boolean }>, now: Date) {
+  const [rows, attempts] = await Promise.all([
+    db.select().from(validatorSpecialisms).where(eq(validatorSpecialisms.email, email)),
+    db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.email, email), ne(trainingExamAttempts.assessment, 'knowledge'))).orderBy(desc(trainingExamAttempts.startedAt)),
+  ])
+  const accreditation = profile ? effectiveAccreditation(profile, now) : 'registered'
+  const held = heldSpecialisms(rows, accreditation)
+  return SPECIALISMS.map((s) => {
+    const mod = modules.find((x) => x.id === SPECIALISM_MODULE[s])
+    const mine = attempts.filter((x) => x.assessment === s)
+    const el = examEligibility(mine.map((x) => x.startedAt), now)
+    return {
+      specialism: s, label: SPECIALISM_LABEL[s], moduleId: SPECIALISM_MODULE[s], moduleTitle: mod?.title ?? null, moduleComplete: !!mod?.complete,
+      granted: rows.some((r) => r.specialism === s), current: held.includes(s), accredited: accreditation === 'accredited',
+      allowed: el.allowed, nextAt: el.nextAt ?? null, inProgress: mine.find((x) => x.status === 'in_progress')?.id ?? null,
+      attempts: mine.map((x) => ({ id: x.id, startedAt: x.startedAt, status: x.status, score: x.score, total: x.total, passed: x.passed })),
+    }
+  })
 }
 
 // --- handler -------------------------------------------------------------------------
@@ -187,9 +213,9 @@ export default async (req: Request) => {
     }
     // The assessment follows the eight modules.
     const requireTraining = async () => {
-      const done = await completedModuleIds(email)
-      const all = await db.select({ id: trainingModules.id }).from(trainingModules)
-      return done.length >= all.length ? null : bad('Complete all eight modules before the assessment')
+      const done = new Set(await completedModuleIds(email))
+      const all = coreModules(await db.select({ id: trainingModules.id }).from(trainingModules))
+      return all.every((x) => done.has(x.id)) ? null : bad('Complete all the core modules before the assessment')
     }
 
     // ---------- learner overview ----------
@@ -204,7 +230,8 @@ export default async (req: Request) => {
         isMarker(email), badgesFor([email]),
       ])
       const stepsOf = (id: string) => STEPS.filter((s) => prog.some((p) => p.moduleId === id && p.step === s))
-      const modules = mods.map((md) => {
+      const specialistModules = mods.filter((md) => isSpecialistModuleId(md.id)).map((md) => ({ id: md.id, position: md.position, title: md.title, outcome: md.outcome, complete: stepsOf(md.id).length === STEPS.length }))
+      const modules = coreModules(mods).map((md) => {
         const steps = stepsOf(md.id)
         return { id: md.id, position: md.position, title: md.title, outcome: md.outcome, hasVideo: !!youtubeEmbedId(md.youtubeUrl), steps, complete: steps.length === STEPS.length }
       })
@@ -233,6 +260,7 @@ export default async (req: Request) => {
         },
         renewal: until && profile ? { ...(await renewalState(email, until, now)), until } : null,
         learningLog: notes,
+        specialist: await specialistState(email, profile, specialistModules, now),
       })
     }
 
@@ -346,13 +374,69 @@ export default async (req: Request) => {
       return json({ items: drawExamQuestions(pool, Math.random, DRILL.size).drawn.map((i) => ({ id: i.id, statement: i.statement })) })
     }
 
+    // ---------- specialist assessments (indices spec §7.1) ----------
+    //   POST specialist/:specialism/start    accredited, module done, not yet held: a timed 15-question assessment
+    //   POST specialist/attempt/:id/submit   scored server-side; a pass grants the specialism
+    if (a === 'specialist') {
+      await expireStaleAttempts(email, now)
+      if (m === 'POST' && b && (SPECIALISMS as readonly string[]).includes(b) && c === 'start') {
+        const s = b as Specialism
+        const g = await requireProfile()
+        if (g.error) return g.error
+        if (effectiveAccreditation(g.profile) !== 'accredited') return forbidden()
+        const done = await completedModuleIds(email)
+        if (!done.includes(SPECIALISM_MODULE[s])) return bad(`Complete the ${SPECIALISM_LABEL[s]} module first`)
+        const held = await db.select().from(validatorSpecialisms).where(and(eq(validatorSpecialisms.email, email), eq(validatorSpecialisms.specialism, s)))
+        if (held.length) return conflict('You already hold this specialism')
+        const attempts = await db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.email, email), eq(trainingExamAttempts.assessment, s)))
+        const show = async (at: typeof attempts[number]) => {
+          const qs = await db.select().from(trainingQuestions).where(inArray(trainingQuestions.id, at.questionIds))
+          return json({ id: at.id, specialism: s, startedAt: at.startedAt, deadline: at.deadline, questions: at.questionIds.map((id) => qs.find((q) => q.id === id)).filter(Boolean).map((q) => ({ id: q!.id, prompt: q!.prompt, options: q!.options })) })
+        }
+        const live = attempts.find((x) => x.status === 'in_progress')
+        if (live) return show(live)
+        const el = examEligibility(attempts.map((x) => x.startedAt), now)
+        if (!el.allowed) return json({ error: el.reason === 'yearly_cap' ? 'You have used all three attempts for this year' : 'You can retake the assessment 14 days after your last attempt', nextAt: el.nextAt }, 429)
+        const bank = await db.select().from(trainingQuestions).where(and(eq(trainingQuestions.moduleId, SPECIALISM_MODULE[s]), eq(trainingQuestions.forExam, true), eq(trainingQuestions.active, true)))
+        if (!bank.length) return bad('The assessment bank is empty')
+        const { drawn } = drawExamQuestions(bank, Math.random, SPECIALIST_EXAM.questions)
+        const id = rid('spec')
+        const [row] = await db.insert(trainingExamAttempts).values({
+          id, email, assessment: s, startedAt: now, deadline: new Date(now.getTime() + SPECIALIST_EXAM.minutes * 60_000), questionIds: drawn.map((q) => q.id), total: drawn.length,
+        }).returning()
+        await audit(email, `started ${SPECIALISM_LABEL[s]} specialist assessment (${drawn.length} questions)`, id)
+        return show(row)
+      }
+      if (m === 'POST' && b === 'attempt' && c && d === 'submit') {
+        const g = await requireProfile()
+        if (g.error) return g.error
+        const [at] = await db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.id, c), eq(trainingExamAttempts.email, email)))
+        if (!at || !(SPECIALISMS as readonly string[]).includes(at.assessment)) return notFound()
+        if (at.status !== 'in_progress') return conflict(at.status === 'expired' ? 'Time ran out; this attempt was not accepted' : 'Already submitted')
+        const p = z.object({ answers: z.record(z.string(), z.number().int()) }).safeParse(await readBody())
+        if (!p.success) return bad('Invalid answers')
+        const s = at.assessment as Specialism
+        const qs = await db.select().from(trainingQuestions).where(inArray(trainingQuestions.id, at.questionIds))
+        const r = scoreExam(qs.map((q) => ({ id: q.id, correctIndex: q.correctIndex })), p.data.answers)
+        const passed = specialistPassed(r.score, r.total) && effectiveAccreditation(g.profile) === 'accredited'
+        await db.transaction(async (tx) => {
+          await tx.update(trainingExamAttempts).set({ status: 'submitted', submittedAt: now, answers: p.data.answers, score: r.score, passed }).where(eq(trainingExamAttempts.id, at.id))
+          if (passed) await tx.insert(validatorSpecialisms).values({ email, specialism: s, grantedAt: now, grantedBy: 'training programme', attemptId: at.id }).onConflictDoNothing()
+        })
+        await audit(email, `submitted ${SPECIALISM_LABEL[s]} specialist assessment: ${r.score}/${r.total} ${passed ? 'passed; specialism granted' : 'not passed'}`, at.id, passed ? 'Accreditation' : 'Training')
+        return json({ ...r, passed, review: qs.map((q) => ({ id: q.id, prompt: q.prompt, options: q.options, yours: p.data.answers[q.id] ?? null, correctIndex: q.correctIndex, explanation: q.explanation })) })
+      }
+      return notFound()
+    }
+
     // ---------- exam (part 1) ----------
     if (a === 'exam') {
       await expireStaleAttempts(email, now)
       if (m === 'GET' && !b) {
-        const attempts = await db.select().from(trainingExamAttempts).where(eq(trainingExamAttempts.email, email)).orderBy(desc(trainingExamAttempts.startedAt))
+        const attempts = await db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.email, email), eq(trainingExamAttempts.assessment, 'knowledge'))).orderBy(desc(trainingExamAttempts.startedAt))
         const el = examEligibility(attempts.map((x) => x.startedAt), now)
-        const bank = await db.select({ id: trainingQuestions.id }).from(trainingQuestions).where(and(eq(trainingQuestions.forExam, true), eq(trainingQuestions.active, true)))
+        const bank = (await db.select({ id: trainingQuestions.id, moduleId: trainingQuestions.moduleId }).from(trainingQuestions).where(and(eq(trainingQuestions.forExam, true), eq(trainingQuestions.active, true))))
+          .filter((q) => !isSpecialistModuleId(q.moduleId ?? ''))
         return json({
           eligibility: { allowed: el.allowed, reason: el.reason ?? null, nextAt: el.nextAt ?? null, attemptsThisYear: el.attemptsThisYear },
           bankSize: bank.length, bankShort: bank.length < 40,
@@ -364,10 +448,12 @@ export default async (req: Request) => {
         if (g.error) return g.error
         const gate = await requireTraining()
         if (gate) return gate
-        const attempts = await db.select().from(trainingExamAttempts).where(eq(trainingExamAttempts.email, email))
+        const attempts = await db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.email, email), eq(trainingExamAttempts.assessment, 'knowledge')))
         if (attempts.some((x) => x.passed)) return conflict('You have already passed the knowledge exam')
         const live = attempts.find((x) => x.status === 'in_progress')
-        const bankAll = await db.select().from(trainingQuestions).where(and(eq(trainingQuestions.forExam, true), eq(trainingQuestions.active, true)))
+        // Specialist banks (s1, s2) are for the specialist assessments only.
+        const bankAll = (await db.select().from(trainingQuestions).where(and(eq(trainingQuestions.forExam, true), eq(trainingQuestions.active, true))))
+          .filter((q) => !isSpecialistModuleId(q.moduleId ?? ''))
         const exam = async (at: typeof attempts[number]) => {
           const qs = at.questionIds.length ? await db.select().from(trainingQuestions).where(inArray(trainingQuestions.id, at.questionIds)) : []
           return json({ id: at.id, startedAt: at.startedAt, deadline: at.deadline, note: at.note, questions: at.questionIds.map((id) => qs.find((q) => q.id === id)).filter(Boolean).map((q) => ({ id: q!.id, prompt: q!.prompt, options: q!.options })) })
@@ -388,7 +474,7 @@ export default async (req: Request) => {
       if (m === 'POST' && b && c === 'submit') {
         const g = await requireProfile()
         if (g.error) return g.error
-        const [at] = await db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.id, b), eq(trainingExamAttempts.email, email)))
+        const [at] = await db.select().from(trainingExamAttempts).where(and(eq(trainingExamAttempts.id, b), eq(trainingExamAttempts.email, email), eq(trainingExamAttempts.assessment, 'knowledge')))
         if (!at) return notFound()
         if (at.status !== 'in_progress') return conflict(at.status === 'expired' ? 'Time ran out; this attempt was not accepted' : 'Already submitted')
         const p = z.object({ answers: z.record(z.string(), z.number().int()) }).safeParse(await readBody())

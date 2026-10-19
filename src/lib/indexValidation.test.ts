@@ -1,6 +1,6 @@
 // Self-check: `node src/lib/indexValidation.test.ts` — stage 4: validating the CRAFT indices (spec §7).
 import assert from 'node:assert/strict'
-import { parseScope, scopeText } from './engagements.ts'
+import { parseScope, scopeText, type EngagementScope } from './engagements.ts'
 import { allInScope, finalisationProblems, FRAMEWORKS, indexResults, trustDelta } from './validationReview.ts'
 import { heldSpecialisms, missingSpecialisms, requiredSpecialisms, SPECIALIST_EXAM, specialistPassed } from './specialisms.ts'
 
@@ -25,7 +25,7 @@ assert.equal(parseScope({ kind: 'levels', levels: [1], indices: 'craft-health' }
 assert.match(scopeText({ kind: 'whole', indices: ['craft-fiduciary'] }), /Whole ladder; CRAFT indices: Fiduciary Controls/)
 
 // In-scope indicators span the ladder and the indices, tagged with their framework
-const scope = { kind: 'levels', levels: [1], indices: ['craft-change'] } as const
+const scope: EngagementScope = { kind: 'levels', levels: [1], indices: ['craft-change'] }
 const inScope = allInScope(ladder, scope)
 const chg = FRAMEWORKS['craft-change'].indicators
 assert.equal(inScope.length, ladder.indicators.filter((i) => i.level === 1).length + chg.length)
@@ -49,7 +49,7 @@ assert.ok(res[0].band && res[0].band.length > 2)
 assert.deepEqual(Object.keys(res[0]).sort(), ['band', 'key', 'name', 'version'])
 assert.equal(indexResults({ kind: 'whole' }, everything).length, 0)
 // Safeguards indicators follow the organisation's E&S category, as in self-assessment
-const sg = { kind: 'whole', indices: ['craft-safeguards'] } as const
+const sg: EngagementScope = { kind: 'whole', indices: ['craft-safeguards'] }
 const lowOnly = allInScope(ladder, sg, { esCategory: 'low' }).filter((i) => i.framework === 'craft-safeguards').length
 const high = allInScope(ladder, sg, { esCategory: 'high' }).filter((i) => i.framework === 'craft-safeguards').length
 assert.ok(lowOnly > 0 && high > lowOnly, 'a high-risk organisation has more safeguards indicators in scope')
@@ -68,3 +68,19 @@ assert.equal(specialistPassed(12, 15), true)
 assert.equal(specialistPassed(11, 15), false)
 assert.equal(specialistPassed(0, 0), false)
 console.log('indexValidation: ok')
+
+// Training content for the indices (spec §7.1)
+import { SEED_INDEX_MODULES, SEED_INDEX_QUESTIONS } from './trainingSeedIndices.ts'
+import { isSpecialistModuleId } from './specialisms.ts'
+{
+  assert.deepEqual(SEED_INDEX_MODULES.map((m) => m.id), ['m9', 's1', 's2'])
+  const of = (id: string) => SEED_INDEX_QUESTIONS.filter((q) => q.moduleId === id)
+  assert.equal(of('m9').length, 20, 'module 9 adds 20 exam questions')
+  assert.equal(of('s1').length, 15); assert.equal(of('s2').length, 15)
+  for (const id of ['m9', 's1', 's2']) assert.equal(of(id).filter((q) => q.forCheck).length, 5, `${id} has a 5-question check`)
+  assert.ok(SEED_INDEX_QUESTIONS.every((q) => q.correctIndex < q.options.length), 'every answer indexes an option')
+  assert.equal(new Set(SEED_INDEX_QUESTIONS.map((q) => q.id)).size, SEED_INDEX_QUESTIONS.length)
+  assert.ok(SEED_INDEX_MODULES.every((m) => m.scenario.choices.some((c) => c.best)))
+  assert.deepEqual(['m1', 'm9', 's1', 's2'].map(isSpecialistModuleId), [false, false, true, true])
+  console.log('indexValidation (training): ok')
+}
