@@ -346,6 +346,45 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     recommendation: 'Join one sector or landscape initiative relevant to your material issues and report what you contribute.',
     financingNote: 'Collective action strengthens the case for blended and outcome-based finance.',
   },
+
+  // Net zero (indices spec, net-zero addition): what a credible 1.5°C-aligned target needs. Benchmarks and their
+  // sources are in netZero.ts; SBTi V2.0 (June 2026) and V1.3.1 (usable to January 2028) are both accommodated.
+  {
+    id: 'ESG-Z1', pillar: 'Environmental', domain: 'Net Zero: Target & Transition Plan', frameworkRefs: ['SBTi Corporate Net-Zero Standard (reference)', 'IFRS S2'],
+    question: 'Is there a net-zero target with near-term (around five-year or 2030) milestones for Scope 1, 2 and material Scope 3 emissions, set against a 1.5°C pathway and backed by a transition plan?',
+    soe: { 0: 'No net-zero target.', 1: 'A net-zero ambition is stated without a year, scope or milestones.', 2: 'A net-zero year is set, but there are no near-term milestones or Scope 3 coverage.',
+      3: 'Near-term milestones cover Scope 1, 2 and material Scope 3 and are checked against a 1.5°C pathway.', 4: 'A board-approved transition plan sets the actions, budget and owners to meet each milestone.', 5: 'Targets are externally validated (for example by SBTi) and progress is reported against the plan.' },
+    evidence: 'Target statement with years and scopes, 1.5°C pathway check, board-approved transition plan.',
+    recommendation: 'Set a near-term milestone for Scope 1 and 2 (about 4.2% a year under SBTi V1, or the V2.0 target types from 2027), add material Scope 3, and write the transition plan that delivers it.',
+    financingNote: 'Lenders and investors increasingly price transition finance against credible, validated targets and transition plans.',
+  },
+  {
+    id: 'ESG-Z2', pillar: 'Environmental', domain: 'Net Zero: Absolute Reductions', frameworkRefs: ['GHG Protocol', 'IFRS S2'],
+    question: 'Are emissions cut in absolute terms against a recent base year, with Scope 1 and 2 progress reported at least annually?',
+    soe: { 0: 'Emissions are not tracked over time.', 1: 'Only intensity measures are tracked.', 2: 'Absolute emissions are tracked, but against an old or unclear base year.',
+      3: 'Absolute Scope 1 and 2 emissions are reported annually against a recent base year.', 4: 'Year-on-year reductions are on the target path, with variances explained.', 5: 'Reductions are independently assured and include material Scope 3.' },
+    evidence: 'Annual emissions inventory, base-year statement, progress report against the target path.',
+    recommendation: 'Report absolute Scope 1 and 2 emissions every year against a recent base year, and explain any year off the target path.',
+    financingNote: 'Annual absolute reductions are the key performance indicator in sustainability-linked loans and bonds.',
+  },
+  {
+    id: 'ESG-Z3', pillar: 'Environmental', domain: 'Net Zero: Residual Emissions & Removals', frameworkRefs: ['SBTi Corporate Net-Zero Standard (reference)'],
+    question: 'Does the plan cut most value-chain emissions first (about 90% in most sectors), neutralising only the residual emissions with durable carbon removals?',
+    soe: { 0: 'Net zero is planned mainly through offsetting.', 1: 'Residual emissions are not defined.', 2: 'A residual share is estimated, without a plan for removals.',
+      3: 'The plan cuts most value-chain emissions and limits neutralisation to residual emissions.', 4: 'Durable removals for the residual emissions are identified, with quality criteria.', 5: 'Removals are contracted or delivered and verified, and reported separately from reductions.' },
+    evidence: 'Reduction pathway, residual emissions estimate, removal strategy and contracts.',
+    recommendation: 'Define the residual emissions you cannot cut and plan durable, verified removals for those alone.',
+    financingNote: 'Plans that rely on offsets instead of cuts are treated as greenwashing risk by investors and regulators.',
+  },
+  {
+    id: 'ESG-Z4', pillar: 'Environmental', domain: 'Net Zero: Use of Carbon Credits', frameworkRefs: ['UN High-Level Expert Group on net-zero (reference)', 'SBTi (reference)'],
+    question: 'Are carbon credits used only beyond, never instead of, the organisation\'s own reductions, and reported separately from them?',
+    soe: { 0: 'Credits are used to claim reductions or carbon neutrality.', 1: 'Credits are counted towards interim targets.', 2: 'Credits are reported separately, but their quality is not assessed.',
+      3: 'Credits are never counted towards targets and are reported separately.', 4: 'Credit quality is assessed against recognised integrity criteria.', 5: 'Credits fund mitigation beyond the value chain and are disclosed with full details.' },
+    evidence: 'Carbon credit policy, retirement records, disclosure showing reductions and credits separately.',
+    recommendation: 'Stop counting credits towards targets; report them separately as action beyond your value chain.',
+    financingNote: 'Misused credits are a growing legal and reputational risk under green-claims rules.',
+  },
 ]
 
 export function questionsForPillar(pillar: EsgPillar): EsgQuestion[] {
