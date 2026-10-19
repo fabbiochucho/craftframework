@@ -165,6 +165,25 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     regulator: 'the Namibia Investment Promotion and Development Board (Office of the President)', source: O('https://nipdb.com/'),
     reformNote: 'An Investment Promotion and Facilitation Bill is expected to replace both Acts; check its status.',
   },
+
+  // ---- Zimbabwe ----
+  // Veritas publishes Zimbabwe's Acts and bills; it is independent of government, so it stays a secondary source.
+  'ZW-company-1': { source: S('https://www.veritaszim.net/') },
+  'ZW-integrity-2': { source: O('https://www.fiu.co.zw/') },
+  'ZW-labour-1': { source: O('https://www.mpslsw.gov.zw/') },
+  'ZW-tax-1': { citation: 'Income Tax Act [Chapter 23:06] and Value Added Tax Act [Chapter 23:12], as amended by annual finance acts', source: O('https://www.zimra.co.zw/') },
+  'ZW-competition-1': {
+    source: O('https://www.competition.co.zw/'),
+    reformNote: 'A Competition Amendment Bill, 2025 would widen the Commission\'s investigation and enforcement powers; check its status.',
+  },
+  'ZW-consumer-1': { source: O('https://www.cpc.org.zw/') },
+  'ZW-sanctions-1': {
+    title: 'Suppression of Foreign and International Terrorism Act and Money Laundering and Proceeds of Crime Act (UN targeted financial sanctions)',
+    citation: 'Suppression of Foreign and International Terrorism Act [Chapter 11:21]; Money Laundering and Proceeds of Crime Act [Chapter 9:24], as amended, with regulations giving effect to UN Security Council resolutions',
+    source: O('https://www.fiu.co.zw/'),
+  },
+  'ZW-forex-1': { source: O('https://www.rbz.co.zw/') },
+  'ZW-licensing-1': { citation: 'Zimbabwe Investment and Development Agency Act [Chapter 14:37], Act No. 6 of 2020', source: O('https://zidainvest.com/') },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
