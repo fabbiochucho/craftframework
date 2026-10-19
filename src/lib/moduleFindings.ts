@@ -4,6 +4,9 @@
 import { deriveFindings, dueMonthFor, quarterLabel, severityFromScore, type DerivedFinding } from './data.ts'
 import { applicableIndicators, FOUNDATION_MODULES, type ActionType, type ModuleProfile } from './foundationModules.ts'
 import { esgMaturity } from './esgMaturity.ts'
+import { CHANGE_READINESS } from './indices/changeReadiness.ts'
+import { answeredIn, compositeScore } from './foundationModules.ts'
+import { DEFAULT_TIMELINE, suggestTimeline, weekToDate, weeksToMonths, type TimelineResult, type TimelineSettings } from './cipTimeline.ts'
 
 const V1 = 'v1 (102026)'
 
@@ -38,7 +41,7 @@ export function deriveModuleFindings(
         domain: m.dimensions.find((d) => d.key === i.dimension)?.name ?? i.dimension,
         tier: 0, severity, score, question: i.question, description: i.question,
         mitigation: i.recommendation, owner: OWNER_BY_ACTION[i.actionType ?? 'process'],
-        dueMonth, dueDate: quarterLabel(dueMonth),
+        dueMonth, dueDate: quarterLabel(dueMonth), actionType: i.actionType, minWeeks: i.minWeeks,
       })
     }
   }
@@ -63,8 +66,38 @@ export function deriveEsgFindings(
   })
 }
 
-/** The whole Capacity Improvement Plan: core, index and ESG-maturity gaps on one schedule, sorted by severity then due month. */
-export function derivePlan(scores: Record<string, number>, p: ModuleProfile, planMonths: number, threshold = 2, esg: Record<string, number> = {}): DerivedFinding[] {
+export type PlanTimeline = Omit<TimelineResult, 'actions'> & { actions: DerivedFinding[]; settings: TimelineSettings }
+
+/** A number is the old plan-length setting: the Target date pace. */
+export const asTimelineSettings = (s: TimelineSettings | number): TimelineSettings =>
+  typeof s === 'number' ? { ...DEFAULT_TIMELINE, pace: 'target', targetMonths: s } : s
+
+/** The whole Capacity Improvement Plan scheduled on the suggested timeline (spec §6). */
+export function planTimeline(
+  scores: Record<string, number>, p: ModuleProfile, settings: TimelineSettings | number, threshold = 2, esg: Record<string, number> = {},
+): PlanTimeline {
+  const s = asTimelineSettings(settings)
+  const changeReadiness = s.changeReadiness ?? (answeredIn(CHANGE_READINESS, scores, p) ? compositeScore(CHANGE_READINESS, scores, p) : undefined)
+  const findings = gaps(scores, p, threshold, esg)
+  const t = suggestTimeline(findings, { ...s, changeReadiness })
+  const byId = new Map(t.actions.map((a) => [a.id, a]))
+  const actions = findings.map((f) => {
+    const a = byId.get(f.id)!
+    const dueMonth = Math.max(1, weeksToMonths(a.dueWeek))
+    return { ...f, startWeek: a.startWeek, dueWeek: a.dueWeek, phase: a.phase, flags: a.flags, dueMonth,
+      dueDate: s.startDate ? weekToDate(s.startDate, a.dueWeek) : quarterLabel(dueMonth) }
+  }).sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity] || a.dueWeek - b.dueWeek || a.tier - b.tier)
+  return { ...t, actions, planMonths: actions.reduce((m, a) => Math.max(m, a.dueMonth), 0), settings: s }
+}
+
+/** The plan's actions, dated by the suggested timeline. */
+export function derivePlan(scores: Record<string, number>, p: ModuleProfile, settings: TimelineSettings | number, threshold = 2, esg: Record<string, number> = {}): DerivedFinding[] {
+  return planTimeline(scores, p, settings, threshold, esg).actions
+}
+
+// Core, index and ESG-maturity gaps before scheduling; their month placeholders are replaced by planTimeline.
+function gaps(scores: Record<string, number>, p: ModuleProfile, threshold: number, esg: Record<string, number>): DerivedFinding[] {
+  const planMonths = 24
   const core = deriveFindings(scores, threshold, planMonths)
   const startAt: Record<Severity, number> = { Critical: 0, High: 0, Moderate: 0 }
   for (const f of core) startAt[f.severity]++
