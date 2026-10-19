@@ -4,6 +4,7 @@
 import type { Obligation, ObligationFrequency } from '../obligations.ts'
 import { NG_FILINGS } from './ng.ts'
 import { KE_FILINGS } from './ke.ts'
+import { ZA_FILINGS } from './za.ts'
 
 /** Who a filing applies to. An organisation is usually several at once (for example a company that employs staff). */
 export type EntityKind = 'company' | 'ngo' | 'business-name' | 'employer' | 'vat-registered'
@@ -33,7 +34,7 @@ export interface StatutoryFiling {
   source: { url: string; kind: 'official' | 'secondary'; checked: string }
 }
 
-export const FILINGS: StatutoryFiling[] = [...NG_FILINGS, ...KE_FILINGS]
+export const FILINGS: StatutoryFiling[] = [...NG_FILINGS, ...KE_FILINGS, ...ZA_FILINGS]
 
 export const FILING_JURISDICTIONS = [...new Set(FILINGS.map((f) => f.jurisdiction))]
 
