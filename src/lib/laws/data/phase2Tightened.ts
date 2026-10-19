@@ -94,12 +94,12 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'ZM-company-2': { citation: 'Act No. 16 of 2009', reformNote: 'The Non-Governmental Organisations Bill No. 6 of 2025 would repeal and replace the 2009 Act; check its status.' },
   'ZM-integrity-1': { source: O('https://acc.gov.zm/') },
   'ZM-labour-1': { source: O('https://www.mlss.gov.zm/') },
-  'ZM-tax-1': { citation: 'Income Tax Act (Cap. 323) and Value Added Tax Act (Cap. 331), as amended by annual finance acts', source: O('https://www.zra.org.zm/') },
+  'ZM-tax-1': { citation: 'Income Tax Act (Cap. 323) and Value Added Tax Act, as amended by annual finance acts', source: O('https://www.zra.org.zm/') },
   'ZM-competition-1': { source: O('https://www.ccpc.org.zm/') },
   'ZM-consumer-1': { source: O('https://www.ccpc.org.zm/') },
   'ZM-sanctions-1': {
     title: 'Anti-Terrorism and Non-Proliferation Act (UN targeted financial sanctions)',
-    citation: 'Anti-Terrorism and Non-Proliferation Act No. 6 of 2018; Financial Intelligence Centre Act No. 46 of 2010, as amended',
+    citation: 'Anti-Terrorism and Non-Proliferation Act No. 6 of 2018, as amended in 2023 and by Act No. 30 of 2024; Financial Intelligence Centre Act No. 46 of 2010, as amended',
     source: O('https://www.fic.gov.zm/'),
   },
   'ZM-forex-1': { source: O('https://www.boz.zm/') },
@@ -137,7 +137,10 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
   'BW-data-1': { citation: 'Act No. 18 of 2024 (in effect from January 2025), replacing the 2018 Act, which never came into force' },
   'BW-integrity-1': { source: O('https://www.gov.bw/ministries/directorate-corruption-and-economic-crime') },
   'BW-procurement-1': { citation: 'Act No. 24 of 2021', source: S('https://botswanalaws.com/bulletin/principal-legislation/bulletin-2021/act-24-of-2021---public-procurement-act') },
-  'BW-tax-1': { citation: 'Income Tax Act (Cap. 52:01) and Value Added Tax Act (Cap. 50:03), as amended', source: O('https://www.burs.org.bw/') },
+  'BW-tax-1': {
+    citation: 'Income Tax Act (Cap. 52:01) and Value Added Tax Act (Cap. 50:03), as amended (including VAT Amendment Act No. 16 of 2025)', source: O('https://www.burs.org.bw/'),
+    reformNote: 'A Value Added Tax Bill, 2025 (Bill No. 39) would repeal and re-enact the VAT Act, including VAT on digital services; check its status.',
+  },
   'BW-competition-1': { source: O('https://www.cca.co.bw/') },
   'BW-consumer-1': { source: O('https://www.cca.co.bw/') },
   'BW-sanctions-1': {
