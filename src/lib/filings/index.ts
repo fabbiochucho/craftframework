@@ -10,6 +10,7 @@ import { EAST_FILINGS } from './east.ts'
 import { NW1_FILINGS } from './north_west1.ts'
 import { ISLAND_FILINGS } from './islands.ts'
 import { NORTH2_FILINGS } from './north2.ts'
+import { WEST2_FILINGS } from './west2.ts'
 
 /** Who a filing applies to. An organisation is usually several at once (for example a company that employs staff). */
 export type EntityKind = 'company' | 'ngo' | 'business-name' | 'employer' | 'vat-registered'
@@ -41,7 +42,7 @@ export interface StatutoryFiling {
   source: { url: string; kind: 'official' | 'secondary'; checked: string }
 }
 
-export const FILINGS: StatutoryFiling[] = [...NG_FILINGS, ...KE_FILINGS, ...ZA_FILINGS, ...GH_FILINGS, ...EAST_FILINGS, ...NW1_FILINGS, ...ISLAND_FILINGS, ...NORTH2_FILINGS]
+export const FILINGS: StatutoryFiling[] = [...NG_FILINGS, ...KE_FILINGS, ...ZA_FILINGS, ...GH_FILINGS, ...EAST_FILINGS, ...NW1_FILINGS, ...ISLAND_FILINGS, ...NORTH2_FILINGS, ...WEST2_FILINGS]
 
 export const FILING_JURISDICTIONS = [...new Set(FILINGS.map((f) => f.jurisdiction))]
 
