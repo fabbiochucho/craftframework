@@ -12,6 +12,7 @@ type View = {
   organization: { name: string; country: string; registrationNumber: string | null }
   framework: { name: string; version: string }; scope: string; label: string; statement: string
   outcome: string; outcomeLabel: string; validatedRung: number; rungName: string; confirmedLevels: Array<{ level: number; name: string; achieved: boolean }> | null
+  indexResults?: Array<{ name: string; version: string; band: string | null }> | null
   validators: Array<{ name: string; role: string; accreditation: string; credentials: Array<{ body: string; number: string; status: string }> }>
   firm: string | null; validatorType: string; engagedBy: string
   independence: { statement: string; declarations: Array<{ name: string; version: string; signedAt: string }>; disclosure: string }
@@ -81,6 +82,9 @@ export function PublicValidationPage({ verificationId }: { verificationId: strin
         <Row k="Issued" v={fmt(v.issuedAt)} />
         <Row k={v.status === 'expired' ? 'Expired' : 'Expires'} v={`${fmt(v.expiresAt)} (${v.validityMonths}-month validity)`} />
         <Row k="Next verification point" v={v.nextVerificationPoint ? fmt(v.nextVerificationPoint) : 'None scheduled'} />
+        {v.indexResults && v.indexResults.length > 0 && (
+          <Row k={`CRAFT index results (${[...new Set(v.indexResults.map((r) => r.version))].join(', ')})`} v={v.indexResults.map((r) => `${r.name}: ${r.band ?? 'no band'}`).join('; ')} />
+        )}
         {v.qualifications && <Row k="Qualifications" v={v.qualifications.length ? v.qualifications.join('; ') : 'None'} />}
         {v.rungHistory && <Row k="Rung history" v={v.rungHistory.map((r) => `rung ${r.rung} (${fmt(r.issuedAt)}, ${r.status})`).join(' → ')} />}
         {v.devmapperUrl && <Row k="DevMapper" v={<a className="text-emerald-700 underline" href={v.devmapperUrl} rel="noopener noreferrer nofollow">{v.devmapperUrl}</a>} />}

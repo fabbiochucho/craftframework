@@ -471,6 +471,17 @@ export const validatorCredentials = pgTable(
   (t) => [index('validator_credentials_validator_idx').on(t.validatorId)],
 )
 
+// Specialist accreditation for the specialist CRAFT indices (spec §7): granted only by passing the
+// specialist assessment; counts only while the main accreditation is current (src/lib/specialisms.ts).
+export const validatorSpecialisms = pgTable('validator_specialisms', {
+  email: text('email').notNull(),
+  // 'fiduciary' | 'safeguards'
+  specialism: text('specialism').notNull(),
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+  grantedBy: text('granted_by').notNull(),
+  attemptId: text('attempt_id'),
+}, (t) => [primaryKey({ columns: [t.email, t.specialism] })])
+
 // An organisation's opt-in directory listing (off by default). Name, country
 // and sector come from `organizations`; never scores, evidence or comments.
 // The random `id` is used in directory URLs because legacy org ids can embed an email.
@@ -1849,6 +1860,8 @@ export const trainingExamAttempts = pgTable('training_exam_attempts', {
   startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
   deadline: timestamp('deadline', { withTimezone: true }).notNull(),
   submittedAt: timestamp('submitted_at', { withTimezone: true }),
+  // 'knowledge' (the main exam) | 'fiduciary' | 'safeguards' (specialist assessments)
+  assessment: text('assessment').notNull().default('knowledge'),
   questionIds: jsonb('question_ids').$type<string[]>().notNull(),
   answers: jsonb('answers').$type<Record<string, number>>().notNull().default({}),
   // 'in_progress' | 'submitted' | 'expired'
@@ -1995,3 +2008,11 @@ export const directoryProfileViews = pgTable('directory_profile_views', {
   day: date('day', { mode: 'string' }).notNull(),
   views: integer('views').notNull().default(0),
 }, (t) => [primaryKey({ columns: [t.kind, t.profileId, t.day] })])
+
+// Laws register approvals: a Super Admin approves all of a jurisdiction's entries after founder or counsel review.
+export const lawApprovals = pgTable('law_approvals', {
+  jurisdiction: text('jurisdiction').primaryKey(),
+  approvedBy: text('approved_by').notNull(),
+  registerVersion: text('register_version').notNull(),
+  approvedAt: timestamp('approved_at', { withTimezone: true }).notNull().defaultNow(),
+})

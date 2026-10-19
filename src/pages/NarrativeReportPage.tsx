@@ -6,7 +6,8 @@ import { esgMaturity, stageLabel } from '../lib/esgMaturity'
 import {
   computeOrgScore, getAccreditation, getReadinessClassification,
 } from '../lib/data'
-import { derivePlan } from '../lib/moduleFindings'
+import { planTimeline } from '../lib/moduleFindings'
+import { PACE_LABEL } from '../lib/cipTimeline'
 import { useModuleProfile } from '../lib/moduleProfile'
 import {
   compositeVerifiedScore, evidenceCoveragePct, getEsgBadge, ratedAnswered, identifyGaps, ESG_QUESTIONS,
@@ -50,7 +51,7 @@ function Block({ block }: { block: NarrativeBlock }) {
 export function NarrativeReportPage() {
   const { currentOrg } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
-  const { planMonths } = useCIPCtx()
+  const { timeline } = useCIPCtx()
   const { entityProfile } = useEntityProfileCtx()
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const [esgEvidence] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
@@ -73,10 +74,12 @@ export function NarrativeReportPage() {
   const esgEvidenceCoverage = evidenceCoveragePct(esgEvidence)
   const esgVerified = compositeVerifiedScore(esgScores, esgEvidence)
   const esgBadge = getEsgBadge(esgVerified, ratedAnswered(esgScores), esgEvidenceCoverage)
-  const esgGaps = identifyGaps(esgScores)
+  const esgGaps = useMemo(() => identifyGaps(esgScores), [esgScores])
 
   const [moduleProfile] = useModuleProfile()
-  const cipFindings = useMemo(() => derivePlan(orgScores, moduleProfile, planMonths, 2, esgScores), [orgScores, planMonths, moduleProfile, esgScores])
+  const cipPlan = useMemo(() => planTimeline(orgScores, moduleProfile, timeline, 2, esgScores), [orgScores, timeline, moduleProfile, esgScores])
+  const cipFindings = cipPlan.actions
+  const planMonths = Math.max(1, cipPlan.planMonths)
 
   const ctx: NarrativeOrgContext = {
     orgName: currentOrg?.name || '[Insert Organization Name]',
@@ -90,6 +93,7 @@ export function NarrativeReportPage() {
     accreditationLabel: `${accreditation.label} (${readiness.label})`,
     implementationEvidence,
     planMonths,
+    planPace: PACE_LABEL[timeline.pace],
     lens,
     esgBadge,
     esgVerifiedScore: esgVerified,
@@ -103,8 +107,9 @@ export function NarrativeReportPage() {
 
   const doc = useMemo(() => buildNarrativeDocument(ctx), [
     ctx.orgName, ctx.archetype, ctx.country, ctx.businessSector, selectedJurisdictions.join(','),
-    ctx.regSector, ctx.compositeScore, ctx.accreditationLevel, ctx.implementationEvidence, ctx.planMonths,
-    lens, ctx.esgVerifiedScore, ctx.esgAnswered, esgGaps.length, cipFindings.length,
+    ctx.regSector, ctx.compositeScore, ctx.accreditationLevel, ctx.implementationEvidence, ctx.planMonths, ctx.planPace,
+    // Depend on the lists themselves, not their lengths, so a changed gap or action is never shown stale.
+    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings,
   ])
 
   function download() {
