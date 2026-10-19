@@ -6,6 +6,12 @@ import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { encryptField, decryptField } from '../lib/crypto.js'
 import { logger } from '../lib/logger.js'
+import { fairKeyReadable } from '../../src/lib/fairRisk.js'
+import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
+
+// The organisation itself: its own users, not read-only or specialised reviewer accounts provisioned on it.
+const isOwnOrg = (caller: { orgId?: string | null; readOnly?: boolean; role: string }, orgId: string) =>
+  orgId === caller.orgId && !caller.readOnly && !SPECIALIZED_READONLY_ROLES.has(caller.role)
 
 const keySchema = z.string().min(1).max(100).regex(/^[a-zA-Z0-9:_-]+$/)
 const bodySchema = z.object({
@@ -26,6 +32,12 @@ export default async (req: Request) => {
       const key = keySchema.safeParse(params.get('key'))
       if (!orgId || !key.success) return Response.json({ error: 'Invalid scope' }, { status: 400 })
       if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
+      // Quantified-risk inputs are financial: other organisations read them only with this organisation's consent.
+      if (key.data.startsWith('fair:') && !isOwnOrg(caller, orgId)) {
+        const [c] = await db.select().from(legacyWorkspaceState).where(and(eq(legacyWorkspaceState.orgId, orgId), eq(legacyWorkspaceState.key, 'fair:consent'))).limit(1)
+        const consent = !!c && JSON.parse(decryptField(c.value)) === true
+        if (!fairKeyReadable({ key: key.data, ownOrg: false, superAdmin: caller.role === 'super_admin', consent })) return forbidden()
+      }
       const [row] = await db.select().from(legacyWorkspaceState)
         .where(and(eq(legacyWorkspaceState.orgId, orgId), eq(legacyWorkspaceState.key, key.data))).limit(1)
       return Response.json({ value: row ? JSON.parse(decryptField(row.value)) : null }, {
@@ -44,6 +56,8 @@ export default async (req: Request) => {
       if (!parsed.success) return Response.json({ error: 'Invalid state' }, { status: 400 })
       const { orgId, key, value } = parsed.data
       if (!(await canAccessOrg(caller, orgId, 'write'))) return forbidden()
+      // Only the organisation itself writes its quantified-risk inputs and its consent.
+      if (key.startsWith('fair:') && !isOwnOrg(caller, orgId)) return forbidden()
       const record = { orgId, key, value: encryptField(JSON.stringify(value)), updatedAt: new Date() }
       await db.insert(legacyWorkspaceState).values(record).onConflictDoUpdate({
         target: [legacyWorkspaceState.orgId, legacyWorkspaceState.key],
