@@ -66,3 +66,35 @@ assert.equal(fairKeyReadable({ key: 'fair:scenarios', ownOrg: false, superAdmin:
 assert.equal(fairKeyReadable({ key: 'fair:consent', ownOrg: false, superAdmin: false, consent: false }), true, 'whether consent is given is itself readable')
 assert.equal(fairKeyReadable({ key: 'capital:scores', ownOrg: false, superAdmin: false, consent: false }), true, 'other keys are unaffected')
 console.log('fairRisk: ok')
+
+// Review fixes (stage 5)
+import { normaliseScenario, MAX_LOSS_EVENTS } from './fairRisk.ts'
+{
+  // Common random numbers: a fix that only lowers vulnerability can never raise the loss, whatever the seed
+  const small = { ...scenario, fix: { cost: 100, vulnerability: { min: 0.19, likely: 0.39, max: 0.59 } } }
+  for (let seed = 1; seed <= 10; seed++) {
+    const g2 = costOfGap(small, { seed, runs: 2000 })!
+    assert.ok(g2.reduction >= 0, `seed ${seed}: reduction ${g2.reduction}`)
+  }
+  // Both curves on one grid, so they can be drawn on one axis
+  const g3 = costOfGap(scenario, { seed: 7 })!
+  assert.deepEqual(g3.fixed.exceedance.map((p) => p.loss), g3.open.exceedance.map((p) => p.loss))
+  // Rare losses: the chance of any loss and the tail are reported, not just "0 to 0"
+  const rare = simulate({ ...scenario, tef: { min: 0.02, likely: 0.05, max: 0.1 } }, { seed: 3 })
+  assert.equal(rare.p90, 0)
+  assert.ok(rare.pAny > 0 && rare.pAny < 0.1, `pAny ${rare.pAny}`)
+  assert.ok(rare.p99 > 0, 'the 1-in-100-year loss is shown')
+  assert.ok(rare.p95 <= rare.p99)
+  // Bounded work: loss events a year are capped, so the page cannot hang
+  assert.ok(rangeProblems({ ...scenario, tef: { min: 100, likely: 500, max: 2000 }, vulnerability: { min: 0.5, likely: 0.9, max: 1 } }).some((p) => /loss events a year/.test(p)))
+  assert.equal(MAX_LOSS_EVENTS, 100)
+  // A most likely value outside the range never hangs the sampler
+  assert.ok(Number.isFinite(pert({ min: 1, likely: 9, max: 5 }, mulberry32(1))))
+  // Malformed saved scenarios are repaired or dropped, never crash
+  assert.equal(normaliseScenario(null), null)
+  const fixed = normaliseScenario({ id: 'x', name: 'Old' })!
+  assert.deepEqual(fixed.indicatorIds, [])
+  assert.deepEqual(fixed.losses.reputation, { min: 0, likely: 0, max: 0 })
+  assert.ok(fixed.tef && fixed.vulnerability)
+  console.log('fairRisk (review fixes): ok')
+}

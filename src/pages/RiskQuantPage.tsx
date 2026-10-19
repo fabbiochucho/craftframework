@@ -8,7 +8,7 @@ import { derivePlan } from '../lib/moduleFindings'
 import { CIP_PLAN_MONTHS_DEFAULT } from '../lib/data'
 import { FOUNDATION_MODULES } from '../lib/foundationModules'
 import {
-  costOfGap, FAIR_WORDING, LOSS_FORMS, rangeProblems, rankByCostOfGap, simulate, type LossForm, type Range, type Scenario,
+  costOfGap, FAIR_WORDING, LOSS_FORMS, normaliseScenario, rangeProblems, rankByCostOfGap, simulate, type GapCost, type LossForm, type Range, type Scenario, type SimResult,
 } from '../lib/fairRisk'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 
@@ -34,10 +34,13 @@ export function RiskQuantPage() {
   const [consent, setConsent] = useLegacyAssessment<boolean>('fair:consent', false)
   const [moduleProfile] = useModuleProfile()
   const [openId, setOpenId] = useState<string | null>(null)
-  const list = Array.isArray(scenarios) ? scenarios : []
+  // Saved by any client version: repaired or dropped, never allowed to crash the page.
+  const list = useMemo(() => (Array.isArray(scenarios) ? scenarios : []).map(normaliseScenario).filter((x): x is Scenario => !!x), [scenarios])
   const plan = useMemo(() => derivePlan(currentOrg ? scores[currentOrg.id] || {} : {}, moduleProfile, CIP_PLAN_MONTHS_DEFAULT), [currentOrg, scores, moduleProfile])
-  const ready = list.filter((s) => rangeProblems(s).length === 0)
-  const ranking = useMemo(() => rankByCostOfGap(ready, { seed: SEED }), [ready])
+  // Simulations run only when asked: a scenario with many loss events takes a moment, and typing must never wait on it.
+  const [ranking, setRanking] = useState<{ key: string; rows: GapCost[] } | null>(null)
+  const listKey = JSON.stringify(list)
+  const rank = () => setRanking({ key: listKey, rows: rankByCostOfGap(list.filter((s) => rangeProblems(s).length === 0), { seed: SEED }) })
   const update = (s: Scenario) => setScenarios(list.map((x) => (x.id === s.id ? s : x)))
 
   if (isViewingClient && !consent) {
@@ -78,14 +81,21 @@ export function RiskQuantPage() {
           actions={plan.map((a) => ({ value: a.id, label: `${a.id} ${a.mitigation}`.slice(0, 100) }))} />
       ))}
 
-      {ranking.length > 0 && (
+      {list.some((s) => s.fix) && (
         <Card>
-          <CardHeader><CardTitle>Cost of the gap: which fixes pay back most</CardTitle></CardHeader>
-          <CardContent>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle>Cost of the gap: which fixes pay back most</CardTitle>
+              <Button size="sm" onClick={rank}>{ranking ? 'Rank again' : 'Rank the fixes'}</Button>
+            </div>
+            {ranking && ranking.key !== listKey && <p className="text-sm text-amber-700">The inputs have changed since this ranking. Rank again to update it.</p>}
+          </CardHeader>
+          {ranking && ranking.rows.length > 0 && <CardContent>
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Scenario</th><th>Plan action</th><th>Likely annual loss now</th><th>After the fix</th><th>Avoided each year</th><th>Fix cost</th><th>Avoided per unit of cost</th></tr></thead>
-              <tbody>{ranking.map((g) => {
-                const s = list.find((x) => x.id === g.scenarioId)!
+              <tbody>{ranking.rows.map((g) => {
+                const s = list.find((x) => x.id === g.scenarioId)
+                if (!s) return null
                 return (
                   <tr key={g.scenarioId} className="border-t border-slate-100">
                     <td className="py-1">{s.name}</td><td className="font-mono text-xs">{s.fix?.actionId ?? '—'}</td>
@@ -95,8 +105,8 @@ export function RiskQuantPage() {
                 )
               })}</tbody>
             </table>
-            <p className="mt-2 text-xs text-slate-500">Ranges are the 10th to 90th percentile of {ranking[0].open.runs.toLocaleString()} simulated years. "Avoided each year" compares the averages. Estimates only: they rest on the ranges entered.</p>
-          </CardContent>
+            <p className="mt-2 text-xs text-slate-500">Ranges are the 10th to 90th percentile of {ranking.rows[0].open.runs.toLocaleString()} simulated years. "Avoided each year" compares the averages of the same simulated years with and without the fix. Estimates only: they rest on the ranges entered.</p>
+          </CardContent>}
         </Card>
       )}
     </div>
@@ -141,8 +151,14 @@ function ScenarioCard({ s, open, onToggle, onChange, onDelete, readOnly, actions
   actions: Array<{ value: string; label: string }>
 }) {
   const problems = rangeProblems(s)
-  const result = useMemo(() => (problems.length ? null : simulate(s, { seed: SEED })), [JSON.stringify(s)])
-  const gap = useMemo(() => (problems.length ? null : costOfGap(s, { seed: SEED })), [JSON.stringify(s)])
+  const key = JSON.stringify(s)
+  const [run, setRun] = useState<{ key: string; result: SimResult; gap: GapCost | null } | null>(null)
+  const go = () => {
+    const gap = costOfGap(s, { seed: SEED })
+    setRun({ key, gap, result: gap ? gap.open : simulate(s, { seed: SEED }) })
+  }
+  const result = run?.result ?? null
+  const gap = run?.gap ?? null
   const set = (patch: Partial<Scenario>) => onChange({ ...s, ...patch })
   return (
     <Card>
@@ -150,15 +166,21 @@ function ScenarioCard({ s, open, onToggle, onChange, onDelete, readOnly, actions
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>{s.name || 'Untitled scenario'}</CardTitle>
           <div className="flex gap-2">
+            <Button size="sm" disabled={problems.length > 0} onClick={go}>{run ? 'Run again' : 'Run'}</Button>
             <Button size="sm" variant="outline" onClick={onToggle}>{open ? 'Close' : readOnly ? 'View inputs' : 'Edit'}</Button>
             {!readOnly && <Button size="sm" variant="outline" onClick={onDelete} aria-label={`Delete ${s.name}`}><Trash2 className="h-4 w-4" /></Button>}
           </div>
         </div>
         {result && (
-          <p className="text-sm text-slate-700">
-            Likely annual loss: <strong>{money(result.p10, s.currency)} to {money(result.p90, s.currency)}</strong> (10th to 90th percentile; median {money(result.p50, s.currency)}, average {money(result.mean, s.currency)}).
-            {gap && <> After the fix: {money(gap.fixed.p10, s.currency)} to {money(gap.fixed.p90, s.currency)}, for a cost of {money(gap.cost, s.currency)}.</>}
-          </p>
+          <div className="space-y-1 text-sm text-slate-700">
+            {run!.key !== key && <p className="text-amber-700">The inputs have changed since this run. Run again to update the results.</p>}
+            <p>
+              Chance of any loss in a year: <strong>{Math.round(result.pAny * 1000) / 10}%</strong>. Likely annual loss: <strong>{money(result.p10, s.currency)} to {money(result.p90, s.currency)}</strong> (10th to 90th percentile; average {money(result.mean, s.currency)}).
+              {' '}A 1-in-20-year loss: {money(result.p95, s.currency)}; 1-in-100-year: {money(result.p99, s.currency)}.
+            </p>
+            {gap && <p>After the fix: chance of any loss {Math.round(gap.fixed.pAny * 1000) / 10}%, average {money(gap.fixed.mean, s.currency)}, 1-in-100-year {money(gap.fixed.p99, s.currency)}; it would avoid about {money(gap.reduction, s.currency)} a year for a cost of {money(gap.cost, s.currency)}.</p>}
+            {s.notes && <p className="text-xs text-slate-500">Assumptions: {s.notes}</p>}
+          </div>
         )}
         {problems.length > 0 && <ul className="list-disc pl-5 text-sm text-amber-800">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
       </CardHeader>
