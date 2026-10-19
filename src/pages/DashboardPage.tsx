@@ -12,7 +12,6 @@ import {
   getAccreditation, severityStyle, PAPER_COMPLIANCE_THRESHOLD,
   TIER_NAMES, answeredCount, CLIMATE_QUESTIONS, lensQuestionCount,
 } from '../lib/data'
-import { CIP_PLAN_MONTHS_DEFAULT } from '../lib/data'
 import { derivePlan } from '../lib/moduleFindings'
 import { useModuleProfile } from '../lib/moduleProfile'
 import {
@@ -24,7 +23,7 @@ export function DashboardPage() {
   const { currentUser } = useAuthCtx()
   const { currentOrg } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
-  const { cipStatuses } = useCIPCtx()
+  const { cipStatuses, timeline } = useCIPCtx()
   const { activeLenses } = useLensCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
 
@@ -36,7 +35,7 @@ export function DashboardPage() {
   )
   const [moduleProfile] = useModuleProfile()
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
-  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, CIP_PLAN_MONTHS_DEFAULT, 2, esgScores), [orgScores, moduleProfile, esgScores])
+  const findings = useMemo(() => derivePlan(orgScores, moduleProfile, timeline, 2, esgScores), [orgScores, moduleProfile, timeline, esgScores])
   const answered = answeredCount(orgScores)
   const accred = getAccreditation(composite, implementationEvidence)
   const penalty = answered > 0 && implementationEvidence < PAPER_COMPLIANCE_THRESHOLD
