@@ -4,17 +4,27 @@ import { COVERAGE_LABEL, coverageOf, lensNote, type Coverage, type MappedIndicat
 import { ATTRIBUTION_NOTICE } from '../reports/legal.ts'
 import { questionsForLaw } from './mapping.ts'
 import { LAW_DATA_VERSION, LAW_REGISTER } from './register.ts'
-import { jurisdictionName, LAW_AREAS, LAW_JURISDICTIONS, type LawArea, type LawEntry } from './types.ts'
+import { isAfricanJurisdiction, jurisdictionName, LAW_AREAS, LAW_JURISDICTIONS, type LawArea, type LawEntry } from './types.ts'
+import { instrumentOf, ratificationStatus } from './data/continental.ts'
 
 export const LAW_FOOTER = 'This report is information to support readiness, not legal advice. Laws change; check the cited source and take local legal advice before relying on it.'
 
-export interface LawRow { entry: LawEntry; coverage: Coverage | 'no-law'; mean: number | null; answered: number; applicable: number; indicators: MappedIndicator[]; /** Source last checked over 12 months ago. */ recheckDue: boolean }
+export interface LawRow {
+  entry: LawEntry; coverage: Coverage | 'no-law'; mean: number | null; answered: number; applicable: number; indicators: MappedIndicator[]
+  /** Source last checked over 12 months ago. */ recheckDue: boolean
+  /** Continental instruments: whether each of the organisation's African countries has ratified it. */
+  ratification?: Array<{ jurisdiction: string; name: string; ratified: boolean }>
+}
 export interface JurisdictionSection { id: string; name: string; reviewed: boolean; /** Entries still awaiting review, never shown. */ pendingCount: number; areas: { area: LawArea; label: string; laws: LawRow[] }[] }
 export interface JurisdictionReport { title: string; version: string; sections: JurisdictionSection[]; lensNote: string; footer: string }
 
-/** The organisation's home country first, then its other listed jurisdictions; ids outside the register are dropped. */
+/**
+ * The organisation's home country first, then its other listed jurisdictions; ids outside the register are dropped.
+ * An organisation in any African country also gets the continental (AU) instruments.
+ */
 export function reportJurisdictions(country: string, listed: string[]): string[] {
-  return [...new Set([country, ...listed])].filter((j) => LAW_JURISDICTIONS.includes(j))
+  const own = [...new Set([country, ...listed])].filter((j) => LAW_JURISDICTIONS.includes(j))
+  return own.some(isAfricanJurisdiction) ? [...own, 'AU'] : own
 }
 
 /** True when the entry's source was last checked more than 12 months before `today` (YYYY-MM-DD). */
@@ -38,6 +48,11 @@ export function buildJurisdictionReport(
   approvedJurisdictions: string[] = [], today: string = new Date().toISOString().slice(0, 10),
 ): JurisdictionReport {
   const effective = applyApprovals(entries, approvedJurisdictions)
+  const african = jurisdictions.filter(isAfricanJurisdiction)
+  const ratificationOf = (e: LawEntry) => {
+    const k = instrumentOf(e)
+    return k ? { ratification: african.map((j) => ({ jurisdiction: j, name: jurisdictionName(j), ratified: ratificationStatus(k, j) === true })) } : {}
+  }
   const sections = jurisdictions.map((id): JurisdictionSection => {
     const all = effective.filter((e) => e.jurisdiction === id)
     const laws = all.filter((e) => e.review === 'approved')
@@ -45,7 +60,7 @@ export function buildJurisdictionReport(
       area, label: LAW_AREAS[area],
       laws: laws.filter((e) => e.area === area).map((entry): LawRow => entry.noLaw
         ? { entry, coverage: 'no-law', mean: null, answered: 0, applicable: 0, indicators: [], recheckDue: isRecheckDue(entry, today) }
-        : { entry, ...coverageOf(questionsForLaw(entry), scores, p, lenses), recheckDue: isRecheckDue(entry, today) }),
+        : { entry, ...coverageOf(questionsForLaw(entry), scores, p, lenses), recheckDue: isRecheckDue(entry, today), ...ratificationOf(entry) }),
     })).filter((a) => a.laws.length > 0)
     return { id, name: jurisdictionName(id), reviewed: laws.length > 0, pendingCount: all.length - laws.length, areas }
   })
