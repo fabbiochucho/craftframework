@@ -22,7 +22,7 @@ import {
   Archetype,
 } from './data'
 import * as api from './api'
-import { DEFAULT_TIMELINE, type TimelineSettings } from './cipTimeline'
+import { DEFAULT_TIMELINE, normaliseTimeline, type TimelineSettings } from './cipTimeline'
 import { offlineDB } from './offline/db'
 import { queueAndSync } from './offline/sync-engine'
 import type { JurisdictionId, SectorArchetype } from './regulatory-context'
@@ -352,7 +352,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
   }, !!activeClientOrgId)
   // Capacity Improvement Plan timeline settings; the plan length follows from them (spec §6).
-  const [timeline, setTimelineState] = useTenantState<TimelineSettings>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'cip:timeline', DEFAULT_TIMELINE, !!activeClientOrgId)
+  const [savedTimeline, setTimelineState] = useTenantState<TimelineSettings>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'cip:timeline', DEFAULT_TIMELINE, !!activeClientOrgId)
   useEffect(() => {
     if (!currentUser || currentUser.isDemo || activeClientOrgId) return
     if (profileSaveStatus === 'ready' || profileSaveStatus === 'saved') {
@@ -777,9 +777,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser])
 
+  // Saved by any client version: made safe before anything schedules with it.
+  const timeline = useMemo(() => normaliseTimeline(savedTimeline), [savedTimeline])
   const setTimeline = useCallback((t: TimelineSettings) => {
     if (readOnlyRef.current) return
-    setTimelineState({ ...DEFAULT_TIMELINE, ...t, targetMonths: t.targetMonths === undefined ? undefined : clampPlanMonths(t.targetMonths) })
+    const n = normaliseTimeline(t)
+    setTimelineState(n.targetMonths === undefined ? n : { ...n, targetMonths: clampPlanMonths(n.targetMonths) })
   }, [setTimelineState])
 
   // A portfolio-mandated lens can never be switched off by the institution.
