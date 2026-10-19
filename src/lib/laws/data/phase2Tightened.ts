@@ -132,6 +132,20 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
     regulator: 'the Tanzania Investment and Special Economic Zones Authority (TISEZA)', source: O('https://www.tiseza.go.tz/'),
     reformNote: 'TISEZA merged the Tanzania Investment Centre and the Export Processing Zones Authority in 2025; check transitional rules for existing incentive certificates.',
   },
+
+  // ---- Botswana ----
+  'BW-data-1': { citation: 'Act No. 18 of 2024 (in effect from January 2025), replacing the 2018 Act, which never came into force' },
+  'BW-integrity-1': { source: O('https://www.gov.bw/ministries/directorate-corruption-and-economic-crime') },
+  'BW-procurement-1': { citation: 'Act No. 24 of 2021', source: S('https://botswanalaws.com/bulletin/principal-legislation/bulletin-2021/act-24-of-2021---public-procurement-act') },
+  'BW-tax-1': { citation: 'Income Tax Act (Cap. 52:01) and Value Added Tax Act (Cap. 50:03), as amended', source: O('https://www.burs.org.bw/') },
+  'BW-competition-1': { source: O('https://www.cca.co.bw/') },
+  'BW-consumer-1': { source: O('https://www.cca.co.bw/') },
+  'BW-sanctions-1': {
+    title: 'Counter-Terrorism Act and Financial Intelligence Act (UN targeted financial sanctions)',
+    citation: 'Counter-Terrorism Act, as amended; Financial Intelligence Act, 2022', source: O('https://fia.org.bw/'),
+  },
+  'BW-forex-1': { source: O('https://www.bankofbotswana.bw/') },
+  'BW-licensing-1': { source: O('https://www.bitc.co.bw/') },
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
