@@ -5,6 +5,7 @@ import { api, training } from '../lib/trainingClient'
 import { trackEvent } from '../lib/analytics'
 import { Drill } from './TrainingModulePage'
 import { CASES, EXAM, wordCount } from '../lib/validatorTraining'
+import { SPECIALIST_EXAM } from '../lib/specialisms'
 
 // Validator system PR 4: the three-part assessment (knowledge exam, scenario cases,
 // capstone), annual renewal and the firm-team view. All rules are enforced by
@@ -27,14 +28,15 @@ export function TrainingAssessmentPage() {
         <h1 className="font-display text-3xl font-bold text-emerald-900">Assessment and renewal</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-600">All three parts must be passed; a high score in one cannot make up for a fail in another. Passing all three makes you CRAFT-accredited for one year. This is the only way accreditation is granted.</p>
       </div>
-      {me && !me.assessment.trainingComplete && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Complete all eight modules first. The assessment opens when the module map shows every module complete.</p>}
+      {me && !me.assessment.trainingComplete && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Complete all the core modules first. The assessment opens when the module map shows every core module complete.</p>}
       {me && !me.profile && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Create your <Link to="/directory" className="underline">validator profile</Link> before the assessment.</p>}
       {me?.profile?.accreditation === 'suspended' && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-sm text-rose-900">Your validator profile is suspended, so the assessment and renewal are unavailable.</p>}
-      <Tabs tabs={[{ id: 'exam', label: '1. Knowledge exam' }, { id: 'cases', label: '2. Scenario cases' }, { id: 'capstone', label: '3. Capstone' }, { id: 'renewal', label: 'Annual renewal' }, { id: 'firm', label: 'My firm’s team' }]} active={tab} onChange={setTab} />
+      <Tabs tabs={[{ id: 'exam', label: '1. Knowledge exam' }, { id: 'cases', label: '2. Scenario cases' }, { id: 'capstone', label: '3. Capstone' }, { id: 'renewal', label: 'Annual renewal' }, { id: 'specialist', label: 'Specialisms' }, { id: 'firm', label: 'My firm’s team' }]} active={tab} onChange={setTab} />
       {tab === 'exam' && <Exam onChange={reload} />}
       {tab === 'cases' && <Cases onChange={reload} />}
       {tab === 'capstone' && <Capstone onChange={reload} />}
       {tab === 'renewal' && <Renewal />}
+      {tab === 'specialist' && <Specialist me={me} onChange={reload} />}
       {tab === 'firm' && <FirmTeam />}
     </div>
   )
@@ -313,6 +315,85 @@ function FirmTeam() {
           </CardContent>
         </Card>
       ))}
+    </div>
+  )
+}
+
+// Specialist accreditation (indices spec §7.1): for the Fiduciary Controls and Safeguards indices.
+type SpecialistState = {
+  specialism: string; label: string; moduleId: string; moduleTitle: string | null; moduleComplete: boolean
+  granted: boolean; current: boolean; accredited: boolean; allowed: boolean; nextAt: string | null; inProgress: string | null
+  attempts: Array<{ id: string; startedAt: string; status: string; score: number | null; total: number; passed: boolean }>
+}
+
+function Specialist({ me, onChange }: { me: any; onChange: () => void }) {
+  const [run, setRun] = useState<any>(null)
+  const [ans, setAns] = useState<Record<string, number>>({})
+  const [result, setResult] = useState<any>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [left, setLeft] = useState<number | null>(null)
+  const submit = async () => {
+    if (!run) return
+    try { const r = await training(`specialist/attempt/${run.id}/submit`, { method: 'POST', json: { answers: ans } }); setResult(r); setRun(null); setMsg(null); onChange() } catch (e: any) { setMsg({ ok: false, text: e.message }); setRun(null); onChange() }
+  }
+  useEffect(() => {
+    if (!run) return
+    const tick = () => setLeft(Math.max(0, Math.round((new Date(run.deadline).getTime() - Date.now()) / 1000)))
+    tick()
+    const t = setInterval(tick, 1000)
+    return () => clearInterval(t)
+  }, [run?.id])
+  useEffect(() => { if (run && left === 0) void submit() }, [left])
+  const list: SpecialistState[] = me?.specialist ?? []
+  if (run) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{run.label} specialist assessment ({run.questions.length} questions)</CardTitle>
+          <p className="text-sm text-slate-600">Open-book. <strong role="timer">Time left: {left === null ? '' : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`}</strong></p>
+        </CardHeader>
+        <CardContent>
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void submit() }}>
+            {run.questions.map((q: any, i: number) => (
+              <fieldset key={q.id} className="rounded-lg border border-slate-100 p-3">
+                <legend className="text-sm font-medium text-slate-800">{i + 1}. {q.prompt}</legend>
+                {q.options.map((o: string, j: number) => (
+                  <label key={j} className="flex cursor-pointer items-start gap-2 px-2 py-1 text-sm text-slate-700"><input type="radio" name={q.id} checked={ans[q.id] === j} onChange={() => setAns({ ...ans, [q.id]: j })} className="mt-1 h-4 w-4 accent-emerald-600" />{o}</label>
+                ))}
+              </fieldset>
+            ))}
+            <div className="flex flex-wrap items-center gap-3"><Button type="submit">Submit ({Object.keys(ans).length} of {run.questions.length} answered)</Button><Note msg={msg} /></div>
+          </form>
+        </CardContent>
+      </Card>
+    )
+  }
+  return (
+    <div className="space-y-4">
+      <p className="max-w-3xl text-sm text-slate-600">Validating the Fiduciary Controls & Risk Management or Environmental & Social Safeguards index needs the matching specialism. Complete the specialist module, then pass its timed assessment: {SPECIALIST_EXAM.questions} questions, {SPECIALIST_EXAM.minutes} minutes, pass mark {SPECIALIST_EXAM.passPct}%. A specialism counts only while your main accreditation is current.</p>
+      {result && <p role="status" className={`rounded-lg p-3 text-sm ${result.passed ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>{result.score}/{result.total}: {result.passed ? 'passed. The specialism is now on your profile.' : 'not passed this time. You can retake it after 14 days.'}</p>}
+      {list.map((s) => (
+        <Card key={s.specialism}>
+          <CardHeader>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle>{s.label}</CardTitle>
+              {s.current ? <Badge className="bg-emerald-100 text-emerald-800">Held</Badge> : s.granted ? <Badge className="bg-amber-100 text-amber-800">Lapsed with your accreditation</Badge> : null}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-slate-700">
+            <p>Module: <Link to="/training/module/$moduleId" params={{ moduleId: s.moduleId }} className="text-emerald-700 hover:underline">{s.moduleTitle ?? s.moduleId}</Link> {s.moduleComplete ? '(complete)' : '(not yet complete)'}</p>
+            {s.attempts.length > 0 && <p className="text-slate-500">Attempts: {s.attempts.map((a) => `${new Date(a.startedAt).toLocaleDateString()} ${a.status === 'submitted' ? `${a.score}/${a.total}${a.passed ? ' passed' : ''}` : a.status}`).join('; ')}</p>}
+            {!s.granted && (
+              <Button disabled={!s.accredited || !s.moduleComplete || (!s.allowed && !s.inProgress)} onClick={async () => {
+                try { const r = await training(`specialist/${s.specialism}/start`, { method: 'POST', json: {} }); setRun({ ...r, label: s.label }); setAns({}); setResult(null); setMsg(null) } catch (e: any) { setMsg({ ok: false, text: e.message }) }
+              }}>{s.inProgress ? 'Resume the assessment' : 'Start the assessment'}</Button>
+            )}
+            {!s.accredited && !s.granted && <p className="text-slate-500">You need to be CRAFT-accredited first.</p>}
+            {!s.allowed && !s.inProgress && s.nextAt && <p className="text-slate-500">Next attempt from {new Date(s.nextAt).toLocaleDateString()}.</p>}
+          </CardContent>
+        </Card>
+      ))}
+      <Note msg={msg} />
     </div>
   )
 }

@@ -96,3 +96,23 @@ import { indexResultsFromSnapshot, indexResultsHeading } from './validationState
   assert.equal(indexResultsHeading(r!), 'CRAFT index results (v1 (102026))')
   console.log('indexValidation (public): ok')
 }
+
+// Statistics count index validations separately; rung gaps stay ladder-only
+import { reviewMetrics, validatorStats } from './validatorQuality.ts'
+{
+  const snap = { schema: 2, selfRung: 3, impliedRung: 3, validatedRung: 3, indices: [{ key: 'craft-change' }], indicators: [
+    { id: 'CRL-1A', framework: 'capital-readiness', self: 4, final: 4 },
+    { id: 'CRAFT-CHG-01', framework: 'craft-change', self: 5, final: 1 },
+  ] }
+  const m = reviewMetrics('validated', snap)
+  assert.equal(m.gap, 0, 'index indicators do not distort the ladder gap')
+  assert.equal(m.indexGap, 4)
+  assert.equal(m.indices, 1)
+  const old = reviewMetrics('validated', { selfRung: 2, impliedRung: 2, validatedRung: 2, indicators: [{ id: 'CRL-1A', self: 3, final: 2 }] })
+  assert.equal(old.gap, 1, 'schema 1 snapshots are all ladder')
+  assert.equal(old.indices, 0)
+  const st = validatorStats([m, old])
+  assert.equal(st.indexValidations, 1)
+  assert.equal(st.meanIndexGap, 4)
+  console.log('indexValidation (statistics): ok')
+}
