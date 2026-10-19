@@ -34,5 +34,9 @@ export const LAW_AREAS: Record<LawArea, string> = {
 }
 
 const OTHER: Record<string, string> = { EU: 'European Union', UK: 'United Kingdom', US: 'United States' }
+/** Continental instruments that apply in the African countries that ratify them; not a country, so not in LAW_JURISDICTIONS. */
+const CONTINENTAL: Record<string, string> = { AU: 'African Union (continental)' }
+export const CONTINENTAL_JURISDICTIONS: string[] = Object.keys(CONTINENTAL)
 export const LAW_JURISDICTIONS: string[] = [...AFRICA_COUNTRIES.map((c) => c.iso2), ...Object.keys(OTHER)]
-export const jurisdictionName = (id: string): string => OTHER[id] ?? AFRICA_COUNTRIES.find((c) => c.iso2 === id)?.name ?? id
+export const isAfricanJurisdiction = (id: string): boolean => AFRICA_COUNTRIES.some((c) => c.iso2 === id)
+export const jurisdictionName = (id: string): string => OTHER[id] ?? CONTINENTAL[id] ?? AFRICA_COUNTRIES.find((c) => c.iso2 === id)?.name ?? id
