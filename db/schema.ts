@@ -1737,7 +1737,7 @@ export const rateLimits = pgTable(
 
 // --- validator training and accreditation (PR 4) ------------------------------
 // Programme content is DATA the CRAFT programme team edits without a code change.
-// Seeded once from src/lib/trainingSeed.ts (the 2026-10-16 training-content spec).
+// Seeded once from src/lib/trainingContent.ts plus the private answer key (see src/lib/trainingAnswers.ts).
 
 // Who may edit content / mark besides the platform admin: 'programme_team' edits and marks;
 // 'lead_validator' only marks (until Lead Validator can be derived from validation history).
