@@ -4,6 +4,7 @@
 // Self-check: `node src/lib/ndc.test.ts`.
 import { NDC_DATA, NDC_CHECKED } from './ndcData.ts'
 import type { NarrativeBlock } from './narrative.ts'
+import type { TargetCheck } from './netZero.ts'
 
 export const NDC_SECTORS = {
   energy: 'Energy', transport: 'Transport', buildings: 'Buildings', industry: 'Industry', agriculture: 'Agriculture',
@@ -68,7 +69,8 @@ export interface NdcContribution {
 
 const names = (s: NdcSector[]) => s.map((x) => NDC_SECTORS[x].toLowerCase()).join(', ')
 
-export function assessContribution(jurisdiction: string, profile: ContributionProfile): NdcContribution | null {
+/** `target` is the organisation's net-zero target check (the ESG net-zero card), when it has entered one. */
+export function assessContribution(jurisdiction: string, profile: ContributionProfile, target: TargetCheck | null = null): NdcContribution | null {
   const record = NDCS[jurisdiction]
   if (!record) return null
   const mitigationMatches = profile.types.includes('mitigation') ? profile.sectors.filter((s) => record.mitigation.includes(s)) : []
@@ -78,6 +80,11 @@ export function assessContribution(jurisdiction: string, profile: ContributionPr
   const statements: string[] = []
   if (!profile.types.length) statements.push('Choose how the organisation contributes (mitigation, adaptation, or finance and capacity) to see how it relates to the NDC.')
   if (mitigationMatches.length) statements.push(`Its emission reductions in ${names(mitigationMatches)} contribute to the NDC's mitigation priorities.`)
+  if (profile.types.includes('mitigation') && target?.verdict === 'aligned') {
+    statements.push("Its emissions-reduction target meets the science-based benchmark (SBTi near-term rate), so the target is aligned with the NDC's mitigation goal.")
+  } else if (profile.types.includes('mitigation') && target?.verdict === 'short') {
+    statements.push(`Its emissions-reduction target falls short of the science-based benchmark by ${target.gapPct} percentage points; strengthening it would bring it into line with the NDC's mitigation goal.`)
+  }
   if (adaptationMatches.length) statements.push(`Its resilience work in ${names(adaptationMatches)} is aligned with the NDC's adaptation priorities.`)
   if (profile.types.includes('finance-capacity')) statements.push('Its finance, technology or capacity-building support contributes to the means of implementing the NDC.')
   if (outside.length) statements.push(`Not named as a priority sector in the NDC analysis: ${names(outside)}. Describe the link in your own words if there is one.`)
