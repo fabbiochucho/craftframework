@@ -14,6 +14,9 @@ import {
 } from '../lib/esg'
 import { REGULATORY_PILLARS, JurisdictionId } from '../lib/regulatory-context'
 import { MaterialityLens, MATERIALITY_LABEL } from '../lib/issb'
+import { assessContribution } from '../lib/ndc'
+import { NDC_KEY, emptyNdcSettings, type NdcSettings } from '../components/NdcContributionCard'
+import { jurisdictionName } from '../lib/laws/types'
 import { buildNarrativeDocument, buildNarrativeHtml, NarrativeBlock, NarrativeOrgContext } from '../lib/narrative'
 import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Table, Thead, Tbody, Th, Td } from '../components/ui'
 import { cn } from '../lib/utils'
@@ -53,6 +56,9 @@ export function NarrativeReportPage() {
   const { scores, implementationEvidence } = useScoresCtx()
   const { timeline } = useCIPCtx()
   const { entityProfile } = useEntityProfileCtx()
+  const [ndcSettings] = useLegacyAssessment<NdcSettings>(NDC_KEY, () => emptyNdcSettings(entityProfile.country))
+  // The NDC section appears once the organisation has said how it contributes.
+  const ndcContribution = useMemo(() => ndcSettings.types.length ? assessContribution(ndcSettings.country, ndcSettings) : null, [ndcSettings])
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const [esgEvidence] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
 
@@ -103,13 +109,14 @@ export function NarrativeReportPage() {
     esgGaps,
     cipFindings,
     scopeEmissions: { scope3State: 'not_tracked' },
+    ndc: ndcContribution ? { contribution: ndcContribution, countryName: jurisdictionName(ndcSettings.country) } : undefined,
   }
 
   const doc = useMemo(() => buildNarrativeDocument(ctx), [
     ctx.orgName, ctx.archetype, ctx.country, ctx.businessSector, selectedJurisdictions.join(','),
     ctx.regSector, ctx.compositeScore, ctx.accreditationLevel, ctx.implementationEvidence, ctx.planMonths, ctx.planPace,
     // Depend on the lists themselves, not their lengths, so a changed gap or action is never shown stale.
-    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings,
+    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings, ndcContribution,
   ])
 
   function download() {
