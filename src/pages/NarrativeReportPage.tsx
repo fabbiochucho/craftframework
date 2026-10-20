@@ -15,6 +15,7 @@ import {
 import { REGULATORY_PILLARS, JurisdictionId } from '../lib/regulatory-context'
 import { MaterialityLens, MATERIALITY_LABEL } from '../lib/issb'
 import { assessContribution } from '../lib/ndc'
+import { checkTarget, targetFromSaved, type SavedTarget } from '../lib/netZero'
 import { NDC_KEY, emptyNdcSettings, type NdcSettings } from '../components/NdcContributionCard'
 import { jurisdictionName } from '../lib/laws/types'
 import { buildNarrativeDocument, buildNarrativeHtml, NarrativeBlock, NarrativeOrgContext } from '../lib/narrative'
@@ -58,7 +59,8 @@ export function NarrativeReportPage() {
   const { entityProfile } = useEntityProfileCtx()
   const [ndcSettings] = useLegacyAssessment<NdcSettings>(NDC_KEY, () => emptyNdcSettings(entityProfile.country))
   // The NDC section appears once the organisation has said how it contributes.
-  const ndcContribution = useMemo(() => ndcSettings.types.length ? assessContribution(ndcSettings.country, ndcSettings) : null, [ndcSettings])
+  const [savedTarget] = useLegacyAssessment<SavedTarget>('esg:netzero', {})
+  const ndcContribution = useMemo(() => ndcSettings.types.length ? assessContribution(ndcSettings.country, ndcSettings, checkTarget(targetFromSaved(savedTarget))) : null, [ndcSettings, savedTarget])
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const [esgEvidence] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
 
