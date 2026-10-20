@@ -3,7 +3,7 @@ import {
   Calendar, Bell, AlertTriangle, ShieldCheck, Plus, X, CheckCircle2,
   ArrowUpDown, FolderClock, Building2, Filter,
 } from 'lucide-react'
-import { useAuthCtx, useAuditCtx } from '../lib/context'
+import { useAuthCtx, useAuditCtx, useWorkspace } from '../lib/context'
 import * as api from '../lib/api'
 import {
   Card, CardContent, Button, Badge, Input, Select, Stat, Toast,
@@ -11,6 +11,7 @@ import {
 } from '../components/ui'
 import { cn } from '../lib/utils'
 import { ComplianceCalendarPage } from './ComplianceCalendarPage'
+import { StatutoryFilingsCard } from '../components/StatutoryFilingsCard'
 import {
   Obligation, ObligationStream, ObligationType, ObligationFrequency,
   OBLIGATION_TYPE_LABEL, STREAM_LABEL, FREQUENCY_LABEL, FREQUENCY_OPTIONS,
@@ -49,6 +50,7 @@ export function ObligationsPage() {
 
 function ObligationsRegisterSection() {
   const { currentUser, isDemo } = useAuthCtx()
+  const { readOnly } = useWorkspace()
   const { logActivity } = useAuditCtx()
 
   // Demo sessions are seeded with illustrative Pan-African obligations; a live
@@ -160,6 +162,8 @@ function ObligationsRegisterSection() {
           <Plus className="h-4 w-4" /> Add Obligation
         </Button>
       </div>
+
+      <StatutoryFilingsCard existing={obligations} onAdd={addObligations} readOnly={readOnly} />
 
       {/* Header metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
