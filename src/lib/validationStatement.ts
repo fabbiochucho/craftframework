@@ -4,7 +4,7 @@
 // Pure helpers shared by /api/public/validation, the statement PDF and the
 // public page. The standard wording is the spec's, verbatim (it gets a lawyer
 // review before launch, so keep it in ONE place). See
-// docs/superpowers/specs/2026-10-16-validator-system.md ("Public verification
+// craft-internal/docs/superpowers/specs/2026-10-16-validator-system.md ("Public verification
 // page and statement PDF").
 // ============================================================================
 
