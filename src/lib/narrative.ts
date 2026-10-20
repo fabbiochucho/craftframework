@@ -27,6 +27,7 @@ import {
 } from './regulatory-context'
 import { DISCLOSURE_PILLARS, MaterialityLens, MATERIALITY_LABEL, ScopeEmissions, scope3RedFlag } from './issb'
 import type { EsgGap, EsgBadge } from './esg'
+import { ndcNarrativeBlocks, type NdcContribution } from './ndc'
 
 // ----------------------------------------------------------------------------
 // Input: everything the generator reads from the entity's real CRAFT data.
@@ -56,6 +57,8 @@ export interface NarrativeOrgContext {
   esgStage?: string
   cipFindings: DerivedFinding[]
   scopeEmissions: ScopeEmissions
+  /** The organisation's contribution to its country's NDC, when it has described one. */
+  ndc?: { contribution: NdcContribution; countryName: string }
 }
 
 // ----------------------------------------------------------------------------
@@ -270,6 +273,7 @@ export function buildNarrativeDocument(ctx: NarrativeOrgContext): NarrativeDocum
       sectionGapAssessment(ctx, requirements),
       sectionDataSystems(ctx),
       sectionFirstReportingYear(ctx),
+      ...(ctx.ndc ? [{ id: 'ndc', number: 9, title: `Contribution to ${ctx.ndc.countryName}'s Nationally Determined Contribution`, blocks: ndcNarrativeBlocks(ctx.ndc.contribution, ctx.ndc.countryName) }] : []),
     ],
   }
 }
