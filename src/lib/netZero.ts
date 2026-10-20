@@ -52,6 +52,17 @@ export type TargetCheck = {
   flags: string[]
 }
 
+/** What the net-zero card saves (tenant key esg:netzero): any field may be missing while the user is typing. */
+export type SavedTarget = Partial<Record<keyof TargetInput, number | boolean>>
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
+export function targetFromSaved(s: SavedTarget | null | undefined): TargetInput {
+  const v = s && typeof s === 'object' ? s : {}
+  return {
+    baseYear: num(v.baseYear) ?? 0, baseEmissions: num(v.baseEmissions) ?? 0, targetYear: num(v.targetYear) ?? 0, targetReductionPct: num(v.targetReductionPct) ?? 0,
+    netZeroYear: num(v.netZeroYear), longTermReductionPct: num(v.longTermReductionPct), creditsCountedTowardsTarget: v.creditsCountedTowardsTarget === true,
+  }
+}
+
 const round = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d
 
 export function checkTarget(i: TargetInput): TargetCheck {

@@ -4,6 +4,7 @@ import { useEntityProfileCtx, useWorkspace } from '../lib/context'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { NDCS, NDC_SECTORS, CONTRIBUTION_TYPES, assessContribution, type ContributionProfile, type ContributionType, type NdcSector } from '../lib/ndc'
 import { jurisdictionName } from '../lib/laws/types'
+import { checkTarget, targetFromSaved, type SavedTarget } from '../lib/netZero'
 
 export type NdcSettings = ContributionProfile & { country: string }
 export const NDC_KEY = 'esg:ndc'
@@ -16,7 +17,9 @@ export function NdcContributionCard() {
   const { entityProfile } = useEntityProfileCtx()
   const { readOnly } = useWorkspace()
   const [s, setS] = useLegacyAssessment<NdcSettings>(NDC_KEY, () => emptyNdcSettings(NDCS[entityProfile.country] ? entityProfile.country : 'NG'))
-  const c = assessContribution(s.country, s)
+  const [savedTarget] = useLegacyAssessment<SavedTarget>('esg:netzero', {})
+  const target = checkTarget(targetFromSaved(savedTarget))
+  const c = assessContribution(s.country, s, target)
   const r = c?.record
   const set = (patch: Partial<NdcSettings>) => !readOnly && setS({ ...s, ...patch })
   return (
@@ -57,6 +60,7 @@ export function NdcContributionCard() {
           ))}
         </fieldset>
         {c && <ul className="list-disc space-y-1 pl-5 text-slate-800">{c.statements.map((t) => <li key={t}>{t}</li>)}</ul>}
+        {s.types.includes('mitigation') && target.verdict === 'invalid' && <p className="text-xs text-slate-500">Add your emissions-reduction target in the ESG assessment's net-zero target check to see whether it is aligned with the NDC's mitigation goal.</p>}
         {c && <div className="space-y-1 text-xs text-slate-500">{c.caveats.map((t) => <p key={t}>{t}</p>)}
           <p>Source: <a className="underline" href={c.record.source.registry} target="_blank" rel="noreferrer">UNFCCC NDC Registry</a>; targets and sectors as analysed by Climate Watch (WRI), checked {c.record.source.checked}. Confirm against the NDC document.</p></div>}
       </CardContent>

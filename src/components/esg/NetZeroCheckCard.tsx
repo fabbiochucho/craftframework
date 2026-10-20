@@ -2,22 +2,18 @@ import { useState } from 'react'
 import { Target } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Input } from '../ui'
 import { useLegacyAssessment } from '../../lib/legacy-assessment'
-import { BENCHMARKS, checkTarget, type TargetInput } from '../../lib/netZero'
+import { BENCHMARKS, checkTarget, targetFromSaved, type SavedTarget, type TargetInput } from '../../lib/netZero'
 
 // Net-zero target check: how a stated Scope 1 and 2 target compares with dated 1.5°C benchmarks. Indicative only.
-type Saved = Partial<Record<keyof TargetInput, number | boolean>>
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
 
 export function NetZeroCheckCard() {
-  const [saved, setSaved] = useLegacyAssessment<Saved>('esg:netzero', {})
+  const [saved, setSaved] = useLegacyAssessment<SavedTarget>('esg:netzero', {})
   const s = saved && typeof saved === 'object' ? saved : {}
   const [open, setOpen] = useState(false)
   const set = (k: keyof TargetInput) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setSaved({ ...s, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value === '' ? undefined : Number(e.target.value) })
-  const input: TargetInput = {
-    baseYear: num(s.baseYear) ?? 0, baseEmissions: num(s.baseEmissions) ?? 0, targetYear: num(s.targetYear) ?? 0, targetReductionPct: num(s.targetReductionPct) ?? 0,
-    netZeroYear: num(s.netZeroYear), longTermReductionPct: num(s.longTermReductionPct), creditsCountedTowardsTarget: s.creditsCountedTowardsTarget === true,
-  }
+  const input = targetFromSaved(s)
   const started = input.baseYear > 0 || input.targetReductionPct > 0
   const r = checkTarget(input)
   return (
