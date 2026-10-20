@@ -2,7 +2,10 @@
 import assert from 'node:assert/strict'
 import { deriveModuleFindings, derivePlan, planTimeline } from './moduleFindings.ts'
 import { DEFAULT_TIMELINE } from './cipTimeline.ts'
-import { computeOrgScore, deriveFindings } from './data.ts'
+import { computeOrgScore, deriveFindings, MOCK_QUESTIONS, setQuestionBank } from './data.ts'
+
+// The full question text is private; placeholder text stands in for the signed-in bank.
+setQuestionBank(MOCK_QUESTIONS.map((q) => ({ ...q, question: q.question || `Question ${q.id}` })))
 
 const scores = { 'CRAFT-OHE-01': 1, 'CRAFT-OHE-02': 4, 'CRAFT-FCR-25': 0, 'CRAFT-RES-01': 0 }
 const f = deriveModuleFindings(scores, {}, 24)

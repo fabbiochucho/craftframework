@@ -4,7 +4,7 @@ import { getUser, logout as identityLogout } from '@netlify/identity'
 import { clearOfflineSession, setOfflineSession } from '../lib/offline/session'
 import { cn } from '../lib/utils'
 import { skipsOnboarding } from '../lib/onboardingRoutes'
-import { useAuthCtx, useWorkspace, useScoresCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useQuestionsCtx } from '../lib/context'
 import { Badge, Button } from './ui'
 import { Footer } from './Footer'
 import { Logo } from './Logo'
@@ -86,6 +86,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentUser, setRole, logout, onboardingComplete, enterDemo, authReady, sessionTimeout } = useAuthCtx()
   const { currentOrg, organizations, activeClientOrgId, setActiveClient, isViewingClient } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
+  const { bankStatus } = useQuestionsCtx()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouterState()
   const navigate = useNavigate()
@@ -397,7 +398,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           )}
-          <main className="flex-1 p-6 print:p-0">{mfaNeeded ? <MfaPrompt /> : children}</main>
+          <main className="flex-1 p-6 print:p-0">{mfaNeeded ? <MfaPrompt /> : bankStatus === 'loading' ? <p className="p-6 text-sm text-slate-500" role="status">Loading the assessment…</p> : (
+            <>
+              {bankStatus === 'failed' && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800" role="alert">The full question bank could not be loaded, so only sample questions are shown. Refresh the page to try again.</p>}
+              {children}
+            </>
+          )}</main>
           <div className="print:hidden"><Footer /></div>
         </div>
       </div>
