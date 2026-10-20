@@ -19,3 +19,17 @@ public/ocr/
 
 # HyperFrames render previews (generated)
 **/.hyperframes/preview/
+
+# Internal material lives in the private craft-internal repo; never commit it here.
+docs/superpowers/
+docs/governance/
+docs/product/
+docs/indices/
+docs/laws/
+docs/marketing/
+brag-output*/
+videos/
+marketing/
+AGENTS.md
+CLAUDE.local.md
+answer-key.json

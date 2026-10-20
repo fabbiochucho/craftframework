@@ -30,7 +30,7 @@ export function LawsRegisterPanel() {
       <Card>
         <CardHeader><CardTitle>Approve jurisdictions for organisation reports</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-slate-600">Approve a jurisdiction only after its entries in the review document (docs/laws/review-*.md) have been checked against their sources. All of its entries are approved together.</p>
+          <p className="text-sm text-slate-600">Approve a jurisdiction only after its entries in the internal review document have been checked against their sources. All of its entries are approved together.</p>
           {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
           <Table><Thead><tr><Th>Jurisdiction</Th><Th>Entries</Th><Th>Status</Th><Th>Action</Th></tr></Thead>
             <Tbody>{jurisdictions.map(({ id, n }) => {

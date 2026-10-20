@@ -5,7 +5,9 @@ import {
   checkPassed, drawExamQuestions, earnedBadges, examDeadline, examEligibility, examOnTime, examPassMark, exemptBody, renewalChecklist,
   renewalOpensAt, renewalWindowStart, renewedUntil, scoreExam, streakDays, wordCount, youtubeEmbedId, type RubricCriterion,
 } from './validatorTraining.ts'
-import { SEED_BADGES, SEED_CALIBRATION, SEED_MODULES, SEED_QUESTIONS, SEED_RUBRIC } from './trainingSeed.ts'
+import { OPEN_TRAINING_CONTENT as C } from './trainingContent.ts'
+const { badges: SEED_BADGES, calibration: SEED_CALIBRATION, modules: SEED_MODULES, questions: SEED_QUESTIONS } = C
+const SEED_RUBRIC = C.rubric as RubricCriterion[]
 
 const day = (s: string) => new Date(`${s}T12:00:00Z`)
 
@@ -158,7 +160,6 @@ assert.equal(SEED_BADGES.length, 5, 'Mentor is deferred')
 assert.ok(!SEED_BADGES.some((b) => /mentor|volume|speed|fee/i.test(b.key)))
 assert.equal(SEED_QUESTIONS.filter((q) => q.forExam).length, 20, 'the 20 starter questions feed the exam')
 for (const md of SEED_MODULES) assert.equal(SEED_QUESTIONS.filter((q) => q.moduleId === md.id && q.forCheck).length, 5, `${md.id} has five check questions`)
-for (const qu of SEED_QUESTIONS) assert.ok(qu.correctIndex >= 0 && qu.correctIndex < qu.options.length, qu.id)
-for (const md of SEED_MODULES) assert.ok(md.scenario.choices.some((c) => c.best), `${md.id} scenario has a best choice`)
+// Answer checks (valid correct options, a best scenario choice) run in craft-internal, where the answer key lives.
 assert.ok(SEED_CALIBRATION.length >= 20, 'enough items that renewal drills draw fresh ones')
 console.log('validatorTraining.test.ts: all assertions passed')
