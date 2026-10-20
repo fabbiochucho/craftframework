@@ -11,7 +11,7 @@
 // Identity sessions, so no production auth is weakened.
 import http from 'node:http'
 // @ts-ignore -- resolved at runtime by tests/integration/hooks.mjs
-import { applyMigrations, loadHandler, rows, truncateAll } from '../integration/harness.ts'
+import { applyMigrations, loadHandler, placeholderQuestionBank, rows, truncateAll } from '../integration/harness.ts'
 
 // The app and API are same-origin in production; mirror that for the origin check.
 const WEB_ORIGIN = process.env.E2E_WEB_ORIGIN ?? 'http://localhost:3000'
@@ -33,6 +33,7 @@ function identityFromCookie(header: string | undefined): { id: string; email: st
 }
 
 await applyMigrations()
+placeholderQuestionBank()
 const handler = await loadHandler('e2e')
 const als = (globalThis as any).__craftTestIdentityAls
 const legacyHandlers = new Map<string, (request: Request) => Promise<Response>>()

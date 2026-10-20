@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 // The runtime hooks redirect this import to the test pool; TS cannot see that.
 // @ts-ignore -- resolved by tests/integration/hooks.mjs
 import { pool } from './testDb.ts'
+import { QUESTION_INDEX } from '../../src/lib/questionIndex.ts'
 
 // Keys are generated at runtime so no credential-shaped value is ever committed.
 process.env.FIELD_ENCRYPTION_KEY ??= randomBytes(32).toString('base64')
@@ -40,6 +41,15 @@ export async function truncateAll(): Promise<void> {
   const tables = rows.map((r: { tablename: string }) => `"${r.tablename}"`).join(', ')
   if (tables) await pool.query(`TRUNCATE ${tables} RESTART IDENTITY CASCADE`)
   blobStores().clear()
+  placeholderQuestionBank()
+}
+
+// The real question bank is private; tests seed the database from a placeholder with the real structure.
+export function placeholderQuestionBank(): void {
+  const bank = QUESTION_INDEX.map((q) => ({
+    question: `Question ${q.id}?`, insight: '', evidence: [], verificationMethod: '', capacityAction: 'Placeholder action', donorLink: '', nationalLink: '', ...q,
+  }))
+  blobStores().set('questions-private', new Map([['bank', { bytes: Buffer.from(JSON.stringify(bank)) }]]))
 }
 
 export async function rows<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {

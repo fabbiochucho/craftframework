@@ -3,6 +3,7 @@ import {
   MOCK_ORGANIZATIONS,
   MOCK_PORTFOLIOS,
   MOCK_QUESTIONS,
+  setQuestionBank,
   Question,
   Organization,
   Portfolio,
@@ -185,6 +186,8 @@ interface ScoresContextType {
 
 interface QuestionsContextType {
   questions: Question[]
+  /** 'ready' once the full bank has loaded (or straight away in the demo); 'failed' leaves only the demo sample. */
+  bankStatus: 'loading' | 'ready' | 'failed'
 }
 
 interface AccessContextType {
@@ -319,9 +322,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // `scores` and hydrated from the Trust Delta detail columns.
   const [assessorScores, setAssessorScores] = useState<Record<string, Record<string, number>>>({})
   const [scoreAttribution, setScoreAttribution] = useState<Record<string, Record<string, string>>>({})
-  // The question bank, hydrated from the database on mount. Starts from the
-  // in-code bank so the wizard renders instantly, then is replaced by the
-  // DB-served copy (identical data, but now the persisted source of truth).
+  // The question bank: the public index (demo sample text only) until the full
+  // bank loads from the database after sign-in.
   const [questions, setQuestions] = useState<Question[]>(MOCK_QUESTIONS)
   // Live workspaces start with NO institutions or portfolios - the seeded mock
   // data is reserved for the throwaway demo session only.
@@ -372,17 +374,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const readOnlyRef = useRef(false)
   readOnlyRef.current = readOnly
 
-  // Load the question bank from the database once on mount. The endpoint lazily
-  // seeds a fresh database from the canonical code bank on first call.
+  // The full question bank is private: load it once a real user has signed in. Until then (and in the demo)
+  // the wizard works from the public index's sample questions.
+  const questionsFor = currentUser && !currentUser.isDemo ? currentUser.email : null
+  const [bankLoadedFor, setBankLoadedFor] = useState<{ email: string; ok: boolean } | null>(null)
+  const bankStatus: QuestionsContextType['bankStatus'] = !questionsFor ? 'ready'
+    : bankLoadedFor?.email !== questionsFor ? 'loading' : bankLoadedFor.ok ? 'ready' : 'failed'
   useEffect(() => {
+    if (!questionsFor) return
     let active = true
     api.fetchQuestions().then(rows => {
-      if (active && rows && rows.length) setQuestions(rows)
+      if (!active) return
+      if (rows && rows.length) {
+        setQuestionBank(rows)
+        setQuestions(MOCK_QUESTIONS)
+      }
+      setBankLoadedFor({ email: questionsFor, ok: !!rows?.length })
     })
     return () => {
       active = false
     }
-  }, [])
+  }, [questionsFor])
 
   // Hydrate a live (non-demo) workspace from the database whenever a different
   // tenant signs in. Demo sessions stay entirely in-memory by design. Runs once
@@ -1261,7 +1273,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [scores, updateScore, getScore, bulkImportScores, assessorScores, updateAssessorScore, getAssessorScore, scoreAttribution, implementationEvidence, refreshScores],
   )
 
-  const questionsValue = useMemo<QuestionsContextType>(() => ({ questions }), [questions])
+  const questionsValue = useMemo<QuestionsContextType>(() => ({ questions, bankStatus }), [questions, bankStatus])
 
   const accessValue = useMemo<AccessContextType>(
     () => ({
