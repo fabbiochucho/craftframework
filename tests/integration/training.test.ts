@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
+import { getStore } from '@netlify/blobs'
 import { rows, truncateAll } from './harness.ts'
+import { OPEN_TRAINING_CONTENT } from '../../src/lib/trainingContent.ts'
+import { syntheticAnswerKey } from '../../src/lib/trainingAnswers.ts'
 
 const directory = (await import(new URL('../../netlify/functions/directory.mts', import.meta.url).href)).default
 const training = (await import(new URL('../../netlify/functions/training.mts', import.meta.url).href)).default
@@ -83,6 +86,8 @@ const RUBRIC_ALL = (n: number) => ({ independence: n, scoring: n, evidence: n, o
 describe('validator training and accreditation', () => {
   beforeEach(async () => {
     await truncateAll()
+    // The real answer key is private; a placeholder key lets the content seed here.
+    await getStore('training-private').setJSON('answer-key', syntheticAnswerKey(OPEN_TRAINING_CONTENT))
     await t(ADMIN, 'GET', 'me') // seeds the programme content
     assert.equal((await t(ADMIN, 'PUT', `manage/staff/${TEAM}`, { role: 'programme_team' })).status, 200)
     assert.equal((await t(ADMIN, 'PUT', `manage/staff/${LEAD}`, { role: 'lead_validator' })).status, 200)
@@ -140,12 +145,14 @@ describe('validator training and accreditation', () => {
     assert.ok(mod.checkQuestions.every((q: any) => !('correctIndex' in q) && !('explanation' in q)))
     assert.equal((await t(LEARNER, 'POST', 'modules/m4/watch')).status, 200)
     // Try: conflict spotter (a perfect score is remembered for the Clear Conscience badge).
-    const wrong = await t(LEARNER, 'POST', 'modules/m4/try/0', { answers: [1, 1, 1, 1, 1, 1] })
-    assert.equal(wrong.body.score, 2)
+    const [m4] = await rows("SELECT exercises, scenario FROM training_modules WHERE id = 'm4'")
+    const m4Key: number[] = m4.exercises[0].items.map((i: any) => i.correct)
+    const wrong = await t(LEARNER, 'POST', 'modules/m4/try/0', { answers: m4Key.map((c) => (c === 0 ? 1 : 0)) })
+    assert.equal(wrong.body.score, 0)
     assert.ok(wrong.body.items.every((i: any) => 'explain' in i))
-    const right = await t(LEARNER, 'POST', 'modules/m4/try/0', { answers: [0, 0, 0, 1, 0, 1] })
-    assert.equal(right.body.score, 6)
-    const decide = await t(LEARNER, 'POST', 'modules/m4/decide', { choice: 0 })
+    const right = await t(LEARNER, 'POST', 'modules/m4/try/0', { answers: m4Key })
+    assert.equal(right.body.score, m4Key.length)
+    const decide = await t(LEARNER, 'POST', 'modules/m4/decide', { choice: m4.scenario.choices.findIndex((c: any) => !c.best) })
     assert.equal(decide.body.best, false); assert.ok(decide.body.consequence)
     // Check: unlimited retries with explanations; four of five passes.
     const ids = mod.checkQuestions.map((q: any) => q.id)

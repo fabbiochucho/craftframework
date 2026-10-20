@@ -4,7 +4,7 @@
 // Shared vocabulary and pure rules for validator profiles, validator firms,
 // funding partners and the organisation opt-in listing. Used by both the
 // /api/directory function and the directory pages. See
-// docs/superpowers/specs/2026-10-16-validator-system.md.
+// craft-internal/docs/superpowers/specs/2026-10-16-validator-system.md.
 // ============================================================================
 
 export const FIRM_NATURES = [

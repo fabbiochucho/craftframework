@@ -1,6 +1,6 @@
 // Launch campaign content for craftframework.becomechange.institute.
 // Single source of truth for the /launch press kit page AND the generated
-// marketing/launch-copy.md (see marketing/scripts/build-assets.mjs). Keep this
+// craft-internal/marketing/launch-copy.md (see craft-internal/marketing/scripts/build-assets.mjs). Keep this
 // file free of imports so the Node build script can load it directly.
 
 export const LAUNCH = {

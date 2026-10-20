@@ -1,6 +1,6 @@
 // Self-check: `node src/lib/laws/laws.test.ts`
 import assert from 'node:assert/strict'
-import { LAW_AREAS, LAW_JURISDICTIONS, type LawEntry } from './types.ts'
+import { CONTINENTAL_JURISDICTIONS, jurisdictionName, LAW_AREAS, LAW_JURISDICTIONS, type LawEntry } from './types.ts'
 import { registerProblems } from './validate.ts'
 import { LAW_REGISTER, lawsFor } from './register.ts'
 
@@ -62,7 +62,7 @@ const fixtures: LawEntry[] = [
 ]
 // Review Focus 1 and 3: no country; non-register ids ignored
 assert.deepEqual(reportJurisdictions('', []), [])
-assert.deepEqual(reportJurisdictions('NG', ['NG', 'EU', 'OHADA', 'GCC', 'ASIA']), ['NG', 'EU'])
+assert.deepEqual(reportJurisdictions('NG', ['NG', 'EU', 'OHADA', 'GCC', 'ASIA']), ['NG', 'EU', 'AU'], 'an African organisation also gets the continental instruments')
 assert.deepEqual(buildJurisdictionReport([], {}, {}, [], fixtures).sections, [])
 const jr = buildJurisdictionReport(['NG', 'KE'], {}, {}, [], fixtures)
 const ng = jr.sections.find((s) => s.id === 'NG')!
@@ -103,7 +103,7 @@ assert.ok(csvRows.some((r) => r[0] === 'Nigeria' && r[2] === 'Nigeria Data Prote
 console.log('laws (final review fixes): ok')
 
 // Every jurisdiction in the register covers all areas, and phase 2 entries start pending
-for (const j of new Set(LAW_REGISTER.map((e) => e.jurisdiction))) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `${j} has an entry for ${a}`)
+for (const j of new Set(LAW_REGISTER.map((e) => e.jurisdiction).filter((j) => !CONTINENTAL_JURISDICTIONS.includes(j)))) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `${j} has an entry for ${a}`)
 assert.ok(LAW_REGISTER.filter((e) => !PHASE1.includes(e.jurisdiction)).every((e) => e.review === 'pending'), 'phase 2 entries start pending')
 console.log('laws (all jurisdictions complete): ok')
 
@@ -149,4 +149,47 @@ import { currentApprovals } from './jurisdictionReport.ts'
   ]
   assert.deepEqual(currentApprovals(recs, 'CRAFT-LAW 1.2 (2026-10-18)'), ['NG'], 'an approval for an earlier register version needs re-approval')
   console.log('laws (approval versions): ok')
+}
+
+// Tightening the 46 phase 2 countries: every patch names a real entry and lands in the register
+import { PHASE2_PATCHES, TIGHTENED } from './data/phase2Tightened.ts'
+{
+  const ids = new Set(LAW_REGISTER.map((e) => e.id))
+  for (const id of Object.keys(PHASE2_PATCHES)) assert.ok(ids.has(id), `patch for unknown entry ${id}`)
+  const gh = LAW_REGISTER.find((e) => e.id === 'GH-licensing-1')!
+  assert.match(gh.citation, /Act 1173/)
+  assert.equal(gh.source.checked, TIGHTENED)
+  assert.equal(gh.review, 'pending', 'tightening never approves anything')
+  assert.ok(LAW_REGISTER.filter((e) => e.id in PHASE2_PATCHES).every((e) => registerProblems([e], new Date().toISOString().slice(0, 10)).length === 0), 'patched entries stay valid')
+  console.log('laws (phase 2 tightening): ok')
+}
+
+
+// Continental instruments: AfCFTA and the African Medicines Agency Treaty, with each country's ratification status
+import { CONTINENTAL_LAWS, RATIFICATIONS, ratificationStatus } from './data/continental.ts'
+{
+  const afcfta = LAW_REGISTER.find((e) => e.jurisdiction === 'AU' && /Continental Free Trade Area/.test(e.title))!
+  const ama = LAW_REGISTER.find((e) => e.jurisdiction === 'AU' && /African Medicines Agency/.test(e.title))!
+  assert.ok(afcfta && ama, 'both continental instruments are in the register')
+  assert.match(afcfta.reformNote ?? '', /Competition Policy.*Investment.*Digital Trade/s, 'protocols adopted but not in force are noted, not listed as laws')
+  assert.match(ama.summary, /AMATA/, 'AMATA is mentioned as an advocacy alliance')
+  assert.ok(!LAW_REGISTER.some((e) => /AMATA|Treaty Alliance/.test(e.title)), 'AMATA is never a register entry')
+  assert.deepEqual(registerProblems(CONTINENTAL_LAWS, new Date().toISOString().slice(0, 10)), [])
+  assert.equal(jurisdictionName('AU'), 'African Union (continental)')
+  // Ratification status for every African country, from dated sources
+  for (const c of LAW_JURISDICTIONS.filter((j) => !['EU', 'UK', 'US'].includes(j))) {
+    for (const k of ['afcfta', 'ama'] as const) assert.ok(typeof ratificationStatus(k, c) === 'boolean', `${k} status for ${c}`)
+  }
+  assert.equal(ratificationStatus('afcfta', 'NG'), true); assert.equal(ratificationStatus('afcfta', 'BJ'), false); assert.equal(ratificationStatus('afcfta', 'ER'), false)
+  assert.equal(ratificationStatus('ama', 'KE'), true); assert.equal(ratificationStatus('ama', 'NG'), false); assert.equal(ratificationStatus('ama', 'ZA'), false)
+  assert.equal(ratificationStatus('ama', 'US'), null, 'not an AU member')
+  assert.ok(RATIFICATIONS.afcfta.asOf && RATIFICATIONS.ama.asOf && RATIFICATIONS.ama.source)
+  // Reports: an African organisation gets the continental section, with its own countries' status on each instrument
+  assert.deepEqual(reportJurisdictions('NG', ['KE']), ['NG', 'KE', 'AU'])
+  assert.deepEqual(reportJurisdictions('US', ['UK']), ['US', 'UK'], 'no continental section for non-African organisations')
+  const rep = buildJurisdictionReport(['NG', 'BJ', 'AU'], {}, {}, [], LAW_REGISTER.map((e) => (e.jurisdiction === 'AU' ? { ...e, review: 'approved' as const } : e)))
+  const au = rep.sections.find((s) => s.id === 'AU')!
+  const row = au.areas.flatMap((a) => a.laws).find((l) => l.entry.id === afcfta.id)!
+  assert.deepEqual(row.ratification, [{ jurisdiction: 'NG', name: 'Nigeria', ratified: true }, { jurisdiction: 'BJ', name: 'Benin', ratified: false }])
+  console.log('laws (continental instruments): ok')
 }
