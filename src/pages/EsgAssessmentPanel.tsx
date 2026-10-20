@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { esgMaturity, shouldShowNewQuestionsNotice } from '../lib/esgMaturity'
 import { useAuthCtx, useWorkspace } from '../lib/context'
 import { EsgMaturityCard } from '../components/esg/EsgMaturityCard'
+import { NetZeroCheckCard } from '../components/esg/NetZeroCheckCard'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
 import {
@@ -178,6 +179,7 @@ export function EsgAssessmentPanel() {
       </div>
 
       <EsgMaturityCard m={maturity} />
+      <NetZeroCheckCard />
 
       {/* Disclaimer - a self-assessment is never a final/independent rating */}
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
