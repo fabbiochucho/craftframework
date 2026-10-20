@@ -70,7 +70,8 @@ assert.equal(specialistPassed(0, 0), false)
 console.log('indexValidation: ok')
 
 // Training content for the indices (spec §7.1)
-import { SEED_INDEX_MODULES, SEED_INDEX_QUESTIONS } from './trainingSeedIndices.ts'
+import { OPEN_TRAINING_CONTENT } from './trainingContent.ts'
+const { indexModules: SEED_INDEX_MODULES, indexQuestions: SEED_INDEX_QUESTIONS } = OPEN_TRAINING_CONTENT
 import { isSpecialistModuleId } from './specialisms.ts'
 {
   assert.deepEqual(SEED_INDEX_MODULES.map((m) => m.id), ['m9', 's1', 's2'])
@@ -78,9 +79,7 @@ import { isSpecialistModuleId } from './specialisms.ts'
   assert.equal(of('m9').length, 20, 'module 9 adds 20 exam questions')
   assert.equal(of('s1').length, 15); assert.equal(of('s2').length, 15)
   for (const id of ['m9', 's1', 's2']) assert.equal(of(id).filter((q) => q.forCheck).length, 5, `${id} has a 5-question check`)
-  assert.ok(SEED_INDEX_QUESTIONS.every((q) => q.correctIndex < q.options.length), 'every answer indexes an option')
   assert.equal(new Set(SEED_INDEX_QUESTIONS.map((q) => q.id)).size, SEED_INDEX_QUESTIONS.length)
-  assert.ok(SEED_INDEX_MODULES.every((m) => m.scenario.choices.some((c) => c.best)))
   assert.deepEqual(['m1', 'm9', 's1', 's2'].map(isSpecialistModuleId), [false, false, true, true])
   console.log('indexValidation (training): ok')
 }

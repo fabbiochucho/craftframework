@@ -2,7 +2,7 @@
 // CRAFT validator system — validity, statuses, material events, follow-ups (PR 5)
 // ----------------------------------------------------------------------------
 // Pure rules shared by /api/validations, the daily reminder job and the pages.
-// Dates are handled in UTC. See docs/superpowers/specs/2026-10-16-validator-system.md
+// Dates are handled in UTC. See craft-internal/docs/superpowers/specs/2026-10-16-validator-system.md
 // ("Validity and statuses", "CIP and the follow-up schedule").
 // ============================================================================
 
