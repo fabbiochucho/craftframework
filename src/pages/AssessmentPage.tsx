@@ -84,6 +84,7 @@ export function AssessmentPage() {
             <Lock className="h-4 w-4 text-emerald-600" /> Assessment Wizard
           </p>
           <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">5-Tier Capacity Assessment</h1>
+          {currentUser?.isDemo && <p className="mt-1 text-sm text-slate-600">The demo shows a sample of {inScope.length} questions. Create an account to take the full assessment.</p>}
           <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
             <Layers className="h-3.5 w-3.5" /> Assessing Scope: {scopeLabel(activeLenses)}
           </span>

@@ -1,16 +1,18 @@
 // ============================================================================
 // Database seeding helpers
 // ----------------------------------------------------------------------------
-// Bridges the canonical in-code definitions (the 450-question master bank in
-// data.ts and the obligation templates in obligations.ts) into the Netlify
-// Database. Seeding is idempotent: questions are upserted by id, so running it
-// repeatedly is safe and keeps the bank in sync with the code.
+// Seeds the Netlify Database question bank. The bank's text is private: it is
+// read from the site's private blob store (questions-private / bank, uploaded
+// from craft-internal), never from the public code, which holds only each
+// question's structure. Without the private bank nothing is written, so the
+// database copy can never be blanked. Upserts are idempotent by id.
 // ============================================================================
 
 import { db } from '../../db/index.js'
 import { questions, type QuestionRow } from '../../db/schema.js'
 import { sql } from 'drizzle-orm'
-import { MOCK_QUESTIONS, type Question } from './data'
+import { getStore } from '@netlify/blobs'
+import type { Question } from './data'
 
 // Map a front-end Question into a questions table row.
 function toRow(q: Question): QuestionRow {
@@ -57,15 +59,26 @@ export function rowToQuestion(r: QuestionRow): Question {
     priority: (r.priority as Question['priority']) ?? 'Moderate',
     riskCategory: r.riskCategory ?? undefined,
     lens: (r.lens as Question['lens']) ?? undefined,
-    archetypes: (r.archetypes as Question['archetypes']) ?? undefined,
+    // An empty list means "every archetype", the same as no list.
+    archetypes: (r.archetypes as Question['archetypes'])?.length ? (r.archetypes as Question['archetypes']) : undefined,
     scoringGuide: r.scoringGuide ?? undefined,
     requiredDataRoomDoc: r.requiredDataRoomDoc ?? undefined,
   }
 }
 
-// Upsert the entire question bank. Returns the number of questions seeded.
+export const QUESTION_BANK_STORE = 'questions-private'
+
+// The full bank from the private blob store, or null when it has not been uploaded.
+async function privateBank(): Promise<Question[] | null> {
+  const bank = await getStore(QUESTION_BANK_STORE).get('bank', { type: 'json' }) as Question[] | null
+  return Array.isArray(bank) && bank.length && bank.every((q) => q.id && q.question) ? bank : null
+}
+
+// Upsert the entire question bank from the private store. Returns the number of questions seeded (0 without it).
 export async function seedQuestions(): Promise<number> {
-  const rows = MOCK_QUESTIONS.map(toRow)
+  const bank = await privateBank()
+  if (!bank) { console.warn('questions: no private bank in the questions-private blob store; nothing seeded'); return 0 }
+  const rows = bank.map(toRow)
   // Insert in chunks to stay well under parameter limits.
   const CHUNK = 100
   for (let i = 0; i < rows.length; i += CHUNK) {
