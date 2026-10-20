@@ -12,6 +12,7 @@ import {
   MATERIALITY_LABEL, MaterialityLens, HIGH_IMPACT_SECTORS,
   ScopeEmissions, EmissionState, scope3RedFlag,
 } from '../lib/issb'
+import { NdcContributionCard } from '../components/NdcContributionCard'
 
 // ISSB S1/S2 + EU CSRD sustainability disclosure surface, structured around the
 // 4 TCFD-aligned pillars with a climate-scenario visualizer and Scope 1/2/3
@@ -84,11 +85,14 @@ export function IssbDisclosuresPage() {
             { id: 'pillars', label: '4 Pillars' },
             { id: 'scenario', label: 'Climate Scenario Analysis' },
             { id: 'emissions', label: 'Scope 1/2/3 Metrics' },
+            { id: 'ndc', label: 'National NDC' },
           ]}
           active={tab}
           onChange={setTab}
         />
       </div>
+
+      {tab === 'ndc' && <NdcContributionCard />}
 
       {tab === 'pillars' && (
         <div className="grid gap-4 md:grid-cols-2">
