@@ -10,7 +10,7 @@ for (const s of ESG_STAGES) for (const id of s.criteria) assert.ok(ESG_QUESTIONS
 
 // Nothing answered
 const none = esgMaturity({}, {})
-assert.equal(none.stage, 0); assert.equal(none.next!.n, 1); assert.equal(none.unanswered, 20); assert.equal(none.provisional, false)
+assert.equal(none.stage, 0); assert.equal(none.next!.n, 1); assert.equal(none.unanswered, 24); assert.equal(none.provisional, false)
 // Everything at 3 with evidence: stage 5 confirmed, not provisional
 const top = esgMaturity(all(3), fullEvidence)
 assert.equal(top.stage, 5); assert.equal(top.confirmed, true); assert.equal(top.provisional, false); assert.equal(top.next, null); assert.deepEqual(top.missing, [])
@@ -27,8 +27,8 @@ const legacy = Object.fromEntries(['ESG-E1', 'ESG-E2', 'ESG-E3', 'ESG-E4', 'ESG-
 const l = esgMaturity(legacy, fullEvidence)
 assert.equal(l.stage, 4, 'stage 5 has no answers yet, so it is not reached')
 assert.equal(l.provisional, true)
-assert.equal(l.toConfirm, 6, 'G5, E5, N1, N2, G6, N3 unanswered up to stage 4')
-assert.equal(l.unanswered, 8)
+assert.equal(l.toConfirm, 9, 'G5, E5, N1, N2, G6, N3 and net-zero Z1, Z2, Z4 unanswered up to stage 4')
+assert.equal(l.unanswered, 12)
 assert.ok(l.missing.some((q) => q.id === 'ESG-G5'))
 // A stage with no answers at all is not reached
 assert.equal(esgMaturity({ 'ESG-E3': 4 }, {}).stage, 1)
@@ -37,11 +37,11 @@ assert.ok(!/\b(compliant|certified)\b/i.test(JSON.stringify(ESG_STAGES)))
 import { stageLabel } from './esgMaturity.ts'
 assert.equal(stageLabel(none), 'Not yet at Foundations')
 assert.equal(stageLabel(top), 'Stage 5: Systemic leadership')
-assert.equal(stageLabel(l), 'Stage 4: Integrated value (provisional — answer 6 remaining questions to confirm)')
+assert.equal(stageLabel(l), 'Stage 4: Integrated value (provisional — answer 9 remaining questions to confirm)')
 assert.equal(stageLabel(esgMaturity(all(4), {})), 'Stage 5: Systemic leadership (self-reported — add evidence to confirm)')
 // Minor fixes: the new-questions notice is for organisations that answered the original assessment
 import { NEW_ESG_IDS, shouldShowNewQuestionsNotice } from './esgMaturity.ts'
-assert.equal(NEW_ESG_IDS.length, 8)
+assert.equal(NEW_ESG_IDS.length, 12, 'eight maturity questions and four net-zero questions')
 assert.equal(shouldShowNewQuestionsNotice({}), false)
 assert.equal(shouldShowNewQuestionsNotice({ 'ESG-N1': 3 }), false, 'a new user who only answered a new question')
 assert.equal(shouldShowNewQuestionsNotice({ 'ESG-E1': 3 }), true, 'answered an original question, new ones pending')

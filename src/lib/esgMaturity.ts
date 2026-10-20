@@ -6,10 +6,10 @@ import { ESG_QUESTIONS, pillarEvidenceScore, RATED_QUESTION_IDS, type EsgPillar,
 export interface EsgStage { n: 1 | 2 | 3 | 4 | 5; name: string; summary: string; criteria: string[] }
 export const ESG_STAGES: EsgStage[] = [
   { n: 1, name: 'Foundations', summary: 'Policies, legal permits, fair labour, ethics and board oversight in place; material issues identified.', criteria: ['ESG-E3', 'ESG-S1', 'ESG-G1', 'ESG-G2', 'ESG-G5'] },
-  { n: 2, name: 'Efficiency', summary: 'Emissions, energy, water and waste measured and managed, with reduction targets; safe workplaces.', criteria: ['ESG-E1', 'ESG-E2', 'ESG-E5', 'ESG-S2'] },
+  { n: 2, name: 'Efficiency', summary: 'Emissions, energy, water and waste measured and managed, with reduction targets; safe workplaces.', criteria: ['ESG-E1', 'ESG-E2', 'ESG-E5', 'ESG-S2', 'ESG-Z2'] },
   { n: 3, name: 'Resilience', summary: 'Climate and nature risks assessed, risk management formalised, affected communities engaged.', criteria: ['ESG-E4', 'ESG-N1', 'ESG-N2', 'ESG-G3', 'ESG-S4'] },
-  { n: 4, name: 'Integrated value', summary: 'Sustainability built into strategy, budget and board oversight, with regular disclosure and nature and climate targets.', criteria: ['ESG-G4', 'ESG-G6', 'ESG-N3', 'ESG-S3'] },
-  { n: 5, name: 'Systemic leadership', summary: 'Working with the value chain on emissions and nature, and contributing to sector or SDG-level change.', criteria: ['ESG-V1', 'ESG-V2'] },
+  { n: 4, name: 'Integrated value', summary: 'Sustainability built into strategy, budget and board oversight, with regular disclosure and nature and climate targets.', criteria: ['ESG-G4', 'ESG-G6', 'ESG-N3', 'ESG-S3', 'ESG-Z1', 'ESG-Z4'] },
+  { n: 5, name: 'Systemic leadership', summary: 'Working with the value chain on emissions and nature, and contributing to sector or SDG-level change.', criteria: ['ESG-V1', 'ESG-V2', 'ESG-Z3'] },
 ]
 /** "Partial" on the 0–4 evidence scale, as scaled to 0–5 by `pillarEvidenceScore`. */
 export const EVIDENCE_CONFIRM_THRESHOLD = 2.5
@@ -72,7 +72,7 @@ export function stageLabel(m: EsgMaturity): string {
 }
 
 /** The eight questions added in October 2026 (maturity, nature, value chain). */
-export const NEW_ESG_IDS = ['ESG-G5', 'ESG-E5', 'ESG-N1', 'ESG-N2', 'ESG-N3', 'ESG-G6', 'ESG-V1', 'ESG-V2']
+export const NEW_ESG_IDS = ['ESG-G5', 'ESG-E5', 'ESG-N1', 'ESG-N2', 'ESG-N3', 'ESG-G6', 'ESG-V1', 'ESG-V2', 'ESG-Z1', 'ESG-Z2', 'ESG-Z3', 'ESG-Z4']
 /** Show the "new questions added" notice only to organisations that answered the original assessment and still have new ones open. */
 export const shouldShowNewQuestionsNotice = (scores: Record<string, number>): boolean =>
   RATED_QUESTION_IDS.some((id) => id in scores) && NEW_ESG_IDS.some((id) => !(id in scores))
