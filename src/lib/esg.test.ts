@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import { ESG_QUESTIONS } from './esg.ts'
 
 const NEW = ['ESG-G5', 'ESG-E5', 'ESG-N1', 'ESG-N2', 'ESG-N3', 'ESG-G6', 'ESG-V1', 'ESG-V2']
-assert.equal(ESG_QUESTIONS.length, 20)
+assert.equal(ESG_QUESTIONS.length, 24, '20 plus the four net-zero criteria')
 for (const id of NEW) assert.ok(ESG_QUESTIONS.some((q) => q.id === id), `question ${id}`)
-assert.equal(new Set(ESG_QUESTIONS.map((q) => q.id)).size, 20, 'unique ids')
+assert.equal(new Set(ESG_QUESTIONS.map((q) => q.id)).size, 24, 'unique ids')
 for (const q of ESG_QUESTIONS) {
   assert.ok(q.recommendation.length > 20 && q.financingNote.length > 20, `${q.id} has recommendation and financing note`)
   for (const k of [0, 1, 2, 3, 4, 5] as const) assert.ok(q.soe[k]?.length > 5, `${q.id} level ${k}`)
