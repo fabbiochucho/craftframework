@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------------------
 // Pure rules shared by /api/validation-reviews and the review page. Framework
 // agnostic: a framework is registered by key with its indicators, levels and
-// rung function. See docs/superpowers/specs/2026-10-16-validator-system.md
+// rung function. See craft-internal/docs/superpowers/specs/2026-10-16-validator-system.md
 // ("Review, outcome and freeze").
 // ============================================================================
 
