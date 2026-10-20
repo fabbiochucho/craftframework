@@ -10,10 +10,9 @@ import {
   trainingMarks, trainingModules, trainingProgress, trainingQuestions, trainingSettings, trainingStaff, trainingSubmissions,
   validatorProfiles,
 } from '../../db/schema.js'
-import {
-  SEED_BADGES, SEED_CALIBRATION, SEED_CAPSTONE, SEED_CASES, SEED_MODULES, SEED_QUESTIONS,
-} from '../../src/lib/trainingSeed.js'
-import { SEED_INDEX_MODULES, SEED_INDEX_QUESTIONS } from '../../src/lib/trainingSeedIndices.js'
+import { getStore } from '@netlify/blobs'
+import { OPEN_TRAINING_CONTENT } from '../../src/lib/trainingContent.js'
+import { withAnswers, type AnswerKey, type TrainingContent } from '../../src/lib/trainingAnswers.js'
 import { isSpecialistModuleId } from '../../src/lib/specialisms.js'
 import {
   accreditedUntilOnPass, allPartsPassed, capstoneResult, earnedBadges, STEPS, type BadgeKey, type RubricCriterion,
@@ -27,34 +26,47 @@ export const audit = (actor: string, action: string, target: string, category = 
 // Runs once: after the flag is set the database is the source of truth, so edits (and
 // deletions) made by the programme team are never overwritten.
 export async function ensureSeed(): Promise<void> {
-  const [flag] = await db.select().from(trainingSettings).where(eq(trainingSettings.key, 'seeded'))
-  if (!flag) await seedProgramme()
-  await seedIndexContent()
+  const flags = await db.select().from(trainingSettings).where(inArray(trainingSettings.key, ['seeded', 'seeded-indices']))
+  const done = new Set(flags.map((f) => f.key))
+  if (done.has('seeded') && done.has('seeded-indices')) return
+  const content = await trainingContent()
+  if (!content) return
+  if (!done.has('seeded')) await seedProgramme(content)
+  await seedIndexContent(content)
 }
 
-async function seedProgramme(): Promise<void> {
-  await db.insert(trainingModules).values(SEED_MODULES.map((m) => ({
+// The answers are not in the public repo: they come from the private blob store (see src/lib/trainingAnswers.ts).
+// Without the key nothing is seeded, so learners never get content with missing or wrong answers.
+export const TRAINING_KEY_STORE = 'training-private'
+async function trainingContent(): Promise<TrainingContent | null> {
+  const key = await getStore(TRAINING_KEY_STORE).get('answer-key', { type: 'json' }) as AnswerKey | null
+  if (!key) { console.warn('training: no answer key in the training-private blob store; content not seeded'); return null }
+  return withAnswers(OPEN_TRAINING_CONTENT, key)
+}
+
+async function seedProgramme(c: TrainingContent): Promise<void> {
+  await db.insert(trainingModules).values(c.modules.map((m) => ({
     id: m.id, position: m.position, title: m.title, outcome: m.outcome, script: m.script, exercises: m.exercises as any,
     scenario: m.scenario, reflectionPrompt: m.reflectionPrompt,
   }))).onConflictDoNothing()
-  await db.insert(trainingQuestions).values(SEED_QUESTIONS).onConflictDoNothing()
-  await db.insert(trainingCases).values(SEED_CASES).onConflictDoNothing()
-  await db.insert(trainingCapstones).values(SEED_CAPSTONE).onConflictDoNothing()
-  await db.insert(trainingCalibrationItems).values(SEED_CALIBRATION).onConflictDoNothing()
-  await db.insert(trainingBadges).values(SEED_BADGES).onConflictDoNothing()
+  await db.insert(trainingQuestions).values(c.questions).onConflictDoNothing()
+  await db.insert(trainingCases).values(c.cases).onConflictDoNothing()
+  await db.insert(trainingCapstones).values(c.capstone).onConflictDoNothing()
+  await db.insert(trainingCalibrationItems).values(c.calibration).onConflictDoNothing()
+  await db.insert(trainingBadges).values(c.badges).onConflictDoNothing()
   await db.insert(trainingSettings).values({ key: 'seeded', value: new Date().toISOString() }).onConflictDoNothing()
 }
 
 // The CRAFT indices content (module 9, specialist S1 and S2): added once, to new and existing databases alike.
 // Inserts never overwrite, so a module the programme team already edited is left as it is.
-async function seedIndexContent(): Promise<void> {
+async function seedIndexContent(c: TrainingContent): Promise<void> {
   const [flag] = await db.select().from(trainingSettings).where(eq(trainingSettings.key, 'seeded-indices'))
   if (flag) return
-  await db.insert(trainingModules).values(SEED_INDEX_MODULES.map((m) => ({
+  await db.insert(trainingModules).values(c.indexModules.map((m) => ({
     id: m.id, position: m.position, title: m.title, outcome: m.outcome, script: m.script, exercises: m.exercises as any,
     scenario: m.scenario, reflectionPrompt: m.reflectionPrompt,
   }))).onConflictDoNothing()
-  await db.insert(trainingQuestions).values(SEED_INDEX_QUESTIONS).onConflictDoNothing()
+  await db.insert(trainingQuestions).values(c.indexQuestions).onConflictDoNothing()
   await db.insert(trainingSettings).values({ key: 'seeded-indices', value: new Date().toISOString() }).onConflictDoNothing()
 }
 

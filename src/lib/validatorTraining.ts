@@ -7,7 +7,7 @@
 // Accreditation is earned ONLY by passing all three assessment parts (spec:
 // "Accreditation (earned, no panel)"). Nothing here rewards volume, rungs,
 // speed or fees. Source of the numbers:
-// docs/superpowers/specs/2026-10-16-validator-training-content.md
+// craft-internal/docs/superpowers/specs/2026-10-16-validator-training-content.md
 // ============================================================================
 
 const DAY_MS = 86_400_000

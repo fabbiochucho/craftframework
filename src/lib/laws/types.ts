@@ -1,5 +1,5 @@
 // The laws register: the laws in sixteen areas that apply in each jurisdiction CRAFT serves.
-// Information to support readiness, not legal advice. Spec: docs/superpowers/specs/2026-10-18-laws-register-design.md
+// Information to support readiness, not legal advice. Spec: craft-internal/docs/superpowers/specs/2026-10-18-laws-register-design.md
 import { AFRICA_COUNTRIES } from '../africa-countries.ts'
 
 export type LawArea = 'company' | 'data' | 'integrity' | 'procurement' | 'governance' | 'labour' | 'eia' | 'sustainability' | 'financial' | 'capital' | 'tax' | 'competition' | 'consumer' | 'sanctions' | 'forex' | 'licensing'
