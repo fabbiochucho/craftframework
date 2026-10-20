@@ -2,7 +2,7 @@
 
 Launch date: **Monday, 12 October 2026** · Site: https://craftframework.becomechange.institute · Contact: craftframework@becomechange.institute
 
-> Generated from `src/lib/launch.ts` by `marketing/scripts/build-assets.mjs`. Edit the TypeScript source, then re-run the script.
+> Generated from `src/lib/launch.ts` by `craft-internal/marketing/scripts/build-assets.mjs`. Edit the TypeScript source, then re-run the script.
 
 ## Headline
 

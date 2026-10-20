@@ -1,7 +1,7 @@
 # Independent validator system
 
 How CRAFT lets an organisation's self-assessed results be reviewed by an accredited third party, and what
-that produces. The build spec is `docs/superpowers/specs/2026-10-16-validator-system.md`; this page is the
+that produces. The build spec is `craft-internal/docs/superpowers/specs/2026-10-16-validator-system.md`; this page is the
 operating guide for people who run or extend it. Everything below is enforced on the server — the pages only
 reflect what the API allows.
 

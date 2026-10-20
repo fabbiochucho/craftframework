@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------------------
 // Shared vocabulary and pure rules for validation engagements. Used by
 // /api/engagements and the engagement pages. See
-// docs/superpowers/specs/2026-10-16-validator-system.md ("Engagements, teams
+// craft-internal/docs/superpowers/specs/2026-10-16-validator-system.md ("Engagements, teams
 // and access" and "Labels").
 // ============================================================================
 
