@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { section11Disclosures } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/section11 — persisted verification state for the Section 11 Vault
 // (Integrated Reporting & Statutory Disclosures). Replaces the previous demo-only
@@ -11,7 +11,7 @@ import { logger } from '../lib/logger.js'
 //
 //   GET  /api/section11?orgId=...            → [{ folderKey, status, updatedAt }]
 //   PUT  /api/section11  { orgId, folderKey, status, updatedBy? }  → upsert one
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -73,3 +73,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/section11',
 }
+
+export default monitored(handleRequest)

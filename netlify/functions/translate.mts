@@ -1,6 +1,6 @@
 import type { Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/translate — runtime UI translation for every page that isn't covered by
 // the hand-written dictionaries in src/lib/i18n.tsx. The client sends batches of
@@ -85,7 +85,7 @@ async function translateBatch(lang: string, texts: string[]): Promise<string[]> 
   return parsed.map((v, i) => (typeof v === 'string' && v.trim() ? v : texts[i]))
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 
   // Browsers mark cross-site requests; only this site's own pages may use the endpoint.
@@ -134,3 +134,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/translate',
 }
+
+export default monitored(handleRequest)

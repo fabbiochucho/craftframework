@@ -3,7 +3,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responses } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/responses — per-organization assessment scores. The canonical store for
 // what used to be the in-memory `scores: Record<orgId, Record<qId, number>>`.
@@ -11,7 +11,7 @@ import { logger } from '../lib/logger.js'
 // scopes the request to org ids that caller is actually allowed to touch, so the
 // guessable `self_<email>` tenant id in the request can never reach another
 // tenant's data.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -134,3 +134,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/responses',
 }
+
+export default monitored(handleRequest)

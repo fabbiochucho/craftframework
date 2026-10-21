@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { auditLogs, lawApprovals } from '../../db/schema.js'
 import { forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/law-approvals — which jurisdictions' law entries a Super Admin has approved for organisation reports.
 //   GET                          any signed-in user: the approved jurisdictions
@@ -18,7 +18,7 @@ const approveSchema = z.object({
   registerVersion: z.string().trim().min(1).max(60),
 }).strict()
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -68,3 +68,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: ['/api/law-approvals', '/api/law-approvals/*'] }
+
+export default monitored(handleRequest)

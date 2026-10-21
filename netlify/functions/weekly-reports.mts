@@ -6,7 +6,7 @@ import {
   capRecords, esgImplementationPlans, governanceAssessments, governanceFindings, governanceScores,
   reports, reportSchedules, reportVersions, wsAuditLog, wsOrganizations,
 } from '../../db/schema.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { buildScorecard, nextReportRun, summarizeCaps } from '../lib/workspace.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
 import { decryptField, encryptField } from '../lib/crypto.js'
@@ -47,7 +47,7 @@ async function buildScheduledSnapshot(orgId: number, workspaceId: number, report
   }
 }
 
-export default async () => {
+const handleRequest = async () => {
   try {
     const due = await db.select().from(reportSchedules).where(and(eq(reportSchedules.paused, false), lte(reportSchedules.nextRunAt, new Date())))
     for (const schedule of due) {
@@ -188,3 +188,5 @@ export default async () => {
 }
 
 export const config: Config = { schedule: '@daily' }
+
+export default monitored(handleRequest)

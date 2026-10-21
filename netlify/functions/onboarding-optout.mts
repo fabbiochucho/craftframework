@@ -1,7 +1,7 @@
 import type { Config } from '@netlify/functions'
 import { db } from '../../db/index.js'
 import { onboardingOptouts } from '../../db/schema.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { optOutSecret, verifyOptOutToken } from '../lib/onboarding-nudge.js'
 
 // /api/onboarding-optout?t=<signed token> — the one-click 'stop these reminders' link in the nudge email.
@@ -14,7 +14,7 @@ const page = (title: string, body: string, status = 200) => new Response(
   { status, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer' } },
 )
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     if (req.method !== 'GET' && req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
     const email = verifyOptOutToken(new URL(req.url).searchParams.get('t'), optOutSecret())
@@ -28,3 +28,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: '/api/onboarding-optout' }
+
+export default monitored(handleRequest)

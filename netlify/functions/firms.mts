@@ -5,7 +5,7 @@ import { db } from '../../db/index.js'
 import { auditLogs, firmMembers, firms } from '../../db/schema.js'
 import { cleanList, FIRM_KINDS, natureOptions, type FirmKind } from '../../src/lib/validatorDirectory.js'
 import { resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 async function isFirmMember(email: string, firmId: string): Promise<boolean> {
   const [row] = await db
@@ -54,7 +54,7 @@ const audit = (actor: string, action: string, target: string) =>
 // /api/firms — first-class consulting firms and their seats. A firm lets several
 // consultants share one client book (portfolios + access grants held by firm_id)
 // instead of a single reviewer email. Each seat is independently revocable.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -193,3 +193,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/firms',
 }
+
+export default monitored(handleRequest)

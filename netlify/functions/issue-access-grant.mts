@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { db } from '../../db/index.js'
 import { accessGrants } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/issue-access-grant — issues a TIME-BOUND, READ-ONLY specialized ecosystem
 // grant (Feature 5) to a regulator / auditor / institutional investor, and closes
@@ -62,7 +62,7 @@ async function stampIdentityMetadata(grantee: string, role: string, expiresAtSec
   }
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
   try {
     const caller = await resolveCaller()
@@ -129,3 +129,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/issue-access-grant',
 }
+
+export default monitored(handleRequest)

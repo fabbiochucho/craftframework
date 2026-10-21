@@ -21,7 +21,7 @@ import {
 } from '../lib/workspace.js'
 import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { purgeExpiredRateLimits } from '../lib/public-rate-limit.js'
 import {
   activeCriteria, craftScorecard, criterionById, GOVERNANCE_CRITERIA, GOVERNANCE_PILLARS, VALIDATION_METHODS, VALIDATION_OUTCOMES, validationDelta,
@@ -2276,7 +2276,7 @@ function match(pattern: string, segs: string[]): string[] | null {
   return params
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   const origin = req.headers.get('origin')
   const cors = corsHeaders(origin)
   const finish = (res: Response) => {
@@ -2356,3 +2356,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: ['/api/orgs', '/api/orgs/*', '/api/workspaces/*', '/api/support-bot/*', '/api/privacy/*', '/api/mfa/*'],
 }
+
+export default monitored(handleRequest)

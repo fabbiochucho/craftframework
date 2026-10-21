@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { sweepEngagements } from '../lib/engagement-access.js'
 import { runLifecycleMaintenance, sendDueReminders } from '../lib/validation-lifecycle.js'
 
@@ -10,7 +10,7 @@ import { runLifecycleMaintenance, sendDueReminders } from '../lib/validation-lif
 // the next day and never sent twice. Also runs the engagement expiry sweep.
 // ============================================================================
 
-export default async () => {
+const handleRequest = async () => {
   await sweepEngagements()
   // Checkpoints and the status history first (so the reminders see the right points), then the emails.
   const maintenance = await runLifecycleMaintenance()
@@ -20,3 +20,5 @@ export default async () => {
 }
 
 export const config: Config = { schedule: '@daily' }
+
+export default monitored(handleRequest)

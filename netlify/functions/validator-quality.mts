@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { auditLogs, engagementMembers, firmMembers, firms, organizations, validationEngagements, validationFunderConsents, validationRatings, validations, validatorProfiles } from '../../db/schema.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { allValidatorStats, flaggedValidations, ratingsFor } from '../lib/validator-quality.js'
 import { RATING_PARTIES, REMOVAL_GROUNDS, type RatingParty } from '../../src/lib/validatorQuality.js'
 
@@ -41,7 +41,7 @@ async function myFunderFirms(email: string): Promise<string[]> {
   return rows.map((r) => r.id)
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -185,3 +185,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: ['/api/validator-quality', '/api/validator-quality/*'] }
+
+export default monitored(handleRequest)

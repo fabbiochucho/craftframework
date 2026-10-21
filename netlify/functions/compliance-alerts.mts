@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, eq, lte, ne } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { complianceItems, organizations } from '../../db/schema.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // ============================================================================
 // CRAFT v4.0 — Scheduled compliance alerts (Global Fund PR reporting cycles)
@@ -111,7 +111,7 @@ async function sendResendEmail(item: ComplianceItem, tier: Tier): Promise<'accep
   return response?.ok ? 'accepted' : 'failed'
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   // Scheduled invocations receive the next run time in the body.
   const next_run = await req.json().then((b: { next_run?: string }) => b?.next_run).catch(() => undefined)
   const today = new Date()
@@ -142,3 +142,5 @@ export default async (req: Request) => {
 export const config: Config = {
   schedule: '@daily',
 }
+
+export default monitored(handleRequest)

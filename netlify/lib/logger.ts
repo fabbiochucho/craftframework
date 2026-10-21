@@ -2,6 +2,9 @@
 // any downstream log shipper) can parse/filter/search JSON lines far better
 // than free-text console output — a bare `console.error('/api/x failed', err)`
 // loses the error's shape the moment it's stringified.
+import { reportError } from './monitoring.ts'
+export { monitored } from './monitoring.ts'
+
 type Level = 'info' | 'warn' | 'error'
 
 function emit(level: Level, scope: string, message: string, extra?: Record<string, unknown>) {
@@ -21,6 +24,9 @@ function emit(level: Level, scope: string, message: string, extra?: Record<strin
 export const logger = {
   info: (scope: string, message: string, extra?: Record<string, unknown>) => emit('info', scope, message, extra),
   warn: (scope: string, message: string, extra?: Record<string, unknown>) => emit('warn', scope, message, extra),
-  error: (scope: string, message: string, err?: unknown, extra?: Record<string, unknown>) =>
-    emit('error', scope, message, { ...(extra ?? {}), error: err }),
+  // Also reported to error monitoring (a no-op without SENTRY_DSN); `extra` is logged but never sent there.
+  error: (scope: string, message: string, err?: unknown, extra?: Record<string, unknown>) => {
+    emit('error', scope, message, { ...(extra ?? {}), error: err })
+    reportError(scope, err, message)
+  },
 }

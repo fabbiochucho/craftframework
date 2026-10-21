@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { onboardingProgress } from '../../db/schema.js'
 import { forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { sendWelcomeEmailOnce } from '../lib/welcome-email.js'
 import { onboardingStepName } from '../../src/lib/onboardingProgress.js'
 
@@ -13,7 +13,7 @@ import { onboardingStepName } from '../../src/lib/onboardingProgress.js'
 //   PUT { step: 1..3, completed?: true }
 const bodySchema = z.object({ step: z.number().int().min(1).max(3), completed: z.boolean().optional() }).strict()
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     if (req.method !== 'PUT') return new Response('Method Not Allowed', { status: 405 })
     const caller = await resolveCaller()
@@ -50,3 +50,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: '/api/onboarding-progress' }
+
+export default monitored(handleRequest)

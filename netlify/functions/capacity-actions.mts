@@ -3,13 +3,13 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { capacityActions } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/capacity-actions — the Capacity Improvement Plan (CIP). Tracks the status
 // of remediation actions per organization. Replaces the in-memory
 // `cipStatuses: Record<riskId, RiskStatus>` map. Every request is scoped to the
 // verified caller's accessible tenants.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -70,3 +70,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/capacity-actions',
 }
+
+export default monitored(handleRequest)
