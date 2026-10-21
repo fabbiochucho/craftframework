@@ -9,7 +9,9 @@ const input = (over: Partial<LifecycleEmailInput>): LifecycleEmailInput => ({
   kind: 'nudge_2w', variant: 'default', name: 'Amina Okoro', email: 'amina@riverbend.example', orgName: 'Riverbend Cooperative',
   appUrl: 'https://craft.example/', links, now: new Date('2026-10-21T00:00:00Z'), ...over,
 })
-const hasNoBraces = (s: string) => assert.ok(!/\{[^}]*\}|undefined|null|NaN/.test(s.replace(/<style[\s\S]*?<\/style>/g, '')), `unfilled placeholder in: ${s.slice(0, 200)}`)
+// The CSS in <head> legitimately contains braces, so only the body is checked.
+const visible = (s: string) => { const i = s.indexOf('<body'); return i >= 0 ? s.slice(i) : s }
+const hasNoBraces = (s: string) => assert.ok(!/\{[^}]*\}|undefined|null|NaN/.test(visible(s)), `unfilled placeholder in: ${s.slice(0, 200)}`)
 
 // Every variant, with and without an organisation name: nothing unfilled, signed, footed, plain text present.
 for (const v of LIFECYCLE_VARIANTS) {
