@@ -48,6 +48,10 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   admin: 'sensitive',
   'admin_.portfolio': 'sensitive',
   'admin_.analytics': 'sensitive',
+  // Signed links in emails: the token is in the address, so none of these may be recorded.
+  'feedback.$token': 'sensitive',
+  'email-preferences': 'sensitive',
+  badge: 'sensitive',
   'assessment_.$frameworkId': 'sensitive',
   assessment: 'sensitive',
   'audit-log': 'sensitive',

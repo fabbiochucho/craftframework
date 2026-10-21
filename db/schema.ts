@@ -2016,3 +2016,64 @@ export const lawApprovals = pgTable('law_approvals', {
   registerVersion: text('register_version').notNull(),
   approvedAt: timestamp('approved_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+// --- Lifecycle emails and the in-app survey -------------------------------------------------------------------
+// See netlify/lib/lifecycle.ts. One row per lifecycle email; the idempotency key makes each kind/occurrence
+// exist once per recipient. outcome: 'pending' | 'accepted' | 'failed' | 'not_configured' | 'skipped'.
+export const lifecycleEmails = pgTable('lifecycle_emails', {
+  id: text('id').primaryKey(),
+  idempotencyKey: text('idempotency_key').notNull().unique(),
+  userId: text('user_id').notNull(),
+  email: text('email').notNull(),
+  orgId: text('org_id').notNull(),
+  kind: text('kind').notNull(),
+  occurrence: integer('occurrence').notNull(),
+  variant: text('variant').notNull().default('default'),
+  outcome: text('outcome').notNull().default('pending'),
+  skipReason: text('skip_reason'),
+  attempts: integer('attempts').notNull().default(0),
+  subject: text('subject').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  clickedAt: timestamp('clicked_at', { withTimezone: true }),
+  unsubscribedAt: timestamp('unsubscribed_at', { withTimezone: true }),
+}, (t) => [index('lifecycle_emails_email_idx').on(t.email, t.sentAt), index('lifecycle_emails_kind_idx').on(t.kind, t.occurrence)])
+
+export const lifecyclePreferences = pgTable('lifecycle_preferences', {
+  email: text('email').primaryKey(),
+  checkinsOptedOutAt: timestamp('checkins_opted_out_at', { withTimezone: true }),
+  celebrationsOptedOutAt: timestamp('celebrations_opted_out_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const lifecycleSettings = pgTable('lifecycle_settings', {
+  id: text('id').primaryKey(),
+  paused: boolean('paused').notNull().default(false),
+  updatedBy: text('updated_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const lifecycleOrgBaselines = pgTable('lifecycle_org_baselines', {
+  orgId: text('org_id').primaryKey(),
+  startRung: integer('start_rung').notNull(),
+  recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const surveyResponses = pgTable('survey_responses', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  orgId: text('org_id'),
+  occurrence: text('occurrence').notNull(),
+  lifecycleEmailId: text('lifecycle_email_id'),
+  nps: integer('nps').notNull(),
+  ease: integer('ease').notNull(),
+  usedMost: jsonb('used_most').$type<string[]>().notNull().default([]),
+  improve: text('improve').notNull().default(''),
+  wantsCall: boolean('wants_call').notNull().default(false),
+  callTimes: text('call_times').notNull().default(''),
+  callNotifiedAt: timestamp('call_notified_at', { withTimezone: true }),
+  callHandledAt: timestamp('call_handled_at', { withTimezone: true }),
+  callHandledBy: text('call_handled_by'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [unique('survey_responses_email_occurrence_uq').on(t.email, t.occurrence), index('survey_responses_created_idx').on(t.createdAt)])

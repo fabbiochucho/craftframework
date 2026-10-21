@@ -15,11 +15,12 @@ export const SIGNATURE_TEAM = 'CRAFT team, DiBadili Institute'
 const SIGNATURE_WIDTH = 240
 const SIGNATURE_HEIGHT = 57
 
-export function signatureHtml(appUrl: string): string {
+/** `typedNames` adds the names as live text under the image, for emails that must show them even where images are blocked. */
+export function signatureHtml(appUrl: string, opts: { typedNames?: boolean } = {}): string {
   const src = `${appUrl.replace(/\/+$/, '')}${SIGNATURE_PATH}`
   return `<p style="margin:0 0 4px;font-size:15px;line-height:1.6;color:#475569">Warm regards,</p>
         <img src="${src}" width="${SIGNATURE_WIDTH}" height="${SIGNATURE_HEIGHT}" alt="Abiola &amp; Pauline" style="display:block;border:0;margin:4px 0 2px;font-family:'Great Vibes','Brush Script MT',cursive;font-size:24px;color:#064e3b">
-        <p style="margin:2px 0 0;font-size:13px;line-height:1.5;color:#64748b">${SIGNATURE_TEAM}</p>`
+        ${opts.typedNames ? `<p style="margin:0;font-size:15px;line-height:1.5;color:#064e3b;font-weight:600">Abiola &amp; Pauline</p>\n        ` : ''}<p style="margin:2px 0 0;font-size:13px;line-height:1.5;color:#64748b">${SIGNATURE_TEAM}</p>`
 }
 
 export function signatureText(): string[] {
