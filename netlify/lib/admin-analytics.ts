@@ -2,6 +2,7 @@
 // returned as aggregates, except the onboarding table, which lists people for the Super Admin only.
 // Pure maths lives in src/lib/adminAnalytics.ts; the caller (admin-analytics.mts) enforces Super Admin + MFA.
 import { and, eq, gte, inArray, isNotNull } from 'drizzle-orm'
+import { ONBOARDING_DRAFT_KEY, restoreDraft } from '../../src/lib/onboardingDraft.js'
 import { isSpecialistModuleId } from '../../src/lib/specialisms.js'
 import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
@@ -33,17 +34,19 @@ const topRows = (m: Map<string, number>, limit = 10) =>
   [...m].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, limit)
 
 // --- legacy per-organisation state (encrypted JSON) -----------------------------------------------------------
-type LegacyState = { entityComplete: Set<string>; scores: Map<string, Record<string, number>> }
+// draftOrgName: the organisation name typed in onboarding step 1 (saved draft), when there is one.
+type LegacyState = { entityComplete: Set<string>; scores: Map<string, Record<string, number>>; draftOrgName: Map<string, string> }
 async function legacyState(orgIds: string[]): Promise<LegacyState> {
-  const out: LegacyState = { entityComplete: new Set(), scores: new Map() }
+  const out: LegacyState = { entityComplete: new Set(), scores: new Map(), draftOrgName: new Map() }
   if (!orgIds.length) return out
   const rows = await db.select().from(legacyWorkspaceState)
-    .where(and(inArray(legacyWorkspaceState.orgId, orgIds), inArray(legacyWorkspaceState.key, ['entity-profile', 'capital:scores'])))
+    .where(and(inArray(legacyWorkspaceState.orgId, orgIds), inArray(legacyWorkspaceState.key, ['entity-profile', 'capital:scores', ONBOARDING_DRAFT_KEY])))
   for (const r of rows) {
     try {
       const value = JSON.parse(decryptField(r.value))
       if (r.key === 'entity-profile' && value?.onboardingComplete === true && value?.archetype) out.entityComplete.add(r.orgId)
       if (r.key === 'capital:scores' && value && typeof value === 'object') out.scores.set(r.orgId, value)
+      if (r.key === ONBOARDING_DRAFT_KEY) { const name = restoreDraft(value).orgName.trim(); if (name) out.draftOrgName.set(r.orgId, name) }
     } catch { /* unreadable state counts as absent */ }
   }
   return out
@@ -81,7 +84,7 @@ export async function onboardingPeople(now: Date, emails?: string[]): Promise<On
       (n.outcome === 'pending' && now.getTime() - n.sentAt.getTime() < PENDING_STALE_MS)))
     const last = counted.reduce<Date | null>((a, n) => (!a || n.sentAt > a ? n.sentAt : a), null)
     return {
-      email: p.email, name: user?.name ?? '', orgName: orgNames.get(orgId) ?? '', orgId,
+      email: p.email, name: user?.name ?? '', orgName: state.draftOrgName.get(orgId) ?? orgNames.get(orgId) ?? '', orgId,
       step: p.step, stepName: p.stepName, startedAt: p.startedAt.toISOString(), lastActivityAt: p.lastActivityAt.toISOString(),
       daysStalled: daysBetween(p.lastActivityAt, now), nudgesSent: nudges.filter((n) => n.email === p.email && n.outcome === 'accepted').length,
       lastNudgeAt: last?.toISOString() ?? null, lastNudgeAtDate: last,
