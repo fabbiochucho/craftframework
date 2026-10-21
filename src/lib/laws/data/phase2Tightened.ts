@@ -521,11 +521,11 @@ export const PHASE2_PATCHES: Record<string, Patch> = {
 }
 
 /** Applies the patches; every patched entry records the date it was checked. */
-export function applyPatches(entries: LawEntry[], patches: Record<string, Patch> = PHASE2_PATCHES): LawEntry[] {
+export function applyPatches(entries: LawEntry[], patches: Record<string, Patch> = PHASE2_PATCHES, checked = TIGHTENED): LawEntry[] {
   return entries.map((e) => {
     const p = patches[e.id]
     if (!p) return e
     const { source, ...rest } = p
-    return { ...e, ...rest, source: { ...(source ?? e.source), checked: TIGHTENED } }
+    return { ...e, ...rest, source: { ...(source ?? e.source), checked } }
   })
 }
