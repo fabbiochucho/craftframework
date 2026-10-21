@@ -106,6 +106,18 @@ describe('admin analytics and resume-onboarding emails', () => {
     assert.equal((await get(SUPER, '90')).body.onboarding.started, 4)
   })
 
+  it('uses the organisation name typed in onboarding step 1 when there is one', async () => {
+    await rows(`INSERT INTO legacy_workspace_state(org_id,key,value) VALUES('self_amina','onboarding-draft',$1)`,
+      [JSON.stringify({ orgName: 'Riverbend Women’s Savings Cooperative', archetype: 'Civil Society', furthestStep: 1 })])
+    const amina = (await get(SUPER, 'all')).body.onboarding.stalled.find((p: any) => p.email === AMINA)
+    assert.equal(amina.orgName, 'Riverbend Women’s Savings Cooperative')
+    const [p] = (await preview(SUPER, [AMINA])).body.previews
+    assert.match(p.text, /setting up Riverbend Women’s Savings Cooperative’s workspace/)
+    // A blank or unreadable draft name falls back to the organisation record
+    await rows(`UPDATE legacy_workspace_state SET value = '{"orgName":"   "}' WHERE org_id = 'self_amina' AND key = 'onboarding-draft'`)
+    assert.equal((await get(SUPER, 'all')).body.onboarding.stalled.find((x: any) => x.email === AMINA).orgName, 'Riverbend Cooperative')
+  })
+
   it('never emails people who completed onboarding or opted out, and previews say why', async () => {
     const p = await preview(SUPER, [AMINA, BEN, CARA, DEV, 'nobody@x.example'], 'Call me.')
     assert.equal(p.status, 200)
