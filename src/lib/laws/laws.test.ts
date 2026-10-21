@@ -193,3 +193,18 @@ import { CONTINENTAL_LAWS, RATIFICATIONS, ratificationStatus } from './data/cont
   assert.deepEqual(row.ratification, [{ jurisdiction: 'NG', name: 'Nigeria', ratified: true }, { jurisdiction: 'BJ', name: 'Benin', ratified: false }])
   console.log('laws (continental instruments): ok')
 }
+
+// Source links that were unreachable on 21 October 2026 (expired certificates, sites down or bot-blocked deep links)
+// are replaced with sources that load; each fixed entry records the date it was checked.
+{
+  const { LAW_DATA_VERSION } = await import('./register.ts')
+  assert.equal(LAW_DATA_VERSION, 'CRAFT-LAW 1.4 (2026-10-21)')
+  const src = (id: string) => LAW_REGISTER.find((e) => e.id === id)!.source
+  const dead = ['lawlibrary.org.za', 'fscmauritius.org', 'ctaf.gov.tn', 'finances.gov.tn', 'cil.bf', 'ghalii.org', 'assemblee-nationale.mg', 'dataprotection.gov.zm']
+  for (const e of LAW_REGISTER) assert.ok(!dead.some((h) => e.source.url.includes(h)), `${e.id} still cites an unreachable source: ${e.source.url}`)
+  assert.equal(src('ZA-consumer-1').url, 'https://www.thencc.org.za/')
+  assert.equal(src('ZM-data-1').url, 'https://www.parliament.gov.zm/node/8853')
+  assert.equal(src('BF-data-1').kind, 'secondary', 'a law-firm guide stays marked secondary')
+  assert.equal(src('ZA-consumer-1').checked, '2026-10-21')
+  console.log('laws (source link fixes): ok')
+}
