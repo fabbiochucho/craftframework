@@ -14,6 +14,7 @@ import {
 } from '../lib/issb'
 import { NdcContributionCard } from '../components/NdcContributionCard'
 import { DmaPanel } from '../components/DmaPanel'
+import { AssurancePanel } from '../components/AssurancePanel'
 
 // ISSB S1/S2 + EU CSRD sustainability disclosure surface, structured around the
 // 4 TCFD-aligned pillars with a climate-scenario visualizer and Scope 1/2/3
@@ -88,6 +89,7 @@ export function IssbDisclosuresPage() {
             { id: 'emissions', label: 'Scope 1/2/3 Metrics' },
             { id: 'ndc', label: 'National NDC' },
             { id: 'dma', label: 'Double materiality' },
+            { id: 'assurance', label: 'Assurance' },
           ]}
           active={tab}
           onChange={setTab}
@@ -96,6 +98,7 @@ export function IssbDisclosuresPage() {
 
       {tab === 'ndc' && <NdcContributionCard />}
       {tab === 'dma' && <DmaPanel />}
+      {tab === 'assurance' && <AssurancePanel />}
 
       {tab === 'pillars' && (
         <div className="grid gap-4 md:grid-cols-2">

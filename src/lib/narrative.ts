@@ -61,6 +61,8 @@ export interface NarrativeOrgContext {
   ndc?: { contribution: NdcContribution; countryName: string }
   /** Report blocks from the double materiality assessment, when matters have been assessed. */
   dma?: NarrativeBlock[]
+  /** Report blocks from the assurance readiness plan, when it has items. */
+  assurance?: NarrativeBlock[]
 }
 
 // ----------------------------------------------------------------------------
@@ -277,6 +279,7 @@ export function buildNarrativeDocument(ctx: NarrativeOrgContext): NarrativeDocum
       sectionFirstReportingYear(ctx),
       ...(ctx.ndc ? [{ id: 'ndc', number: 9, title: `Contribution to ${ctx.ndc.countryName}'s Nationally Determined Contribution`, blocks: ndcNarrativeBlocks(ctx.ndc.contribution, ctx.ndc.countryName) }] : []),
       ...(ctx.dma ? [{ id: 'dma', number: ctx.ndc ? 10 : 9, title: 'Double Materiality Assessment (ESRS)', blocks: ctx.dma }] : []),
+      ...(ctx.assurance ? [{ id: 'assurance', number: 9 + (ctx.ndc ? 1 : 0) + (ctx.dma ? 1 : 0), title: 'Assurance Readiness', blocks: ctx.assurance }] : []),
     ],
   }
 }
