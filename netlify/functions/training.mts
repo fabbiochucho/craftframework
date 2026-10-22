@@ -9,7 +9,7 @@ import {
   type TrainingExercise,
 } from '../../db/schema.js'
 import { forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import {
   assessmentParts, audit, badgesFor, completedModuleIds, coreModules, ensureSeed, isMarker, isProgrammeTeam, maybeAccredit,
 } from '../lib/training.js'
@@ -190,7 +190,7 @@ async function specialistState(email: string, profile: typeof validatorProfiles.
 }
 
 // --- handler -------------------------------------------------------------------------
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -822,3 +822,5 @@ async function gradeDrill(email: string, answers: Record<string, number>, purpos
 }
 
 export const config: Config = { path: ['/api/training', '/api/training/*'] }
+
+export default monitored(handleRequest)

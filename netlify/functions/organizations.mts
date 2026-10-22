@@ -7,7 +7,7 @@ import {
   accessGrants, users,
 } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 const orgFieldsSchema = z.object({
   id: z.string().trim().max(200).optional(),
@@ -25,7 +25,7 @@ const orgFieldsSchema = z.object({
 // caller is resolved from the verified Identity session; the `createdBy` used to
 // scope lists and stamp new rows comes from that session, never the client, and
 // every mutation of an existing institution is gated by tenant access.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -153,3 +153,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/organizations',
 }
+
+export default monitored(handleRequest)

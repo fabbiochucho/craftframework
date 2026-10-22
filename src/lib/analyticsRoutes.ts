@@ -138,3 +138,8 @@ export function routePattern(pathname: string): string | null {
   const found = match(pathname)
   return found && found.cls !== 'sensitive' ? found.pattern : null
 }
+
+/** The route pattern for any path, sensitive pages included (error monitoring parameterises every URL). Null when no route matches. */
+export function routePatternAny(pathname: string): string | null {
+  return match(pathname)?.pattern ?? null
+}

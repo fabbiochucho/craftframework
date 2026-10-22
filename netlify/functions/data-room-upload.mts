@@ -3,7 +3,7 @@ import { getStore } from '@netlify/blobs'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { MAX_UPLOAD_BYTES } from '../lib/uploads.js'
 import { stripImageMetadata } from '../lib/stripImageMetadata.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { encodeEvidence } from '../lib/evidence-storage.js'
 
 // ============================================================================
@@ -28,7 +28,7 @@ function storeNameForKey(key: string): string {
   return `data-room-${orgSlug}`
 }
 
-export default async (req: Request, _context: Context) => {
+const handleRequest = async (req: Request, _context: Context) => {
   if (req.method !== 'PUT' && req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 })
   }
@@ -98,3 +98,5 @@ export default async (req: Request, _context: Context) => {
     return Response.json({ error: 'Upload failed' }, { status: 500 })
   }
 }
+
+export default monitored(handleRequest)

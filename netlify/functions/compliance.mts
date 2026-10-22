@@ -3,12 +3,12 @@ import { and, asc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { complianceItems } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/compliance — the unified Obligations & Reporting Calendar. Queried by the
 // daily compliance-alerts scheduled function for 90/30/overdue warnings. Every
 // request is scoped to the verified caller's accessible tenants.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -103,3 +103,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/compliance',
 }
+
+export default monitored(handleRequest)

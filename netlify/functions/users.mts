@@ -6,7 +6,7 @@ import { db } from '../../db/index.js'
 import { dailyActive, users } from '../../db/schema.js'
 import type { UserRow } from '../../db/schema.js'
 import { isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 function isAdmin(role: string): boolean {
   return role === 'admin' || role === 'super_admin'
@@ -96,7 +96,7 @@ function unassignedRowFor(u: { id: string; email: string; name: string }): UserR
 // (view level) they hold. Sign-in consults it so that a user's org_id and role
 // are ASSIGNED here, not derived from their email address. The Super Admin
 // portal writes to it to onboard staff and consultants onto a shared tenant.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -241,3 +241,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/users',
 }
+
+export default monitored(handleRequest)

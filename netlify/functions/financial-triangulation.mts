@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { financialTriangulations } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { financeMutationError } from '../lib/finance-policy.js'
 
 function cleanNumber(value: unknown) {
@@ -37,7 +37,7 @@ const postSchema = z.object({
   history: z.array(z.unknown()).optional(),
 })
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -132,3 +132,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/financial-triangulation',
 }
+
+export default monitored(handleRequest)

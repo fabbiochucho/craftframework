@@ -15,7 +15,7 @@ import { fieldLookupHashes } from '../lib/crypto.js'
 import { decodeEvidence } from '../lib/evidence-storage.js'
 import { HttpError, requireOrgAccess } from '../lib/orgAccess.js'
 import { reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { engagementLabel, GRANT_ROLE, type EngagementScope, type EngagementType } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 import { FOLLOW_UP_MODES, issuedValidity, validityProblems } from '../../src/lib/validationLifecycle.js'
@@ -95,7 +95,7 @@ type Ctx = {
 }
 
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -580,3 +580,5 @@ async function buildSnapshot(s: SnapshotInput) {
 }
 
 export const config: Config = { path: ['/api/validation-reviews', '/api/validation-reviews/*'] }
+
+export default monitored(handleRequest)

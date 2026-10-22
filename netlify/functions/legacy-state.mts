@@ -5,7 +5,7 @@ import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { encryptField, decryptField } from '../lib/crypto.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { fairKeyReadable } from '../../src/lib/fairRisk.js'
 import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
 
@@ -20,7 +20,7 @@ const bodySchema = z.object({
   value: z.unknown().refine(value => value !== undefined),
 })
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -73,3 +73,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: '/api/legacy-state' }
+
+export default monitored(handleRequest)

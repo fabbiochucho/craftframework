@@ -5,7 +5,7 @@ import { db } from '../../db/index.js'
 import { auditLogs, onboardingNudges } from '../../db/schema.js'
 import { forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { buildAnalytics, onboardingPeople, type OnboardingPerson } from '../lib/admin-analytics.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import {
   appUrl, nextNudgeAllowedAt, nudgeBlock, optOutSecret, PENDING_STALE_MS, signOptOutToken, type NudgeBlock,
 } from '../lib/onboarding-nudge.js'
@@ -49,7 +49,7 @@ function render(person: OnboardingPerson, note: string | undefined, replyTo: str
   return { ...mail, optOutUrl, replyTo }
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -141,3 +141,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: ['/api/admin-analytics', '/api/admin-analytics/*'] }
+
+export default monitored(handleRequest)

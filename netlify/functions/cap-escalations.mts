@@ -3,11 +3,11 @@ import { and, eq, ne } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { capRecords, wsAuditLog } from '../../db/schema.js'
 import { escalationFor, ESCALATION_LEVELS } from '../lib/cap-tools.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // Daily: raise open CAPs to the escalation level their severity and days overdue call for
 // (never lowers a level), and record each escalation in the workspace audit log.
-export default async () => {
+const handleRequest = async () => {
   try {
     const now = new Date().toISOString().slice(0, 10)
     const caps = await db.select().from(capRecords).where(and(ne(capRecords.status, 'merged'), ne(capRecords.escalationLevel, 3)))
@@ -26,3 +26,5 @@ export default async () => {
 }
 
 export const config: Config = { schedule: '@daily' }
+
+export default monitored(handleRequest)

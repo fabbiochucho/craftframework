@@ -8,7 +8,7 @@ import {
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { isProgrammeTeam } from '../lib/training.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { contactsFor, notify } from '../lib/validation-lifecycle.js'
 import { applyValidationOutcome, conflictCheck, type ConflictSubject } from '../lib/review-panel.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
@@ -66,7 +66,7 @@ async function reviewerProblems(v: ValidationRow, reviewer: string, raiser: stri
   return conflictCheck(subject, reviewer)
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -237,3 +237,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: ['/api/re-reviews', '/api/re-reviews/*'] }
+
+export default monitored(handleRequest)
