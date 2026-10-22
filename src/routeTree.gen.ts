@@ -17,6 +17,7 @@ import { Route as ArchitectureRouteImport } from './routes/architecture'
 import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as AuditLogRouteImport } from './routes/audit-log'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BadgeRouteImport } from './routes/badge'
 import { Route as CipRouteImport } from './routes/cip'
 import { Route as CodeOfConductRouteImport } from './routes/code-of-conduct'
 import { Route as ComplianceRouteImport } from './routes/compliance'
@@ -26,6 +27,7 @@ import { Route as DataProcessingRouteImport } from './routes/data-processing'
 import { Route as DataRoomRouteImport } from './routes/data-room'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DirectoryRouteImport } from './routes/directory'
+import { Route as EmailPreferencesRouteImport } from './routes/email-preferences'
 import { Route as EngagementsRouteImport } from './routes/engagements'
 import { Route as EvidenceRouteImport } from './routes/evidence'
 import { Route as FinanceTriangulationRouteImport } from './routes/finance-triangulation'
@@ -66,6 +68,7 @@ import { Route as AppSecurityRouteImport } from './routes/app.security'
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment_.$frameworkId'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
 import { Route as EngagementsIdRouteImport } from './routes/engagements_.$id'
+import { Route as FeedbackTokenRouteImport } from './routes/feedback.$token'
 import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
 import { Route as ForGovernmentRouteImport } from './routes/for.government'
 import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
@@ -147,6 +150,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BadgeRoute = BadgeRouteImport.update({
+  id: '/badge',
+  path: '/badge',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CipRoute = CipRouteImport.update({
   id: '/cip',
   path: '/cip',
@@ -190,6 +198,11 @@ const DemoRoute = DemoRouteImport.update({
 const DirectoryRoute = DirectoryRouteImport.update({
   id: '/directory',
   path: '/directory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmailPreferencesRoute = EmailPreferencesRouteImport.update({
+  id: '/email-preferences',
+  path: '/email-preferences',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EngagementsRoute = EngagementsRouteImport.update({
@@ -390,6 +403,11 @@ const DashboardTrustDeltaRoute = DashboardTrustDeltaRouteImport.update({
 const EngagementsIdRoute = EngagementsIdRouteImport.update({
   id: '/engagements_/$id',
   path: '/engagements/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedbackTokenRoute = FeedbackTokenRouteImport.update({
+  id: '/feedback/$token',
+  path: '/feedback/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForEsgReportingRoute = ForEsgReportingRouteImport.update({
@@ -633,6 +651,7 @@ export interface FileRoutesByFullPath {
   '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
+  '/badge': typeof BadgeRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
   '/compliance': typeof ComplianceRoute
@@ -642,6 +661,7 @@ export interface FileRoutesByFullPath {
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/directory': typeof DirectoryRoute
+  '/email-preferences': typeof EmailPreferencesRoute
   '/engagements': typeof EngagementsRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
@@ -682,6 +702,7 @@ export interface FileRoutesByFullPath {
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
   '/engagements/$id': typeof EngagementsIdRouteWithChildren
+  '/feedback/$token': typeof FeedbackTokenRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
@@ -732,6 +753,7 @@ export interface FileRoutesByTo {
   '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
+  '/badge': typeof BadgeRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
   '/compliance': typeof ComplianceRoute
@@ -741,6 +763,7 @@ export interface FileRoutesByTo {
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/directory': typeof DirectoryRoute
+  '/email-preferences': typeof EmailPreferencesRoute
   '/engagements': typeof EngagementsRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
@@ -781,6 +804,7 @@ export interface FileRoutesByTo {
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
   '/engagements/$id': typeof EngagementsIdRouteWithChildren
+  '/feedback/$token': typeof FeedbackTokenRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
@@ -832,6 +856,7 @@ export interface FileRoutesById {
   '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
+  '/badge': typeof BadgeRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
   '/compliance': typeof ComplianceRoute
@@ -841,6 +866,7 @@ export interface FileRoutesById {
   '/data-room': typeof DataRoomRoute
   '/demo': typeof DemoRoute
   '/directory': typeof DirectoryRoute
+  '/email-preferences': typeof EmailPreferencesRoute
   '/engagements': typeof EngagementsRoute
   '/evidence': typeof EvidenceRoute
   '/finance-triangulation': typeof FinanceTriangulationRoute
@@ -881,6 +907,7 @@ export interface FileRoutesById {
   '/assessment_/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
   '/engagements_/$id': typeof EngagementsIdRouteWithChildren
+  '/feedback/$token': typeof FeedbackTokenRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
@@ -933,6 +960,7 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/audit-log'
     | '/auth'
+    | '/badge'
     | '/cip'
     | '/code-of-conduct'
     | '/compliance'
@@ -942,6 +970,7 @@ export interface FileRouteTypes {
     | '/data-room'
     | '/demo'
     | '/directory'
+    | '/email-preferences'
     | '/engagements'
     | '/evidence'
     | '/finance-triangulation'
@@ -982,6 +1011,7 @@ export interface FileRouteTypes {
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
     | '/engagements/$id'
+    | '/feedback/$token'
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
@@ -1032,6 +1062,7 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/audit-log'
     | '/auth'
+    | '/badge'
     | '/cip'
     | '/code-of-conduct'
     | '/compliance'
@@ -1041,6 +1072,7 @@ export interface FileRouteTypes {
     | '/data-room'
     | '/demo'
     | '/directory'
+    | '/email-preferences'
     | '/engagements'
     | '/evidence'
     | '/finance-triangulation'
@@ -1081,6 +1113,7 @@ export interface FileRouteTypes {
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
     | '/engagements/$id'
+    | '/feedback/$token'
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
@@ -1131,6 +1164,7 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/audit-log'
     | '/auth'
+    | '/badge'
     | '/cip'
     | '/code-of-conduct'
     | '/compliance'
@@ -1140,6 +1174,7 @@ export interface FileRouteTypes {
     | '/data-room'
     | '/demo'
     | '/directory'
+    | '/email-preferences'
     | '/engagements'
     | '/evidence'
     | '/finance-triangulation'
@@ -1180,6 +1215,7 @@ export interface FileRouteTypes {
     | '/assessment_/$frameworkId'
     | '/dashboard_/trust-delta'
     | '/engagements_/$id'
+    | '/feedback/$token'
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
@@ -1231,6 +1267,7 @@ export interface RootRouteChildren {
   AssessmentRoute: typeof AssessmentRoute
   AuditLogRoute: typeof AuditLogRoute
   AuthRoute: typeof AuthRoute
+  BadgeRoute: typeof BadgeRoute
   CipRoute: typeof CipRoute
   CodeOfConductRoute: typeof CodeOfConductRoute
   ComplianceRoute: typeof ComplianceRoute
@@ -1240,6 +1277,7 @@ export interface RootRouteChildren {
   DataRoomRoute: typeof DataRoomRoute
   DemoRoute: typeof DemoRoute
   DirectoryRoute: typeof DirectoryRoute
+  EmailPreferencesRoute: typeof EmailPreferencesRoute
   EngagementsRoute: typeof EngagementsRoute
   EvidenceRoute: typeof EvidenceRoute
   FinanceTriangulationRoute: typeof FinanceTriangulationRoute
@@ -1280,6 +1318,7 @@ export interface RootRouteChildren {
   AssessmentFrameworkIdRoute: typeof AssessmentFrameworkIdRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
   EngagementsIdRoute: typeof EngagementsIdRouteWithChildren
+  FeedbackTokenRoute: typeof FeedbackTokenRoute
   ForEsgReportingRoute: typeof ForEsgReportingRoute
   ForGovernmentRoute: typeof ForGovernmentRoute
   ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
@@ -1379,6 +1418,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/badge': {
+      id: '/badge'
+      path: '/badge'
+      fullPath: '/badge'
+      preLoaderRoute: typeof BadgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cip': {
       id: '/cip'
       path: '/cip'
@@ -1440,6 +1486,13 @@ declare module '@tanstack/react-router' {
       path: '/directory'
       fullPath: '/directory'
       preLoaderRoute: typeof DirectoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/email-preferences': {
+      id: '/email-preferences'
+      path: '/email-preferences'
+      fullPath: '/email-preferences'
+      preLoaderRoute: typeof EmailPreferencesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/engagements': {
@@ -1720,6 +1773,13 @@ declare module '@tanstack/react-router' {
       path: '/engagements/$id'
       fullPath: '/engagements/$id'
       preLoaderRoute: typeof EngagementsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feedback/$token': {
+      id: '/feedback/$token'
+      path: '/feedback/$token'
+      fullPath: '/feedback/$token'
+      preLoaderRoute: typeof FeedbackTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/for/esg-reporting': {
@@ -2026,6 +2086,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentRoute: AssessmentRoute,
   AuditLogRoute: AuditLogRoute,
   AuthRoute: AuthRoute,
+  BadgeRoute: BadgeRoute,
   CipRoute: CipRoute,
   CodeOfConductRoute: CodeOfConductRoute,
   ComplianceRoute: ComplianceRoute,
@@ -2035,6 +2096,7 @@ const rootRouteChildren: RootRouteChildren = {
   DataRoomRoute: DataRoomRoute,
   DemoRoute: DemoRoute,
   DirectoryRoute: DirectoryRoute,
+  EmailPreferencesRoute: EmailPreferencesRoute,
   EngagementsRoute: EngagementsRoute,
   EvidenceRoute: EvidenceRoute,
   FinanceTriangulationRoute: FinanceTriangulationRoute,
@@ -2075,6 +2137,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentFrameworkIdRoute: AssessmentFrameworkIdRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
   EngagementsIdRoute: EngagementsIdRouteWithChildren,
+  FeedbackTokenRoute: FeedbackTokenRoute,
   ForEsgReportingRoute: ForEsgReportingRoute,
   ForGovernmentRoute: ForGovernmentRoute,
   ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,

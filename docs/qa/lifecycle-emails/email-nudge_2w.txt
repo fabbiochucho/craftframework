@@ -1,0 +1,18 @@
+Subject: Ready to take your CRAFT readiness assessment, Amina?
+
+Hi Amina,
+
+It's been two weeks since you set up Riverbend Cooperative's workspace on CRAFT. The next step is the readiness assessment: it shows where Riverbend Cooperative stands on the Capital Readiness Ladder and what to work on first.
+
+You don't have to finish it in one sitting. Your answers save as you go.
+
+Start the assessment: http://localhost:3000/preview/button
+
+If something is in the way, just reply and tell us. We're happy to walk you through it.
+
+Warm regards,
+Abiola & Pauline
+CRAFT team, DiBadili Institute
+
+--
+You're receiving this because you have a workspace on CRAFT. Unsubscribe from these emails: http://localhost:3000/preview/unsubscribe · Email preferences: http://localhost:3000/preview/preferences · © 2026 DiBadili Institute.

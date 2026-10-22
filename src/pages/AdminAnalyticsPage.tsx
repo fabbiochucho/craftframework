@@ -6,6 +6,7 @@ import { useAuthCtx } from '../lib/context'
 import { isSuperAdminEmail } from '../lib/data'
 import * as api from '../lib/api'
 import { RANGES, sortStalled, type FunnelRow, type RangeKey, type StalledPerson, type StalledSortKey } from '../lib/adminAnalytics'
+import { LifecyclePanel } from '../components/admin/LifecyclePanel'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Stat, Table, Tabs, Tbody, Td, Th, Thead } from '../components/ui'
 
 type Labelled = { label: string; count: number }
@@ -47,7 +48,7 @@ type SendResult = { email: string; outcome: string; reasonText?: string }
 
 const TABS = [
   { id: 'onboarding', label: 'Onboarding' }, { id: 'orgs', label: 'Organisations' }, { id: 'validators', label: 'Validators' },
-  { id: 'activity', label: 'Activity' }, { id: 'directory', label: 'Directory' }, { id: 'support', label: 'Support' }, { id: 'ops', label: 'Operations' },
+  { id: 'activity', label: 'Activity' }, { id: 'directory', label: 'Directory' }, { id: 'support', label: 'Support' }, { id: 'ops', label: 'Operations' }, { id: 'lifecycle', label: 'Lifecycle emails' },
 ]
 const fmtDate = (iso: string | null | undefined) => (iso ? new Date(iso).toISOString().slice(0, 10) : '–')
 const hours = (h: number | null) => (h === null ? '–' : h < 48 ? `${Math.round(h * 10) / 10} h` : `${Math.round(h / 24 * 10) / 10} days`)
@@ -295,8 +296,9 @@ export function AdminAnalyticsPage() {
       </div>
 
       <div className="mt-4 overflow-x-auto"><Tabs tabs={TABS} active={tab} onChange={setTab} /></div>
-      {error && <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
-      {!data && !error && <p role="status" className="mt-4 text-sm text-slate-500">Loading…</p>}
+      {tab === 'lifecycle' && <LifecyclePanel />}
+      {tab !== 'lifecycle' && error && <p role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
+      {tab !== 'lifecycle' && !data && !error && <p role="status" className="mt-4 text-sm text-slate-500">Loading…</p>}
 
       {data && tab === 'onboarding' && (
         <>

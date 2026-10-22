@@ -52,6 +52,8 @@ const directoryHandler = (await import(new URL('../../netlify/functions/director
 const panelHandler = (await import(new URL('../../netlify/functions/review-panel.mts', import.meta.url).href)).default
 const analyticsHandler = (await import(new URL('../../netlify/functions/admin-analytics.mts', import.meta.url).href)).default
 const progressHandler = (await import(new URL('../../netlify/functions/onboarding-progress.mts', import.meta.url).href)).default
+const lifecyclePublicHandler = (await import(new URL('../../netlify/functions/lifecycle-public.mts', import.meta.url).href)).default
+const lifecycleAdminHandler = (await import(new URL('../../netlify/functions/admin-lifecycle.mts', import.meta.url).href)).default
 const qualityHandler = (await import(new URL('../../netlify/functions/validator-quality.mts', import.meta.url).href)).default
 
 // Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
@@ -127,6 +129,18 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(204).end()
       return
     }
+    if (url.pathname === '/__test/seed-lifecycle' && req.method === 'POST') {
+      // A one-month email that was sent to someone, and the signed survey link inside it (the real token code).
+      const { surveyToken, preferencesUrl } = await import('../../netlify/lib/lifecycle.ts')
+      await rows(`INSERT INTO organizations(id,name,country) VALUES('self_amina','Riverbend Cooperative','Kenya') ON CONFLICT (id) DO NOTHING`)
+      await rows(`INSERT INTO users(id,email,name,org_id,role) VALUES('e2e-amina','amina@riverbend.example','Amina Okoro','self_amina','assessor') ON CONFLICT (email) DO NOTHING`)
+      await rows(`INSERT INTO onboarding_progress(email,step,step_name,completed_at) VALUES('amina@riverbend.example',3,'Team & Import', now() - interval '31 days') ON CONFLICT (email) DO NOTHING`)
+      await rows(`INSERT INTO lifecycle_emails(id,idempotency_key,user_id,email,org_id,kind,occurrence,variant,outcome,sent_at) VALUES('lce_e2e','lifecycle-e2e-amina-feedback_1m-1','e2e-amina','amina@riverbend.example','self_amina','feedback_1m',1,'active','accepted', now()) ON CONFLICT DO NOTHING`)
+      const token = surveyToken(process.env.ONBOARDING_OPTOUT_SECRET!, 'amina@riverbend.example', 'feedback_1m', 'lce_e2e', new Date())
+      const prefsToken = preferencesUrl('', process.env.ONBOARDING_OPTOUT_SECRET!, 'amina@riverbend.example').split('?t=')[1]
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ token, prefsToken }))
+      return
+    }
     if (url.pathname === '/__test/ready') {
       res.writeHead(200).end('ok')
       return
@@ -145,6 +159,8 @@ const server = http.createServer(async (req, res) => {
     const routeHandler = url.pathname.startsWith('/api/public/validation/') ? publicValidation
       : url.pathname === '/api/validations' || url.pathname.startsWith('/api/validations/') ? validationsHandler
         : url.pathname === '/api/admin-analytics' || url.pathname.startsWith('/api/admin-analytics/') ? analyticsHandler
+        : url.pathname.startsWith('/api/lifecycle/') ? lifecyclePublicHandler
+        : url.pathname === '/api/admin-lifecycle' || url.pathname.startsWith('/api/admin-lifecycle/') ? lifecycleAdminHandler
         : url.pathname === '/api/onboarding-progress' ? progressHandler
         : url.pathname === '/api/directory' || url.pathname.startsWith('/api/directory/') ? directoryHandler
           : url.pathname === '/api/review-panel' || url.pathname.startsWith('/api/review-panel/') ? panelHandler

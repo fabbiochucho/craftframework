@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
+import { EmailPreferencesPage } from './EmailPreferencesPage'
 import { Settings, Building2, Users, Shield, Lock, UserPlus, X, Check, Layers, Clock, Mail, Eye, Globe, Briefcase, ShieldOff } from 'lucide-react'
 import { useAuthCtx, useTeamCtx, useWorkspace, useLensCtx, useEntityProfileCtx, useAccessCtx, UserRole } from '../lib/context'
 import { Card, CardContent, CardHeader, CardTitle, Input, Select, Button, Badge, Tabs, Toast, Switch } from '../components/ui'
@@ -572,6 +574,15 @@ export function SettingsPage() {
 
       {tab === 'security' && (
         <div className="space-y-6">
+          {!currentUser?.isDemo && (
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Mail className="h-4 w-4" /> Email preferences</CardTitle></CardHeader>
+              <CardContent>
+                <EmailPreferencesPage embedded />
+                <p className="mt-4 text-sm text-slate-600"><Link to="/badge" className="font-semibold text-emerald-700 underline">Your CRAFT member badge</Link> for your website and LinkedIn.</p>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4" /> Auto-logout after inactivity</CardTitle></CardHeader>
             <CardContent className="space-y-4">

@@ -1,0 +1,16 @@
+Subject: Checking in from CRAFT
+
+Hi Amina,
+
+We noticed it's been a little while since you last visited CRAFT, so we wanted to check in. How are things going at Riverbend Cooperative?
+
+If CRAFT isn't working the way you hoped, or something is in the way, we'd really like to know. Just reply with a line or two. We read every message.
+
+Pick up where you left off: http://localhost:3000/preview/button
+
+Warm regards,
+Abiola & Pauline
+CRAFT team, DiBadili Institute
+
+--
+You're receiving this because you have a workspace on CRAFT. Unsubscribe from these emails: http://localhost:3000/preview/unsubscribe · Email preferences: http://localhost:3000/preview/preferences · © 2026 DiBadili Institute.
