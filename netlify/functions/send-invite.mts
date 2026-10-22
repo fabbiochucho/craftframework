@@ -4,7 +4,7 @@ import { eq, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { auditLogs, invitations, rateLimits } from '../../db/schema.js'
 import { resolveCaller, unauthorized, forbidden, mfaRequired, isSuperAdmin } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { buildWelcomeEmailHtml } from '../../src/lib/inviteEmail.js'
 import type { ViewLevel } from '../../src/lib/data.js'
 
@@ -48,7 +48,7 @@ async function audit(actor: string, invitationId: string, outcome: string) {
   }
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
   try {
     const caller = await resolveCaller()
@@ -143,3 +143,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/send-invite',
 }
+
+export default monitored(handleRequest)

@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { accessGrants, firmMembers, portfolioOrgs, portfolios } from '../../db/schema.js'
 import { type Caller, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // Whether the caller owns/administers this portfolio: its reviewer or creator of
 // record, any member of its owning firm, or the platform Super Admin.
@@ -29,7 +29,7 @@ async function canManagePortfolio(caller: Caller, id: string): Promise<boolean> 
 // Replaces the previously in-memory `portfolios` state so a reviewer's book of
 // clients survives reloads. The caller is resolved from the verified Identity
 // session, so a reviewer only ever sees and manages their own book.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -185,3 +185,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/portfolios',
 }
+
+export default monitored(handleRequest)

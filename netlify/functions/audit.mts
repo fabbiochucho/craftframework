@@ -3,7 +3,7 @@ import { desc, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { auditLogs } from '../../db/schema.js'
 import { canAccessOrg, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 function stamp(d: Date | null): string {
   const t = d ?? new Date()
@@ -15,7 +15,7 @@ function stamp(d: Date | null): string {
 // the verified caller: an org-scoped request must name a tenant the caller may
 // access, and only the platform Super Admin can read the unscoped, cross-tenant
 // global log.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -81,3 +81,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/audit',
 }
+
+export default monitored(handleRequest)

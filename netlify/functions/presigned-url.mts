@@ -2,7 +2,7 @@ import type { Context, Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { ALLOWED_EXTENSIONS, UPLOAD_WINDOW_SECONDS, extensionOf } from '../lib/uploads.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // ============================================================================
 // CRAFT v4.0 — Presigned upload URL generator (Data Room evidence)
@@ -29,7 +29,7 @@ function slug(input: string): string {
   return input.toLowerCase().replace(/[^a-z0-9.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 120) || 'evidence'
 }
 
-export default async (req: Request, context: Context) => {
+const handleRequest = async (req: Request, context: Context) => {
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 })
   }
@@ -94,3 +94,5 @@ export const config: Config = {
   path: '/api/presigned-url',
   method: 'POST',
 }
+
+export default monitored(handleRequest)

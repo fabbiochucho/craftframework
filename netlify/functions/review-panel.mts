@@ -8,7 +8,7 @@ import {
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { isProgrammeTeam, staffRole } from '../lib/training.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { notify } from '../lib/validation-lifecycle.js'
 import { afterDecision, applyDecision, conflictCheck, membersOf, noticeAll, sideOfCaller } from '../lib/review-panel.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
@@ -67,7 +67,7 @@ async function myFunderFirms(email: string): Promise<string[]> {
   return rows.map((r) => r.id)
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -433,3 +433,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: ['/api/review-panel', '/api/review-panel/*'] }
+
+export default monitored(handleRequest)

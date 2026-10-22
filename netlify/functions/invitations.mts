@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { invitations } from '../../db/schema.js'
 import { resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { clientIp, overLimit } from '../lib/public-rate-limit.js'
 
 // No control characters (incl. newlines/tabs) in a name; the note may contain
@@ -25,7 +25,7 @@ const createSchema = z.object({
 export const TOKEN_LIMIT_PER_MINUTE = 30
 const tooMany = () => Response.json({ error: 'Too many requests' }, { status: 429, headers: { 'retry-after': '60' } })
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     if (req.method === 'GET') {
       const params = new URL(req.url).searchParams
@@ -147,3 +147,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/invitations',
 }
+
+export default monitored(handleRequest)

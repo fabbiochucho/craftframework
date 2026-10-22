@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { auditLogs, validationConcerns, validations } from '../../db/schema.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { buildPublicView, ensureStatement, publicUrlFor } from '../lib/public-validation.js'
 import { clientIp, overLimit } from '../lib/public-rate-limit.js'
 import { sendReminderEmail } from '../lib/reminder-email.js'
@@ -29,7 +29,7 @@ const concernSchema = z.object({
   website: z.string().max(200).optional(), // honeypot: real people leave it empty
 })
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const url = new URL(req.url)
     const [rawId, sub] = url.pathname.replace(/^\/api\/public\/validation\/?/, '').split('/').filter(Boolean)
@@ -81,3 +81,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: ['/api/public/validation/*'] }
+
+export default monitored(handleRequest)

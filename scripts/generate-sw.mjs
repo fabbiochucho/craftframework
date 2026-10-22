@@ -8,6 +8,8 @@ import { generateSW } from 'workbox-build'
 const { count, size, warnings } = await generateSW({
   globDirectory: 'dist/client',
   swDest: 'dist/client/sw.js',
+  // No public source maps (sw.js.map / workbox-*.js.map).
+  sourcemap: false,
   // Precache the built app shell (JS/CSS/HTML) plus icons and fonts.
   globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
   globIgnores: ['sw.js', 'workbox-*.js', 'launch/**', 'ocr/**'],

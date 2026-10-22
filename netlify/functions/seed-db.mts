@@ -1,13 +1,13 @@
 import type { Config } from '@netlify/functions'
 import { seedQuestions } from '../../src/lib/dbSeed.js'
 import { resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // POST /api/seed — (re)sync the question bank into the database from the private
 // bank (questions-private blob store). Idempotent; questions are upserted by id.
 // Run it after uploading a changed bank. Restricted to the Super Admin —
 // it's an operational/maintenance action, not something a regular caller needs.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
   try {
     const caller = await resolveCaller()
@@ -28,3 +28,5 @@ export const config: Config = {
   path: '/api/seed',
   method: 'POST',
 }
+
+export default monitored(handleRequest)

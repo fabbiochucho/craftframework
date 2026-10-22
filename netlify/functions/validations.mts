@@ -10,7 +10,7 @@ import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unau
 import { contactsFor, describeValidation, notify, recordStatusHistory, statusHistory, syncCheckpoints } from '../lib/validation-lifecycle.js'
 import { confirmedLevelsFor, ensureStatement, ensureVerificationId, publicUrlFor } from '../lib/public-validation.js'
 import { cleanPublicOptions } from '../../src/lib/validationStatement.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import {
   cipActionProblems, cipDoneProblems, cipProgress, EVENT_DECISIONS, FOLLOW_UP_MODES, isStarred, MATERIAL_EVENTS, MATERIAL_EVENT_KEYS, progressLine, reportingDeadline,
   statusAfterDecision, MS_DAY, STATUS_LABEL,
@@ -72,7 +72,7 @@ const decisionSchema = z.object({ decision: z.enum(EVENT_DECISIONS), note: z.str
 
 type Ctx = { v: ValidationRow; members: EngagementMemberRow[]; org: boolean; lead: boolean; member: boolean; admin: boolean; funder: boolean }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -499,3 +499,5 @@ async function detail(ctx: Ctx) {
 }
 
 export const config: Config = { path: ['/api/validations', '/api/validations/*'] }
+
+export default monitored(handleRequest)

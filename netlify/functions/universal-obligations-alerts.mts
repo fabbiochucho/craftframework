@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // ============================================================================
 // CRAFT v4.0 — Global Regulatory Obligations cron (Feature 7)
@@ -130,7 +130,7 @@ async function sendResendEmail(ob: RegulatoryObligation, dueISO: string, tier: T
   return response?.ok ? 'accepted' : 'failed'
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   const next_run = await req.json().then((b: { next_run?: string }) => b?.next_run).catch(() => undefined)
   const today = new Date()
   let sent = 0
@@ -163,3 +163,5 @@ export default async (req: Request) => {
 export const config: Config = {
   schedule: '@daily',
 }
+
+export default monitored(handleRequest)

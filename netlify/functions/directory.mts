@@ -10,7 +10,7 @@ import {
 import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
 import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { decryptField } from '../lib/crypto.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { badgesFor } from '../lib/training.js'
 import { reconcileValidator } from '../lib/engagement-access.js'
 import { currentRung } from '../../src/lib/capitalReadiness.js'
@@ -149,7 +149,7 @@ async function listedOrganizations(id?: string) {
   return rows.map(({ orgId, ...r }) => ({ ...r, sector: r.sector ?? '', currentRung: rung.get(orgId) ?? null }))
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -437,3 +437,5 @@ export default async (req: Request) => {
 }
 
 export const config: Config = { path: ['/api/directory', '/api/directory/*'] }
+
+export default monitored(handleRequest)

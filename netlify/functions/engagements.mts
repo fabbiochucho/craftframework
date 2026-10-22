@@ -10,7 +10,7 @@ import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } fro
 import { accessConflict, accreditationOf, reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
 import { missingSpecialismMessage } from '../../src/lib/specialisms.js'
 import { isPrimaryFramework } from '../../src/lib/validationReview.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import {
   DEFAULT_ACCESS_DAYS, ENGAGEMENT_TYPES, engagementLabel, engagementStatusFrom, grantExpiry, INVITE_VALID_DAYS, MAX_ACCESS_DAYS,
   mayCreateType, mayJoinTeam, parseScope, declarationFor, type EngagementScope, type EngagementType, type PartyStatus, type Side,
@@ -163,7 +163,7 @@ async function activateIfReady(e: ValidationEngagementRow, actor: string): Promi
   return row
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -439,3 +439,5 @@ async function create(caller: { email: string; orgId: string; name: string }, fi
 }
 
 export const config: Config = { path: ['/api/engagements', '/api/engagements/*'] }
+
+export default monitored(handleRequest)

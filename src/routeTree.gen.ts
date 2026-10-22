@@ -63,6 +63,7 @@ import { Route as WallboardRouteImport } from './routes/wallboard'
 import { Route as AcceptTokenRouteImport } from './routes/accept.$token'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin_.analytics'
 import { Route as AdminPortfolioRouteImport } from './routes/admin_.portfolio'
+import { Route as AppMonitoringTestRouteImport } from './routes/app.monitoring-test'
 import { Route as AppSecurityRouteImport } from './routes/app.security'
 import { Route as AssessmentFrameworkIdRouteImport } from './routes/assessment_.$frameworkId'
 import { Route as DashboardTrustDeltaRouteImport } from './routes/dashboard_.trust-delta'
@@ -379,6 +380,11 @@ const AdminPortfolioRoute = AdminPortfolioRouteImport.update({
   path: '/admin/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppMonitoringTestRoute = AppMonitoringTestRouteImport.update({
+  id: '/app/monitoring-test',
+  path: '/app/monitoring-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppSecurityRoute = AppSecurityRouteImport.update({
   id: '/app/security',
   path: '/app/security',
@@ -691,6 +697,7 @@ export interface FileRoutesByFullPath {
   '/accept/$token': typeof AcceptTokenRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/app/monitoring-test': typeof AppMonitoringTestRoute
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
@@ -792,6 +799,7 @@ export interface FileRoutesByTo {
   '/accept/$token': typeof AcceptTokenRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/portfolio': typeof AdminPortfolioRoute
+  '/app/monitoring-test': typeof AppMonitoringTestRoute
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
@@ -894,6 +902,7 @@ export interface FileRoutesById {
   '/accept/$token': typeof AcceptTokenRoute
   '/admin_/analytics': typeof AdminAnalyticsRoute
   '/admin_/portfolio': typeof AdminPortfolioRoute
+  '/app/monitoring-test': typeof AppMonitoringTestRoute
   '/app/security': typeof AppSecurityRoute
   '/assessment_/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
@@ -997,6 +1006,7 @@ export interface FileRouteTypes {
     | '/accept/$token'
     | '/admin/analytics'
     | '/admin/portfolio'
+    | '/app/monitoring-test'
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
@@ -1098,6 +1108,7 @@ export interface FileRouteTypes {
     | '/accept/$token'
     | '/admin/analytics'
     | '/admin/portfolio'
+    | '/app/monitoring-test'
     | '/app/security'
     | '/assessment/$frameworkId'
     | '/dashboard/trust-delta'
@@ -1199,6 +1210,7 @@ export interface FileRouteTypes {
     | '/accept/$token'
     | '/admin_/analytics'
     | '/admin_/portfolio'
+    | '/app/monitoring-test'
     | '/app/security'
     | '/assessment_/$frameworkId'
     | '/dashboard_/trust-delta'
@@ -1301,6 +1313,7 @@ export interface RootRouteChildren {
   AcceptTokenRoute: typeof AcceptTokenRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminPortfolioRoute: typeof AdminPortfolioRoute
+  AppMonitoringTestRoute: typeof AppMonitoringTestRoute
   AppSecurityRoute: typeof AppSecurityRoute
   AssessmentFrameworkIdRoute: typeof AssessmentFrameworkIdRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
@@ -1727,6 +1740,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/monitoring-test': {
+      id: '/app/monitoring-test'
+      path: '/app/monitoring-test'
+      fullPath: '/app/monitoring-test'
+      preLoaderRoute: typeof AppMonitoringTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/security': {
       id: '/app/security'
       path: '/app/security'
@@ -2112,6 +2132,7 @@ const rootRouteChildren: RootRouteChildren = {
   AcceptTokenRoute: AcceptTokenRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminPortfolioRoute: AdminPortfolioRoute,
+  AppMonitoringTestRoute: AppMonitoringTestRoute,
   AppSecurityRoute: AppSecurityRoute,
   AssessmentFrameworkIdRoute: AssessmentFrameworkIdRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,

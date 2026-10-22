@@ -3,14 +3,14 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { accessGrants } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 
 // /api/access-grants — the cross-tenant access model. An institution grants a
 // firm/reviewer scoped, revocable access to its results. Isolation is preserved:
 // a reviewer reads a client's rows only while an `active` grant exists, and the
 // client can revoke at any time (a status flip). Sovereignty stays with the
 // client.
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return unauthorized()
@@ -116,3 +116,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/access-grants',
 }
+
+export default monitored(handleRequest)

@@ -15,6 +15,7 @@ import {
 import { REGULATORY_PILLARS, JurisdictionId } from '../lib/regulatory-context'
 import { MaterialityLens, MATERIALITY_LABEL } from '../lib/issb'
 import { assessContribution } from '../lib/ndc'
+import { DMA_KEY, dmaNarrativeBlocks, dmaResult, emptyAssessment, type DmaAssessment } from '../lib/dma'
 import { checkTarget, targetFromSaved, type SavedTarget } from '../lib/netZero'
 import { NDC_KEY, emptyNdcSettings, type NdcSettings } from '../components/NdcContributionCard'
 import { jurisdictionName } from '../lib/laws/types'
@@ -60,6 +61,12 @@ export function NarrativeReportPage() {
   const [ndcSettings] = useLegacyAssessment<NdcSettings>(NDC_KEY, () => emptyNdcSettings(entityProfile.country))
   // The NDC section appears once the organisation has said how it contributes.
   const [savedTarget] = useLegacyAssessment<SavedTarget>('esg:netzero', {})
+  const [savedDma] = useLegacyAssessment<DmaAssessment>(DMA_KEY, emptyAssessment)
+  // The double materiality section appears once at least one matter is assessed.
+  const dmaBlocks = useMemo(() => {
+    const a = { ...emptyAssessment(), ...(savedDma && typeof savedDma === 'object' ? savedDma : {}) }
+    return dmaResult(a).method === 'none' ? undefined : dmaNarrativeBlocks(a)
+  }, [savedDma])
   const ndcContribution = useMemo(() => ndcSettings.types.length ? assessContribution(ndcSettings.country, ndcSettings, checkTarget(targetFromSaved(savedTarget))) : null, [ndcSettings, savedTarget])
   const [esgScores] = useLegacyAssessment<Record<string, number>>('esg:scores', {})
   const [esgEvidence] = useLegacyAssessment<Record<string, number>>('esg:evidence', {})
@@ -112,13 +119,14 @@ export function NarrativeReportPage() {
     cipFindings,
     scopeEmissions: { scope3State: 'not_tracked' },
     ndc: ndcContribution ? { contribution: ndcContribution, countryName: jurisdictionName(ndcSettings.country) } : undefined,
+    dma: dmaBlocks,
   }
 
   const doc = useMemo(() => buildNarrativeDocument(ctx), [
     ctx.orgName, ctx.archetype, ctx.country, ctx.businessSector, selectedJurisdictions.join(','),
     ctx.regSector, ctx.compositeScore, ctx.accreditationLevel, ctx.implementationEvidence, ctx.planMonths, ctx.planPace,
     // Depend on the lists themselves, not their lengths, so a changed gap or action is never shown stale.
-    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings, ndcContribution,
+    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings, ndcContribution, dmaBlocks,
   ])
 
   function download() {

@@ -3,7 +3,7 @@ import { getUser } from '@netlify/identity'
 import { and, asc, eq, or } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responseNotes, users } from '../../db/schema.js'
-import { logger } from '../lib/logger.js'
+import { logger, monitored } from '../lib/logger.js'
 import { mfaRequired } from '../lib/auth.js'
 
 // ============================================================================
@@ -72,7 +72,7 @@ function serialize(r: typeof responseNotes.$inferSelect) {
   }
 }
 
-export default async (req: Request) => {
+const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
     if (!caller) return Response.json({ error: 'Unauthorized' }, { status: 401 })
@@ -140,3 +140,5 @@ export default async (req: Request) => {
 export const config: Config = {
   path: '/api/response-notes',
 }
+
+export default monitored(handleRequest)
