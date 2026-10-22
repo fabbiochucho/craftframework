@@ -5,7 +5,7 @@ const SUPER = 'fabbiochucho@gmail.com'
 // The e2e build has no VITE_SENTRY_DSN, so monitoring must stay completely silent (no SDK, no requests).
 test('a render error shows the friendly fallback, and without a DSN nothing is sent to Sentry', async ({ page, context }) => {
   const sentry: string[] = []
-  page.on('request', r => { if (/sentry\.io/.test(r.url())) sentry.push(r.url()) })
+  page.on('request', r => { if (new URL(r.url()).hostname.endsWith('.sentry.io')) sentry.push(r.url()) })
   await signInAs(context, SUPER)
   await page.goto('/app/monitoring-test')
   await expect(page.getByRole('heading', { name: 'Error monitoring test' })).toBeVisible()
