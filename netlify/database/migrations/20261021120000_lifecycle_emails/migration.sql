@@ -71,3 +71,6 @@ CREATE TABLE IF NOT EXISTS "survey_responses" (
 	UNIQUE ("email", "occurrence")
 );
 CREATE INDEX IF NOT EXISTS "survey_responses_created_idx" ON "survey_responses" ("created_at");
+--> statement-breakpoint
+-- Start paused: the Super Admin reviews the previews and resumes sending from /admin/analytics.
+INSERT INTO "lifecycle_settings" ("id", "paused") VALUES ('global', true) ON CONFLICT ("id") DO NOTHING;

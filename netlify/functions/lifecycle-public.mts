@@ -18,7 +18,7 @@ import { appUrl } from '../lib/onboarding-nudge.js'
 // /api/lifecycle/* — the person-facing side of the lifecycle emails. No sign-in: every link is an HMAC-signed token
 // made by the server (see netlify/lib/lifecycle-token.ts), so the token is the proof of who is asking.
 //   GET  go?t=                    first-party click redirect behind every email button (records the click)
-//   GET|POST unsubscribe?t=       one-click 'unsubscribe from these' for the email's category
+//   GET|POST unsubscribe?t=       GET asks for confirmation; POST (the button, or RFC 8058 one-click) unsubscribes
 //   GET|PUT preferences[?t=]      the two categories; by token, or for the signed-in caller without one
 //   GET|PUT survey?t=             the in-app feedback survey (one response per token, editable for 24 hours)
 //   GET  badge[?t=]               the member badge SVG (token, or the signed-in caller's own organisation)
@@ -77,11 +77,17 @@ export default async (req: Request) => {
       if (!p?.e || (p.c !== 'checkins' && p.c !== 'celebrations')) {
         return page('This link is not valid', 'The link may be incomplete or have been changed. Reply to the email and the CRAFT team will stop them for you.', 400)
       }
+      const what = p.c === 'checkins' ? 'check-in and feedback' : 'celebration'
+      // Opening the link only asks: email security scanners pre-open links, and must not unsubscribe anyone.
+      // The button (and mail apps' RFC 8058 one-click request) POSTs.
+      if (req.method === 'GET') {
+        const action = `/api/lifecycle/unsubscribe?t=${encodeURIComponent(url.searchParams.get('t')!)}`
+        return page('Unsubscribe from these emails?', `Stop receiving ${what} emails from CRAFT. Welcome, security, invitation and validation emails are not affected.</p><form method="post" action="${action}"><button type="submit" style="background:#059669;color:#fff;border:0;border-radius:8px;padding:10px 20px;font-size:15px;cursor:pointer">Unsubscribe</button></form><p>`)
+      }
       const column = p.c === 'checkins' ? { checkinsOptedOutAt: now } : { celebrationsOptedOutAt: now }
       await db.insert(lifecyclePreferences).values({ email: p.e, ...column, updatedAt: now })
         .onConflictDoUpdate({ target: lifecyclePreferences.email, set: { ...column, updatedAt: now } })
       if (p.i) await db.update(lifecycleEmails).set({ unsubscribedAt: sql`coalesce(${lifecycleEmails.unsubscribedAt}, now())` }).where(eq(lifecycleEmails.id, p.i))
-      const what = p.c === 'checkins' ? 'check-in and feedback' : 'celebration'
       const prefs = appUrl() ? preferencesUrl(appUrl(), secret, p.e) : '/email-preferences'
       return page('You’re unsubscribed', `You will not receive any more ${what} emails from CRAFT. Welcome, security, invitation and validation emails are not affected. <a href="${prefs}" style="color:#059669">Change your email preferences</a>.`)
     }

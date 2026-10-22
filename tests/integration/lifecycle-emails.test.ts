@@ -263,12 +263,17 @@ describe('lifecycle emails', () => {
       await run()
       const [{ id }] = await rows('SELECT id FROM lifecycle_emails')
       const link = unsubscribeUrl(BASE, SECRET, email, 'nudge_2w', id)
-      const res = await call(publicApi, null, 'GET', q(link))
+      // Opening the link only asks: link scanners that pre-open links must not unsubscribe anyone.
+      const ask = await call(publicApi, null, 'GET', q(link))
+      assert.equal(ask.status, 200)
+      assert.match(ask.text, /<form method="post"/)
+      assert.equal((await rows('SELECT * FROM lifecycle_preferences')).length, 0, 'nothing changes on GET')
+      const res = await call(publicApi, null, 'POST', q(link))
       assert.equal(res.status, 200)
       assert.match(res.text, /unsubscribed/i)
       assert.deepEqual((await rows('SELECT checkins_opted_out_at IS NOT NULL AS c, celebrations_opted_out_at IS NOT NULL AS e FROM lifecycle_preferences'))[0], { c: true, e: false })
       assert.ok((await rows('SELECT unsubscribed_at FROM lifecycle_emails'))[0].unsubscribed_at)
-      assert.equal((await call(publicApi, null, 'POST', q(link))).status, 200, 'RFC 8058 one-click POST')
+      assert.equal((await call(publicApi, null, 'POST', q(link))).status, 200, 'RFC 8058 one-click POST, repeatable')
       // Tampered or foreign tokens do nothing.
       assert.equal((await call(publicApi, null, 'GET', q(link).slice(0, -3) + 'AAA')).status, 400)
       const other = signLifecycleToken({ p: 'prefs', e: email }, SECRET)
@@ -422,7 +427,7 @@ describe('lifecycle emails', () => {
       await run()
       const hist = (await call(adminApi, SUPER, 'GET', '/api/admin-lifecycle/history?email=ben@ben.example')).body.rows
       assert.deepEqual(hist.map((r: any) => [r.kind, r.outcome]), [['nudge_2w', 'accepted']])
-      await call(publicApi, null, 'GET', unsubscribeUrl(BASE, SECRET, 'ben@ben.example', 'nudge_2w', hist[0].id).replace(BASE, ''))
+      await call(publicApi, null, 'POST', unsubscribeUrl(BASE, SECRET, 'ben@ben.example', 'nudge_2w', hist[0].id).replace(BASE, ''))
       const status = (await call(adminApi, SUPER, 'GET', '/api/admin-lifecycle')).body
       const nudge = status.perKind.find((k: any) => k.kind === 'nudge_2w')
       assert.deepEqual([nudge.sent, nudge.failed, nudge.unsubscribed], [1, 0, 1])
