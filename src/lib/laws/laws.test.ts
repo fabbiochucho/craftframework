@@ -208,3 +208,16 @@ import { CONTINENTAL_LAWS, RATIFICATIONS, ratificationStatus } from './data/cont
   assert.equal(src('ZA-consumer-1').checked, '2026-10-21')
   console.log('laws (source link fixes): ok')
 }
+
+// The seven jurisdictions held back on 21 October 2026 (BW MW SZ MA LY CF EG): links that still failed on 22 October
+// are replaced; nothing in an already-approved jurisdiction changes, so the register version stays at 1.4.
+{
+  const held = ['BW', 'MW', 'SZ', 'MA', 'LY', 'CF', 'EG']
+  const dead = ['cndp.ma', 'ammc.ma', 'acaps.ma', 'gov.bw/ministries', 'www.macra.mw', 'fia.gov.mw', 'alp.unescwa.org', 'investmentpolicy.unctad.org']
+  for (const e of LAW_REGISTER.filter((x) => held.includes(x.jurisdiction))) assert.ok(!dead.some((h) => e.source.url.includes(h)), `${e.id} still cites an unreachable source: ${e.source.url}`)
+  const src = (id: string) => LAW_REGISTER.find((e) => e.id === id)!.source
+  assert.equal(src('MW-data-1').url, 'https://macra.mw/')
+  assert.equal(src('LY-consumer-1').kind, 'secondary', 'a private legal database stays marked secondary')
+  assert.equal(src('EG-procurement-1').checked, '2026-10-22')
+  console.log('laws (held-back jurisdiction sources): ok')
+}

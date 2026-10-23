@@ -33,3 +33,25 @@ export const SOURCE_FIXES: Record<string, Patch> = {
   'BF-data-1': S('https://www.dlapiperdataprotection.com/?t=law&c=BF'),
   'EG-capital-1': O('https://www.fra.gov.eg/'),
 }
+
+// The seven jurisdictions held back on 21 October: links that still failed on 22 October (sites timing out, a
+// government portal returning errors, UN databases behind a bot check). The official gazette, parliament, central
+// bank or ministry where one loads; otherwise a recognised secondary database (marked secondary).
+export const HELD_BACK_FIXES_CHECKED = '2026-10-22'
+export const HELD_BACK_FIXES: Record<string, Patch> = {
+  // Morocco: the CNDP and AMMC sites time out and ACAPS blocks requests; laws are published in the Bulletin officiel
+  'MA-data-1': O('https://www.sgg.gov.ma/BulletinOfficiel.aspx'),
+  'MA-capital-1': O('https://www.sgg.gov.ma/BulletinOfficiel.aspx'),
+  'MA-financial-2': O('https://www.sgg.gov.ma/BulletinOfficiel.aspx'),
+  // Botswana: the gov.bw portal returns errors
+  'BW-integrity-1': O('https://www.parliament.gov.bw/'),
+  // Malawi: MACRA answers without the www; the FIA site times out, and the central bank supervises AML compliance
+  'MW-data-1': O('https://macra.mw/'),
+  'MW-integrity-2': O('https://www.rbm.mw/'),
+  'MW-sanctions-1': O('https://www.rbm.mw/'),
+  // Egypt, Libya, Central African Republic: UN legal databases behind a bot check
+  'EG-procurement-1': O('https://mof.gov.eg/en'),
+  'LY-competition-1': S('https://lawsociety.ly/'),
+  'LY-consumer-1': S('https://lawsociety.ly/'),
+  'CF-licensing-1': O('https://www.gouv.cf/'),
+}
