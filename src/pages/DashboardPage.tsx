@@ -7,7 +7,9 @@ import {
 } from 'recharts'
 import { Link } from '@tanstack/react-router'
 import { Lock, AlertOctagon, ShieldCheck, ArrowRight, Gauge, ClipboardList, Globe, Radio } from 'lucide-react'
-import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useLensCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useLensCtx, useQuestionsCtx } from '../lib/context'
+import { PlainSummaryCard } from '../components/PlainSummaryCard'
+import { coreSummary } from '../lib/plainSummary'
 import {
   computeOrgScore, computeTierScore, computeCompositeIndices,
   getAccreditation, severityStyle, PAPER_COMPLIANCE_THRESHOLD,
@@ -27,6 +29,8 @@ export function DashboardPage() {
   const { cipStatuses, timeline } = useCIPCtx()
   const { activeLenses } = useLensCtx()
   const orgScores = currentOrg ? scores[currentOrg.id] || {} : {}
+  const { questions } = useQuestionsCtx()
+  const plain = useMemo(() => coreSummary(questions, orgScores), [questions, orgScores])
 
   const composite = useMemo(() => computeOrgScore(orgScores), [orgScores])
   const indices = useMemo(() => computeCompositeIndices(orgScores, activeLenses), [orgScores, activeLenses])
@@ -149,6 +153,7 @@ export function DashboardPage() {
         </div>
       )}
 
+      <PlainSummaryCard summary={plain} />
       <ResultExplainer id="dashboard" />
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
