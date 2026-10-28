@@ -23,12 +23,23 @@ export function coreSummary(questions: Question[], scores: Record<string, number
   const answered = questions.filter((q) => scores[q.id] != null).map((q) => ({ q, score: scores[q.id] }))
   if (!answered.length) return null
   const composite = computeOrgScore(scores)
-  const weak = lowest(answered.filter((a) => a.score <= 2))
+  const allWeak = answered.filter((a) => a.score <= 2)
+  // Signed-out visitors and the demo get the public sample bank, where most questions have no wording; fall back to
+  // the area so a gap never shows blank.
+  const worded = lowest(allWeak.filter((a) => a.q.question.trim()))
+  const byArea = [...new Set(allWeak.map((a) => a.q.domain))]
+    .map((area) => ({ area, n: allWeak.filter((a) => a.q.domain === area).length, low: Math.min(...allWeak.filter((a) => a.q.domain === area).map((a) => a.score)) }))
+    .sort((x, y) => x.low - y.low || y.n - x.n)
+  const gaps = worded.length
+    ? worded.map((a) => ({ text: a.q.question, area: a.q.domain }))
+    : byArea.slice(0, TOP).map((g) => ({ text: `${g.n} answer${g.n === 1 ? '' : 's'} in ${g.area} scored 2 or below`, area: g.area }))
+  const actions = unique(worded.map((a) => a.q.capacityAction.trim()))
   return {
     title: 'Core assessment',
     standing: `Your overall score is ${composite} out of 100: "${getReadinessClassification(composite).label}". This is based on the ${answered.length} questions you have answered so far.`,
-    gaps: weak.map((a) => ({ text: a.q.question, area: a.q.domain })),
-    steps: weak.length ? unique(weak.map((a) => a.q.capacityAction)) : ['No answer is scored 2 or below. Keep your evidence up to date and finish any areas you have not answered.'],
+    gaps,
+    steps: !allWeak.length ? ['No answer is scored 2 or below. Keep your evidence up to date and finish any areas you have not answered.']
+      : actions.length ? actions : ['Open Findings to see each gap and its suggested action, starting with the critical ones.'],
   }
 }
 
