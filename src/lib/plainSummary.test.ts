@@ -20,6 +20,13 @@ assert.deepEqual(core.gaps.map((g) => g.text), [q1.question, q4.question, q3.que
 assert.ok(core.steps.length >= 1 && core.steps.length <= 3 && core.steps.includes(q1.capacityAction))
 assert.ok(!core.gaps.some((g) => g.text === q2.question), 'a strong answer is never listed as a gap')
 
+// Without the private wording (signed out, demo), gaps fall back to areas and steps point to Findings; never blank
+const blank = MOCK_QUESTIONS.slice(0, 4).map((q) => ({ ...q, question: '', capacityAction: '' }))
+const sample = coreSummary(blank, { [blank[0].id]: 0, [blank[1].id]: 1, [blank[2].id]: 5 })!
+assert.ok(sample.gaps.length >= 1 && sample.gaps.every((g) => g.text.trim()), 'no blank gap')
+assert.match(sample.gaps[0].text, /answers? in .+ scored 2 or below/)
+assert.deepEqual(sample.steps, ['Open Findings to see each gap and its suggested action, starting with the critical ones.'])
+
 // Ladder: nothing reached yet points at Survival and its unanswered questions
 const first = LADDER_INDICATORS.find((i) => i.level === 1)!
 const ladder = ladderSummary({ [first.id]: 1 })!
