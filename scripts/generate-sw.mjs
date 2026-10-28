@@ -25,8 +25,10 @@ const { count, size, warnings } = await generateSW({
       handler: 'NetworkOnly',
     },
     {
-      // Static build assets - serve instantly from cache, revalidate later.
-      urlPattern: ({ request }) => ['script', 'style', 'font'].includes(request.destination),
+      // Static build assets - serve instantly from cache, revalidate later. Same origin only: a third-party
+      // script (YouTube's player API, Turnstile) must load straight from its host, not through this worker,
+      // whose fetches are limited by connect-src and would fail.
+      urlPattern: ({ request, url }) => url.origin === self.location.origin && ['script', 'style', 'font'].includes(request.destination),
       handler: 'CacheFirst',
       options: {
         cacheName: 'craft-static',
