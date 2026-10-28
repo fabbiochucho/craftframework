@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { Link } from '@tanstack/react-router'
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
@@ -207,6 +208,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
           <CardHeader>
             <CardTitle>Dimension Profile</CardTitle>
             <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">Mean score per dimension (0-5)</p>
+            <ResultExplainer id="craftIndex" className="mt-2" />
           </CardHeader>
           <CardContent>
             <div className="h-72">

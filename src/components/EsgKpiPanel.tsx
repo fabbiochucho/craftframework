@@ -1,4 +1,5 @@
 import { Calculator } from 'lucide-react'
+import { ResultExplainer } from './ResultExplainer'
 import { Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
 import { useWorkspace } from '../lib/context'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
@@ -18,6 +19,7 @@ export function EsgKpiPanel() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Calculator className="h-4 w-4 text-emerald-600" /> ESG KPI calculator</CardTitle>
+        <ResultExplainer id="esgKpis" className="mt-2" />
         <p className="text-sm text-slate-600">Enter the period's figures; each indicator shows its formula and the choice that makes it comparable. Use one boundary for every figure. These are your own figures, not assured data.</p>
       </CardHeader>
       <CardContent>

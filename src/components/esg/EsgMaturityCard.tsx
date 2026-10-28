@@ -1,5 +1,6 @@
 // The organisation's ESG maturity stage and what it needs to reach the next one.
 import { Card, CardContent, CardHeader, CardTitle } from '../ui'
+import { ResultExplainer } from '../ResultExplainer'
 import { ESG_STAGES, stageLabel, type EsgMaturity } from '../../lib/esgMaturity'
 import { TNFD_STATUS_NOTE } from '../../lib/crosswalk'
 
@@ -7,7 +8,7 @@ export function EsgMaturityCard({ m }: { m: EsgMaturity }) {
   const current = ESG_STAGES.find((s) => s.n === m.stage)
   return (
     <Card>
-      <CardHeader><CardTitle>ESG maturity journey</CardTitle></CardHeader>
+      <CardHeader><CardTitle>ESG maturity journey</CardTitle><ResultExplainer id="esgMaturity" className="mt-2" /></CardHeader>
       <CardContent className="space-y-4">
         <ol className="grid gap-2 sm:grid-cols-5" aria-label="ESG maturity stages">
           {ESG_STAGES.map((s) => (

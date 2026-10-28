@@ -1,6 +1,8 @@
 // Printable views for the index, framework alignment and ISO readiness reports. Data comes from the pure builders in
 // src/lib/reports; these components only lay it out. Every table keeps a text label next to colour.
 import { Printer } from 'lucide-react'
+import { ResultExplainer } from '../ResultExplainer'
+import type { ExplainerId } from '../../lib/explainers'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '../ui'
 import { COVERAGE_LABEL, type Coverage } from '../../lib/reports/coverage'
 import type { IndexReport } from '../../lib/reports/indexReport'
@@ -20,7 +22,7 @@ const today = () => new Date().toLocaleDateString(undefined, { day: 'numeric', m
 const fmt = (n: number | null) => (n === null ? '—' : n.toFixed(2))
 const LENS_STATUS_LABEL = { 'not-assessed': 'not assessed', 'at-risk': 'at risk', strained: 'strained', holds: 'holds' } as const
 
-function Shell({ title, subtitle, org, onPrint, footer, children }: { title: string; subtitle: string; org: string; onPrint: () => void; footer?: string; children: React.ReactNode }) {
+function Shell({ title, subtitle, org, onPrint, footer, explainer, children }: { title: string; subtitle: string; org: string; onPrint: () => void; footer?: string; explainer: ExplainerId; children: React.ReactNode }) {
   return (
     <Card className="print:border-0 print:shadow-none">
       <CardHeader>
@@ -29,6 +31,7 @@ function Shell({ title, subtitle, org, onPrint, footer, children }: { title: str
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{org}</p>
             <CardTitle>{title}</CardTitle>
             <p className="mt-1 text-sm text-slate-500">{subtitle} · as of {today()}</p>
+            <ResultExplainer id={explainer} className="mt-2 print:hidden" />
           </div>
           <Button variant="outline" onClick={onPrint} className="print:hidden"><Printer className="h-4 w-4" /> Print / Save as PDF</Button>
         </div>
@@ -43,7 +46,7 @@ function Shell({ title, subtitle, org, onPrint, footer, children }: { title: str
 
 export function IndexReportView({ r, org, onPrint }: { r: IndexReport; org: string; onPrint: () => void }) {
   return (
-    <Shell title={r.title} subtitle={`${r.version ?? 'CRAFT index'} · ${r.answered} of ${r.total} questions answered`} org={org} onPrint={onPrint}>
+    <Shell title={r.title} subtitle={`${r.version ?? 'CRAFT index'} · ${r.answered} of ${r.total} questions answered`} org={org} onPrint={onPrint} explainer="craftIndex">
       <p className="text-sm text-slate-600">{r.question}</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg bg-slate-50 p-4"><p className="text-xs uppercase text-slate-500">Band</p><p className="text-xl font-bold text-emerald-900">{r.band?.band.label ?? 'Not yet assessed'}</p>{r.band?.capReason && <p className="mt-1 text-xs text-amber-700">{r.band.capReason}</p>}</div>
@@ -85,7 +88,7 @@ export function IndexReportView({ r, org, onPrint }: { r: IndexReport; org: stri
 
 export function AlignmentReportView({ r, org, onPrint }: { r: AlignmentReport; org: string; onPrint: () => void }) {
   return (
-    <Shell title={r.title} subtitle={`${r.framework.owner} · ${r.counts.covered} covered · ${r.counts.partial} partial · ${r.counts.gap + r.counts['gap-limited']} gaps · ${r.counts['not-assessed']} not assessed`} org={org} onPrint={onPrint} footer={r.footer}>
+    <Shell title={r.title} subtitle={`${r.framework.owner} · ${r.counts.covered} covered · ${r.counts.partial} partial · ${r.counts.gap + r.counts['gap-limited']} gaps · ${r.counts['not-assessed']} not assessed`} org={org} onPrint={onPrint} footer={r.footer} explainer="frameworkReport">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead><tr className="text-xs uppercase text-slate-500"><th className="py-1 pr-3">Element</th><th className="pr-3">Coverage</th><th className="pr-3">Answered</th><th>Average (0–5)</th></tr></thead>
@@ -108,7 +111,7 @@ export function AlignmentReportView({ r, org, onPrint }: { r: AlignmentReport; o
 
 export function IsoReadinessView({ r, org, onPrint }: { r: IsoReadiness; org: string; onPrint: () => void }) {
   return (
-    <Shell title="ISO certification readiness" subtitle={`${r.standards.length} standard${r.standards.length === 1 ? '' : 's'}`} org={org} onPrint={onPrint} footer={r.footer}>
+    <Shell title="ISO certification readiness" subtitle={`${r.standards.length} standard${r.standards.length === 1 ? '' : 's'}`} org={org} onPrint={onPrint} footer={r.footer} explainer="isoReadiness">
       <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">{r.statement}</p>
       <p className="text-xs text-slate-500">{r.lensNote}</p>
       {r.standards.map(s => (

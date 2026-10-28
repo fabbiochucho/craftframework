@@ -1,5 +1,6 @@
 // Printable jurisdiction alignment report. Data from src/lib/laws/jurisdictionReport.ts.
 import { Printer } from 'lucide-react'
+import { ResultExplainer } from '../ResultExplainer'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '../ui'
 import { CoverageChip } from './ReportViews'
 import type { JurisdictionReport } from '../../lib/laws/jurisdictionReport'
@@ -14,6 +15,7 @@ export function JurisdictionReportView({ r, org, onPrint }: { r: JurisdictionRep
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{org}</p>
             <CardTitle>{r.title}</CardTitle>
             <p className="mt-1 text-sm text-slate-500">{r.version} · as of {today}</p>
+            <ResultExplainer id="jurisdiction" className="mt-2 print:hidden" />
           </div>
           <Button variant="outline" onClick={onPrint} className="print:hidden"><Printer className="h-4 w-4" /> Print / Save as PDF</Button>
         </div>

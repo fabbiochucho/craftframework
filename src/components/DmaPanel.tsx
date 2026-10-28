@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ResultExplainer } from './ResultExplainer'
 import { Layers3, Plus, Trash2 } from 'lucide-react'
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ReferenceLine, CartesianGrid } from 'recharts'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
@@ -88,6 +89,7 @@ export function DmaPanel() {
 
           <section className="space-y-2">
             <h3 className="font-semibold text-slate-800">3. Matrices and thresholds</h3>
+            <ResultExplainer id="dma" />
             <div className="grid gap-4 md:grid-cols-2">
               <Matrix title="Impact: likelihood x severity" data={points('impact')} yLabel="Severity" threshold={a.thresholds.impact} />
               <Matrix title="Financial: likelihood x magnitude" data={points('financial')} yLabel="Magnitude" threshold={a.thresholds.financial} />

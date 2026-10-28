@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ResultExplainer } from './ResultExplainer'
 import { Button, Card, CardContent, CardHeader, CardTitle } from './ui'
 import { api } from '../lib/trainingClient'
 
@@ -25,6 +26,7 @@ export function BaselineTests({ moduleId }: { moduleId: string }) {
       <CardHeader>
         <CardTitle>Pre-test and post-test</CardTitle>
         <p className="text-sm text-slate-600">Answer the pre-test before you watch the explainer video, and the post-test after it, to see what you have learned. Practice only: it does not count towards accreditation.</p>
+        <ResultExplainer id="prePostTests" className="mt-2" />
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-3 text-sm">
