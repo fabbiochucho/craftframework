@@ -187,7 +187,7 @@ function ModuleEditor({ m, save }: { m: any; save: (p: string, method: string, j
   const [err, setErr] = useState('')
   return (
     <Card>
-      <CardHeader><CardTitle>Module {m.position}. {m.title}</CardTitle><p className="text-xs text-slate-500">Revision {m.revision}. Changing the script or video makes validators re-watch it at their next renewal.</p></CardHeader>
+      <CardHeader><CardTitle>Module {m.position}. {m.title}</CardTitle><p className="text-xs text-slate-500">Revision {m.revision}. Validators watch each module once a year for renewal; changing the script or video does not reset anyone's watching.</p></CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={async (e) => {
           e.preventDefault()

@@ -6,6 +6,7 @@ import { BaselineTests } from '../components/BaselineTests'
 import { trackEvent } from '../lib/analytics'
 import { LADDER_INDICATORS, LADDER_LEVELS, currentRung, levelAchieved, levelScore } from '../lib/capitalReadiness'
 import { STEPS, type Step } from '../lib/validatorTraining'
+import { WATCHED_PCT, createWatchTracker, playerProgress } from '../lib/videoWatch'
 
 // One training module: Watch → Try → Decide → Check → Reflect. Grading, answer keys and
 // completion are all server-side (/api/training/modules/:id/...); this page shows what the
@@ -82,15 +83,43 @@ export function TrainingModulePage({ moduleId }: { moduleId: string }) {
   )
 }
 
+const PLAYER_ORIGIN = 'https://www.youtube-nocookie.com'
+
 function WatchStep({ m, reload, next }: { m: ModuleView; reload: () => void; next: () => void }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [pct, setPct] = useState(0)
+  const [noProgress, setNoProgress] = useState(false)
+  const frame = useRef<HTMLIFrameElement>(null)
+  const watched = m.steps.includes('watch')
+  // The embedded player reports its progress by postMessage once told we are listening; only seconds played
+  // through count (see videoWatch.ts), so the button opens once most of the video has really been watched.
+  useEffect(() => {
+    if (!m.videoId) return
+    const tracker = createWatchTracker()
+    let heard = false
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== PLAYER_ORIGIN || e.source !== frame.current?.contentWindow) return
+      heard = true
+      const p = playerProgress(e.data)
+      if (p) setPct(tracker.update(p.currentTime, p.duration))
+    }
+    window.addEventListener('message', onMessage)
+    const listen = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), PLAYER_ORIGIN)
+    const timers = [500, 1500, 3000, 6000].map((ms) => setTimeout(listen, ms))
+    // ponytail: if the player never answers (YouTube changed its embed messages), fall back to the honour button
+    // rather than lock learners out; the upgrade is YouTube's IFrame API script, which needs a CSP change.
+    const fallback = setTimeout(() => { if (!heard) setNoProgress(true) }, 15000)
+    return () => { window.removeEventListener('message', onMessage); timers.forEach(clearTimeout); clearTimeout(fallback) }
+  }, [m.videoId])
+  const canRecord = !m.videoId || pct >= WATCHED_PCT || noProgress
   return (
     <Card>
       <CardHeader><CardTitle>Watch</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {m.videoId ? (
           <div className="aspect-video w-full overflow-hidden rounded-lg bg-slate-900">
-            <iframe className="h-full w-full" title={`Module ${m.position} video: ${m.title}`} src={`https://www.youtube-nocookie.com/embed/${m.videoId}?cc_load_policy=1&rel=0`}
+            <iframe ref={frame} className="h-full w-full" title={`Module ${m.position} video: ${m.title}`}
+              src={`${PLAYER_ORIGIN}/embed/${m.videoId}?cc_load_policy=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`}
               allow="encrypted-media; picture-in-picture" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
           </div>
         ) : <p className="text-sm text-slate-500">The video for this module has not been recorded yet. Read the written script below.</p>}
@@ -100,10 +129,15 @@ function WatchStep({ m, reload, next }: { m: ModuleView; reload: () => void; nex
             <div className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700">{m.script}</div>
           </details>
         ) : <div className="whitespace-pre-line text-sm leading-relaxed text-slate-700">{m.script}</div>}
+        {watched && <p role="status" className="text-sm text-emerald-700">You have already watched this module. You do not need to watch it again unless your yearly renewal asks you to.</p>}
+        {m.videoId && !noProgress && !(watched && pct === 0) && (
+          <p className="text-sm text-slate-600" aria-live="polite">Watched so far: {pct}%{pct < WATCHED_PCT ? ` (the button opens at ${WATCHED_PCT}%)` : ''}</p>
+        )}
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={async () => {
-            try { await training(`modules/${m.id}/watch`, { method: 'POST', json: {} }); setMsg({ ok: true, text: 'Recorded' }); reload(); next() } catch (e: any) { setMsg({ ok: false, text: e.message }) }
-          }}>{m.videoId ? 'I have watched this video' : 'I have read the script'}</Button>
+          {watched && <Button onClick={next}>Next: Try</Button>}
+          <Button variant={watched ? 'outline' : 'primary'} disabled={!canRecord} onClick={async () => {
+            try { await training(`modules/${m.id}/watch`, { method: 'POST', json: m.videoId ? { watchedPct: noProgress ? null : pct } : {} }); setMsg({ ok: true, text: 'Recorded' }); reload(); next() } catch (e: any) { setMsg({ ok: false, text: e.message }) }
+          }}>{m.videoId ? (watched ? 'Record watching again' : 'I have watched this video') : 'I have read the script'}</Button>
           <Note msg={msg} />
         </div>
       </CardContent>

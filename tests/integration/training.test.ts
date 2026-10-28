@@ -367,6 +367,16 @@ describe('validator training and accreditation', () => {
     assert.equal(state.items.find((i: any) => i.key === 'videos').detail, '0 of 9 done', 'last year’s watching does not count')
     assert.equal((await t(LEARNER, 'POST', 'renewal/complete')).status, 409)
     for (const m of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9']) assert.equal((await t(LEARNER, 'POST', `modules/${m}/watch`)).status, 200)
+    // Setting a module's video mid-year does not make anyone watch it again before next year's renewal
+    const mod = (await t(ADMIN, 'GET', 'manage/content')).body.modules.find((x: any) => x.id === 'm1')
+    assert.equal((await t(ADMIN, 'PUT', 'manage/modules/m1', { title: mod.title, outcome: mod.outcome, script: mod.script, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
+      reflectionPrompt: mod.reflectionPrompt, exercises: mod.exercises, scenario: mod.scenario })).status, 200)
+    assert.equal((await t(LEARNER, 'GET', 'renewal')).body.items.find((i: any) => i.key === 'videos').detail, '9 of 9 done', 'a new video resets nobody')
+    // A video watch is recorded only once most of it has played, and says which video it was
+    assert.equal((await t(LEARNER, 'POST', 'modules/m1/watch', { watchedPct: 40 })).status, 400)
+    assert.equal((await t(LEARNER, 'POST', 'modules/m1/watch', { watchedPct: 95 })).status, 200)
+    assert.deepEqual((await rows(`SELECT detail FROM training_progress WHERE email=$1 AND module_id='m1' AND step='watch'`, [LEARNER]))[0].detail,
+      { video: true, videoId: 'dQw4w9WgXcQ', watchedPct: 95 })
     assert.equal((await t(LEARNER, 'POST', 'renewal/complete')).status, 409, 'CPD, drill and declaration are still missing')
     assert.equal((await t(LEARNER, 'POST', 'renewal/cpd', { hours: 5, activity: 'ACCA CPD', occurredOn: '2026-09-01' })).status, 201)
     assert.equal((await t(LEARNER, 'POST', 'renewal/cpd', { hours: 30, activity: 'x', occurredOn: '2026-09-01' })).status, 400)

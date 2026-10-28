@@ -23,6 +23,7 @@ import {
   drawExamQuestions, examDeadline, examEligibility, examOnTime, exemptBody, renewalChecklist, renewalOpensAt, renewalWindowStart,
   renewedUntil, scoreExam, STEPS, streakDays, wordCount, XP, youtubeEmbedId, type RubricCriterion, type Step,
 } from '../../src/lib/validatorTraining.js'
+import { WATCHED_PCT } from '../../src/lib/videoWatch.js'
 
 // /api/training — the validator training and accreditation programme (spec PR 4).
 // Signed-in only. Learners work through eight modules (Watch → Try → Decide → Check →
@@ -141,7 +142,8 @@ async function renewalState(email: string, until: Date, now: Date) {
   const check = renewalChecklist({
     videos: mods.map((m) => {
       const w = prog.find((p) => p.moduleId === m.id)
-      return { moduleId: m.id, title: m.title, done: !!w && w.completedAt.getTime() >= start.getTime() && w.revision >= m.revision }
+      // once per renewal year: editing the module or setting its video mid-year does not make anyone watch again
+      return { moduleId: m.id, title: m.title, done: !!w && w.completedAt.getTime() >= start.getTime() }
     }),
     cpdHours: Math.round(cpd.reduce((a, c) => a + Number(c.hours), 0) * 10) / 10,
     drillPct: drills.length ? Math.max(...drills.map((d) => d.pct)) : null,
@@ -284,7 +286,13 @@ const handleRequest = async (req: Request) => {
         })
       }
       if (m === 'POST' && c === 'watch') {
-        await completeStep(email, md.id, 'watch', md.revision, { video: !!youtubeEmbedId(md.youtubeUrl) }, now)
+        // the page opens the button at WATCHED_PCT of the video really played; null when the player sent no progress
+        const p = z.object({ watchedPct: z.number().min(0).max(100).nullable().optional() }).safeParse((await readBody()) ?? {})
+        if (!p.success) return bad('Invalid request')
+        const videoId = youtubeEmbedId(md.youtubeUrl)
+        const watchedPct = p.data.watchedPct ?? null
+        if (videoId && watchedPct !== null && watchedPct < WATCHED_PCT) return bad(`Watch at least ${WATCHED_PCT}% of the video first`)
+        await completeStep(email, md.id, 'watch', md.revision, { video: !!videoId, videoId, watchedPct }, now)
         return json({ ok: true })
       }
       if (m === 'POST' && c === 'decide') {
@@ -747,7 +755,7 @@ const handleRequest = async (req: Request) => {
         if (yt && !youtubeEmbedId(yt)) return bad('The video link must be a YouTube link (youtube.com/watch, youtu.be or /embed)')
         const bump = p.data.script !== cur.script || yt !== cur.youtubeUrl
         await db.update(trainingModules).set({ ...p.data, youtubeUrl: yt, exercises: p.data.exercises as TrainingExercise[], revision: bump ? cur.revision + 1 : cur.revision, ...stamp }).where(eq(trainingModules.id, c))
-        await audit(email, `edited training module ${c}${bump ? ` (revision ${cur.revision + 1}: learners must re-watch at renewal)` : ''}`, c)
+        await audit(email, `edited training module ${c}${bump ? ` (revision ${cur.revision + 1})` : ''}`, c)
         return json({ ok: true, revision: bump ? cur.revision + 1 : cur.revision })
       }
       if ((m === 'POST' && b === 'questions') || (m === 'PUT' && b === 'questions' && c)) {
