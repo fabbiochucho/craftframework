@@ -25,6 +25,7 @@ import {
   primaryKey,
   numeric,
   uniqueIndex,
+  doublePrecision,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -1764,7 +1765,9 @@ export const trainingModules = pgTable('training_modules', {
   script: text('script').notNull().default(''),
   // Unlisted video on youtube.com/@DiBadiliTV; null until recorded (the script is shown).
   youtubeUrl: text('youtube_url'),
-  // Bumped when the script or video changes; renewal needs the current revision re-watched.
+  // The video's length in seconds, entered with the link; the server credits watching against it (src/lib/videoWatch.ts).
+  videoSeconds: integer('video_seconds'),
+  // Bumped when the script or video changes (shown to the programme team); watching counts once per renewal year.
   revision: integer('revision').notNull().default(1),
   exercises: jsonb('exercises').$type<TrainingExercise[]>().notNull().default([]),
   scenario: jsonb('scenario').$type<TrainingScenario | null>(),
@@ -1854,6 +1857,19 @@ export const trainingBaselineAttempts = pgTable('training_baseline_attempts', {
   // the first pre-test is the baseline, so each learner takes it once per module
   uniqueIndex('training_baseline_attempts_one_pre').on(t.email, t.moduleId).where(sql`${t.kind} = 'pre'`),
 ])
+
+// One playthrough of a module video, credited on the server from position reports (src/lib/videoWatch.ts).
+export const trainingWatchSessions = pgTable('training_watch_sessions', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  moduleId: text('module_id').notNull(),
+  videoId: text('video_id').notNull(),
+  videoSeconds: integer('video_seconds').notNull(),
+  lastPos: doublePrecision('last_pos').notNull().default(0),
+  lastAt: timestamp('last_at', { withTimezone: true }).notNull().defaultNow(),
+  buckets: jsonb('buckets').$type<number[]>().notNull().default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('training_watch_sessions_email_module_idx').on(t.email, t.moduleId)])
 
 export const trainingActivity = pgTable('training_activity', {
   email: text('email').notNull(),

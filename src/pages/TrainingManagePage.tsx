@@ -183,22 +183,23 @@ function Content({ kind }: { kind: string }) {
 }
 
 function ModuleEditor({ m, save }: { m: any; save: (p: string, method: string, json: unknown, ok?: string) => Promise<boolean> }) {
-  const [f, setF] = useState({ title: m.title, outcome: m.outcome, script: m.script, youtubeUrl: m.youtubeUrl ?? '', reflectionPrompt: m.reflectionPrompt, exercises: pretty(m.exercises), scenario: pretty(m.scenario) })
+  const [f, setF] = useState({ title: m.title, outcome: m.outcome, script: m.script, youtubeUrl: m.youtubeUrl ?? '', videoSeconds: m.videoSeconds ? String(m.videoSeconds) : '', reflectionPrompt: m.reflectionPrompt, exercises: pretty(m.exercises), scenario: pretty(m.scenario) })
   const [err, setErr] = useState('')
   return (
     <Card>
-      <CardHeader><CardTitle>Module {m.position}. {m.title}</CardTitle><p className="text-xs text-slate-500">Revision {m.revision}. Changing the script or video makes validators re-watch it at their next renewal.</p></CardHeader>
+      <CardHeader><CardTitle>Module {m.position}. {m.title}</CardTitle><p className="text-xs text-slate-500">Revision {m.revision}. Validators watch each module once a year for renewal; changing the script or video does not reset anyone's watching.</p></CardHeader>
       <CardContent>
         <form className="space-y-3" onSubmit={async (e) => {
           e.preventDefault()
           let exercises, scenario
           try { exercises = JSON.parse(f.exercises); scenario = JSON.parse(f.scenario) } catch { setErr('Exercises and scenario must be valid JSON'); return }
           setErr('')
-          await save(`manage/modules/${m.id}`, 'PUT', { title: f.title, outcome: f.outcome, script: f.script, youtubeUrl: f.youtubeUrl.trim() || null, reflectionPrompt: f.reflectionPrompt, exercises, scenario })
+          await save(`manage/modules/${m.id}`, 'PUT', { title: f.title, outcome: f.outcome, script: f.script, youtubeUrl: f.youtubeUrl.trim() || null, videoSeconds: f.videoSeconds.trim() ? Number(f.videoSeconds) : null, reflectionPrompt: f.reflectionPrompt, exercises, scenario })
         }}>
           <Input label="Title" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
           <Input label="Outcome" value={f.outcome} onChange={(e) => setF({ ...f, outcome: e.target.value })} />
           <Input label="YouTube link (unlisted video on youtube.com/@DiBadiliTV; leave empty to show the script)" value={f.youtubeUrl} onChange={(e) => setF({ ...f, youtubeUrl: e.target.value })} placeholder="https://youtu.be/…" />
+          <Input label="Video length in seconds (required with a link; watching is credited against it)" type="number" min={1} value={f.videoSeconds} onChange={(e) => setF({ ...f, videoSeconds: e.target.value })} placeholder="e.g. 760" />
           <Field label="Written script (also the transcript)" rows={8} value={f.script} onChange={(v) => setF({ ...f, script: v })} />
           <Field label="Reflection prompt" rows={2} value={f.reflectionPrompt} onChange={(v) => setF({ ...f, reflectionPrompt: v })} />
           <details><summary className="cursor-pointer text-sm font-medium text-slate-700">Exercises and scenario (JSON)</summary>
