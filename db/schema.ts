@@ -1839,6 +1839,22 @@ export const trainingProgress = pgTable('training_progress', {
   detail: jsonb('detail').$type<Record<string, unknown>>().notNull().default({}),
 }, (t) => [primaryKey({ columns: [t.email, t.moduleId, t.step] })])
 
+// Pre- and post-tests for the explainer videos (src/lib/trainingBaseline.ts). Practice only: never accreditation.
+export const trainingBaselineAttempts = pgTable('training_baseline_attempts', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull(),
+  moduleId: text('module_id').notNull(),
+  kind: text('kind').$type<'pre' | 'post'>().notNull(),
+  score: integer('score').notNull(),
+  total: integer('total').notNull(),
+  answers: jsonb('answers').$type<number[]>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index('training_baseline_attempts_email_idx').on(t.email), index('training_baseline_attempts_module_idx').on(t.moduleId),
+  // the first pre-test is the baseline, so each learner takes it once per module
+  uniqueIndex('training_baseline_attempts_one_pre').on(t.email, t.moduleId).where(sql`${t.kind} = 'pre'`),
+])
+
 export const trainingActivity = pgTable('training_activity', {
   email: text('email').notNull(),
   day: date('day').notNull(),

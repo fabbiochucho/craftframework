@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '../components/ui'
 import { training } from '../lib/trainingClient'
+import { BaselineTests } from '../components/BaselineTests'
 import { trackEvent } from '../lib/analytics'
 import { LADDER_INDICATORS, LADDER_LEVELS, currentRung, levelAchieved, levelScore } from '../lib/capitalReadiness'
 import { STEPS, type Step } from '../lib/validatorTraining'
@@ -60,6 +61,7 @@ export function TrainingModulePage({ moduleId }: { moduleId: string }) {
         <h1 className="font-display text-2xl font-bold text-emerald-900">Module {m.position}. {m.title}</h1>
         <p className="mt-1 text-sm text-slate-600"><strong>Outcome:</strong> {m.outcome}</p>
       </div>
+      <BaselineTests moduleId={m.id} />
       <nav aria-label="Module steps" className="flex flex-wrap gap-1 border-b border-slate-200">
         {STEPS.map((s) => (
           <button key={s} onClick={() => setStep(s)} aria-current={step === s ? 'step' : undefined}
