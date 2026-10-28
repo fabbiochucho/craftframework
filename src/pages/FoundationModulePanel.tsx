@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react'
 import { ResultExplainer } from '../components/ResultExplainer'
+import { PlainSummaryCard } from '../components/PlainSummaryCard'
+import { indexSummary } from '../lib/plainSummary'
+import { buildIndexReport } from '../lib/reports/indexReport'
 import { Link } from '@tanstack/react-router'
 import {
   ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
@@ -17,7 +20,7 @@ import {
 } from '../lib/foundationModules'
 import { CATEGORY_LABEL, esScreening, SCREENING_QUESTIONS, type EsScreeningAnswers } from '../lib/indices/safeguards'
 import { useModuleProfile } from '../lib/moduleProfile'
-import { useAuthCtx, useScoresCtx, useWorkspace } from '../lib/context'
+import { useAuthCtx, useCIPCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import {
   Card, CardHeader, CardTitle, CardContent, Badge, ProgressBar, Accordion, Stat, Reveal,
 } from '../components/ui'
@@ -73,6 +76,8 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
   const completionPct = total ? Math.round((answered / total) * 100) : 0
   const composite = useMemo(() => compositeScore(m, scores, p), [m, scores, p])
   const band = useMemo(() => bandFor(m, scores, p), [m, scores, p])
+  const { timeline } = useCIPCtx()
+  const plain = useMemo(() => indexSummary(buildIndexReport(m, scores, p, timeline)), [m, scores, p, timeline])
   const lenses = useMemo(() => m.lenses.map(l => evaluateLens(m, l, scores, p)), [m, scores, p])
   const gaps = useMemo(() => priorityGaps(m, scores, p), [m, scores, p])
   const strong = useMemo(() => strengths(m, scores, p), [m, scores, p])
@@ -201,6 +206,8 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
           )}
         </Card>
       )}
+
+      <PlainSummaryCard summary={plain} />
 
       {/* Profile + lenses */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { FileBarChart, FileText, FileSpreadsheet, Download, Printer } from 'lucide-react'
-import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx, useLensCtx, useEntityProfileCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useAuditCtx, useLensCtx, useEntityProfileCtx, useQuestionsCtx } from '../lib/context'
+import { PlainSummaryCard } from '../components/PlainSummaryCard'
+import { coreSummary, esgSummary, indexSummary, ladderSummary, type PlainSummary } from '../lib/plainSummary'
 import {
   computeOrgScore, getAccreditation, answeredCount, RiskStatus,
 } from '../lib/data'
@@ -71,7 +73,7 @@ function exportJurisdictionCsv(r: ReturnType<typeof buildJurisdictionReport>) {
   URL.revokeObjectURL(url)
 }
 
-type PrintTarget = 'summary' | 'index' | 'alignment' | 'iso' | 'jurisdiction' | null
+type PrintTarget = 'summary' | 'plain' | 'index' | 'alignment' | 'iso' | 'jurisdiction' | null
 const ISO_IDS = EXTERNAL_FRAMEWORKS.filter(f => f.owner === 'ISO')
 
 export function ReportsPage() {
@@ -102,6 +104,11 @@ export function ReportsPage() {
   const lenses = useMemo(() => Object.entries(activeLenses).filter(([, on]) => on).map(([k]) => k), [activeLenses])
   const allScores = useMemo(() => ({ ...orgScores, ...ladderScores, ...esgScores }), [orgScores, ladderScores, esgScores])
   const modules = FOUNDATION_MODULES.filter(m => !m.preview || canSeePreview(currentUser?.role))
+  // Results in plain words: one short summary per assessment answered so far, for boards and teams.
+  const { questions } = useQuestionsCtx()
+  const plainAll = useMemo(() => [coreSummary(questions, orgScores), ladderSummary(ladderScores), esgSummary(esgScores),
+    ...modules.map(m => indexSummary(buildIndexReport(m, allScores, moduleProfile, timeline)))].filter((s): s is PlainSummary => s !== null),
+  [questions, orgScores, ladderScores, esgScores, allScores, moduleProfile, timeline])
   const alignable = EXTERNAL_FRAMEWORKS.filter(f => f.owner !== 'ISO' && alignmentAvailable(f.id))
   const [indexId, setIndexId] = useState('')
   const [frameworkId, setFrameworkId] = useState('')
@@ -264,6 +271,24 @@ export function ReportsPage() {
       {alignment && <div className={hideUnless('alignment')}><AlignmentReportView r={alignment} org={orgName} onPrint={() => printReport('alignment', `Alignment: ${alignment.framework.name}`)} /></div>}
       {iso && <div className={hideUnless('iso')}><IsoReadinessView r={iso} org={orgName} onPrint={() => printReport('iso', 'ISO certification readiness')} /></div>}
       {lawReport && <div className={hideUnless('jurisdiction')}><JurisdictionReportView r={lawReport} org={orgName} onPrint={() => printReport('jurisdiction', 'Jurisdiction alignment')} /></div>}
+
+      {/* Results in plain words: printable one-page summary for non-technical readers */}
+      <Card className={`print:shadow-none print:border-0 ${hideUnless('plain')}`}>
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{orgName}</p>
+              <CardTitle>Results in plain words</CardTitle>
+              <p className="mt-1 text-sm text-slate-500">Every assessment you have answered, in short everyday language for your board and team. Based on your own answers; it is not a validation.</p>
+            </div>
+            {plainAll.length > 0 && <Button variant="outline" onClick={() => printReport('plain', 'Results in plain words')} className="print:hidden"><Printer className="h-4 w-4" /> Print / Save as PDF</Button>}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {plainAll.length ? plainAll.map(s => <PlainSummaryCard key={s.title} summary={s} heading={s.title} />)
+            : <p className="text-sm text-slate-500">Answer any assessment and your results will appear here in plain words.</p>}
+        </CardContent>
+      </Card>
 
       {/* Printable executive summary */}
       <Card className={`print:shadow-none print:border-0 ${hideUnless('summary')}`}>

@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { ResultExplainer } from '../components/ResultExplainer'
+import { PlainSummaryCard } from '../components/PlainSummaryCard'
+import { esgSummary } from '../lib/plainSummary'
 import { esgMaturity, shouldShowNewQuestionsNotice } from '../lib/esgMaturity'
 import { useAuthCtx, useWorkspace } from '../lib/context'
 import { EsgMaturityCard } from '../components/esg/EsgMaturityCard'
@@ -265,6 +267,8 @@ export function EsgAssessmentPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <PlainSummaryCard summary={esgSummary(scores)} />
 
       {/* Radar + Bar (verified score) */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

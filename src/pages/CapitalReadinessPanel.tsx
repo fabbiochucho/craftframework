@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { ResultExplainer } from '../components/ResultExplainer'
+import { PlainSummaryCard } from '../components/PlainSummaryCard'
+import { ladderSummary } from '../lib/plainSummary'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
 import {
@@ -70,6 +72,8 @@ export function CapitalReadinessPanel() {
           <ProgressBar value={completionPct} className="mt-3" />
         </Card>
       </div>
+
+      <PlainSummaryCard summary={ladderSummary(scores)} />
 
       {/* The ladder itself */}
       <Card>
