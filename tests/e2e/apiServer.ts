@@ -55,6 +55,8 @@ const progressHandler = (await import(new URL('../../netlify/functions/onboardin
 const lifecyclePublicHandler = (await import(new URL('../../netlify/functions/lifecycle-public.mts', import.meta.url).href)).default
 const lifecycleAdminHandler = (await import(new URL('../../netlify/functions/admin-lifecycle.mts', import.meta.url).href)).default
 const qualityHandler = (await import(new URL('../../netlify/functions/validator-quality.mts', import.meta.url).href)).default
+const engagementsHandler = (await import(new URL('../../netlify/functions/engagements.mts', import.meta.url).href)).default
+const reviewsHandler = (await import(new URL('../../netlify/functions/validation-reviews.mts', import.meta.url).href)).default
 
 // Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
 // browser test can open the public verification page of a validation that exists. Returns its ID.
@@ -165,6 +167,8 @@ const server = http.createServer(async (req, res) => {
         : url.pathname === '/api/directory' || url.pathname.startsWith('/api/directory/') ? directoryHandler
           : url.pathname === '/api/review-panel' || url.pathname.startsWith('/api/review-panel/') ? panelHandler
           : url.pathname === '/api/validator-quality' || url.pathname.startsWith('/api/validator-quality/') ? qualityHandler
+          : url.pathname === '/api/engagements' || url.pathname.startsWith('/api/engagements/') ? engagementsHandler
+          : url.pathname === '/api/validation-reviews' || url.pathname.startsWith('/api/validation-reviews/') ? reviewsHandler
             : (legacyHandlers.get(url.pathname) ?? handler)
     const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => routeHandler(request))
     const out: Record<string, string> = {}
