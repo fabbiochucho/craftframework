@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, Fragment, type ReactNode } from 'react'
+import { ResultExplainer } from '../components/ResultExplainer'
 import {
   ResponsiveContainer,
   BarChart,
@@ -284,6 +285,7 @@ export function TrustDeltaPage() {
                 Per question: PR self-score (right) vs assessor / LFA score (left). The
                 wider the divergence across the centre line, the larger the trust gap.
               </p>
+              <ResultExplainer id="trustDelta" className="mt-2" />
             </div>
             <TrendingUp className="hidden h-6 w-6 text-emerald-500 sm:block" />
           </div>

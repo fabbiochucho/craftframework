@@ -1,4 +1,5 @@
 import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { useMemo } from 'react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -148,6 +149,7 @@ export function DashboardPage() {
         </div>
       )}
 
+      <ResultExplainer id="dashboard" />
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Composite Score" value={`${composite}%`} accent={composite >= 70 ? 'emerald' : composite >= 50 ? 'amber' : 'rose'} hint="Weighted across answered domains" />

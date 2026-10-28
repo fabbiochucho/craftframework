@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ResultExplainer } from './ResultExplainer'
 import { ShieldCheck, Trash2, Plus } from 'lucide-react'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
 import { useWorkspace } from '../lib/context'
@@ -35,6 +36,7 @@ export function AssurancePanel() {
         <fieldset disabled={readOnly} className="space-y-5 text-sm">
           <section>
             <h3 className="mb-2 font-semibold text-slate-800">Roadmap</h3>
+            <ResultExplainer id="assurance" className="mb-2" />
             <ol className="space-y-1">
               {ASSURANCE_PHASES.map((ph) => (
                 <li key={ph.n} className={phase >= ph.n ? 'text-emerald-700' : 'text-slate-600'}>{phase >= ph.n ? '✓' : `${ph.n}.`} {ph.name}</li>

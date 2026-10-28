@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { esgMaturity, shouldShowNewQuestionsNotice } from '../lib/esgMaturity'
 import { useAuthCtx, useWorkspace } from '../lib/context'
 import { EsgMaturityCard } from '../components/esg/EsgMaturityCard'
@@ -288,6 +289,7 @@ export function EsgAssessmentPanel() {
         <Card>
           <CardHeader>
             <CardTitle>Pillar Scorecard (self-reported)</CardTitle>
+            <ResultExplainer id="esgScorecard" className="mt-2" />
           </CardHeader>
           <CardContent>
             <div className="h-64 w-full">

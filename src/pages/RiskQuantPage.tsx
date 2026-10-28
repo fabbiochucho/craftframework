@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { Calculator, Plus, Trash2 } from 'lucide-react'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useScoresCtx, useWorkspace } from '../lib/context'
@@ -88,6 +89,7 @@ export function RiskQuantPage() {
               <CardTitle>Cost of the gap: which fixes pay back most</CardTitle>
               <Button size="sm" onClick={rank}>{ranking ? 'Rank again' : 'Rank the fixes'}</Button>
             </div>
+            <ResultExplainer id="riskQuant" className="mt-2" />
             {ranking && ranking.key !== listKey && <p className="text-sm text-amber-700">The inputs have changed since this ranking. Rank again to update it.</p>}
           </CardHeader>
           {ranking && ranking.rows.length > 0 && <CardContent>

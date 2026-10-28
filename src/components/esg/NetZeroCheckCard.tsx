@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ResultExplainer } from '../ResultExplainer'
 import { Target } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Input } from '../ui'
 import { useLegacyAssessment } from '../../lib/legacy-assessment'
@@ -24,6 +25,7 @@ export function NetZeroCheckCard() {
           <button type="button" className="text-sm text-emerald-700 underline" onClick={() => setOpen(!open)}>{open ? 'Hide' : started ? 'Edit' : 'Check a target'}</button>
         </div>
         <p className="text-sm text-slate-600">How your Scope 1 and 2 target compares with 1.5°C benchmarks. Indicative only; it is not an SBTi validation.</p>
+        <ResultExplainer id="netZero" className="mt-2" />
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {open && (

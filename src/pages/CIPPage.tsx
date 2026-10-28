@@ -1,4 +1,5 @@
 import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { useMemo, useState } from 'react'
 import { TrendingUp, CalendarRange, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -62,6 +63,7 @@ export function CIPPage() {
             action and its minimum time, at the {PACE_LABEL[timeline.pace]} pace.
           </p>
           {t.warnings.map(w => <p key={w} className="mt-1 text-sm text-amber-700">{w}</p>)}
+          <ResultExplainer id="cip" className="mt-3" />
         </div>
         <TimelineControls value={timeline} onChange={setTimeline} readOnly={readOnly} />
       </div>

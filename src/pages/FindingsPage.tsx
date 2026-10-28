@@ -1,4 +1,5 @@
 import { useLegacyAssessment } from '../lib/legacy-assessment'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { useMemo, useState } from 'react'
 import { AlertTriangle, Search, Filter, ClipboardList } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
@@ -45,6 +46,7 @@ export function FindingsPage() {
           Generated directly from your assessment answers: every control scored 2 or below.
           {findings.length > 0 && ` Showing ${filtered.length} of ${findings.length} findings.`}
         </p>
+        <ResultExplainer id="findings" className="mt-3" />
       </div>
 
       {findings.length === 0 ? (

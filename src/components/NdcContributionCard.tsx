@@ -1,4 +1,5 @@
 import { Globe2 } from 'lucide-react'
+import { ResultExplainer } from './ResultExplainer'
 import { Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
 import { useEntityProfileCtx, useWorkspace } from '../lib/context'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
@@ -27,6 +28,7 @@ export function NdcContributionCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Globe2 className="h-4 w-4 text-emerald-600" /> Contribution to the national NDC</CardTitle>
         <p className="text-sm text-slate-600">How your work relates to the country's climate pledge under the Paris Agreement. Your actions contribute to or align with the NDC; only the government reports NDC progress.</p>
+        <ResultExplainer id="ndc" className="mt-2" />
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="grid gap-3 sm:grid-cols-2">

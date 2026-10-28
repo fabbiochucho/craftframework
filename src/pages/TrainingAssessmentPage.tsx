@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { Link } from '@tanstack/react-router'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Tabs } from '../components/ui'
 import { api, training } from '../lib/trainingClient'
@@ -27,6 +28,7 @@ export function TrainingAssessmentPage() {
       <div>
         <h1 className="font-display text-3xl font-bold text-emerald-900">Assessment and renewal</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-600">All three parts must be passed; a high score in one cannot make up for a fail in another. Passing all three makes you CRAFT-accredited for one year. This is the only way accreditation is granted.</p>
+        <ResultExplainer id="examResults" className="mt-3" />
       </div>
       {me && !me.assessment.trainingComplete && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Complete all the core modules first. The assessment opens when the module map shows every core module complete.</p>}
       {me && !me.profile && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Create your <Link to="/directory" className="underline">validator profile</Link> before the assessment.</p>}

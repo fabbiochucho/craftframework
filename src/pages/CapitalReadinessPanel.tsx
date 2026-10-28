@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { ResultExplainer } from '../components/ResultExplainer'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
 import {
@@ -77,6 +78,7 @@ export function CapitalReadinessPanel() {
           <p className="mt-1 text-xs uppercase tracking-wide text-slate-500">
             Sequential - a rung only counts as achieved once every rung below it is also achieved
           </p>
+            <ResultExplainer id="capitalLadder" className="mt-2" />
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
