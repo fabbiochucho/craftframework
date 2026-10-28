@@ -54,3 +54,9 @@ const onlyN = buildAlignmentReport('tnfd', { 'ESG-N1': 4 }, {})
 assert.equal(onlyN.elements.find((e) => e.id === 'MT')!.coverage, 'not-assessed', 'unanswered elements stay not assessed')
 assert.ok(entry('ESG-N1').rationale['tnfd:L'].length > 10)
 console.log('crosswalkExisting (TNFD): ok')
+
+// The 18 ISO standards commonly cited for ESG are registered and each has CRAFT questions behind its readiness view
+for (const id of ['iso-14001', 'iso-14040', 'iso-14064-1', 'iso-14067', 'iso-50001', 'iso-14046', 'iso-26000', 'iso-45001', 'iso-30414',
+  'iso-10002', 'iso-22395', 'iso-20400', 'iso-37001', 'iso-37301', 'iso-27001', 'iso-31000', 'iso-37002', 'iso-37000']) {
+  assert.ok(indicatorsFor(id).length > 0, `ISO ESG standard mapped: ${id}`)
+}

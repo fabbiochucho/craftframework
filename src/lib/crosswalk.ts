@@ -131,6 +131,8 @@ export const EXTERNAL_FRAMEWORKS: ExternalFramework[] = [
     ['iso-26000', 'ISO 26000 Social responsibility'], ['iso-30414', 'ISO 30414 Human capital reporting'],
     ['iso-30415', 'ISO 30415 Diversity and inclusion'], ['iso-14046', 'ISO 14046 Water footprint'],
     ['iso-14067', 'ISO 14067 Carbon footprint of products'],
+    ['iso-14040', 'ISO 14040 Life cycle assessment'], ['iso-10002', 'ISO 10002 Customer complaints handling'],
+    ['iso-22395', 'ISO 22395 Support for vulnerable persons in an emergency'], ['iso-20400', 'ISO 20400 Sustainable procurement'],
   ] as const).map(([id, name]): ExternalFramework => ({ id, name, owner: 'ISO', kind: 'guidance', elements: ms })),
 ]
 
