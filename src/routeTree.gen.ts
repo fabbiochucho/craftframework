@@ -82,7 +82,7 @@ import { Route as AppOrgMembersRouteImport } from './routes/app.org.members'
 import { Route as AppOrgSettingsRouteImport } from './routes/app.org.settings'
 import { Route as AppWorkspacesIndexRouteImport } from './routes/app.workspaces.index'
 import { Route as DirectoryKindIdRouteImport } from './routes/directory_.$kind.$id'
-import { Route as EngagementsIdReviewRouteImport } from './routes/engagements_.$id.review'
+import { Route as EngagementsIdReviewRouteImport } from './routes/engagements_.$id_.review'
 import { Route as TrainingModuleModuleIdRouteImport } from './routes/training_.module.$moduleId'
 import { Route as AppWorkspacesWorkspaceIdComplianceDashboardRouteImport } from './routes/app.workspaces.$workspaceId.compliance-dashboard'
 import { Route as AppWorkspacesWorkspaceIdDashboardRouteImport } from './routes/app.workspaces.$workspaceId.dashboard'
@@ -478,9 +478,9 @@ const DirectoryKindIdRoute = DirectoryKindIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const EngagementsIdReviewRoute = EngagementsIdReviewRouteImport.update({
-  id: '/review',
-  path: '/review',
-  getParentRoute: () => EngagementsIdRoute,
+  id: '/engagements_/$id_/review',
+  path: '/engagements/$id/review',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TrainingModuleModuleIdRoute = TrainingModuleModuleIdRouteImport.update({
   id: '/training_/module/$moduleId',
@@ -701,7 +701,7 @@ export interface FileRoutesByFullPath {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
-  '/engagements/$id': typeof EngagementsIdRouteWithChildren
+  '/engagements/$id': typeof EngagementsIdRoute
   '/feedback/$token': typeof FeedbackTokenRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
@@ -803,7 +803,7 @@ export interface FileRoutesByTo {
   '/app/security': typeof AppSecurityRoute
   '/assessment/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard/trust-delta': typeof DashboardTrustDeltaRoute
-  '/engagements/$id': typeof EngagementsIdRouteWithChildren
+  '/engagements/$id': typeof EngagementsIdRoute
   '/feedback/$token': typeof FeedbackTokenRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
@@ -906,7 +906,7 @@ export interface FileRoutesById {
   '/app/security': typeof AppSecurityRoute
   '/assessment_/$frameworkId': typeof AssessmentFrameworkIdRoute
   '/dashboard_/trust-delta': typeof DashboardTrustDeltaRoute
-  '/engagements_/$id': typeof EngagementsIdRouteWithChildren
+  '/engagements_/$id': typeof EngagementsIdRoute
   '/feedback/$token': typeof FeedbackTokenRoute
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
@@ -920,7 +920,7 @@ export interface FileRoutesById {
   '/app/org/members': typeof AppOrgMembersRoute
   '/app/org/settings': typeof AppOrgSettingsRoute
   '/directory_/$kind/$id': typeof DirectoryKindIdRoute
-  '/engagements_/$id/review': typeof EngagementsIdReviewRoute
+  '/engagements_/$id_/review': typeof EngagementsIdReviewRoute
   '/training_/module/$moduleId': typeof TrainingModuleModuleIdRoute
   '/app/workspaces/': typeof AppWorkspacesIndexRoute
   '/app/workspaces/$workspaceId/compliance-dashboard': typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
@@ -1228,7 +1228,7 @@ export interface FileRouteTypes {
     | '/app/org/members'
     | '/app/org/settings'
     | '/directory_/$kind/$id'
-    | '/engagements_/$id/review'
+    | '/engagements_/$id_/review'
     | '/training_/module/$moduleId'
     | '/app/workspaces/'
     | '/app/workspaces/$workspaceId/compliance-dashboard'
@@ -1317,7 +1317,7 @@ export interface RootRouteChildren {
   AppSecurityRoute: typeof AppSecurityRoute
   AssessmentFrameworkIdRoute: typeof AssessmentFrameworkIdRoute
   DashboardTrustDeltaRoute: typeof DashboardTrustDeltaRoute
-  EngagementsIdRoute: typeof EngagementsIdRouteWithChildren
+  EngagementsIdRoute: typeof EngagementsIdRoute
   FeedbackTokenRoute: typeof FeedbackTokenRoute
   ForEsgReportingRoute: typeof ForEsgReportingRoute
   ForGovernmentRoute: typeof ForGovernmentRoute
@@ -1331,6 +1331,7 @@ export interface RootRouteChildren {
   AppOrgMembersRoute: typeof AppOrgMembersRoute
   AppOrgSettingsRoute: typeof AppOrgSettingsRoute
   DirectoryKindIdRoute: typeof DirectoryKindIdRoute
+  EngagementsIdReviewRoute: typeof EngagementsIdReviewRoute
   TrainingModuleModuleIdRoute: typeof TrainingModuleModuleIdRoute
   AppWorkspacesIndexRoute: typeof AppWorkspacesIndexRoute
   AppWorkspacesWorkspaceIdComplianceDashboardRoute: typeof AppWorkspacesWorkspaceIdComplianceDashboardRoute
@@ -1873,12 +1874,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DirectoryKindIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/engagements_/$id/review': {
-      id: '/engagements_/$id/review'
-      path: '/review'
+    '/engagements_/$id_/review': {
+      id: '/engagements_/$id_/review'
+      path: '/engagements/$id/review'
       fullPath: '/engagements/$id/review'
       preLoaderRoute: typeof EngagementsIdReviewRouteImport
-      parentRoute: typeof EngagementsIdRoute
+      parentRoute: typeof rootRouteImport
     }
     '/training_/module/$moduleId': {
       id: '/training_/module/$moduleId'
@@ -2065,18 +2066,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface EngagementsIdRouteChildren {
-  EngagementsIdReviewRoute: typeof EngagementsIdReviewRoute
-}
-
-const EngagementsIdRouteChildren: EngagementsIdRouteChildren = {
-  EngagementsIdReviewRoute: EngagementsIdReviewRoute,
-}
-
-const EngagementsIdRouteWithChildren = EngagementsIdRoute._addFileChildren(
-  EngagementsIdRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptableUseRoute: AcceptableUseRoute,
@@ -2136,7 +2125,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppSecurityRoute: AppSecurityRoute,
   AssessmentFrameworkIdRoute: AssessmentFrameworkIdRoute,
   DashboardTrustDeltaRoute: DashboardTrustDeltaRoute,
-  EngagementsIdRoute: EngagementsIdRouteWithChildren,
+  EngagementsIdRoute: EngagementsIdRoute,
   FeedbackTokenRoute: FeedbackTokenRoute,
   ForEsgReportingRoute: ForEsgReportingRoute,
   ForGovernmentRoute: ForGovernmentRoute,
@@ -2150,6 +2139,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppOrgMembersRoute: AppOrgMembersRoute,
   AppOrgSettingsRoute: AppOrgSettingsRoute,
   DirectoryKindIdRoute: DirectoryKindIdRoute,
+  EngagementsIdReviewRoute: EngagementsIdReviewRoute,
   TrainingModuleModuleIdRoute: TrainingModuleModuleIdRoute,
   AppWorkspacesIndexRoute: AppWorkspacesIndexRoute,
   AppWorkspacesWorkspaceIdComplianceDashboardRoute:
