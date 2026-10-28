@@ -17,6 +17,7 @@ import { MaterialityLens, MATERIALITY_LABEL } from '../lib/issb'
 import { assessContribution } from '../lib/ndc'
 import { DMA_KEY, dmaNarrativeBlocks, dmaResult, emptyAssessment, type DmaAssessment } from '../lib/dma'
 import { ASSURANCE_KEY, assuranceNarrativeBlocks, emptyPlan, type AssurancePlan } from '../lib/assurance'
+import { ESG_KPIS_KEY, computeAll, esgKpiNarrativeBlocks, type KpiInputs } from '../lib/esgKpis'
 import { checkTarget, targetFromSaved, type SavedTarget } from '../lib/netZero'
 import { NDC_KEY, emptyNdcSettings, type NdcSettings } from '../components/NdcContributionCard'
 import { jurisdictionName } from '../lib/laws/types'
@@ -64,6 +65,12 @@ export function NarrativeReportPage() {
   const [savedTarget] = useLegacyAssessment<SavedTarget>('esg:netzero', {})
   const [savedDma] = useLegacyAssessment<DmaAssessment>(DMA_KEY, emptyAssessment)
   const [savedAssurance] = useLegacyAssessment<AssurancePlan>(ASSURANCE_KEY, emptyPlan)
+  const [savedKpis] = useLegacyAssessment<KpiInputs>(ESG_KPIS_KEY, {})
+  const kpiBlocks = useMemo(() => {
+    const i = savedKpis && typeof savedKpis === 'object' ? savedKpis : {}
+    const results = computeAll(i)
+    return results.some((r) => r.value !== null) ? esgKpiNarrativeBlocks(results, i) : undefined
+  }, [savedKpis])
   const assuranceBlocks = useMemo(() => {
     const p = { ...emptyPlan(), ...(savedAssurance && typeof savedAssurance === 'object' ? savedAssurance : {}) }
     return p.items.length ? assuranceNarrativeBlocks(p) : undefined
@@ -127,13 +134,14 @@ export function NarrativeReportPage() {
     ndc: ndcContribution ? { contribution: ndcContribution, countryName: jurisdictionName(ndcSettings.country) } : undefined,
     dma: dmaBlocks,
     assurance: assuranceBlocks,
+    kpis: kpiBlocks,
   }
 
   const doc = useMemo(() => buildNarrativeDocument(ctx), [
     ctx.orgName, ctx.archetype, ctx.country, ctx.businessSector, selectedJurisdictions.join(','),
     ctx.regSector, ctx.compositeScore, ctx.accreditationLevel, ctx.implementationEvidence, ctx.planMonths, ctx.planPace,
     // Depend on the lists themselves, not their lengths, so a changed gap or action is never shown stale.
-    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings, ndcContribution, dmaBlocks, assuranceBlocks,
+    lens, ctx.esgVerifiedScore, ctx.esgAnswered, ctx.esgStage, esgGaps, cipFindings, ndcContribution, dmaBlocks, assuranceBlocks, kpiBlocks,
   ])
 
   function download() {
