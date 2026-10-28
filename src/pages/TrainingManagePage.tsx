@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Tabs } from '../components/ui'
-import { training } from '../lib/trainingClient'
+import { api, training } from '../lib/trainingClient'
 import { RUBRIC_LEVELS } from '../lib/validatorTraining'
 
 // Validator system PR 4: the marking queue and the content editor for the CRAFT programme
@@ -28,7 +28,7 @@ export function TrainingManagePage() {
   useEffect(() => { void training('me').then((m) => { setMe(m); if (!m.isMarker) setTab('') }, () => {}) }, [])
   if (!me) return <p className="text-sm text-slate-500">Loading…</p>
   if (!me.isMarker) return <p role="alert" className="text-sm text-rose-700">This page is for the CRAFT programme team and Lead Validators.</p>
-  const tabs = [{ id: 'marking', label: 'Marking queue' }, ...(me.isProgrammeTeam ? [{ id: 'modules', label: 'Modules and videos' }, { id: 'questions', label: 'Question bank' }, { id: 'cases', label: 'Cases and capstone' }, { id: 'calibration', label: 'Calibration items' }, { id: 'badges', label: 'Badges' }] : []), ...(me.isAdmin ? [{ id: 'team', label: 'Programme team' }] : [])]
+  const tabs = [{ id: 'marking', label: 'Marking queue' }, ...(me.isProgrammeTeam ? [{ id: 'modules', label: 'Modules and videos' }, { id: 'questions', label: 'Question bank' }, { id: 'cases', label: 'Cases and capstone' }, { id: 'calibration', label: 'Calibration items' }, { id: 'badges', label: 'Badges' }, { id: 'baseline', label: 'Pre/post results' }] : []), ...(me.isAdmin ? [{ id: 'team', label: 'Programme team' }] : [])]
   return (
     <div className="space-y-5">
       <Link to="/training" className="text-sm text-emerald-700 hover:underline">← Training</Link>
@@ -37,7 +37,34 @@ export function TrainingManagePage() {
       {tab === 'marking' && <Marking />}
       {me.isProgrammeTeam && ['modules', 'questions', 'cases', 'calibration', 'badges'].includes(tab) && <Content kind={tab} />}
       {tab === 'team' && me.isAdmin && <Team />}
+      {tab === 'baseline' && me.isProgrammeTeam && <BaselineSummary />}
     </div>
+  )
+}
+
+// Explainer-video pre- and post-tests: per-module averages and the change for learners who took both. No names.
+function BaselineSummary() {
+  const [rows, setRows] = useState<any[] | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => { void api<{ modules: any[] }>('/api/training-baseline/summary').then((r) => setRows(r.modules), (e) => setError(e.message)) }, [])
+  if (error) return <p role="alert" className="text-sm text-rose-700">{error}</p>
+  if (!rows) return <p className="text-sm text-slate-500">Loading…</p>
+  const cell = (n: number, pct: number | null) => (n ? `${pct}% (${n})` : '–')
+  return (
+    <Card>
+      <CardHeader><CardTitle>Pre-test and post-test results</CardTitle>
+        <p className="text-sm text-slate-500">Mean % correct per module, with the number of learners in brackets. Change compares each learner's first pre-test with their latest post-test. Practice only; separate from the exam.</p></CardHeader>
+      <CardContent>
+        <table className="w-full text-left text-sm">
+          <thead><tr className="text-slate-500"><th className="py-1">Module</th><th>Pre-test</th><th>Post-test</th><th>Change (learners with both)</th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.moduleId} className="border-t border-slate-100">
+              <td className="py-1 font-mono">{r.moduleId.toUpperCase()}</td><td>{cell(r.pre.n, r.pre.meanPct)}</td><td>{cell(r.post.n, r.post.meanPct)}</td>
+              <td>{r.paired.n ? `${r.paired.changePct >= 0 ? '+' : ''}${r.paired.changePct} points (${r.paired.n})` : '–'}</td>
+            </tr>))}</tbody>
+        </table>
+      </CardContent>
+    </Card>
   )
 }
 
