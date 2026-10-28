@@ -67,6 +67,14 @@ export async function captureRenderError(error: unknown): Promise<void> {
   } catch { /* monitoring must never break the app */ }
 }
 
+/** Reports a problem the page handled itself (for example a third-party player that failed to load). Never throws. */
+export async function captureHandledError(error: unknown, area: string): Promise<void> {
+  try {
+    const Sentry = await load()
+    Sentry?.captureException(error, { tags: { handled: 'true', area } })
+  } catch { /* monitoring must never break the app */ }
+}
+
 /** Super Admin test: sends one labelled error. Resolves false when monitoring is not configured. */
 export async function sendBrowserTestError(): Promise<boolean> {
   const Sentry = await load()

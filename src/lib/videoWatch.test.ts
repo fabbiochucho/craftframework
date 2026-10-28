@@ -1,37 +1,46 @@
-// Self-check: `node src/lib/videoWatch.test.ts` — counting how much of a training video was really played.
+// Self-check: `node src/lib/videoWatch.test.ts` — the server's rules for crediting a watched training video.
 import assert from 'node:assert/strict'
-import { WATCHED_PCT, createWatchTracker, playerProgress } from './videoWatch.ts'
+import { HEARTBEAT_SECONDS, WATCHED_PCT, creditProgress, newWatch, watchedPct } from './videoWatch.ts'
 
-// Normal playback, reported every quarter second, counts
-const t = createWatchTracker()
-for (let s = 0; s <= 100; s += 0.25) t.update(s, 100)
-assert.equal(t.pct(), 100)
+const LEN = 600 // a 10-minute video
+const play = (from: number, to: number, rate = 1, s = newWatch(0)) => {
+  let st = s
+  for (let pos = from + HEARTBEAT_SECONDS * rate; pos <= to; pos += HEARTBEAT_SECONDS * rate) {
+    st = creditProgress(st, pos, st.lastAt + HEARTBEAT_SECONDS * 1000, LEN)
+  }
+  return st
+}
 
-// Seeking to the end does not
-const skip = createWatchTracker()
-skip.update(0, 100); skip.update(1); skip.update(95); skip.update(100)
-assert.ok(skip.pct() < 10, `seek counted: ${skip.pct()}%`)
+// Watching the whole video in real time counts fully
+assert.equal(watchedPct(play(0, LEN), LEN), 100)
 
-// Re-watching the same part does not add up, and going back is not progress
-const again = createWatchTracker()
-for (let r = 0; r < 3; r++) { again.update(0, 100); for (let s = 0; s <= 50; s += 0.5) again.update(s) }
-assert.equal(again.pct(), 50)
+// At double speed it still counts, which takes half the time
+assert.equal(watchedPct(play(0, LEN, 2), LEN), 100)
 
-// Watching at 2x still counts; 89% is not enough
-const fast = createWatchTracker()
-for (let s = 0; s <= 89; s += 0.5) fast.update(s, 100)
-assert.ok(fast.pct() < WATCHED_PCT)
-fast.update(89.5); fast.update(90); fast.update(90.5)
-assert.ok(fast.pct() >= WATCHED_PCT)
+// Faster than double speed (or a forged report) earns nothing
+assert.equal(watchedPct(play(0, LEN, 4), LEN), 0)
 
-// No duration yet means 0%
-assert.equal(createWatchTracker().update(10), 0)
+// Skipping straight to the end earns nothing
+let skip = creditProgress(newWatch(0), 10, 10_000, LEN)
+skip = creditProgress(skip, 590, 20_000, LEN)
+skip = creditProgress(skip, 600, 30_000, LEN)
+assert.ok(watchedPct(skip, LEN) < 10, `${watchedPct(skip, LEN)}%`)
 
-// The player's messages, as strings or objects; anything else is ignored
-assert.deepEqual(playerProgress('{"event":"infoDelivery","info":{"currentTime":12.5,"duration":700}}'), { currentTime: 12.5, duration: 700 })
-assert.deepEqual(playerProgress({ event: 'infoDelivery', info: { currentTime: 3 } }), { currentTime: 3 })
-assert.equal(playerProgress('not json'), null)
-assert.equal(playerProgress({ event: 'onStateChange', info: 1 }), null)
-assert.equal(playerProgress({ event: 'infoDelivery', info: { volume: 50 } }), null)
+// Re-watching the same part does not add up; going back is not progress
+let again = play(0, 300)
+again = creditProgress(again, 0, again.lastAt + 1000, LEN)
+again = play(0, 300, 1, again)
+assert.equal(watchedPct(again, LEN), 50)
+
+// Pausing is fine: time passing without progress earns nothing and loses nothing
+let paused = play(0, 200)
+paused = creditProgress(paused, 200, paused.lastAt + 600_000, LEN)
+assert.equal(watchedPct(play(200, LEN, 1, paused), LEN), 100)
+
+// A report beyond the end is capped at the video length; 89% is not enough
+assert.equal(creditProgress(newWatch(0), 9999, 1e9, LEN).lastPos, LEN)
+assert.ok(watchedPct(play(0, 530), LEN) < WATCHED_PCT)
+assert.ok(watchedPct(play(0, 545), LEN) >= WATCHED_PCT)
+assert.equal(watchedPct({ buckets: [1, 2] }, 0), 0)
 
 console.log('video watch: ok')

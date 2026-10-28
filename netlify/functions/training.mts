@@ -5,7 +5,7 @@ import { db } from '../../db/index.js'
 import {
   firmMembers, firms, trainingActivity, trainingBadges, trainingCalibrationItems, trainingCapstones, trainingCases, trainingCpd,
   trainingDeclarations, trainingDrills, trainingExamAttempts, trainingMarks, trainingModules, trainingProgress, trainingQuestions,
-  trainingStaff, trainingSubmissions, validatorCredentials, validatorProfiles, validatorSpecialisms,
+  trainingStaff, trainingSubmissions, trainingWatchSessions, validatorCredentials, validatorProfiles, validatorSpecialisms,
   type TrainingExercise,
 } from '../../db/schema.js'
 import { forbidden, isSuperAdmin, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
@@ -23,7 +23,7 @@ import {
   drawExamQuestions, examDeadline, examEligibility, examOnTime, exemptBody, renewalChecklist, renewalOpensAt, renewalWindowStart,
   renewedUntil, scoreExam, STEPS, streakDays, wordCount, XP, youtubeEmbedId, type RubricCriterion, type Step,
 } from '../../src/lib/validatorTraining.js'
-import { WATCHED_PCT } from '../../src/lib/videoWatch.js'
+import { HEARTBEAT_SECONDS, WATCHED_PCT, creditProgress, watchedPct } from '../../src/lib/videoWatch.js'
 
 // /api/training — the validator training and accreditation programme (spec PR 4).
 // Signed-in only. Learners work through eight modules (Watch → Try → Decide → Check →
@@ -69,7 +69,7 @@ const scenarioSchema = z.object({
 }).refine((s) => s.choices.some((c) => c.best), 'mark at least one best choice')
 const moduleSchema = z.object({
   title: z.string().trim().min(1).max(200), outcome: z.string().max(500), script: z.string().max(40000),
-  youtubeUrl: z.string().trim().max(300).nullable().optional(), reflectionPrompt: z.string().max(1000),
+  youtubeUrl: z.string().trim().max(300).nullable().optional(), videoSeconds: z.number().int().min(1).max(36000).nullable().optional(), reflectionPrompt: z.string().max(1000),
   exercises: z.array(exerciseSchema).max(10), scenario: scenarioSchema.nullable(),
 }).strict()
 const questionSchema = z.object({
@@ -285,14 +285,38 @@ const handleRequest = async (req: Request) => {
           checkQuestions: drawn.map((q) => ({ id: q.id, prompt: q.prompt, options: q.options })), checkSkip: skip,
         })
       }
-      if (m === 'POST' && c === 'watch') {
-        // the page opens the button at WATCHED_PCT of the video really played; null when the player sent no progress
-        const p = z.object({ watchedPct: z.number().min(0).max(100).nullable().optional() }).safeParse((await readBody()) ?? {})
-        if (!p.success) return bad('Invalid request')
+      // Watching a video is verified here: the page opens a session when the video plays, reports the position while
+      // it plays, and the step is recorded only once WATCHED_PCT of the stored video length is credited (videoWatch.ts).
+      if (m === 'POST' && c === 'watch' && d === 'start') {
         const videoId = youtubeEmbedId(md.youtubeUrl)
-        const watchedPct = p.data.watchedPct ?? null
-        if (videoId && watchedPct !== null && watchedPct < WATCHED_PCT) return bad(`Watch at least ${WATCHED_PCT}% of the video first`)
-        await completeStep(email, md.id, 'watch', md.revision, { video: !!videoId, videoId, watchedPct }, now)
+        if (!videoId) return bad('This module has no video')
+        if (!md.videoSeconds) return json({ error: 'This video is not ready yet: the programme team still needs to add its length' }, 409)
+        const id = `tws_${crypto.randomUUID()}`
+        await db.insert(trainingWatchSessions).values({ id, email, moduleId: md.id, videoId, videoSeconds: md.videoSeconds, lastAt: now })
+        return json({ sessionId: id, heartbeatSeconds: HEARTBEAT_SECONDS })
+      }
+      const watchSession = async (sessionId: string) => (await db.select().from(trainingWatchSessions)
+        .where(and(eq(trainingWatchSessions.id, sessionId), eq(trainingWatchSessions.email, email), eq(trainingWatchSessions.moduleId, md.id))))[0]
+      if (m === 'POST' && c === 'watch' && d === 'progress') {
+        const p = z.object({ sessionId: z.string().max(60), position: z.number().min(0).max(86400) }).strict().safeParse(await readBody())
+        if (!p.success) return bad('Invalid progress report')
+        const ws = await watchSession(p.data.sessionId)
+        if (!ws) return notFound()
+        const next = creditProgress({ lastPos: ws.lastPos, lastAt: ws.lastAt.getTime(), buckets: ws.buckets }, p.data.position, now.getTime(), ws.videoSeconds)
+        await db.update(trainingWatchSessions).set({ lastPos: next.lastPos, lastAt: new Date(next.lastAt), buckets: next.buckets }).where(eq(trainingWatchSessions.id, ws.id))
+        return json({ pct: watchedPct(next, ws.videoSeconds) })
+      }
+      if (m === 'POST' && c === 'watch' && !d) {
+        const videoId = youtubeEmbedId(md.youtubeUrl)
+        let detail: Record<string, unknown> = { video: false }
+        if (videoId) {
+          const p = z.object({ sessionId: z.string().max(60) }).safeParse((await readBody()) ?? {})
+          const ws = p.success ? await watchSession(p.data.sessionId) : undefined
+          const pct = ws ? watchedPct(ws, ws.videoSeconds) : 0
+          if (!ws || ws.videoId !== videoId || pct < WATCHED_PCT) return bad(`Watch at least ${WATCHED_PCT}% of the video first`)
+          detail = { video: true, videoId, watchedPct: pct, sessionId: ws.id }
+        }
+        await completeStep(email, md.id, 'watch', md.revision, detail, now)
         return json({ ok: true })
       }
       if (m === 'POST' && c === 'decide') {
@@ -753,8 +777,10 @@ const handleRequest = async (req: Request) => {
         if (!cur) return notFound()
         const yt = p.data.youtubeUrl?.trim() || null
         if (yt && !youtubeEmbedId(yt)) return bad('The video link must be a YouTube link (youtube.com/watch, youtu.be or /embed)')
+        // the server credits watching against this length, so a video cannot be set without it
+        if (yt && !p.data.videoSeconds) return bad('Enter the video length in seconds')
         const bump = p.data.script !== cur.script || yt !== cur.youtubeUrl
-        await db.update(trainingModules).set({ ...p.data, youtubeUrl: yt, exercises: p.data.exercises as TrainingExercise[], revision: bump ? cur.revision + 1 : cur.revision, ...stamp }).where(eq(trainingModules.id, c))
+        await db.update(trainingModules).set({ ...p.data, youtubeUrl: yt, videoSeconds: yt ? p.data.videoSeconds : null, exercises: p.data.exercises as TrainingExercise[], revision: bump ? cur.revision + 1 : cur.revision, ...stamp }).where(eq(trainingModules.id, c))
         await audit(email, `edited training module ${c}${bump ? ` (revision ${cur.revision + 1})` : ''}`, c)
         return json({ ok: true, revision: bump ? cur.revision + 1 : cur.revision })
       }

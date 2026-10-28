@@ -121,11 +121,12 @@ describe('validator training and accreditation', () => {
       assert.equal((await t(who, 'PUT', `manage/staff/${who}`, { role: 'programme_team' })).status, 403, 'nobody promotes themselves')
     }
     // Programme team: paste a YouTube URL without a code change; the learner then gets the embed.
-    assert.equal((await t(TEAM, 'PUT', 'manage/modules/m1', edit({ youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ' }))).status, 200)
+    assert.equal((await t(TEAM, 'PUT', 'manage/modules/m1', edit({ youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ' }))).status, 400, 'a video needs its length')
+    assert.equal((await t(TEAM, 'PUT', 'manage/modules/m1', edit({ youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', videoSeconds: 600 }))).status, 200)
     assert.equal((await t(LEARNER, 'GET', 'modules/m1')).body.videoId, 'dQw4w9WgXcQ')
     assert.equal((await rows("SELECT revision FROM training_modules WHERE id='m1'"))[0].revision, 2, 'a new video is a new revision')
     assert.equal((await t(TEAM, 'PUT', 'manage/modules/m1', edit({ youtubeUrl: 'https://evil.example/watch?v=dQw4w9WgXcQ' }))).status, 400)
-    assert.equal((await t(TEAM, 'PUT', 'manage/modules/m1', edit({ youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', injected: 1 }))).status, 400, 'strict body')
+    assert.equal((await t(TEAM, 'PUT', 'manage/modules/m1', edit({ youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', videoSeconds: 600, injected: 1 }))).status, 400, 'strict body')
     assert.equal((await t(ADMIN, 'PUT', 'manage/modules/m1', edit({ youtubeUrl: null }))).status, 200)
     assert.equal((await t(LEARNER, 'GET', 'modules/m1')).body.videoId, null, 'no video: the script is shown')
     assert.equal((await t(TEAM, 'POST', 'manage/questions', { moduleId: 'm1', prompt: 'New?', options: ['a', 'b'], correctIndex: 1, forExam: true })).status, 201)
@@ -370,13 +371,8 @@ describe('validator training and accreditation', () => {
     // Setting a module's video mid-year does not make anyone watch it again before next year's renewal
     const mod = (await t(ADMIN, 'GET', 'manage/content')).body.modules.find((x: any) => x.id === 'm1')
     assert.equal((await t(ADMIN, 'PUT', 'manage/modules/m1', { title: mod.title, outcome: mod.outcome, script: mod.script, youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ',
-      reflectionPrompt: mod.reflectionPrompt, exercises: mod.exercises, scenario: mod.scenario })).status, 200)
+      videoSeconds: 600, reflectionPrompt: mod.reflectionPrompt, exercises: mod.exercises, scenario: mod.scenario })).status, 200)
     assert.equal((await t(LEARNER, 'GET', 'renewal')).body.items.find((i: any) => i.key === 'videos').detail, '9 of 9 done', 'a new video resets nobody')
-    // A video watch is recorded only once most of it has played, and says which video it was
-    assert.equal((await t(LEARNER, 'POST', 'modules/m1/watch', { watchedPct: 40 })).status, 400)
-    assert.equal((await t(LEARNER, 'POST', 'modules/m1/watch', { watchedPct: 95 })).status, 200)
-    assert.deepEqual((await rows(`SELECT detail FROM training_progress WHERE email=$1 AND module_id='m1' AND step='watch'`, [LEARNER]))[0].detail,
-      { video: true, videoId: 'dQw4w9WgXcQ', watchedPct: 95 })
     assert.equal((await t(LEARNER, 'POST', 'renewal/complete')).status, 409, 'CPD, drill and declaration are still missing')
     assert.equal((await t(LEARNER, 'POST', 'renewal/cpd', { hours: 5, activity: 'ACCA CPD', occurredOn: '2026-09-01' })).status, 201)
     assert.equal((await t(LEARNER, 'POST', 'renewal/cpd', { hours: 30, activity: 'x', occurredOn: '2026-09-01' })).status, 400)
@@ -422,5 +418,44 @@ describe('validator training and accreditation', () => {
     assert.equal((await t(OUTSIDER, 'GET', `firm/${firm.body.id}/team`)).status, 403)
     // The state is recorded per member on their own profile.
     assert.equal((await rows("SELECT count(*)::int n FROM validator_profiles WHERE accredited_until IS NOT NULL"))[0].n, 2)
+  })
+
+  it('records a watched video only when the server has seen 90% of it play in real time', async () => {
+    const mod = (await t(ADMIN, 'GET', 'manage/content')).body.modules.find((x: any) => x.id === 'm2')
+    const setVideo = (over: object) => t(ADMIN, 'PUT', 'manage/modules/m2', { title: mod.title, outcome: mod.outcome, script: mod.script,
+      reflectionPrompt: mod.reflectionPrompt, exercises: mod.exercises, scenario: mod.scenario, ...over })
+    assert.equal((await setVideo({ youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ', videoSeconds: 600 })).status, 200)
+    const watch = (body?: object) => t(LEARNER, 'POST', 'modules/m2/watch', body)
+    const progress = (sessionId: string, position: number) => t(LEARNER, 'POST', 'modules/m2/watch/progress', { sessionId, position })
+    // pretend `sec` seconds of real time passed since the last report
+    const wait = (id: string, sec: number) => rows(`UPDATE training_watch_sessions SET last_at = last_at - make_interval(secs => $2) WHERE id = $1`, [id, sec])
+
+    // No session, or someone else's, records nothing
+    assert.equal((await watch()).status, 400)
+    const start = await t(LEARNER, 'POST', 'modules/m2/watch/start')
+    assert.equal(start.status, 200, start.text)
+    const id = start.body.sessionId
+    assert.equal((await t(OUTSIDER, 'POST', 'modules/m2/watch/progress', { sessionId: id, position: 10 })).status, 404, 'a session belongs to its learner')
+
+    // Jumping to the end earns nothing, and the watch is refused
+    assert.equal((await progress(id, 590)).body.pct, 0)
+    assert.equal((await watch({ sessionId: id })).status, 400)
+
+    // Playing it through (reports no faster than real time allows) earns it
+    const s2 = (await t(LEARNER, 'POST', 'modules/m2/watch/start')).body.sessionId
+    let pct = 0
+    for (let pos = 60; pos <= 600; pos += 60) { await wait(s2, 60); pct = (await progress(s2, pos)).body.pct }
+    assert.equal(pct, 100)
+    assert.equal((await watch({ sessionId: s2 })).status, 200)
+    const saved = (await rows(`SELECT detail FROM training_progress WHERE email=$1 AND module_id='m2' AND step='watch'`, [LEARNER]))[0].detail
+    assert.deepEqual([saved.video, saved.videoId, saved.watchedPct], [true, 'dQw4w9WgXcQ', 100])
+
+    // A session for an older video does not count for a replaced one
+    assert.equal((await setVideo({ youtubeUrl: 'https://youtu.be/aaaaaaaaaaa', videoSeconds: 600 })).status, 200)
+    assert.equal((await watch({ sessionId: s2 })).status, 400)
+
+    // A video without its length cannot be watched yet (older rows), rather than being waved through
+    await rows(`UPDATE training_modules SET video_seconds = NULL WHERE id = 'm2'`)
+    assert.equal((await t(LEARNER, 'POST', 'modules/m2/watch/start')).status, 409)
   })
 })
