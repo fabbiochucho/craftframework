@@ -126,10 +126,17 @@ decision is final and overrides the first (e.g. a reinstated validation).
 Tables: `panel_roster`, `panel_cases`, `panel_members`, `panel_submissions`. Database CHECKs refuse a decided case
 without reasons, a seated case without its clock, and an accepted seat without a declaration.
 
-## DevMapper summary
+## DevMapper
 
-`devMapperSummary(orgId, framework = 'capital-readiness')` in `netlify/lib/validator-quality.ts` is the one
-function DevMapper will call (there is deliberately no HTTP endpoint). It returns:
+DevMapper (devmapper.africa) shows an organisation's validation on its public page by reading the public
+verification API, `GET /api/public/validation/:verificationId`; there is no DevMapper-specific endpoint. The
+organisation enters its verification ID on DevMapper, and DevMapper shows the result only when the link runs
+both ways: the validation's **DevMapper link** (set by the organisation in its public-page options here)
+points at that DevMapper page. DevMapper caches the result and re-checks it at most every 6 hours, and never
+shows a validation that is not current or follow-up overdue, or has expired.
+
+`devMapperSummary(orgId, framework = 'capital-readiness')` in `netlify/lib/validator-quality.ts` builds the
+same summary in-process (it is not called by DevMapper). It returns:
 
 - `selfAssessed`: label "Self-assessed", current rung and name (null if nothing is scored);
 - `validation`: the latest validation that **currently stands** (status current or follow-up overdue), or null.
