@@ -2200,7 +2200,7 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
   const title = `[${classification.type}] ${description.slice(0, 70) || 'Support request'}`
   const body = `${description}\n\n_Submitted through the public CRAFT support chat. No tenant or account context is included._`
   const result = await db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockA}, ${lockB})`, 'objects')
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${lockA}, ${lockB})`)
 
     const retryIssue = async (id: number) => {
       const url = await createGithubIssue(title, body, labels)

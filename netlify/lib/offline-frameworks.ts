@@ -34,7 +34,7 @@ export async function mutateOfflineFramework(caller: Caller, orgId: number, work
   const fingerprint = createHash('sha256').update(JSON.stringify(op)).digest('hex')
   const outcome = await db.transaction(async tx => {
     // Serialize all edits/receipts in this workspace, including creates with no row to lock.
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`offline-frameworks:${orgId}:${workspaceId}`}, 0))`, 'objects')
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${`offline-frameworks:${orgId}:${workspaceId}`}, 0))`)
     const receiptWhere = and(eq(offlineFrameworkReceipts.orgId, orgId), eq(offlineFrameworkReceipts.workspaceId, workspaceId),
       eq(offlineFrameworkReceipts.userId, scope.userId), eq(offlineFrameworkReceipts.operationId, op.operationId))
     const [receipt] = await tx.select().from(offlineFrameworkReceipts).where(receiptWhere)

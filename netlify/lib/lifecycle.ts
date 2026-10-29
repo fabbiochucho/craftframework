@@ -204,7 +204,7 @@ const variantFor = (kind: LifecycleKind, person: Person): EmailVariant =>
 async function claimNext(person: Person, recipient: Recipient, fallback: boolean, now: Date): Promise<Claim | null> {
   const prefs = await optedOut(recipient.email)
   return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'lifecycle:' + recipient.email}))`, 'objects')
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'lifecycle:' + recipient.email}))`)
     for (let round = 0; round < 6; round++) {
       const rows = await tx.select().from(lifecycleEmails).where(eq(lifecycleEmails.email, recipient.email))
       const history: SentRow[] = rows.map((r) => ({ kind: r.kind as LifecycleKind, occurrence: r.occurrence, at: r.sentAt, attempts: r.attempts, outcome: r.outcome as SentRow['outcome'] }))

@@ -26,7 +26,7 @@ export async function retrySupportEscalations() {
   for (const candidate of entries) {
     await db.transaction(async (tx) => {
       const digest = Buffer.from(candidate.key, 'hex')
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(${digest.readInt32BE(0)}, ${digest.readInt32BE(4)})`, 'objects')
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(${digest.readInt32BE(0)}, ${digest.readInt32BE(4)})`)
       const [entry] = await tx.select().from(supportEscalations).where(eq(supportEscalations.id, candidate.id))
       if (!entry || entry.status === 'accepted') return
       const status = await deliverEscalation(entry)
@@ -59,7 +59,7 @@ export async function escalateSupport(body: Record<string, unknown>): Promise<Re
   const digest = Buffer.from(key, 'hex')
   const recipientType = privateReport ? 'confidential' : 'support_queue'
   const result = await db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(${digest.readInt32BE(0)}, ${digest.readInt32BE(4)})`, 'objects')
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(${digest.readInt32BE(0)}, ${digest.readInt32BE(4)})`)
     let [entry] = await tx.select().from(supportEscalations).where(eq(supportEscalations.key, key))
     if (!entry) {
       ;[entry] = await tx.insert(supportEscalations).values({
