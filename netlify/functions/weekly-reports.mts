@@ -55,8 +55,8 @@ const handleRequest = async () => {
       await db.transaction(async (claim) => {
       // The advisory lock spans processing; durable report/outbox writes use
       // their own transactions so a worker crash does not erase delivery state.
-      const lockResult = await claim.execute(sql`SELECT pg_try_advisory_xact_lock(731024, ${schedule.id}) AS claimed`)
-      if (!(lockResult.rows[0] as { claimed?: boolean } | undefined)?.claimed) return
+      const lockResult = await claim.execute(sql`SELECT pg_try_advisory_xact_lock(731024, ${schedule.id}) AS claimed`, 'objects')
+      if (!(lockResult[0] as { claimed?: boolean } | undefined)?.claimed) return
       const [fresh] = await db.select().from(reportSchedules).where(eq(reportSchedules.id, schedule.id))
       if (!fresh || fresh.paused || fresh.nextRunAt.getTime() !== schedule.nextRunAt.getTime()) return
       const workspaceId = schedule.workspaceId
