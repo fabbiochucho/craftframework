@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import {
   ShieldHalf, Sprout, Landmark, HeartPulse, Repeat, ShieldCheck, Leaf, CheckCircle2, FileText, AlertTriangle, TrendingUp, Sparkles,
-  Gauge, Lock, CloudCheck, Eye, ArrowRight, Info,
+  Gauge, Lock, CloudCheck, Eye, ArrowRight, Info, Users,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { FIDUCIARY_LEVELS, type FrameworkId } from '../lib/frameworks'
@@ -21,6 +21,7 @@ import {
 import { CATEGORY_LABEL, esScreening, SCREENING_QUESTIONS, type EsScreeningAnswers } from '../lib/indices/safeguards'
 import { useModuleProfile } from '../lib/moduleProfile'
 import { useAuthCtx, useCIPCtx, useScoresCtx, useWorkspace } from '../lib/context'
+import { CountryLaws, NhocatReading } from '../components/OncExtras'
 import {
   Card, CardHeader, CardTitle, CardContent, Badge, ProgressBar, Accordion, Stat, Reveal,
 } from '../components/ui'
@@ -33,6 +34,7 @@ const MODULE_ICONS: Record<FoundationModuleId, typeof ShieldHalf> = {
   'craft-change': Repeat,
   'craft-fiduciary': ShieldCheck,
   'craft-safeguards': Leaf,
+  'craft-onc': Users,
 }
 
 const BAND_TONE: Record<ModuleBand['tone'], string> = {
@@ -117,6 +119,8 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
         </span>
       </div>
       <p className="max-w-3xl text-sm leading-relaxed text-slate-600">{m.intro}</p>
+
+      {m.id === 'craft-onc' && answered > 0 && <NhocatReading scores={scores} />}
 
       {m.id === 'craft-fiduciary' && (
         <Card className="p-4">
@@ -416,6 +420,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
                                 <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
                                 <span><span className="font-semibold uppercase tracking-wide">Expected evidence:</span> {ind.evidence}</span>
                               </p>
+                              {m.id === 'craft-onc' && <CountryLaws indicatorId={ind.id} />}
                               <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
                                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
                                 <span><span className="font-semibold uppercase tracking-wide">Recommendation:</span> {ind.recommendation}</span>

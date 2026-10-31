@@ -47,3 +47,11 @@ assert.deepEqual(participation(['a', 'b', 'c', 'd'], new Set(['a', 'b']), new Se
 assert.deepEqual(participation([], new Set(), new Set()), { total: 0, submitted: 0, inProgress: 0, notStarted: 0, rate: 0 })
 
 console.log('networkRounds.test.ts ok')
+
+// Preview modules (content awaiting sign-off) are only offered to the Super Admin
+import { FOUNDATION_MODULES } from './foundationModules.ts'
+const previewIds = FOUNDATION_MODULES.filter((m) => m.preview).map((m) => m.id)
+assert.ok(previewIds.length > 0)
+assert.ok(previewIds.every((x) => !roundInstruments().some((i) => i.id === x)))
+assert.ok(previewIds.every((x) => roundInstruments(true).some((i) => i.id === x)))
+console.log('networkRounds.test.ts preview ok')

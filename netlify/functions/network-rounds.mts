@@ -5,7 +5,7 @@ import { db } from '../../db/index.js'
 import { networkRoundPerspectives, networkRoundSubmissions, networkRounds, organizations, responses, users } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
-import { audit, coordinatorScope, load } from '../lib/network-access.js'
+import { audit, coordinatorScope, isSuper, load } from '../lib/network-access.js'
 import { sendReminderEmail } from '../lib/reminder-email.js'
 import { distinctAcceptedOrgs, subtree } from '../../src/lib/networks.js'
 import {
@@ -63,7 +63,7 @@ const handleRequest = async (req: Request) => {
       const loaded = await load(p.data.networkId)
       if (!loaded) return notFound()
       if (!coordinatorScope(caller, loaded.nodes, loaded.admins, 'coordinator').has(p.data.nodeId)) return forbidden()
-      if (!instrumentById(p.data.instrument)) return bad('Unknown instrument')
+      if (!roundInstruments(isSuper(caller)).some((i) => i.id === p.data.instrument)) return bad('Unknown instrument')
       if (!validWindow(p.data.opensOn, p.data.closesOn)) return bad('Give an opening and closing date, opening first')
       const id = `nrd_${crypto.randomUUID()}`
       await db.insert(networkRounds).values({ id, ...p.data, createdBy: caller.email })
@@ -84,7 +84,7 @@ const handleRequest = async (req: Request) => {
       const t = today()
       const visible = rounds.filter((r) => view.has(r.nodeId) || [...myNodes].some((n) => subtree(loaded.nodes, r.nodeId).has(n)))
       return json({
-        instruments: roundInstruments(),
+        instruments: roundInstruments(isSuper(caller)),
         canCreate: coord.size > 0,
         rounds: visible.map((r) => ({ id: r.id, name: r.name, nodeId: r.nodeId, instrument: r.instrument, instrumentTitle: instrumentById(r.instrument)?.title ?? r.instrument,
           opensOn: r.opensOn, closesOn: r.closesOn, perspectives: r.perspectives, state: roundState({ ...r, closedAt: r.closedAt?.toISOString() }, t), coordinating: coord.has(r.nodeId) })),

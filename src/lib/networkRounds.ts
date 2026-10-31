@@ -26,7 +26,9 @@ export const validWindow = (opensOn: string, closesOn: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(opensOn) && /^\d{4}-\d{2}-\d{2}$/.test(closesOn) && opensOn <= closesOn
 
 /** Instruments a round can use: every CRAFT module (more are registered as they are added). */
-export const roundInstruments = (): Array<{ id: string; title: string }> => FOUNDATION_MODULES.map((m) => ({ id: m.id, title: m.title }))
+/** Instruments a round can use. Modules still in preview (content awaiting sign-off) are offered to the Super Admin only. */
+export const roundInstruments = (includePreview = false): Array<{ id: string; title: string }> =>
+  FOUNDATION_MODULES.filter((m) => includePreview || !m.preview).map((m) => ({ id: m.id, title: m.title }))
 export const instrumentById = (id: string): FoundationModule | undefined => FOUNDATION_MODULES.find((m) => m.id === id)
 
 /** How far an organisation is through the instrument. */
