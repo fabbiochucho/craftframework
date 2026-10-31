@@ -30,10 +30,11 @@ import { CHANGE_READINESS } from './indices/changeReadiness.ts'
 import { FIDUCIARY_CONTROLS } from './indices/fiduciaryControls.ts'
 import { SAFEGUARDS } from './indices/safeguards.ts'
 import { CRAFT_ONC } from './indices/craftOnc.ts'
+import { NETWORK_CAPACITY } from './indices/networkCapacity.ts'
 
 export type FoundationModuleId =
   | 'craft-resilience' | 'craft-transformation' | 'craft-legacy'
-  | 'craft-health' | 'craft-change' | 'craft-fiduciary' | 'craft-safeguards' | 'craft-onc'
+  | 'craft-health' | 'craft-change' | 'craft-fiduciary' | 'craft-safeguards' | 'craft-onc' | 'craft-network'
 
 export interface ModuleDimension {
   key: string
@@ -782,7 +783,7 @@ const LEGACY: FoundationModule = {
 
 export const FOUNDATION_MODULES: FoundationModule[] = [
   RESILIENCE, TRANSFORMATION, LEGACY,
-  ORGANISATIONAL_HEALTH, CHANGE_READINESS, FIDUCIARY_CONTROLS, SAFEGUARDS, CRAFT_ONC,
+  ORGANISATIONAL_HEALTH, CHANGE_READINESS, FIDUCIARY_CONTROLS, SAFEGUARDS, CRAFT_ONC, NETWORK_CAPACITY,
 ]
 
 export function getFoundationModule(id: string): FoundationModule | undefined {

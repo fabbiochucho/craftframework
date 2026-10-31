@@ -5,6 +5,8 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select 
 import { CoordinatorRounds, MemberRounds } from '../components/NetworkRounds'
 import { ExchangeLog } from '../components/NetworkExchange'
 import { ProgrammeScorecards } from '../components/ProgrammeScorecards'
+import { useAuthCtx } from '../lib/context'
+import { canSeePreview, getFramework } from '../lib/frameworks'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
 
 // Civil society networks: levels from global to local, coordinators per level, and member organisations that
@@ -170,6 +172,7 @@ function NodeTools({ networkId, node, onDone }: { networkId: string; node: TreeN
 }
 
 export function NetworkDetailPage({ networkId }: { networkId: string }) {
+  const { currentUser } = useAuthCtx()
   const [d, setD] = useState<Detail | null>(null)
   const [error, setError] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -208,6 +211,14 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
             <Card key={label as string}><CardContent className="py-4"><p className="text-xs uppercase tracking-wide text-slate-500">{label}</p><p className="text-2xl font-semibold tabular-nums text-slate-900">{value}</p></CardContent></Card>
           ))}
         </div>
+      )}
+      {d.coordinates.length > 0 && (!getFramework('craft-network')?.preview || canSeePreview(currentUser?.role)) && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <p className="text-sm text-slate-700">Assess the network's own secretariat or coordinating body with the <span className="font-medium">CRAFT Network Capacity Index</span>, alongside your members' results.</p>
+            <Link to="/assessment/$frameworkId" params={{ frameworkId: 'craft-network' }} className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50">Assess the secretariat</Link>
+          </CardContent>
+        </Card>
       )}
       {d.coordinates.length > 0 || d.views.length > 0 ? <CoordinatorRounds networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} /> : null}
       {(d.coordinates.length > 0 || d.views.length > 0) && <ProgrammeScorecards networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} />}

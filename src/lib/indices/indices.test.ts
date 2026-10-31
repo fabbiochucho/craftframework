@@ -110,3 +110,23 @@ import { LAW_AREAS } from '../laws/types.ts'
   assert.ok(m.preview, 'preview until founders sign off the content')
   console.log('indices (CRAFT-ONC): ok')
 }
+
+// Network Capacity Index (networks plan step 7): the secretariat's own assessment
+import { NETWORK_CAPACITY } from './networkCapacity.ts'
+{
+  const m = NETWORK_CAPACITY
+  assert.equal(m.indicators.length, 24)
+  for (const d of m.dimensions) assert.equal(m.indicators.filter((i) => i.dimension === d.key).length, 4, `${d.key}: four indicators`)
+  m.indicators.forEach((i, n) => {
+    assert.equal(i.id, `CRAFT-NCI-${String(n + 1).padStart(2, '0')}`)
+    for (const s of [0, 1, 2, 3, 4, 5]) assert.ok((i.soe as Record<number, string>)[s]?.length > 10, `${i.id}: descriptor ${s}`)
+    assert.ok(i.evidence && i.recommendation && i.whyItMatters && (i.minWeeks ?? 0) >= 2)
+    assert.ok(!/\b(certif|complian)/i.test(`${i.question} ${i.soe[5]}`), `${i.id}: no certification/compliance claims`)
+  })
+  assert.deepEqual(crosswalkProblems(m.indicators.map((i) => ({ indicatorId: i.id, refs: i.crosswalk ?? [] }))), [])
+  for (const l of m.lenses) for (const x of l.indicatorIds) assert.ok(m.indicators.some((i) => i.id === x))
+  const all = FOUNDATION_MODULES.flatMap((x) => x.indicators.map((i) => i.id))
+  assert.equal(new Set(all).size, all.length, 'indicator ids still unique across modules')
+  assert.ok(m.preview)
+  console.log('indices (Network Capacity): ok')
+}

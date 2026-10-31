@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import {
   ShieldHalf, Sprout, Landmark, HeartPulse, Repeat, ShieldCheck, Leaf, CheckCircle2, FileText, AlertTriangle, TrendingUp, Sparkles,
-  Gauge, Lock, CloudCheck, Eye, ArrowRight, Info, Users,
+  Gauge, Lock, CloudCheck, Eye, ArrowRight, Info, Users, Network,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { FIDUCIARY_LEVELS, type FrameworkId } from '../lib/frameworks'
@@ -35,6 +35,7 @@ const MODULE_ICONS: Record<FoundationModuleId, typeof ShieldHalf> = {
   'craft-fiduciary': ShieldCheck,
   'craft-safeguards': Leaf,
   'craft-onc': Users,
+  'craft-network': Network,
 }
 
 const BAND_TONE: Record<ModuleBand['tone'], string> = {

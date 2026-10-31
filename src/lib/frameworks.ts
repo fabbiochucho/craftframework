@@ -33,6 +33,7 @@ export type FrameworkId =
   | 'craft-fiduciary'
   | 'craft-safeguards'
   | 'craft-onc'
+  | 'craft-network'
 
 // Visual theme per framework - financial/compliance work stays in the DiBadili
 // emerald palette; AI ethics switches to indigo to separate "tech ethics" from
@@ -225,6 +226,17 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     theme: 'emerald',
     blurb: 'For civil society organisations and network members anywhere in Africa: 44 indicators from governance and finance to peer learning, safeguarding and community-led monitoring.',
     icon: 'Users',
+    preview: true,
+  },
+  {
+    id: 'craft-network',
+    name: 'CRAFT Network Capacity Index',
+    short: 'Network Capacity',
+    authority: 'CRAFT · v1 (102026) · for network secretariats',
+    scale: 'fiduciary-0-5',
+    theme: 'emerald',
+    blurb: "For a network's secretariat or coordinating body at any level: 24 indicators on mandate, member services, coordination, representation, sustainability and accountability to members.",
+    icon: 'Network',
     preview: true,
   },
 ]
