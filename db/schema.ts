@@ -2109,3 +2109,45 @@ export const surveyResponses = pgTable('survey_responses', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [unique('survey_responses_email_occurrence_uq').on(t.email, t.occurrence), index('survey_responses_created_idx').on(t.createdAt)])
+
+// --- Civil society networks -------------------------------------------------------------------------------------
+// A network is a tree of levels (src/lib/networks.ts). Members join a level by accepting an invitation and choose
+// 'aggregate' (counted, never named) or 'full' (named to coordinators at their level and above).
+export const networks = pgTable('networks', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  status: text('status').notNull().default('active'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const networkNodes = pgTable('network_nodes', {
+  id: text('id').primaryKey(),
+  networkId: text('network_id').notNull(),
+  parentId: text('parent_id'),
+  level: text('level').notNull(),
+  name: text('name').notNull(),
+  geoCode: text('geo_code').notNull().default(''),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('network_nodes_network_idx').on(t.networkId)])
+
+export const networkMembers = pgTable('network_members', {
+  id: text('id').primaryKey(),
+  nodeId: text('node_id').notNull(),
+  orgId: text('org_id').notNull(),
+  status: text('status').notNull().default('invited'),
+  sharing: text('sharing').notNull().default('aggregate'),
+  invitedBy: text('invited_by').notNull(),
+  invitedAt: timestamp('invited_at', { withTimezone: true }).notNull().defaultNow(),
+  decidedBy: text('decided_by'),
+  decidedAt: timestamp('decided_at', { withTimezone: true }),
+}, (t) => [unique('network_members_node_org_uq').on(t.nodeId, t.orgId), index('network_members_org_idx').on(t.orgId)])
+
+export const networkAdmins = pgTable('network_admins', {
+  nodeId: text('node_id').notNull(),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('coordinator'),
+  addedBy: text('added_by').notNull(),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.nodeId, t.email] }), index('network_admins_email_idx').on(t.email)])
