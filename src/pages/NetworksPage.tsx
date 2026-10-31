@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Network } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
+import { CoordinatorRounds, MemberRounds } from '../components/NetworkRounds'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
 
 // Civil society networks: levels from global to local, coordinators per level, and member organisations that
@@ -59,6 +60,7 @@ function MembershipCard({ m, onDone }: { m: Membership; onDone: () => void }) {
         )}
       </div>
       {error && <p className="text-sm text-rose-700">{error}</p>}
+      {m.status === 'accepted' && <MemberRounds networkId={m.networkId} />}
     </div>
   )
 }
@@ -205,6 +207,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
           ))}
         </div>
       )}
+      {d.coordinates.length > 0 || d.views.length > 0 ? <CoordinatorRounds networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} /> : null}
       <Card>
         <CardHeader><CardTitle>Levels</CardTitle></CardHeader>
         <CardContent><ul className="space-y-2">{children(null).map((n) => renderNode(n, 0))}</ul></CardContent>

@@ -2151,3 +2151,35 @@ export const networkAdmins = pgTable('network_admins', {
   addedBy: text('added_by').notNull(),
   addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.nodeId, t.email] }), index('network_admins_email_idx').on(t.email)])
+
+export const networkRounds = pgTable('network_rounds', {
+  id: text('id').primaryKey(),
+  networkId: text('network_id').notNull(),
+  nodeId: text('node_id').notNull(),
+  name: text('name').notNull(),
+  instrument: text('instrument').notNull(),
+  opensOn: date('opens_on').notNull(),
+  closesOn: date('closes_on').notNull(),
+  perspectives: boolean('perspectives').notNull().default(false),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  lastRemindedAt: timestamp('last_reminded_at', { withTimezone: true }),
+}, (t) => [index('network_rounds_network_idx').on(t.networkId)])
+
+export const networkRoundSubmissions = pgTable('network_round_submissions', {
+  roundId: text('round_id').notNull(),
+  orgId: text('org_id').notNull(),
+  scores: jsonb('scores').$type<Record<string, number>>().notNull(),
+  submittedBy: text('submitted_by').notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.roundId, t.orgId] })])
+
+export const networkRoundPerspectives = pgTable('network_round_perspectives', {
+  roundId: text('round_id').notNull(),
+  orgId: text('org_id').notNull(),
+  perspective: text('perspective').notNull(),
+  scores: jsonb('scores').$type<Record<string, number>>().notNull(),
+  enteredBy: text('entered_by').notNull(),
+  enteredAt: timestamp('entered_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.roundId, t.orgId, t.perspective] })])

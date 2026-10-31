@@ -2,12 +2,12 @@ import type { Config } from '@netlify/functions'
 import { and, eq, inArray, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { auditLogs, networkAdmins, networkMembers, networkNodes, networks, organizations } from '../../db/schema.js'
-import { canAccessOrg, filterAuthorizedOrgIds, forbidden, mfaRequired, resolveCaller, unauthorized, type Caller } from '../lib/auth.js'
+import { networkAdmins, networkMembers, networkNodes, networks, organizations } from '../../db/schema.js'
+import { audit, coordinatorScope, isSuper, load } from '../lib/network-access.js'
+import { canAccessOrg, filterAuthorizedOrgIds, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import {
-  NETWORK_LEVELS, SHARING, adminScope, canNest, memberView, validGeoCode,
-  type NetworkAdmin, type NetworkLevel, type NetworkMember, type NetworkNode,
+  NETWORK_LEVELS, SHARING, canNest, memberView, validGeoCode, type NetworkLevel,
 } from '../../src/lib/networks.js'
 
 // /api/networks — civil society networks: levels, coordinators and member organisations (src/lib/networks.ts).
@@ -37,25 +37,6 @@ const adminSchema = z.object({ nodeId: z.string().max(80), email: z.string().tri
 const adminDeleteSchema = z.object({ nodeId: z.string().max(80), email: z.string().trim().toLowerCase().email().max(200) }).strict()
 const inviteSchema = z.object({ nodeId: z.string().max(80), org: z.string().trim().min(2).max(200) }).strict()
 const decideSchema = z.object({ action: z.enum(['accept', 'decline', 'leave', 'sharing']), sharing: z.enum(SHARING).optional() }).strict()
-
-const isSuper = (c: Caller) => c.role === 'super_admin' && !c.readOnly
-const audit = (actor: string, action: string, target: string, orgId?: string) =>
-  db.insert(auditLogs).values({ actor, action, target, category: 'Network', orgId: orgId ?? null })
-
-async function load(networkId: string) {
-  const [net] = await db.select().from(networks).where(eq(networks.id, networkId))
-  if (!net) return null
-  const nodes = (await db.select().from(networkNodes).where(eq(networkNodes.networkId, networkId))) as NetworkNode[]
-  const ids = nodes.map((n) => n.id)
-  const admins = ids.length ? await db.select().from(networkAdmins).where(inArray(networkAdmins.nodeId, ids)) : []
-  const members = ids.length ? await db.select().from(networkMembers).where(inArray(networkMembers.nodeId, ids)) : []
-  return { net, nodes, admins: admins as (NetworkAdmin & { addedBy: string })[], members: members as (NetworkMember & { invitedAt: Date })[] }
-}
-
-/** Nodes the caller coordinates (all nodes for the Super Admin). */
-function coordinatorScope(c: Caller, nodes: NetworkNode[], admins: NetworkAdmin[], role?: NetworkAdmin['role']) {
-  return isSuper(c) ? new Set(nodes.map((n) => n.id)) : adminScope(nodes, admins, c.email, role)
-}
 
 const handleRequest = async (req: Request) => {
   try {
