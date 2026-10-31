@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { networkRoundPerspectives, networkRoundSubmissions, networkRounds, organizations, responses, users } from '../../db/schema.js'
+import { networkRoundPerspectives, networkRoundSubmissions, networkRounds, networkValueResponses, organizations, responses, users } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import { audit, coordinatorScope, isSuper, load } from '../lib/network-access.js'
@@ -12,6 +12,7 @@ import {
   PERSPECTIVES, instrumentById, participation, perspectiveGaps, progress, roundInstruments, roundState, snapshot,
   validPerspectiveScores, validWindow, type Perspective,
 } from '../../src/lib/networkRounds.js'
+import { validValueAnswers } from '../../src/lib/networkResults.js'
 
 // /api/network-rounds — assessment rounds in a network (src/lib/networkRounds.ts).
 //   GET    ?networkId=                       rounds I coordinate or take part in, and the instruments available
@@ -19,6 +20,7 @@ import {
 //   GET    :id                               coordinators: participation by level; members: my organisations' status
 //   POST   :id/submit { orgId }              the organisation submits a frozen snapshot of its scores
 //   POST   :id/perspectives { orgId, perspective, scores }   per-domain scores from one group (optional)
+//   POST   :id/value { orgId, answers }      member value survey: services used and how useful, would-recommend
 //   POST   :id/remind                         coordinator: email every member in scope that hasn't submitted (daily max)
 //   POST   :id/close                          coordinator: close early
 
@@ -116,7 +118,8 @@ const handleRequest = async (req: Request) => {
         const persp = round.perspectives ? await db.select().from(networkRoundPerspectives).where(and(eq(networkRoundPerspectives.roundId, round.id), eq(networkRoundPerspectives.orgId, orgId))) : []
         const byP = Object.fromEntries(persp.map((x) => [x.perspective, x.scores])) as Partial<Record<Perspective, Record<string, number>>>
         const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, orgId))
-        return { orgId, orgName: org?.name ?? orgId, progress: progress(m, await scoresFor(orgId, ids)), submittedAt: subs.find((s) => s.orgId === orgId)?.submittedAt ?? null,
+        const [value] = await db.select({ answers: networkValueResponses.answers }).from(networkValueResponses).where(and(eq(networkValueResponses.roundId, round.id), eq(networkValueResponses.orgId, orgId)))
+        return { orgId, orgName: org?.name ?? orgId, progress: progress(m, await scoresFor(orgId, ids)), value: value?.answers ?? null, submittedAt: subs.find((s) => s.orgId === orgId)?.submittedAt ?? null,
           perspectives: byP, gaps: round.perspectives ? perspectiveGaps(m, byP) : [] }
       }))
       if (!view.has(round.nodeId) && mine.length === 0) return notFound()
@@ -149,6 +152,20 @@ const handleRequest = async (req: Request) => {
       await db.insert(networkRoundPerspectives).values({ roundId: round.id, orgId, perspective: pp.perspective, scores: pp.scores, enteredBy: caller.email })
         .onConflictDoUpdate({ target: [networkRoundPerspectives.roundId, networkRoundPerspectives.orgId, networkRoundPerspectives.perspective], set: { scores: pp.scores, enteredBy: caller.email, enteredAt: new Date() } })
       await audit(caller.email, `Recorded ${pp.perspective} perspective for ${round.name}`, round.id, orgId)
+      return json({ ok: true })
+    }
+
+    if (req.method === 'POST' && sub[1] === 'value' && sub.length === 2) {
+      const b = body as { orgId?: unknown; answers?: unknown } | null
+      const orgId = typeof b?.orgId === 'string' ? b.orgId : ''
+      if (!validValueAnswers(b?.answers)) return bad('Rate each service you used from 1 to 5, and say how likely you are to recommend the network (0-10)')
+      if (!inRound.includes(orgId)) return json({ error: 'That organisation is not an accepted member in this round' }, 409)
+      if (!(await canAccessOrg(caller, orgId, 'write'))) return forbidden()
+      if (state !== 'open') return json({ error: 'The value survey is open only while the round is open' }, 409)
+      const answers = b!.answers as { used: Record<string, number>; recommend: number }
+      await db.insert(networkValueResponses).values({ roundId: round.id, orgId, answers, answeredBy: caller.email })
+        .onConflictDoUpdate({ target: [networkValueResponses.roundId, networkValueResponses.orgId], set: { answers, answeredBy: caller.email, answeredAt: new Date() } })
+      await audit(caller.email, `Answered the network value survey for ${round.name}`, round.id, orgId)
       return json({ ok: true })
     }
 

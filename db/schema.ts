@@ -2183,3 +2183,11 @@ export const networkRoundPerspectives = pgTable('network_round_perspectives', {
   enteredBy: text('entered_by').notNull(),
   enteredAt: timestamp('entered_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.roundId, t.orgId, t.perspective] })])
+
+export const networkValueResponses = pgTable('network_value_responses', {
+  roundId: text('round_id').notNull(),
+  orgId: text('org_id').notNull(),
+  answers: jsonb('answers').$type<{ used: Record<string, number>; recommend: number }>().notNull(),
+  answeredBy: text('answered_by').notNull(),
+  answeredAt: timestamp('answered_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.roundId, t.orgId] })])

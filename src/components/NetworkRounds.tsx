@@ -3,6 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, ProgressBar, Select } from './ui'
 import { PERSPECTIVES, PERSPECTIVE_LABEL, type Perspective } from '../lib/networkRounds'
 import { LEVEL_LABEL, type NetworkLevel } from '../lib/networks'
+import { CoordinatorResults, MemberBenchmark, ValueSurvey } from './NetworkResults'
+import type { ValueAnswers } from '../lib/networkResults'
 
 // Assessment rounds in a network: coordinators open them and follow participation; members complete the
 // instrument, submit it to the network, and can add perspectives. Rules live in /api/network-rounds.
@@ -21,7 +23,7 @@ async function api<T = any>(path: string, init?: { method?: string; json?: unkno
 type RoundSummary = { id: string; name: string; nodeId: string; instrument: string; instrumentTitle: string; opensOn: string; closesOn: string; perspectives: boolean; state: 'upcoming' | 'open' | 'closed'; coordinating: boolean }
 type Counts = { total: number; submitted: number; inProgress: number; notStarted: number; rate: number }
 type Mine = {
-  orgId: string; orgName: string; progress: { answered: number; total: number; complete: boolean }; submittedAt: string | null
+  orgId: string; orgName: string; progress: { answered: number; total: number; complete: boolean }; submittedAt: string | null; value: ValueAnswers | null
   perspectives: Partial<Record<Perspective, Record<string, number>>>
   gaps: Array<{ dimension: string; name: string; spread: number | null; disagree: boolean; values: Array<{ perspective: Perspective; score: number }> }>
 }
@@ -78,6 +80,7 @@ export function MemberRounds({ networkId }: { networkId: string }) {
   const [rounds, setRounds] = useState<RoundDetail[] | null>(null)
   const [msg, setMsg] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [survey, setSurvey] = useState<string | null>(null)
   const load = useCallback(async () => {
     try {
       const list = await api<{ rounds: RoundSummary[] }>(`/api/network-rounds?networkId=${encodeURIComponent(networkId)}`)
@@ -107,9 +110,12 @@ export function MemberRounds({ networkId }: { networkId: string }) {
               <Link to="/assessment/$frameworkId" params={{ frameworkId: r.instrument }} className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50">Open the assessment</Link>
               <Button size="sm" onClick={() => void submit(r.id, m.orgId)} disabled={m.progress.answered === 0}>{m.submittedAt ? 'Submit again with my latest answers' : 'Submit to the network'}</Button>
               {r.perspectives && <Button size="sm" variant="outline" onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? 'Hide perspectives' : 'Add perspectives'}</Button>}
+              <Button size="sm" variant="outline" onClick={() => setSurvey(survey === r.id ? null : r.id)}>{survey === r.id ? 'Hide value survey' : m.value ? 'Update value survey' : 'Value survey (2 minutes)'}</Button>
             </div>
           )}
           {open === r.id && <PerspectiveForm round={r} mine={m} onDone={() => void load()} />}
+          {survey === r.id && <ValueSurvey roundId={r.id} orgId={m.orgId} initial={m.value} onDone={() => void load()} />}
+          <MemberBenchmark roundId={r.id} orgId={m.orgId} />
         </div>
       )))}
       {msg && <p className="text-sm text-slate-700">{msg}</p>}
@@ -156,6 +162,7 @@ function Participation({ d, onChange }: { d: RoundDetail; onChange: () => void }
 export function CoordinatorRounds({ networkId, nodes, coordinates }: { networkId: string; nodes: Array<{ id: string; name: string; level: NetworkLevel }>; coordinates: string[] }) {
   const [list, setList] = useState<{ instruments: Array<{ id: string; title: string }>; canCreate: boolean; rounds: RoundSummary[] } | null>(null)
   const [detail, setDetail] = useState<RoundDetail | null>(null)
+  const [resultsFor, setResultsFor] = useState<string | null>(null)
   const [form, setForm] = useState({ nodeId: coordinates[0] ?? '', name: '', instrument: '', opensOn: new Date().toISOString().slice(0, 10), closesOn: '', perspectives: false })
   const [msg, setMsg] = useState('')
   const load = useCallback(() => { void api(`/api/network-rounds?networkId=${encodeURIComponent(networkId)}`).then(setList, (e) => setMsg(e.message)) }, [networkId])
@@ -180,9 +187,10 @@ export function CoordinatorRounds({ networkId, nodes, coordinates }: { networkId
                   <p className="font-medium text-slate-900">{r.name}</p>
                   <p className="text-xs text-slate-600">{r.instrumentTitle} · {nodes.find((n) => n.id === r.nodeId)?.name} and below · {r.opensOn} to {r.closesOn}{r.perspectives ? ' · perspectives on' : ''}</p>
                 </div>
-                <div className="flex items-center gap-2"><RoundBadge state={r.state} /><Button size="sm" variant="outline" onClick={() => (detail?.id === r.id ? setDetail(null) : show(r.id))}>{detail?.id === r.id ? 'Hide' : 'Participation'}</Button></div>
+                <div className="flex items-center gap-2"><RoundBadge state={r.state} /><Button size="sm" variant="outline" onClick={() => (detail?.id === r.id ? setDetail(null) : show(r.id))}>{detail?.id === r.id ? 'Hide' : 'Participation'}</Button><Button size="sm" variant="outline" onClick={() => setResultsFor(resultsFor === r.id ? null : r.id)}>{resultsFor === r.id ? 'Hide results' : 'Results'}</Button></div>
               </div>
               {detail?.id === r.id && <div className="mt-3"><Participation d={detail} onChange={() => { show(r.id); load() }} /></div>}
+              {resultsFor === r.id && <div className="mt-3 border-t border-slate-200 pt-3"><CoordinatorResults roundId={r.id} /></div>}
             </li>
           ))}
         </ul>
