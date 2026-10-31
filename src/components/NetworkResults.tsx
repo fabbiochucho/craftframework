@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button, Select } from './ui'
 import { LEVEL_LABEL, type NetworkLevel } from '../lib/networks'
 import { NETWORK_SERVICES, SERVICE_LABEL, type NetworkService, type ValueAnswers } from '../lib/networkResults'
+import { AFRICA_TILES, TILE_COLS, TILE_ROWS } from '../lib/africaTiles'
 
 // The Network Value Scorecard for one level of a round (capacity, value added, use), and a member's own benchmark.
 // Every number comes from /api/network-results, which withholds any group under five members.
@@ -26,7 +27,7 @@ type Results = {
   scorecard: string[]
   capacity: { n: number; suppressed: boolean; composite: Stats | null; bands: Array<{ label: string; tone: string; count: number }> | null; dimensions: Array<{ key: string; name: string; stats: Stats | null }> }
   gaps: Array<{ key: string; name: string; median: number }>
-  heatmap: { columns: Array<{ nodeId: string; name: string; n: number; shown: boolean }>; rows: Array<{ key: string; name: string; cells: Array<number | null> }> }
+  heatmap: { columns: Array<{ nodeId: string; name: string; geoCode: string; n: number; shown: boolean; median: number | null }>; rows: Array<{ key: string; name: string; cells: Array<number | null> }> }
   value: { n: number; suppressed: boolean; services: Array<{ key: string; label: string; usedBy: number; usedPct: number; helpfulPct: number | null }> | null; recommend: { average: number; netScore: number } | null }
   use: Array<{ key: string; label: string; count: number; pct: number }>
   named: Array<{ orgId: string; name: string; composite: number; band: string | null }>
@@ -35,6 +36,28 @@ type Results = {
 const TONE: Record<string, string> = { rose: 'bg-rose-500', amber: 'bg-amber-400', yellow: 'bg-yellow-300', emerald: 'bg-emerald-500' }
 /** Heatmap colour by median on the 0-5 scale, matching CRAFT's band thresholds. */
 const cell = (v: number | null) => v == null ? 'bg-slate-100 text-slate-400' : v < 1.75 ? 'bg-rose-100 text-rose-900' : v < 2.75 ? 'bg-amber-100 text-amber-900' : v < 3.5 ? 'bg-yellow-100 text-yellow-900' : 'bg-emerald-100 text-emerald-900'
+
+/** Countries below the selected level, coloured by their members' median overall score (grey under five members). */
+function AfricaTileMap({ columns, minGroup }: { columns: Results['heatmap']['columns']; minGroup: number }) {
+  const byIso = new Map(columns.filter((c) => AFRICA_TILES[c.geoCode]).map((c) => [c.geoCode, c]))
+  if (!byIso.size) return null
+  return (
+    <div>
+      <p className="mb-1 text-xs text-slate-500">Each square is a country, placed roughly where it sits in Africa. Coloured squares show the median overall score of members there; grey squares are outside this level or have fewer than {minGroup} members.</p>
+      <div className="grid max-w-md gap-1" style={{ gridTemplateColumns: `repeat(${TILE_COLS}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${TILE_ROWS}, auto)` }} role="img"
+        aria-label={[...byIso.values()].map((c) => `${c.name}: ${c.median ?? 'not shown'}`).join(', ')}>
+        {Object.entries(AFRICA_TILES).map(([iso, [col, row]]) => {
+          const c = byIso.get(iso)
+          return (
+            <div key={iso} title={c ? `${c.name}: ${c.median == null ? `${c.n} submitted (hidden)` : `median ${c.median.toFixed(2)}`}` : iso}
+              className={`flex aspect-square items-center justify-center rounded text-[9px] font-semibold ${c ? cell(c.median) : 'bg-slate-50 text-slate-300'}`}
+              style={{ gridColumn: col + 1, gridRow: row + 1 }}>{iso}</div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 function BandBar({ bands, n }: { bands: Array<{ label: string; tone: string; count: number }>; n: number }) {
   return (
@@ -88,6 +111,7 @@ export function CoordinatorResults({ roundId }: { roundId: string }) {
             {r.gaps.length > 0 && <p className="text-sm text-slate-700"><span className="font-medium">Weakest areas across members:</span> {r.gaps.map((g) => `${g.name} (median ${g.median})`).join('; ')}.</p>}
           </>
         )}
+        <AfricaTileMap columns={r.heatmap.columns} minGroup={r.minGroup} />
         {r.heatmap.columns.length > 0 && (
           <div className="overflow-x-auto">
             <p className="mb-1 text-xs text-slate-500">Median by area for each level below {r.node.name}. Grey cells have fewer than {r.minGroup} members and are hidden.</p>

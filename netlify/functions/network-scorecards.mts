@@ -9,7 +9,7 @@ import { audit, coordinatorScope, load } from '../lib/network-access.js'
 import { NETWORK_LEVELS, distinctAcceptedOrgs, subtree, type NetworkNode } from '../../src/lib/networks.js'
 import { instrumentById, roundState, validWindow } from '../../src/lib/networkRounds.js'
 import { capacity } from '../../src/lib/networkResults.js'
-import { COMPONENTS, TEMPLATES, changeSince, scoreUnit, summarise, templateById, validEntry, type UnitResult } from '../../src/lib/programmeScorecard.js'
+import { TEMPLATES, changeSince, componentsOf, scoreUnit, summarise, templateById, validEntry, type UnitResult } from '../../src/lib/programmeScorecard.js'
 
 // /api/network-scorecards — Programme Response Scorecards (src/lib/programmeScorecard.ts).
 //   GET    ?networkId=      templates, and scorecards I coordinate or whose units I coordinate
@@ -116,7 +116,7 @@ const handleRequest = async (req: Request) => {
         const u = units.find((x) => x.id === e.nodeId)!
         return { nodeId: u.id, name: u.name, group: groupOf(u), result: scoreUnit(t, e.scores) }
       })
-      const summaries = t.areas.map((a) => ({ area: a.key, name: a.name, components: COMPONENTS.map((c) => ({ component: c, ...summarise(results, a.key, c) })) }))
+      const summaries = t.areas.map((a) => ({ area: a.key, name: a.name, components: componentsOf(a).map((c) => ({ component: c, ...summarise(results, a.key, c) })) }))
       // Change since the previous scorecard of the same template at the same level
       const [prev] = await db.select().from(programmeScorecards).where(and(eq(programmeScorecards.networkId, sc.networkId), eq(programmeScorecards.template, sc.template), eq(programmeScorecards.nodeId, sc.nodeId)))
         .orderBy(desc(programmeScorecards.opensOn)).then((rows) => rows.filter((r) => r.id !== sc.id && r.opensOn <= sc.opensOn))

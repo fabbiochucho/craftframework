@@ -40,7 +40,7 @@ management, staff, community representatives and a facilitator; areas where view
 - **CRAFT Network Capacity Index**: 24 indicators for the network's secretariat or coordinating body (mandate and
   legitimacy, member services, coordination, representation, sustainability, accountability to members).
 
-Both start as previews visible to the Super Admin until the founders sign off the content.
+Both are live for organisations (founder sign-off 31 October 2026).
 
 ## Network Value Scorecard
 
@@ -69,11 +69,14 @@ scores its programme response per programme area on programme management, implem
 outcome (items 0/1/2). The level above sees how many units are in each band (Immediate action required / Attention
 needed / Good, but may need improvement), by zone, with lists, change since the last scorecard, and each unit's
 response next to its members' capacity. Bands use CRAFT's thresholds (40% / 70%); NACA's are not published.
-Templates: subnational HIV prevention (AGYW, condom programming) and a generic programme template.
+Templates: subnational HIV prevention with NACA's seven programme areas (AGYW, condom programming, sex workers,
+men who have sex with men, people who inject drugs, transgender people, PrEP) as published in its 2023/2024 report,
+and a generic programme template.
 
 ## Outputs
 
-Organisation report (the standard index report), Network Value Scorecard, heatmap, benchmark, capacity-building
+Organisation report (the standard index report), Network Value Scorecard, heatmap, Africa tile map (country
+levels), benchmark, capacity-building
 plan, mentoring pairs, progress between rounds, funder and government brief (printable, totals only), CSV export
 (aggregates; named rows only for named-results members), programme scorecard summaries.
 

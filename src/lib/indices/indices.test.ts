@@ -107,7 +107,7 @@ import { LAW_AREAS } from '../laws/types.ts'
   assert.deepEqual(byNhocatDomain({}).map((d) => d.score), Array(8).fill(null))
   assert.deepEqual([0, 1.74, 1.75, 2.74, 2.75, 3.74, 3.75, 5].map(maturityLevel),
     ['Latent', 'Latent', 'Emerging', 'Emerging', 'Established', 'Established', 'Advanced', 'Advanced'])
-  assert.ok(m.preview, 'preview until founders sign off the content')
+  assert.ok(!m.preview, 'live for organisations (founder sign-off 2026-10-31)')
   console.log('indices (CRAFT-ONC): ok')
 }
 
@@ -127,6 +127,6 @@ import { NETWORK_CAPACITY } from './networkCapacity.ts'
   for (const l of m.lenses) for (const x of l.indicatorIds) assert.ok(m.indicators.some((i) => i.id === x))
   const all = FOUNDATION_MODULES.flatMap((x) => x.indicators.map((i) => i.id))
   assert.equal(new Set(all).size, all.length, 'indicator ids still unique across modules')
-  assert.ok(m.preview)
+  assert.ok(!m.preview, 'live for organisations (founder sign-off 2026-10-31)')
   console.log('indices (Network Capacity): ok')
 }

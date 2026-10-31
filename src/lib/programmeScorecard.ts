@@ -21,35 +21,67 @@ export const BAND_LABEL: Record<Band, string> = { immediate: 'Immediate action r
 export const BANDS = { attentionFrom: 40, goodFrom: 70 }
 export const bandFor = (pct: number): Band => (pct >= BANDS.goodFrom ? 'good' : pct >= BANDS.attentionFrom ? 'attention' : 'immediate')
 
-export interface Area { key: string; name: string; items: Record<Component, Array<{ id: string; text: string }>> }
+export interface Area { key: string; name: string; items: Partial<Record<Component, Array<{ id: string; text: string }>>> }
 export interface Template { id: string; name: string; source: string; areas: Area[] }
 
+/** The components an area is scored on (NACA scores some areas without a service-package component). */
+export const componentsOf = (a: Area): Component[] => COMPONENTS.filter((c) => (a.items[c]?.length ?? 0) > 0)
+
 const items = (prefix: string, list: string[]) => list.map((text, i) => ({ id: `${prefix}${i + 1}`, text }))
-// Management and implementation items are the same for every area in NACA's report.
-const management = (k: string, who: string) => items(`${k}.m`, [
-  `A state strategy for HIV prevention for ${who}`, `State technical working group is functional and includes ${who}`,
-  'Accountability mechanisms for data', 'A technical assistance and sustainability plan', 'Financing and budget planning',
-])
+// Item lists as published in NACA's Subnational HIV Prevention Self-Assessment Scorecards 2023/2024 report.
 const implementation = (k: string) => items(`${k}.i`, [
   'Demographic and needs assessment', 'Target setting and population estimation', 'Risk factor assessment',
   'Development of delivery systems', 'Monitoring and data management',
 ])
+const kpManagement = (k: string) => items(`${k}.m`, [
+  'State key populations strategy', 'Accountability and coordination', 'Technical working group and capacity building',
+  'Sustainability and transition planning', 'Laws, policies and financing',
+])
+const kpImplementation = (k: string) => items(`${k}.i`, [
+  'Demographic assessment and epidemiological data', 'Needs assessment and target setting', 'Implementation arrangements and management structure',
+  'Service delivery and clinical interventions', 'Programme monitoring and quality assessment',
+])
+const tgItems = [
+  'Population size, prevalence and prevention strategy', 'HIV testing, treatment and viral suppression targets (90-90-90)',
+  'Access to HIV prevention interventions and condom use', 'Stigma, discrimination and criminalisation impacts', 'Provision of gender-affirmative health care',
+]
 
 export const TEMPLATES: Template[] = [
   {
     id: 'hiv-prevention-subnational',
     name: 'Subnational HIV prevention response',
-    source: "Components and the AGYW and programme-management items follow NACA's Subnational HIV Prevention Self-Assessment Scorecards 2023/2024 (public report). Condom service-package and outcome items are CRAFT placeholders. Confirm all wording with NACA before official use.",
+    source: "Programme areas, components and items as published in NACA's Subnational HIV Prevention Self-Assessment Scorecards 2023/2024 report. NACA's scoring rules and thresholds are not published; CRAFT's are used.",
     areas: [
       { key: 'agyw', name: 'Adolescent girls and young women (AGYW)', items: {
-        management: management('agyw', 'AGYW'), implementation: implementation('agyw'),
+        management: items('agyw.m', ['A state strategy for HIV prevention for AGYW', 'State technical working group functionality and inclusion of AGYW', 'Accountability mechanisms for data', 'A technical assistance and sustainability plan', 'Financing and budget planning']),
+        implementation: implementation('agyw'),
         package: items('agyw.p', ['Education and social support', 'Youth-friendly health and HIV services', 'Social and economic empowerment', 'HIV prevention and risk reduction services', 'Community engagement']),
         outcome: items('agyw.o', ['HIV prevention and treatment indicators', 'Risk and prevention programmes', 'Male partner and community engagement', 'Violence and social indicators', 'Knowledge and education indicators']),
       } },
       { key: 'condom', name: 'Condom programming', items: {
-        management: management('condom', 'condom programming'), implementation: implementation('condom'),
-        package: items('condom.p', ['Condom supply and distribution', 'Demand creation and promotion', 'Targeted distribution to priority populations', 'Stock monitoring at service points']),
-        outcome: items('condom.o', ['Condom use indicators', 'Distribution against targets', 'Availability at service points']),
+        management: items('condom.m', ['State condom plan and government capacity', 'Vision for a sustainable condom market and total market approach', 'Government leadership, coordination and policies', 'Quality assurance and regulation', 'Monitoring, evaluation and data management', 'Programme financing and sustainability']),
+        implementation: implementation('condom'),
+        outcome: items('condom.o', ['Exposure to demand creation and behavioural interventions', 'Condom availability and use with non-regular partners', 'Condom use among men who had anal sex and sex workers', 'Condom use during paid or premarital sex', 'Condom distribution, stock-outs and outlet coverage', 'Equitable condom use across socioeconomic groups']),
+      } },
+      { key: 'sw', name: 'Key populations: sex workers (SW)', items: {
+        management: kpManagement('sw'), implementation: kpImplementation('sw'),
+        outcome: items('sw.o', ['Population size estimates and prevention strategy for SWs, including the core prevention package', 'SWs living with HIV who know their status, are on antiretroviral therapy and have suppressed viral loads', 'SWs receiving HIV prevention interventions, and condom use with most recent client', "Impact of stigma, discrimination and criminalisation on SWs' access to health care", 'SWs who avoided health care due to stigma and discrimination']),
+      } },
+      { key: 'msm', name: 'Key populations: men who have sex with men (MSM)', items: {
+        management: kpManagement('msm'), implementation: kpImplementation('msm'),
+        outcome: items('msm.o', ['MSM population size estimates and prevention strategy', 'MSM living with HIV: status knowledge, ART coverage and viral suppression', 'MSM access to HIV prevention interventions', 'Impact of stigma and discrimination on MSM healthcare access', 'Criminalisation of same-sex sexual acts and condom use']),
+      } },
+      { key: 'pwid', name: 'Key populations: people who inject drugs (PWID)', items: {
+        management: kpManagement('pwid'), implementation: kpImplementation('pwid'),
+        outcome: items('pwid.o', ['Population size estimates and prevention strategy for PWID, including the core harm reduction package', 'PWID living with HIV who know their status, are on antiretroviral therapy and have suppressed viral loads', 'PWID receiving HIV prevention interventions and safe injecting practices in the past 3 months', "Impact of stigma, discrimination and criminalisation on PWID's access to health care", 'Access to medication-assisted treatment and availability of needles and syringes']),
+      } },
+      { key: 'tg', name: 'Key populations: transgender people', items: {
+        management: kpManagement('tg'), implementation: items('tg.i', tgItems), outcome: items('tg.o', tgItems),
+      } },
+      { key: 'prep', name: 'Pre-exposure prophylaxis (PrEP)', items: {
+        management: items('prep.m', ['PrEP integrated into state HIV prevention with a clear rollout plan', 'National guidelines for PrEP eligibility, initiation and provider roles', 'Regulatory approval for multiple PrEP products, including generics', 'PrEP leadership and coordination led by a state focal person with multisectoral support', 'PrEP budget planning, addressing funding gaps and securing domestic financing']),
+        implementation: items('prep.i', ['State PrEP work plans with clear roles, timelines and community involvement', 'Non-stigmatising risk assessment and scaling based on global tools', 'PrEP programme targets aligned with state HIV data and risk', 'Inclusive, multi-channel PrEP communication strategy', 'Reliable PrEP supply chain and procurement plan']),
+        outcome: items('prep.o', ['PrEP uptake, continuation and current users tracked quarterly, disaggregated by key demographics', 'Seroconversion and drug resistance among PrEP users monitored', 'Programme effectiveness evaluated through HIV prevention impact and risk compensation']),
       } },
     ],
   },
@@ -68,7 +100,7 @@ export const TEMPLATES: Template[] = [
   },
 ]
 export const templateById = (id: string) => TEMPLATES.find((t) => t.id === id)
-export const allItemIds = (t: Template) => t.areas.flatMap((a) => COMPONENTS.flatMap((c) => a.items[c].map((i) => i.id)))
+export const allItemIds = (t: Template) => t.areas.flatMap((a) => componentsOf(a).flatMap((c) => a.items[c]!.map((i) => i.id)))
 
 export function validEntry(t: Template, scores: Record<string, number>): boolean {
   const ids = new Set(allItemIds(t))
@@ -79,8 +111,8 @@ export function validEntry(t: Template, scores: Record<string, number>): boolean
 export function scoreUnit(t: Template, scores: Record<string, number>) {
   return t.areas.map((a) => ({
     area: a.key, name: a.name,
-    components: COMPONENTS.map((c) => {
-      const list = a.items[c]
+    components: componentsOf(a).map((c) => {
+      const list = a.items[c]!
       const got = list.reduce((s, i) => s + (scores[i.id] ?? 0), 0)
       const pct = list.length ? Math.round((got / (list.length * 2)) * 100) : 0
       return { component: c, pct, band: bandFor(pct), gaps: list.filter((i) => (scores[i.id] ?? 0) < 2).map((i) => i.text) }
@@ -92,13 +124,13 @@ export interface UnitResult { nodeId: string; name: string; group: string; resul
 
 /** NACA-style summary for one area and component: units per band overall, per group (e.g. zone), and the lists. */
 export function summarise(units: UnitResult[], area: string, component: Component) {
-  const pick = (u: UnitResult) => u.result.find((r) => r.area === area)!.components.find((c) => c.component === component)!
+  const pick = (u: UnitResult) => u.result.find((r) => r.area === area)?.components.find((c) => c.component === component)
   const bands: Band[] = ['immediate', 'attention', 'good']
   const groups = [...new Set(units.map((u) => u.group))].sort()
   return {
-    counts: Object.fromEntries(bands.map((b) => [b, units.filter((u) => pick(u).band === b).length])) as Record<Band, number>,
-    byGroup: groups.map((g) => ({ group: g, ...Object.fromEntries(bands.map((b) => [b, units.filter((u) => u.group === g && pick(u).band === b).length])) as Record<Band, number> })),
-    lists: Object.fromEntries(bands.map((b) => [b, units.filter((u) => pick(u).band === b).map((u) => u.name).sort()])) as Record<Band, string[]>,
+    counts: Object.fromEntries(bands.map((b) => [b, units.filter((u) => pick(u)?.band === b).length])) as Record<Band, number>,
+    byGroup: groups.map((g) => ({ group: g, ...Object.fromEntries(bands.map((b) => [b, units.filter((u) => u.group === g && pick(u)?.band === b).length])) as Record<Band, number> })),
+    lists: Object.fromEntries(bands.map((b) => [b, units.filter((u) => pick(u)?.band === b).map((u) => u.name).sort()])) as Record<Band, string[]>,
   }
 }
 

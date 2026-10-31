@@ -48,6 +48,7 @@ const subs = [org('a', 4), org('b', 4), org('c', 4), org('d', 4), org('e', 4), o
 const hm = heatmap(m, nodes, 'ng', (scope) => subs.filter((s) => scope.has(where[s.orgId])))
 assert.deepEqual(hm.columns.map((c) => [c.name, c.n, c.shown]), [['Lagos', 5, true], ['Kano', 1, false]])
 assert.equal(hm.rows[0].cells[0], 4)
+assert.deepEqual(hm.columns.map((c) => c.median), [4, null], 'overall median per child, withheld under five')
 assert.equal(hm.rows[0].cells[1], null, 'Kano has one member: withheld')
 
 // Value survey

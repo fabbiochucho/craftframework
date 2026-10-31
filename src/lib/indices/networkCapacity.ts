@@ -11,7 +11,6 @@ export const NETWORK_CAPACITY: FoundationModule = {
   id: 'craft-network',
   no: '19',
   version: V1,
-  preview: true,
   title: 'CRAFT Network Capacity Index',
   question: 'Does the network\'s coordinating body serve, connect and represent its members well?',
   intro:

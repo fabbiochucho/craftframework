@@ -226,7 +226,6 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     theme: 'emerald',
     blurb: 'For civil society organisations and network members anywhere in Africa: 44 indicators from governance and finance to peer learning, safeguarding and community-led monitoring.',
     icon: 'Users',
-    preview: true,
   },
   {
     id: 'craft-network',
@@ -237,7 +236,6 @@ export const FRAMEWORKS: FrameworkMeta[] = [
     theme: 'emerald',
     blurb: "For a network's secretariat or coordinating body at any level: 24 indicators on mandate, member services, coordination, representation, sustainability and accountability to members.",
     icon: 'Network',
-    preview: true,
   },
 ]
 

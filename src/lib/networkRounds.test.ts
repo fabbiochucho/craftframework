@@ -50,8 +50,10 @@ console.log('networkRounds.test.ts ok')
 
 // Preview modules (content awaiting sign-off) are only offered to the Super Admin
 import { FOUNDATION_MODULES } from './foundationModules.ts'
-const previewIds = FOUNDATION_MODULES.filter((m) => m.preview).map((m) => m.id)
-assert.ok(previewIds.length > 0)
-assert.ok(previewIds.every((x) => !roundInstruments().some((i) => i.id === x)))
-assert.ok(previewIds.every((x) => roundInstruments(true).some((i) => i.id === x)))
+const fakePreview = { ...FOUNDATION_MODULES[0], id: 'preview-test', preview: true }
+FOUNDATION_MODULES.push(fakePreview as (typeof FOUNDATION_MODULES)[number])
+assert.ok(!roundInstruments().some((i) => i.id === 'preview-test'))
+assert.ok(roundInstruments(true).some((i) => i.id === 'preview-test'))
+FOUNDATION_MODULES.pop()
+assert.ok(roundInstruments().some((i) => i.id === 'craft-onc') && roundInstruments().some((i) => i.id === 'craft-network'), 'the network instruments are live')
 console.log('networkRounds.test.ts preview ok')

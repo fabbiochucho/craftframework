@@ -58,10 +58,10 @@ export function heatmap(m: FoundationModule, nodes: NetworkNode[], nodeId: strin
   const children = nodes.filter((n) => n.parentId === nodeId)
   const cols = children.map((c) => {
     const subs = subsByNode(subtree(nodes, c.id))
-    return { nodeId: c.id, name: c.name, n: subs.length, cap: subs.length >= MIN_GROUP ? capacity(m, subs) : null }
+    return { nodeId: c.id, name: c.name, geoCode: c.geoCode, n: subs.length, cap: subs.length >= MIN_GROUP ? capacity(m, subs) : null }
   })
   return {
-    columns: cols.map((c) => ({ nodeId: c.nodeId, name: c.name, n: c.n, shown: c.cap != null })),
+    columns: cols.map((c) => ({ nodeId: c.nodeId, name: c.name, geoCode: c.geoCode, n: c.n, shown: c.cap != null, median: c.cap?.composite?.median ?? null })),
     rows: m.dimensions.map((d) => ({ key: d.key, name: d.name, cells: cols.map((c) => c.cap?.dimensions.find((x) => x.key === d.key)?.stats?.median ?? null) })),
   }
 }

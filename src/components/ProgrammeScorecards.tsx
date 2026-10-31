@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
 import { LEVEL_LABEL, NETWORK_LEVELS, type NetworkLevel } from '../lib/networks'
-import { BAND_LABEL, BANDS, COMPONENTS, COMPONENT_LABEL, ITEM_SCALE, type Band, type Component, type Template } from '../lib/programmeScorecard'
+import { BAND_LABEL, BANDS, COMPONENT_LABEL, ITEM_SCALE, componentsOf, type Band, type Component, type Template } from '../lib/programmeScorecard'
 
 // Programme Response Scorecards: units (e.g. states) self-assess their programme response; the level above sees
 // how many units sit in each band, by zone, with the lists, as in NACA's subnational scorecards.
@@ -43,11 +43,11 @@ function UnitEntry({ d, unit, onDone }: { d: Detail; unit: Detail['mine'][number
       {d.template.areas.map((a) => (
         <div key={a.key} className="space-y-2">
           <p className="font-medium text-slate-900">{a.name}</p>
-          {COMPONENTS.map((c) => (
+          {componentsOf(a).map((c) => (
             <div key={c} className="rounded-md border border-slate-200 p-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{COMPONENT_LABEL[c]}</p>
               <ul className="mt-1 space-y-1">
-                {a.items[c].map((i) => (
+                {a.items[c]!.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="text-slate-800">{i.text}</span>
                     <select aria-label={i.text} disabled={d.state !== 'open'} className="rounded border border-slate-300 bg-white px-2 py-1 text-sm" value={scores[i.id] ?? ''}
@@ -93,6 +93,8 @@ function UnitResultView({ result }: { result: UnitResult }) {
 function Overview({ d }: { d: Detail }) {
   const [area, setArea] = useState(d.template.areas[0]?.key ?? '')
   const [comp, setComp] = useState<Component>('management')
+  const areaDef = d.template.areas.find((x) => x.key === area)
+  useEffect(() => { if (areaDef && !componentsOf(areaDef).includes(comp)) setComp('management') }, [areaDef, comp])
   const s = d.summaries?.find((x) => x.area === area)?.components.find((c) => c.component === comp)
   const entered = d.units?.filter((u) => u.entered).length ?? 0
   return (
@@ -101,7 +103,7 @@ function Overview({ d }: { d: Detail }) {
         {d.change ? ` Since ${d.change.previous}: ${d.change.improved} area-components moved up a band and ${d.change.worsened} moved down across ${d.change.comparedUnits} units.` : ''}</p>
       <div className="flex flex-wrap gap-3">
         <div className="min-w-[14rem]"><Select label="Programme area" options={d.template.areas.map((a) => ({ value: a.key, label: a.name }))} value={area} onChange={setArea} /></div>
-        <div className="min-w-[14rem]"><Select label="Component" options={COMPONENTS.map((c) => ({ value: c, label: COMPONENT_LABEL[c] }))} value={comp} onChange={(v) => setComp(v as Component)} /></div>
+        <div className="min-w-[14rem]"><Select label="Component" options={componentsOf(d.template.areas.find((x) => x.key === area) ?? d.template.areas[0]).map((c) => ({ value: c, label: COMPONENT_LABEL[c] }))} value={comp} onChange={(v) => setComp(v as Component)} /></div>
       </div>
       {s && (
         <>

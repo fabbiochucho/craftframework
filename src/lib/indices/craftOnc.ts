@@ -14,7 +14,6 @@ export const CRAFT_ONC: FoundationModule = {
   id: 'craft-onc',
   no: '18',
   version: V1,
-  preview: true,
   title: 'CRAFT Organisational & Network Capacity Index',
   question: 'Can this organisation run itself well, deliver for its communities, and work with others?',
   intro:
