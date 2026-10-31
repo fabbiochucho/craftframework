@@ -4,6 +4,7 @@ import { Network } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { CoordinatorRounds, MemberRounds } from '../components/NetworkRounds'
 import { ExchangeLog } from '../components/NetworkExchange'
+import { ProgrammeScorecards } from '../components/ProgrammeScorecards'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
 
 // Civil society networks: levels from global to local, coordinators per level, and member organisations that
@@ -209,6 +210,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
         </div>
       )}
       {d.coordinates.length > 0 || d.views.length > 0 ? <CoordinatorRounds networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} /> : null}
+      {(d.coordinates.length > 0 || d.views.length > 0) && <ProgrammeScorecards networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} />}
       <ExchangeLog networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} named={d.members?.named.map((x) => ({ orgId: x.orgId, name: x.name })).filter((x, i, a) => a.findIndex((y) => y.orgId === x.orgId) === i) ?? []} />
       <Card>
         <CardHeader><CardTitle>Levels</CardTitle></CardHeader>

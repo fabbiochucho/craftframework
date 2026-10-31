@@ -10,6 +10,7 @@ const NODES = [
 // Levels nest downwards only; skipping a level is fine
 assert.ok(canNest('national', 'subnational'))
 assert.ok(canNest('global', 'national'))
+assert.ok(canNest('national', 'zonal') && canNest('zonal', 'subnational'), 'zones sit between national and state')
 assert.ok(!canNest('subnational', 'national'))
 assert.ok(!canNest('national', 'national'))
 

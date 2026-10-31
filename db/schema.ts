@@ -2208,3 +2208,24 @@ export const networkExchanges = pgTable('network_exchanges', {
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('network_exchanges_network_idx').on(t.networkId)])
+
+export const programmeScorecards = pgTable('programme_scorecards', {
+  id: text('id').primaryKey(),
+  networkId: text('network_id').notNull(),
+  nodeId: text('node_id').notNull(),
+  unitLevel: text('unit_level').notNull(),
+  template: text('template').notNull(),
+  name: text('name').notNull(),
+  opensOn: date('opens_on').notNull(),
+  closesOn: date('closes_on').notNull(),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('programme_scorecards_network_idx').on(t.networkId)])
+
+export const programmeScorecardEntries = pgTable('programme_scorecard_entries', {
+  scorecardId: text('scorecard_id').notNull(),
+  nodeId: text('node_id').notNull(),
+  scores: jsonb('scores').$type<Record<string, number>>().notNull(),
+  enteredBy: text('entered_by').notNull(),
+  enteredAt: timestamp('entered_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.scorecardId, t.nodeId] })])

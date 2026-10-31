@@ -1,12 +1,12 @@
 // Civil society networks: a tree of levels (global → organisation) with member organisations and coordinators.
 // Pure rules shared by the API and the pages. Self-check: `node src/lib/networks.test.ts`.
 
-export const NETWORK_LEVELS = ['global', 'continental', 'subregional', 'national', 'subnational', 'local'] as const
+export const NETWORK_LEVELS = ['global', 'continental', 'subregional', 'national', 'zonal', 'subnational', 'local'] as const
 export type NetworkLevel = (typeof NETWORK_LEVELS)[number]
 
 export const LEVEL_LABEL: Record<NetworkLevel, string> = {
   global: 'Global', continental: 'Continental (e.g. Africa)', subregional: 'Sub-regional (e.g. ECOWAS, EAC)',
-  national: 'National', subnational: 'State or province', local: 'Local (district, LGA or county)',
+  national: 'National', zonal: 'Zone or region within a country', subnational: 'State or province', local: 'Local (district, LGA or county)',
 }
 
 export const SHARING = ['aggregate', 'full'] as const
