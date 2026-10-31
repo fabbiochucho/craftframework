@@ -24,6 +24,7 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   // Sign-up, onboarding, directory, training, public verification, policy and help pages
   auth: 'allowed',
   onboarding: 'allowed',
+  start: 'allowed',
   directory: 'allowed',
   'directory_.$kind.$id': 'allowed',
   training: 'allowed',

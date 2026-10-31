@@ -79,3 +79,16 @@ assert.match(lines[2], /25%/)
 assert.match(scorecardLines(four, valueSummary([]), funnel, m)[0], /hidden/)
 
 console.log('networkResults.test.ts ok')
+
+// Small groups are shown when every member chose named results
+{
+  const named = capacity(m, [org('a', 3), org('b', 4)], true)
+  assert.equal(named.suppressed, false)
+  assert.equal(named.composite!.median, 3.5)
+  assert.equal(capacity(m, [org('a', 3), org('b', 4)], false).suppressed, true)
+  assert.equal(capacity(m, [], true).suppressed, true, 'nothing to show for an empty group')
+  assert.equal(valueSummary([{ used: { training: 5 }, recommend: 9 }], true).suppressed, false)
+  const hm2 = heatmap(m, nodes, 'ng', (scope) => subs.filter((s) => scope.has(where[s.orgId])), (scope) => scope.has('kn'))
+  assert.deepEqual(hm2.columns.map((c) => c.shown), [true, true], 'Kano (one member, named) is shown')
+  console.log('networkResults.test.ts small-groups ok')
+}

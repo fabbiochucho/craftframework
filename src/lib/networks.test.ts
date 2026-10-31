@@ -51,3 +51,11 @@ assert.ok(!showable(4))
 assert.ok(showable(5))
 
 console.log('networks.test.ts ok')
+
+// Named-results groups can be shown at any size
+import { everyoneNamed } from './networks.ts'
+assert.ok(showable(2, true) && !showable(2, false) && !showable(0, true))
+assert.ok(everyoneNamed(MEMBERS, subtree(NODES, 'gh')), 'Ghana: its one member chose named results')
+assert.ok(!everyoneNamed(MEMBERS, subtree(NODES, 'lagos')), 'Lagos has a totals-only member')
+assert.ok(!everyoneNamed(MEMBERS, new Set(['kano'])), 'no accepted members: nothing to show')
+console.log('networks.test.ts small-groups ok')

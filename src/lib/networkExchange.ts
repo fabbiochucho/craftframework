@@ -2,7 +2,7 @@
 // capacity-building plan, and progress between rounds (including a careful contribution view for exchanges).
 // Self-check: `node src/lib/networkExchange.test.ts`.
 import { bandFor, dimensionScore, type FoundationModule } from './foundationModules.ts'
-import { MIN_GROUP } from './networks.ts'
+import { showable } from './networks.ts'
 import { stats, type Capacity, type Submission } from './networkResults.ts'
 
 export const EXCHANGE_TYPES = ['peer-learning', 'exchange-visit', 'study-tour', 'conference', 'mentoring', 'twinning', 'community-of-practice', 'joint-training'] as const
@@ -47,11 +47,11 @@ export function capacityPlan(m: FoundationModule, cap: Capacity, subs: Submissio
 
 // ---- Progress between two rounds of the same instrument ----
 /** Compares the members present in both rounds (the cohort); members new in the later round are counted separately. */
-export function progressBetween(m: FoundationModule, earlier: Submission[], later: Submission[]) {
+export function progressBetween(m: FoundationModule, earlier: Submission[], later: Submission[], allNamed = false) {
   const before = new Map(earlier.map((s) => [s.orgId, s.scores]))
   const cohort = later.filter((s) => before.has(s.orgId))
   const newMembers = later.length - cohort.length
-  if (cohort.length < MIN_GROUP) return { cohort: cohort.length, newMembers, suppressed: true as const, areas: null, movedUp: null, movedDown: null }
+  if (!showable(cohort.length, allNamed)) return { cohort: cohort.length, newMembers, suppressed: true as const, areas: null, movedUp: null, movedDown: null }
   const areas = m.dimensions.map((d) => {
     const changes = cohort.map((s) => {
       const a = dimensionScore(m, d.key, before.get(s.orgId)!), b = dimensionScore(m, d.key, s.scores)
@@ -76,7 +76,7 @@ export function progressBetween(m: FoundationModule, earlier: Submission[], late
  * against those who didn't. Shown only when both groups have MIN_GROUP members. It is a comparison, never proof
  * that the exchange caused the change.
  */
-export function exchangeContribution(m: FoundationModule, areaKey: string, earlier: Submission[], later: Submission[], participants: Set<string>) {
+export function exchangeContribution(m: FoundationModule, areaKey: string, earlier: Submission[], later: Submission[], participants: Set<string>, allNamed = false) {
   const before = new Map(earlier.map((s) => [s.orgId, s.scores]))
   const change = (s: Submission) => {
     const a = dimensionScore(m, areaKey, before.get(s.orgId)!), b = dimensionScore(m, areaKey, s.scores)
@@ -85,7 +85,7 @@ export function exchangeContribution(m: FoundationModule, areaKey: string, earli
   const cohort = later.filter((s) => before.has(s.orgId))
   const took = cohort.filter((s) => participants.has(s.orgId)).map(change).filter((x): x is number => x != null)
   const didnt = cohort.filter((s) => !participants.has(s.orgId)).map(change).filter((x): x is number => x != null)
-  if (took.length < MIN_GROUP || didnt.length < MIN_GROUP) return { shown: false as const, took: took.length, didnt: didnt.length }
+  if (!showable(took.length, allNamed) || !showable(didnt.length, allNamed)) return { shown: false as const, took: took.length, didnt: didnt.length }
   return { shown: true as const, took: took.length, didnt: didnt.length, tookMedian: stats(took)!.median, didntMedian: stats(didnt)!.median }
 }
 

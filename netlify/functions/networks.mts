@@ -1,18 +1,25 @@
 import type { Config } from '@netlify/functions'
-import { and, eq, inArray, or } from 'drizzle-orm'
+import { and, eq, gte, inArray, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { networkAdmins, networkMembers, networkNodes, networks, organizations } from '../../db/schema.js'
+import { capacityActions, networkAdmins, networkMembers, networkNodes, networkRoundSubmissions, networkRounds, networks, organizations, responses } from '../../db/schema.js'
 import { audit, coordinatorScope, isSuper, load } from '../lib/network-access.js'
 import { canAccessOrg, filterAuthorizedOrgIds, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import {
-  NETWORK_LEVELS, SHARING, canNest, memberView, validGeoCode, type NetworkLevel,
+  NETWORK_LEVELS, SHARING, canNest, distinctAcceptedOrgs, everyoneNamed, memberView, subtree, validGeoCode, type NetworkLevel,
 } from '../../src/lib/networks.js'
+import { NETWORK_TEMPLATES, templateNodes } from '../../src/lib/networkTemplates.js'
+import { instrumentById } from '../../src/lib/networkRounds.js'
+import { capacity, networkProfile } from '../../src/lib/networkResults.js'
+import { bandFor, compositeScore, answeredIn } from '../../src/lib/foundationModules.js'
 
 // /api/networks — civil society networks: levels, coordinators and member organisations (src/lib/networks.ts).
 //   GET                                   my networks, my organisations' invitations and memberships
-//   POST   { name, description, root }    Super Admin: create a network with its top level
+//   POST   { name, description, kind, template, root }   any signed-in organisation: create a network (5 a day);
+//                                         the creator becomes coordinator of its top level
+//   POST   :id/moderate { archived?, verified? }   Super Admin: archive a misused network, mark a known one verified
+//   GET    :id/overview                  coordinators: profile (secretariat, members, use) and alerts
 //   GET    :id                            the tree; coordinators see members in their scope (named only if "full")
 //   POST   :id/nodes { parentId, level, name, geoCode }       coordinator of the parent level
 //   POST   :id/admins { nodeId, email, role }                 coordinator of that level (or above)
@@ -30,8 +37,15 @@ const level = z.enum(NETWORK_LEVELS)
 const createSchema = z.object({
   name: z.string().trim().min(3).max(160),
   description: z.string().trim().max(2000).default(''),
+  kind: z.enum(['network', 'cohort']).default('network'),
+  template: z.enum(NETWORK_TEMPLATES).default('blank'),
   root: z.object({ level, name: z.string().trim().min(2).max(160), geoCode: geo }).strict(),
 }).strict()
+const moderateSchema = z.object({ archived: z.boolean().optional(), verified: z.boolean().optional() }).strict()
+/** New networks per person per day, and invitations per network per day (verified networks get more). */
+const CREATE_PER_DAY = 5
+const INVITES_PER_DAY = { unverified: 50, verified: 500 }
+const DAY = 24 * 3600_000
 const nodeSchema = z.object({ parentId: z.string().max(80), level, name: z.string().trim().min(2).max(160), geoCode: geo }).strict()
 const adminSchema = z.object({ nodeId: z.string().max(80), email: z.string().trim().toLowerCase().email().max(200), role: z.enum(['coordinator', 'viewer']).default('coordinator') }).strict()
 const adminDeleteSchema = z.object({ nodeId: z.string().max(80), email: z.string().trim().toLowerCase().email().max(200) }).strict()
@@ -68,27 +82,38 @@ const handleRequest = async (req: Request) => {
       const nodeById = new Map(mineNodes.map((n) => [n.id, n]))
       const netById = new Map(nets.map((n) => [n.id, n]))
       return json({
-        canCreate: isSuper(caller),
-        networks: nets.map((n) => ({ id: n.id, name: n.name, description: n.description, status: n.status, coordinating: adminNodes.some((a) => a.networkId === n.id) || isSuper(caller) })),
+        canCreate: !caller.readOnly,
+        isSuperAdmin: isSuper(caller),
+        networks: nets.filter((n) => n.status === 'active' || isSuper(caller)).map((n) => ({ id: n.id, name: n.name, description: n.description, status: n.status, kind: n.kind, verified: n.verified, setUpBy: n.createdBy,
+          coordinating: adminNodes.some((a) => a.networkId === n.id) || isSuper(caller) })),
         memberships: mine.map((m) => {
           const node = nodeById.get(m.nodeId)
           return { id: m.id, status: m.status, sharing: m.sharing, orgId: m.orgId, orgName: orgs.find((o) => o.id === m.orgId)?.name ?? m.orgId,
-            nodeName: node?.name ?? '', level: node?.level ?? '', networkId: node?.networkId ?? '', networkName: netById.get(node?.networkId ?? '')?.name ?? '' }
+            nodeName: node?.name ?? '', level: node?.level ?? '', networkId: node?.networkId ?? '', networkName: netById.get(node?.networkId ?? '')?.name ?? '',
+            setUpBy: netById.get(node?.networkId ?? '')?.createdBy ?? '', verified: netById.get(node?.networkId ?? '')?.verified ?? false, archived: netById.get(node?.networkId ?? '')?.status === 'archived' }
         }),
       })
     }
 
-    // ---- Create a network (Super Admin) ----
+    // ---- Create a network (any signed-in organisation; the creator coordinates its top level) ----
     if (req.method === 'POST' && sub.length === 0) {
-      if (!isSuper(caller)) return forbidden()
       const p = createSchema.safeParse(body)
       if (!p.success) return bad(p.error.issues[0]?.message ?? 'Invalid network')
       if (!validGeoCode(p.data.root.level, p.data.root.geoCode)) return bad('That geography code does not fit the level')
-      const id = newId('net'), rootId = newId('nnd')
-      await db.insert(networks).values({ id, name: p.data.name, description: p.data.description, createdBy: caller.email })
-      await db.insert(networkNodes).values({ id: rootId, networkId: id, parentId: null, level: p.data.root.level, name: p.data.root.name, geoCode: p.data.root.geoCode })
-      await audit(caller.email, 'Created network', id)
-      return json({ id, rootId }, 201)
+      if (!isSuper(caller)) {
+        const recent = await db.select({ id: networks.id }).from(networks).where(and(eq(networks.createdBy, caller.email), gte(networks.createdAt, new Date(Date.now() - DAY))))
+        if (recent.length >= CREATE_PER_DAY) return json({ error: `You can create up to ${CREATE_PER_DAY} networks a day` }, 429)
+      }
+      const id = newId('net')
+      const tmpl = templateNodes(p.data.template, p.data.root)
+      const ids = new Map(tmpl.map((n) => [n.key, newId('nnd')]))
+      await db.insert(networks).values({ id, name: p.data.name, description: p.data.description, kind: p.data.kind, createdBy: caller.email, secretariatOrgId: caller.orgId })
+      // Parents before children (templates list them in that order)
+      await db.insert(networkNodes).values(tmpl.map((n) => ({ id: ids.get(n.key)!, networkId: id, parentId: n.parent ? ids.get(n.parent)! : null, level: n.level, name: n.name, geoCode: n.geoCode })))
+      const rootId = ids.get(tmpl[0].key)!
+      await db.insert(networkAdmins).values({ nodeId: rootId, email: caller.email, role: 'coordinator', addedBy: caller.email })
+      await audit(caller.email, `Created network ${p.data.name} (${p.data.template})`, id)
+      return json({ id, rootId, levels: tmpl.length }, 201)
     }
 
     // ---- An organisation decides on an invitation, changes sharing or leaves ----
@@ -112,6 +137,20 @@ const handleRequest = async (req: Request) => {
     const loaded = sub[0] ? await load(sub[0]) : null
     if (!loaded) return notFound()
     const { net, nodes, admins, members } = loaded
+
+    if (req.method === 'POST' && sub[1] === 'moderate' && sub.length === 2) {
+      if (!isSuper(caller)) return forbidden()
+      const p = moderateSchema.safeParse(body)
+      if (!p.success) return bad('Send archived and/or verified as true or false')
+      const set: { status?: string; verified?: boolean } = {}
+      if (p.data.archived !== undefined) set.status = p.data.archived ? 'archived' : 'active'
+      if (p.data.verified !== undefined) set.verified = p.data.verified
+      await db.update(networks).set(set).where(eq(networks.id, net.id))
+      await audit(caller.email, `Moderated network: ${JSON.stringify(p.data)}`, net.id)
+      return json({ ok: true })
+    }
+    // An archived network is read-only for everyone but the Super Admin.
+    if (req.method !== 'GET' && net.status === 'archived' && !isSuper(caller)) return json({ error: 'This network has been archived by CRAFT and can no longer be changed' }, 409)
     const coordScope = coordinatorScope(caller, nodes, admins, 'coordinator')
     const viewScope = coordinatorScope(caller, nodes, admins)
 
@@ -125,7 +164,7 @@ const handleRequest = async (req: Request) => {
       // Per-level counts so the tree can show where members are, without naming "totals only" members
       const perNode = Object.fromEntries(nodes.map((n) => [n.id, members.filter((m) => m.nodeId === n.id && m.status === 'accepted').length]))
       return json({
-        network: { id: net.id, name: net.name, description: net.description, status: net.status },
+        network: { id: net.id, name: net.name, description: net.description, status: net.status, kind: net.kind, verified: net.verified, setUpBy: net.createdBy, canModerate: isSuper(caller) },
         nodes: nodes.map((n) => ({ id: n.id, parentId: n.parentId, level: n.level, name: n.name, geoCode: n.geoCode, members: viewScope.has(n.id) ? perNode[n.id] : undefined })),
         coordinates: [...coordScope], views: [...viewScope],
         admins: admins.filter((a) => viewScope.has(a.nodeId)).map((a) => ({ nodeId: a.nodeId, email: a.email, role: a.role })),
@@ -133,6 +172,53 @@ const handleRequest = async (req: Request) => {
         pending: members.filter((m) => coordScope.has(m.nodeId) && m.status === 'invited').length,
         mine: ownRows.map((m) => ({ id: m.id, nodeId: m.nodeId, orgId: m.orgId, status: m.status, sharing: m.sharing })),
       })
+    }
+
+    if (req.method === 'GET' && sub[1] === 'overview' && sub.length === 2) {
+      if (!viewScope.size) return notFound()
+      const root = nodes.find((n) => n.parentId === null)!
+      const scope = subtree(nodes, root.id)
+      const accepted = distinctAcceptedOrgs(members, scope)
+      // Secretariat: the Network Capacity Index answered by the organisation that runs the network
+      const nci = instrumentById('craft-network')
+      let secretariat: null | { score: number; band: string | null; answered: number; total: number } = null
+      if (nci && net.secretariatOrgId) {
+        const ids = nci.indicators.map((i) => i.id)
+        const rows = await db.select({ q: responses.questionId, s: responses.score }).from(responses).where(and(eq(responses.orgId, net.secretariatOrgId), inArray(responses.questionId, ids)))
+        const scores = Object.fromEntries(rows.map((r) => [r.q, r.s]))
+        const answered = answeredIn(nci, scores)
+        if (answered > 0) secretariat = { score: compositeScore(nci, scores), band: bandFor(nci, scores)?.band.label ?? null, answered, total: nci.indicators.length }
+      }
+      // Members: the latest round with submissions at the top level
+      const rounds = (await db.select().from(networkRounds).where(eq(networkRounds.networkId, net.id))).sort((a, b) => b.opensOn.localeCompare(a.opensOn))
+      let membersNow: null | { round: string; instrument: string; submitted: number; median: number | null; suppressed: boolean } = null
+      for (const r of rounds) {
+        const m = instrumentById(r.instrument)
+        const subs = (await db.select().from(networkRoundSubmissions).where(eq(networkRoundSubmissions.roundId, r.id))).filter((x) => accepted.includes(x.orgId))
+        if (!m || !subs.length) continue
+        const cap = capacity(m, subs.map((x) => ({ orgId: x.orgId, scores: x.scores })), everyoneNamed(members, scope))
+        membersNow = { round: r.name, instrument: m.title, submitted: subs.length, median: cap.composite?.median ?? null, suppressed: cap.suppressed }
+        break
+      }
+      const actions = accepted.length ? await db.select({ orgId: capacityActions.orgId, status: capacityActions.status }).from(capacityActions).where(inArray(capacityActions.orgId, accepted)) : []
+      const doneOrgs = new Set(actions.filter((a) => a.status === 'Completed-Validated').map((a) => a.orgId)).size
+      const useRate = accepted.length ? Math.round((doneOrgs / accepted.length) * 100) : null
+      // Alerts a coordinator should act on
+      const today = new Date().toISOString().slice(0, 10)
+      const alerts: string[] = []
+      const uncovered = nodes.filter((n) => n.parentId && ['national', 'zonal', 'subnational'].includes(n.level) && !admins.some((a) => subtree(nodes, a.nodeId).has(n.id) && a.nodeId !== root.id))
+      if (uncovered.length) alerts.push(`${uncovered.length} level${uncovered.length === 1 ? ' has' : 's have'} no coordinator of their own (for example ${uncovered.slice(0, 3).map((n) => n.name).join(', ')}).`)
+      for (const r of rounds) {
+        if (r.closedAt || r.closesOn < today) continue
+        const daysLeft = Math.ceil((Date.parse(r.closesOn) - Date.parse(today)) / DAY)
+        const subs = (await db.select({ orgId: networkRoundSubmissions.orgId }).from(networkRoundSubmissions).where(eq(networkRoundSubmissions.roundId, r.id))).filter((x) => accepted.includes(x.orgId)).length
+        const inRound = distinctAcceptedOrgs(members, subtree(nodes, r.nodeId)).length
+        if (daysLeft <= 7 && inRound && subs / inRound < 0.5) alerts.push(`"${r.name}" closes in ${daysLeft} day${daysLeft === 1 ? '' : 's'} with ${subs} of ${inRound} members submitted. Send a reminder.`)
+      }
+      const staleInvites = members.filter((m) => m.status === 'invited' && Date.now() - new Date(m.invitedAt).getTime() > 14 * DAY).length
+      if (staleInvites) alerts.push(`${staleInvites} invitation${staleInvites === 1 ? ' has' : 's have'} been waiting more than two weeks.`)
+      if (!secretariat) alerts.push('The secretariat has not taken the Network Capacity Index yet.')
+      return json({ profile: networkProfile(secretariat?.score ?? null, membersNow && !membersNow.suppressed ? membersNow.median : null, useRate), secretariat, members: membersNow, useRate, acceptedMembers: accepted.length, alerts })
     }
 
     if (req.method === 'POST' && sub[1] === 'nodes' && sub.length === 2) {
@@ -169,6 +255,9 @@ const handleRequest = async (req: Request) => {
       const p = inviteSchema.safeParse(body)
       if (!p.success) return bad('Choose a level and an organisation')
       if (!coordScope.has(p.data.nodeId)) return forbidden()
+      const recentInvites = members.filter((m) => m.invitedAt && Date.now() - new Date(m.invitedAt).getTime() < DAY).length
+      const cap = net.verified ? INVITES_PER_DAY.verified : INVITES_PER_DAY.unverified
+      if (!isSuper(caller) && recentInvites >= cap) return json({ error: `This network can send up to ${cap} invitations a day${net.verified ? '' : ' until CRAFT verifies it'}` }, 429)
       const key = p.data.org
       const [org] = await db.select({ id: organizations.id, name: organizations.name }).from(organizations)
         .where(or(eq(organizations.id, key), eq(organizations.email, key.toLowerCase()))).limit(1)

@@ -2120,6 +2120,9 @@ export const networks = pgTable('networks', {
   status: text('status').notNull().default('active'),
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  verified: boolean('verified').notNull().default(false),
+  kind: text('kind').notNull().default('network'),
+  secretariatOrgId: text('secretariat_org_id'),
 })
 
 export const networkNodes = pgTable('network_nodes', {

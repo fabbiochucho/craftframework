@@ -5,7 +5,7 @@ import { capacityActions, networkExchanges, networkRoundSubmissions, networkRoun
 import { filterAuthorizedOrgIds, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import { audit, coordinatorScope, load } from '../lib/network-access.js'
-import { MIN_GROUP, distinctAcceptedOrgs, subtree } from '../../src/lib/networks.js'
+import { MIN_GROUP, distinctAcceptedOrgs, everyoneNamed, subtree } from '../../src/lib/networks.js'
 import { instrumentById } from '../../src/lib/networkRounds.js'
 import { bandFor, compositeScore } from '../../src/lib/foundationModules.js'
 import {
@@ -56,7 +56,7 @@ const handleRequest = async (req: Request) => {
     if (!view.has(nodeId)) {
       const mine = await filterAuthorizedOrgIds(caller, distinctAcceptedOrgs(members, roundScope), 'read')
       if (!mine.length) return notFound()
-      const group = capacity(m, subsIn(roundScope))
+      const group = capacity(m, subsIn(roundScope), everyoneNamed(members, roundScope))
       const out = mine.map((orgId) => {
         const own = subRows.find((s) => s.orgId === orgId)
         return { orgId, submitted: !!own, groupSize: group.n, benchmark: own ? benchmark(m, own.scores, group) : null,
@@ -68,7 +68,8 @@ const handleRequest = async (req: Request) => {
     // ---- Coordinators and viewers ----
     const scope = subtree(nodes, nodeId)
     const subs = subsIn(scope)
-    const cap = capacity(m, subs)
+    const allNamed = (sc: Set<string>) => everyoneNamed(members, sc)
+    const cap = capacity(m, subs, allNamed(scope))
     const fullSharers = new Set(members.filter((x) => scope.has(x.nodeId) && x.status === 'accepted' && x.sharing === 'full').map((x) => x.orgId))
     const nameOf = async (ids: string[]) => ids.length ? await db.select({ id: organizations.id, name: organizations.name }).from(organizations).where(inArray(organizations.id, ids)) : []
     const exchanges = (await db.select().from(networkExchanges).where(and(eq(networkExchanges.networkId, round.networkId), eq(networkExchanges.instrument, m.id))))
@@ -94,18 +95,18 @@ const handleRequest = async (req: Request) => {
       const earlier = baseRows.filter((x) => accepted.has(x.orgId)).map((x) => ({ orgId: x.orgId, scores: x.scores }))
       const contribution = m.dimensions.map((d) => {
         const took = new Set(exchanges.filter((e) => e.areas.includes(d.key)).flatMap((e) => e.orgIds))
-        return { key: d.key, name: d.name, ...exchangeContribution(m, d.key, earlier, subs, took) }
+        return { key: d.key, name: d.name, ...exchangeContribution(m, d.key, earlier, subs, took, allNamed(scope)) }
       })
       return json({ minGroup: MIN_GROUP, baseline: { id: base.id, name: base.name },
         baselines: earlierRounds.map((r) => ({ id: r.id, name: r.name, opensOn: r.opensOn })),
-        progress: progressBetween(m, earlier, subs), contribution })
+        progress: progressBetween(m, earlier, subs, allNamed(scope)), contribution })
     }
 
     if (extra === 'export.csv') {
       const levelRows = [nodes.find((n) => n.id === nodeId)!, ...nodes.filter((n) => n.parentId === nodeId)]
       const rows: unknown[][] = [['Level', 'Level type', 'Area', 'Members submitted', 'Median', 'Lower quartile', 'Upper quartile']]
       for (const lv of levelRows) {
-        const c = capacity(m, subsIn(subtree(nodes, lv.id)))
+        const c = capacity(m, subsIn(subtree(nodes, lv.id)), allNamed(subtree(nodes, lv.id)))
         for (const d of c.dimensions) rows.push([lv.name, lv.level, d.name, c.n, d.stats?.median ?? (c.suppressed ? 'hidden (fewer than 5)' : ''), d.stats?.q1 ?? '', d.stats?.q3 ?? ''])
       }
       const namedSubs = subs.filter((x) => fullSharers.has(x.orgId))
@@ -120,7 +121,7 @@ const handleRequest = async (req: Request) => {
     const accepted = distinctAcceptedOrgs(members, scope)
     const valueRows = accepted.length ? await db.select({ orgId: networkValueResponses.orgId, answers: networkValueResponses.answers }).from(networkValueResponses)
       .where(and(eq(networkValueResponses.roundId, round.id), inArray(networkValueResponses.orgId, accepted))) : []
-    const value = valueSummary(valueRows.map((v) => v.answers as ValueAnswers))
+    const value = valueSummary(valueRows.map((v) => v.answers as ValueAnswers), allNamed(scope))
 
     // Use: from joining to validation, counted over accepted members at this level
     const invited = new Set(members.filter((x) => scope.has(x.nodeId)).map((x) => x.orgId)).size
@@ -154,7 +155,7 @@ const handleRequest = async (req: Request) => {
       node: { id: node.id, name: node.name, level: node.level },
       levels: nodes.filter((n) => roundScope.has(n.id) && view.has(n.id)).map((n) => ({ id: n.id, name: n.name, level: n.level, parentId: n.parentId })),
       scorecard: scorecardLines(cap, value, use, m),
-      capacity: cap, gaps: cap.suppressed ? [] : topGaps(cap), heatmap: heatmap(m, nodes, nodeId, subsIn),
+      capacity: cap, gaps: cap.suppressed ? [] : topGaps(cap), heatmap: heatmap(m, nodes, nodeId, subsIn, allNamed),
       value, use, named,
     })
   } catch (err) {

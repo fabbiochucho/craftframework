@@ -4,6 +4,7 @@ import { getUser, logout as identityLogout } from '@netlify/identity'
 import { clearOfflineSession, setOfflineSession } from '../lib/offline/session'
 import { cn } from '../lib/utils'
 import { skipsOnboarding } from '../lib/onboardingRoutes'
+import { readStartChoice, unconfiguredHome } from '../lib/startChoice'
 import { useAuthCtx, useWorkspace, useScoresCtx, useQuestionsCtx } from '../lib/context'
 import { Badge, Button } from './ui'
 import { Footer } from './Footer'
@@ -162,7 +163,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     // The same holds for the rest of the /app/* platform (organization settings and members)
     // and for the validator system's pages (see skipsOnboarding).
     if (skipsOnboarding(pathname)) return
-    navigate({ to: '/onboarding' })
+    // New people are first asked what brings them to CRAFT; those who chose 'my organisation' go to the wizard.
+    navigate({ to: unconfiguredHome(readStartChoice()) })
   }, [authReady, currentUser, onboardingComplete, pathname, navigate, enterDemo])
 
   // Before Identity resolves (always true on first server paint - GoTrue is a

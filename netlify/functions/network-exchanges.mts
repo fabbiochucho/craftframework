@@ -74,6 +74,7 @@ const handleRequest = async (req: Request) => {
       const loaded = await load(p.data.networkId)
       if (!loaded) return notFound()
       if (!coordinatorScope(caller, loaded.nodes, loaded.admins, 'coordinator').has(p.data.nodeId)) return forbidden()
+      if (loaded.net.status === 'archived' && !(caller.role === 'super_admin' && !caller.readOnly)) return json({ error: 'This network has been archived by CRAFT and can no longer be changed' }, 409)
       const m = instrumentById(p.data.instrument)
       if (!m) return bad('Unknown assessment')
       if (p.data.areas.some((a) => !m.dimensions.some((d) => d.key === a))) return bad('Unknown area for that assessment')

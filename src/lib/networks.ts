@@ -12,7 +12,7 @@ export const LEVEL_LABEL: Record<NetworkLevel, string> = {
 export const SHARING = ['aggregate', 'full'] as const
 export type Sharing = (typeof SHARING)[number]
 export const SHARING_LABEL: Record<Sharing, string> = {
-  aggregate: 'Totals only: counted in network results, never named',
+  aggregate: 'Totals only: counted in network results, never named (small groups are hidden)',
   full: 'Named results: coordinators at my level and above see my scores',
 }
 
@@ -92,5 +92,11 @@ export function distinctAcceptedOrgs(members: NetworkMember[], scope: Set<string
   return [...new Set(members.filter((m) => m.status === 'accepted' && scope.has(m.nodeId)).map((m) => m.orgId))]
 }
 
-/** Whether a group is big enough to show results for. */
-export const showable = (n: number) => n >= MIN_GROUP
+/** Whether a group's results can be shown: five or more organisations, or any size when every member in it chose named results. */
+export const showable = (n: number, allNamed = false) => n >= MIN_GROUP || (allNamed && n > 0)
+
+/** True when every accepted member in scope chose named results (so a small group identifies nobody who didn't agree). */
+export function everyoneNamed(members: NetworkMember[], scope: Set<string>): boolean {
+  const accepted = members.filter((m) => m.status === 'accepted' && scope.has(m.nodeId))
+  return accepted.length > 0 && accepted.every((m) => m.sharing === 'full')
+}

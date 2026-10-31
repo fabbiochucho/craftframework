@@ -6,7 +6,7 @@ import { networkRoundSubmissions, networkRounds, programmeScorecardEntries, prog
 import { forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import { audit, coordinatorScope, load } from '../lib/network-access.js'
-import { NETWORK_LEVELS, distinctAcceptedOrgs, subtree, type NetworkNode } from '../../src/lib/networks.js'
+import { NETWORK_LEVELS, distinctAcceptedOrgs, everyoneNamed, subtree, type NetworkNode } from '../../src/lib/networks.js'
 import { instrumentById, roundState, validWindow } from '../../src/lib/networkRounds.js'
 import { capacity } from '../../src/lib/networkResults.js'
 import { TEMPLATES, changeSince, componentsOf, scoreUnit, summarise, templateById, validEntry, type UnitResult } from '../../src/lib/programmeScorecard.js'
@@ -54,6 +54,7 @@ const handleRequest = async (req: Request) => {
         const loaded = await load(p.data.networkId)
         if (!loaded) return notFound()
         if (!coordinatorScope(caller, loaded.nodes, loaded.admins, 'coordinator').has(p.data.nodeId)) return forbidden()
+        if (loaded.net.status === 'archived' && !(caller.role === 'super_admin' && !caller.readOnly)) return json({ error: 'This network has been archived by CRAFT and can no longer be changed' }, 409)
         if (!templateById(p.data.template)) return bad('Unknown template')
         if (!validWindow(p.data.opensOn, p.data.closesOn)) return bad('Give an opening and closing date, opening first')
         if (!unitsOf(loaded.nodes, p.data.nodeId, p.data.unitLevel).length) return bad('There are no levels of that kind under this level yet. Add them first.')
@@ -133,7 +134,7 @@ const handleRequest = async (req: Request) => {
           const m = instrumentById(r.instrument)
           const subs = subRows.filter((s) => s.roundId === r.id && orgs.has(s.orgId)).map((s) => ({ orgId: s.orgId, scores: s.scores }))
           if (!m || !subs.length) continue
-          const cap = capacity(m, subs)
+          const cap = capacity(m, subs, everyoneNamed(loaded.members, scope))
           return { nodeId: u.id, round: r.name, instrument: m.title, members: cap.n, median: cap.composite?.median ?? null }
         }
         return { nodeId: u.id, round: null, instrument: null, members: 0, median: null }

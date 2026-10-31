@@ -83,6 +83,12 @@ describe('network results: scorecard, suppression and privacy', () => {
     assert.ok(me.body.mine[0].benchmark.every((d: any) => d.position === 'within'))
     assert.ok(!me.text.includes('Member Org 1') && !('named' in me.body), 'members never see others')
 
+    // Kano's only member switches to named results: its column is now shown
+    const kanoMember = (await net(ORGS[5].email, 'GET')).body.memberships[0]
+    assert.equal((await net(ORGS[5].email, 'POST', `/members/${kanoMember.id}`, { action: 'sharing', sharing: 'full' })).status, 200)
+    const k2 = await results(COORD, `/${roundId}?nodeId=${kano}`)
+    assert.equal(k2.body.capacity.suppressed, false, 'a one-member group is shown when its member chose named results')
+
     // Strangers see nothing; a node outside the round is refused
     assert.equal((await results('eve@elsewhere.example', `/${roundId}`)).status, 404)
     const audit = await rows(`SELECT action FROM audit_logs WHERE action LIKE 'Viewed named network results%'`)

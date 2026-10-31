@@ -53,6 +53,7 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RiskRouteImport } from './routes/risk'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StartRouteImport } from './routes/start'
 import { Route as SubprocessorsRouteImport } from './routes/subprocessors'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrainingRouteImport } from './routes/training'
@@ -331,6 +332,11 @@ const SecurityRoute = SecurityRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StartRoute = StartRouteImport.update({
+  id: '/start',
+  path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SubprocessorsRoute = SubprocessorsRouteImport.update({
@@ -706,6 +712,7 @@ export interface FileRoutesByFullPath {
   '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/start': typeof StartRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
@@ -811,6 +818,7 @@ export interface FileRoutesByTo {
   '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/start': typeof StartRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
@@ -917,6 +925,7 @@ export interface FileRoutesById {
   '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/start': typeof StartRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
@@ -1024,6 +1033,7 @@ export interface FileRouteTypes {
     | '/risk'
     | '/security'
     | '/settings'
+    | '/start'
     | '/subprocessors'
     | '/terms'
     | '/training'
@@ -1129,6 +1139,7 @@ export interface FileRouteTypes {
     | '/risk'
     | '/security'
     | '/settings'
+    | '/start'
     | '/subprocessors'
     | '/terms'
     | '/training'
@@ -1234,6 +1245,7 @@ export interface FileRouteTypes {
     | '/risk'
     | '/security'
     | '/settings'
+    | '/start'
     | '/subprocessors'
     | '/terms'
     | '/training'
@@ -1340,6 +1352,7 @@ export interface RootRouteChildren {
   RiskRoute: typeof RiskRoute
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
+  StartRoute: typeof StartRoute
   SubprocessorsRoute: typeof SubprocessorsRoute
   TermsRoute: typeof TermsRoute
   TrainingRoute: typeof TrainingRoute
@@ -1709,6 +1722,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/start': {
+      id: '/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subprocessors': {
@@ -2172,6 +2192,7 @@ const rootRouteChildren: RootRouteChildren = {
   RiskRoute: RiskRoute,
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
+  StartRoute: StartRoute,
   SubprocessorsRoute: SubprocessorsRoute,
   TermsRoute: TermsRoute,
   TrainingRoute: TrainingRoute,

@@ -2,10 +2,11 @@
 //   Capacity     how strong members are: a spread per domain (median, quartiles, members per band), never one average
 //   Value added  what members say the network gave them (member value survey)
 //   Use          whether assessment turns into action (invited → assessed → improving → validated)
-// Any group under MIN_GROUP organisations is suppressed so no member can be identified.
+// Any group under MIN_GROUP organisations is suppressed so no member can be identified, unless every member in it chose
+// named results (then nobody is identified against their wishes).
 // Self-check: `node src/lib/networkResults.test.ts`.
 import { bandFor, compositeScore, dimensionScore, type FoundationModule } from './foundationModules.ts'
-import { MIN_GROUP, subtree, type NetworkNode } from './networks.ts'
+import { MIN_GROUP, showable, subtree, type NetworkNode } from './networks.ts'
 
 export interface Submission { orgId: string; scores: Record<string, number> }
 export interface Stats { n: number; median: number; q1: number; q3: number; min: number; max: number }
@@ -32,9 +33,9 @@ export interface Capacity {
 }
 
 /** A group's capacity. Below MIN_GROUP everything but the count is withheld. */
-export function capacity(m: FoundationModule, subs: Submission[]): Capacity {
+export function capacity(m: FoundationModule, subs: Submission[], allNamed = false): Capacity {
   const n = subs.length
-  const suppressed = n < MIN_GROUP
+  const suppressed = !showable(n, allNamed)
   const dims = m.dimensions.map((d) => ({
     key: d.key, name: d.name,
     stats: suppressed ? null : stats(subs.map((s) => dimensionScore(m, d.key, s.scores)).filter((v): v is number => v != null)),
@@ -54,11 +55,13 @@ export function topGaps(c: Capacity, k = 3) {
 }
 
 /** Domains (rows) × the child levels of a node (columns): each cell is a median, or null when under MIN_GROUP. */
-export function heatmap(m: FoundationModule, nodes: NetworkNode[], nodeId: string, subsByNode: (scope: Set<string>) => Submission[]) {
+export function heatmap(m: FoundationModule, nodes: NetworkNode[], nodeId: string, subsByNode: (scope: Set<string>) => Submission[], allNamed: (scope: Set<string>) => boolean = () => false) {
   const children = nodes.filter((n) => n.parentId === nodeId)
   const cols = children.map((c) => {
-    const subs = subsByNode(subtree(nodes, c.id))
-    return { nodeId: c.id, name: c.name, geoCode: c.geoCode, n: subs.length, cap: subs.length >= MIN_GROUP ? capacity(m, subs) : null }
+    const scope = subtree(nodes, c.id)
+    const subs = subsByNode(scope)
+    const named = allNamed(scope)
+    return { nodeId: c.id, name: c.name, geoCode: c.geoCode, n: subs.length, cap: showable(subs.length, named) ? capacity(m, subs, named) : null }
   })
   return {
     columns: cols.map((c) => ({ nodeId: c.nodeId, name: c.name, geoCode: c.geoCode, n: c.n, shown: c.cap != null, median: c.cap?.composite?.median ?? null })),
@@ -96,9 +99,9 @@ export function validValueAnswers(a: unknown): a is ValueAnswers {
   return Object.entries(v.used).every(([k, x]) => (NETWORK_SERVICES as readonly string[]).includes(k) && Number.isInteger(x) && (x as number) >= 1 && (x as number) <= 5)
 }
 
-export function valueSummary(answers: ValueAnswers[]) {
+export function valueSummary(answers: ValueAnswers[], allNamed = false) {
   const n = answers.length
-  if (n < MIN_GROUP) return { n, suppressed: true as const, services: null, recommend: null }
+  if (!showable(n, allNamed)) return { n, suppressed: true as const, services: null, recommend: null }
   const services = NETWORK_SERVICES.map((s) => {
     const scores = answers.map((a) => a.used[s]).filter((x): x is number => x != null)
     return { key: s, label: SERVICE_LABEL[s], usedBy: scores.length, usedPct: Math.round((scores.length / n) * 100),
@@ -136,4 +139,23 @@ export function scorecardLines(cap: Capacity, value: ReturnType<typeof valueSumm
     : `Value added: ${best ? `${best.helpfulPct}% of members who used ${best.label.toLowerCase()} found it helpful` : 'no services used yet'}; would-recommend score ${value.recommend!.average}/10.`
   const done = use.find((u) => u.key === 'actionsDone')!
   return [capLine, valueLine, `Use: ${done.pct}% of members have completed at least one improvement action.`]
+}
+
+// ---- Network profile: three figures side by side, and an optional combined figure that says how it is made ----
+/**
+ * secretariat and members are 0-5 scores, useRate a percentage. The combined figure is the plain average of the three
+ * on a 0-100 scale, shown only when all three exist, and always labelled with that formula.
+ */
+export function networkProfile(secretariat: number | null, membersMedian: number | null, useRate: number | null) {
+  const parts = [
+    { key: 'secretariat', label: "Secretariat's Network Capacity Index score", value: secretariat == null ? null : Math.round((secretariat / 5) * 100) },
+    { key: 'members', label: "Members' median overall score (latest round)", value: membersMedian == null ? null : Math.round((membersMedian / 5) * 100) },
+    { key: 'use', label: 'Members who completed at least one improvement action', value: useRate },
+  ]
+  const all = parts.every((x) => x.value != null)
+  return {
+    parts,
+    combined: all ? Math.round(parts.reduce((a, x) => a + (x.value as number), 0) / 3) : null,
+    formula: 'Combined figure = average of the three, each on a 0-100 scale (scores out of 5 are multiplied by 20). Shown only when all three are available.',
+  }
 }

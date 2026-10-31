@@ -45,10 +45,49 @@ describe('networks: levels, coordinators and consenting members', () => {
     await rows(`INSERT INTO organizations(id,name,country,email) VALUES($1,'Riverbend Cooperative','Nigeria','contact@riverbend.example'),($2,'Kano Women Trust','Nigeria','')`, [ADA_ORG, BEN_ORG])
   })
 
-  it('only the Super Admin creates networks, and sign-in is required', async () => {
+  it('anyone signed in can set up a network from a template and coordinates it; sign-in is required', async () => {
     assert.equal((await call(null, 'GET')).status, 401)
-    assert.equal((await call(STRANGER, 'POST', '', { name: 'Mine', root: { level: 'national', name: 'Ghana', geoCode: 'GH' } })).status, 403)
     assert.equal((await call(SUPER, 'POST', '', { name: 'Bad', root: { level: 'national', name: 'Ghana', geoCode: 'Ghana' } })).status, 400)
+    const ng = await call(STRANGER, 'POST', '', { name: 'Nigeria CSO Coalition', template: 'nigeria-zones-states', root: { level: 'national', name: 'Nigeria', geoCode: 'NG' } })
+    assert.equal(ng.status, 201, ng.text)
+    assert.equal(ng.body.levels, 1 + 6 + 37)
+    const mine = await call(STRANGER, 'GET', `/${ng.body.id}`)
+    assert.equal(mine.status, 200)
+    assert.equal(mine.body.coordinates.length, 44, 'the creator coordinates every level')
+    assert.equal(mine.body.network.setUpBy, STRANGER)
+    assert.equal(mine.body.network.verified, false)
+    const cohort = await call(STRANGER, 'POST', '', { name: 'GIZ grantees 2026', kind: 'cohort', template: 'cohort', root: { level: 'global', name: 'GIZ grantees 2026', geoCode: '' } })
+    assert.equal(cohort.status, 201, cohort.text)
+    for (let i = 0; i < 3; i++) await call(STRANGER, 'POST', '', { name: `Extra ${i}`, root: { level: 'national', name: 'Ghana', geoCode: 'GH' } })
+    assert.equal((await call(STRANGER, 'POST', '', { name: 'One too many', root: { level: 'national', name: 'Ghana', geoCode: 'GH' } })).status, 429, 'five networks a day')
+
+    // Moderation: only the Super Admin verifies and archives; archived networks are read-only
+    assert.equal((await call(STRANGER, 'POST', `/${ng.body.id}/moderate`, { verified: true })).status, 403)
+    assert.equal((await call(SUPER, 'POST', `/${ng.body.id}/moderate`, { verified: true })).status, 200)
+    assert.equal((await call(STRANGER, 'GET', `/${ng.body.id}`)).body.network.verified, true)
+    assert.equal((await call(SUPER, 'POST', `/${ng.body.id}/moderate`, { archived: true })).status, 200)
+    assert.equal((await call(STRANGER, 'POST', `/${ng.body.id}/invitations`, { nodeId: ng.body.rootId, org: ADA_ORG })).status, 409)
+    assert.ok(!(await call(STRANGER, 'GET')).body.networks.some((n: any) => n.id === ng.body.id), 'archived networks leave the creator list')
+
+    // Overview: profile and alerts
+    const ov = await call(STRANGER, 'GET', `/${cohort.body.id}/overview`)
+    assert.equal(ov.status, 200, ov.text)
+    assert.equal(ov.body.profile.combined, null, 'no combined figure until all three parts exist')
+    assert.ok(ov.body.alerts.some((a: string) => /Network Capacity Index/.test(a)))
+    assert.equal((await call(ADA, 'GET', `/${cohort.body.id}/overview`)).status, 404)
+  })
+
+  it('new networks are limited to 50 invitations a day; invitees see who set it up', async () => {
+    const n = await call(STRANGER, 'POST', '', { name: 'Fresh network', root: { level: 'national', name: 'Nigeria', geoCode: 'NG' } })
+    await rows(`INSERT INTO organizations(id,name) SELECT 'org_' || g, 'Org ' || g FROM generate_series(1, 51) g`)
+    for (let g = 1; g <= 50; g++) assert.equal((await call(STRANGER, 'POST', `/${n.body.id}/invitations`, { nodeId: n.body.rootId, org: `org_${g}` })).status, 201)
+    assert.equal((await call(STRANGER, 'POST', `/${n.body.id}/invitations`, { nodeId: n.body.rootId, org: 'org_51' })).status, 429)
+    assert.equal((await call(STRANGER, 'POST', `/${n.body.id}/invitations`, { nodeId: n.body.rootId, org: ADA_ORG })).status, 429)
+    await rows(`UPDATE network_members SET invited_at = now() - interval '2 days'`)
+    assert.equal((await call(STRANGER, 'POST', `/${n.body.id}/invitations`, { nodeId: n.body.rootId, org: ADA_ORG })).status, 201)
+    const inv = (await call(ADA, 'GET')).body.memberships[0]
+    assert.equal(inv.setUpBy, STRANGER)
+    assert.equal(inv.verified, false)
   })
 
   it('coordinators manage only their level and below; levels nest downwards', async () => {
