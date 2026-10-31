@@ -14,4 +14,12 @@ for (const c of AFRICA_COUNTRIES) {
 }
 assert.equal(Object.keys(AFRICA_SUBDIVISIONS).length, 54)
 assert.equal(AFRICA_SUBDIVISIONS.KE.length, 47, 'Kenya: 47 counties')
+// Current boundaries, not the ones they replaced
+assert.equal(AFRICA_SUBDIVISIONS.CD.length, 26, 'DR Congo: 26 provinces since 2015')
+assert.equal(AFRICA_SUBDIVISIONS.CI.length, 14, "Côte d'Ivoire: 12 districts and 2 autonomous districts")
+assert.equal(AFRICA_SUBDIVISIONS.DZ.length, 58, 'Algeria: 58 wilayas')
+assert.equal(AFRICA_SUBDIVISIONS.TZ.length, 31, 'Tanzania: 31 regions')
+assert.equal(AFRICA_SUBDIVISIONS.BF.length, 13, 'Burkina Faso: regions, not provinces')
+assert.ok(AFRICA_SUBDIVISIONS.ET.some(([c]) => c === 'SI'), 'Ethiopia: Sidama')
+assert.equal(AFRICA_SUBDIVISIONS.NG.length, 37, 'Nigeria: 36 states and the FCT')
 console.log('africaSubdivisions.test.ts ok')
