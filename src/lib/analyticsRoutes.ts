@@ -83,6 +83,8 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   'training_.manage': 'sensitive',
   validations: 'sensitive',
   'validations_.$id': 'sensitive',
+  networks: 'sensitive',
+  'networks_.$networkId': 'sensitive',
   vaults: 'sensitive',
   verify: 'sensitive',
   wallboard: 'sensitive',

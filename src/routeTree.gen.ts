@@ -41,6 +41,7 @@ import { Route as IssbDisclosuresRouteImport } from './routes/issb-disclosures'
 import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as NarrativeReportRouteImport } from './routes/narrative-report'
+import { Route as NetworksRouteImport } from './routes/networks'
 import { Route as ObligationsRouteImport } from './routes/obligations'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OpenSourceRouteImport } from './routes/open-source'
@@ -72,6 +73,7 @@ import { Route as FeedbackTokenRouteImport } from './routes/feedback.$token'
 import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
 import { Route as ForGovernmentRouteImport } from './routes/for.government'
 import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
+import { Route as NetworksNetworkIdRouteImport } from './routes/networks_.$networkId'
 import { Route as PanelIdRouteImport } from './routes/panel_.$id'
 import { Route as TrainingAssessmentRouteImport } from './routes/training_.assessment'
 import { Route as TrainingManageRouteImport } from './routes/training_.manage'
@@ -270,6 +272,11 @@ const NarrativeReportRoute = NarrativeReportRouteImport.update({
   path: '/narrative-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NetworksRoute = NetworksRouteImport.update({
+  id: '/networks',
+  path: '/networks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ObligationsRoute = ObligationsRouteImport.update({
   id: '/obligations',
   path: '/obligations',
@@ -426,6 +433,11 @@ const ForPublicHealthInstitutesRoute =
     path: '/for/public-health-institutes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NetworksNetworkIdRoute = NetworksNetworkIdRouteImport.update({
+  id: '/networks_/$networkId',
+  path: '/networks/$networkId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PanelIdRoute = PanelIdRouteImport.update({
   id: '/panel_/$id',
   path: '/panel/$id',
@@ -675,6 +687,7 @@ export interface FileRoutesByFullPath {
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
+  '/networks': typeof NetworksRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -706,6 +719,7 @@ export interface FileRoutesByFullPath {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/networks/$networkId': typeof NetworksNetworkIdRoute
   '/panel/$id': typeof PanelIdRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
@@ -777,6 +791,7 @@ export interface FileRoutesByTo {
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
+  '/networks': typeof NetworksRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -808,6 +823,7 @@ export interface FileRoutesByTo {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/networks/$networkId': typeof NetworksNetworkIdRoute
   '/panel/$id': typeof PanelIdRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
@@ -880,6 +896,7 @@ export interface FileRoutesById {
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
+  '/networks': typeof NetworksRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -911,6 +928,7 @@ export interface FileRoutesById {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/networks_/$networkId': typeof NetworksNetworkIdRoute
   '/panel_/$id': typeof PanelIdRoute
   '/training_/assessment': typeof TrainingAssessmentRoute
   '/training_/manage': typeof TrainingManageRoute
@@ -984,6 +1002,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/methodology'
     | '/narrative-report'
+    | '/networks'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1015,6 +1034,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/networks/$networkId'
     | '/panel/$id'
     | '/training/assessment'
     | '/training/manage'
@@ -1086,6 +1106,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/methodology'
     | '/narrative-report'
+    | '/networks'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1117,6 +1138,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/networks/$networkId'
     | '/panel/$id'
     | '/training/assessment'
     | '/training/manage'
@@ -1188,6 +1210,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/methodology'
     | '/narrative-report'
+    | '/networks'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1219,6 +1242,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/networks_/$networkId'
     | '/panel_/$id'
     | '/training_/assessment'
     | '/training_/manage'
@@ -1291,6 +1315,7 @@ export interface RootRouteChildren {
   LaunchRoute: typeof LaunchRoute
   MethodologyRoute: typeof MethodologyRoute
   NarrativeReportRoute: typeof NarrativeReportRoute
+  NetworksRoute: typeof NetworksRoute
   ObligationsRoute: typeof ObligationsRoute
   OnboardingRoute: typeof OnboardingRoute
   OpenSourceRoute: typeof OpenSourceRoute
@@ -1322,6 +1347,7 @@ export interface RootRouteChildren {
   ForEsgReportingRoute: typeof ForEsgReportingRoute
   ForGovernmentRoute: typeof ForGovernmentRoute
   ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
+  NetworksNetworkIdRoute: typeof NetworksNetworkIdRoute
   PanelIdRoute: typeof PanelIdRoute
   TrainingAssessmentRoute: typeof TrainingAssessmentRoute
   TrainingManageRoute: typeof TrainingManageRoute
@@ -1587,6 +1613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NarrativeReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/networks': {
+      id: '/networks'
+      path: '/networks'
+      fullPath: '/networks'
+      preLoaderRoute: typeof NetworksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/obligations': {
       id: '/obligations'
       path: '/obligations'
@@ -1802,6 +1835,13 @@ declare module '@tanstack/react-router' {
       path: '/for/public-health-institutes'
       fullPath: '/for/public-health-institutes'
       preLoaderRoute: typeof ForPublicHealthInstitutesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/networks_/$networkId': {
+      id: '/networks_/$networkId'
+      path: '/networks/$networkId'
+      fullPath: '/networks/$networkId'
+      preLoaderRoute: typeof NetworksNetworkIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/panel_/$id': {
@@ -2099,6 +2139,7 @@ const rootRouteChildren: RootRouteChildren = {
   LaunchRoute: LaunchRoute,
   MethodologyRoute: MethodologyRoute,
   NarrativeReportRoute: NarrativeReportRoute,
+  NetworksRoute: NetworksRoute,
   ObligationsRoute: ObligationsRoute,
   OnboardingRoute: OnboardingRoute,
   OpenSourceRoute: OpenSourceRoute,
@@ -2130,6 +2171,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForEsgReportingRoute: ForEsgReportingRoute,
   ForGovernmentRoute: ForGovernmentRoute,
   ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,
+  NetworksNetworkIdRoute: NetworksNetworkIdRoute,
   PanelIdRoute: PanelIdRoute,
   TrainingAssessmentRoute: TrainingAssessmentRoute,
   TrainingManageRoute: TrainingManageRoute,

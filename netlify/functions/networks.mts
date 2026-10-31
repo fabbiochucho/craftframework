@@ -177,7 +177,7 @@ const handleRequest = async (req: Request) => {
         await audit(caller.email, `Removed network coordinator ${p.data.email}`, p.data.nodeId)
         return json({ ok: true })
       }
-      const role: 'coordinator' | 'viewer' = 'role' in p.data && p.data.role ? p.data.role : 'coordinator'
+      const role = (p.data as { role?: 'coordinator' | 'viewer' }).role ?? 'coordinator'
       await db.insert(networkAdmins).values({ nodeId: p.data.nodeId, email: p.data.email, role, addedBy: caller.email })
         .onConflictDoUpdate({ target: [networkAdmins.nodeId, networkAdmins.email], set: { role } })
       await audit(caller.email, `Added network ${role} ${p.data.email}`, p.data.nodeId)
