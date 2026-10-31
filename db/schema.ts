@@ -2191,3 +2191,20 @@ export const networkValueResponses = pgTable('network_value_responses', {
   answeredBy: text('answered_by').notNull(),
   answeredAt: timestamp('answered_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.roundId, t.orgId] })])
+
+export const networkExchanges = pgTable('network_exchanges', {
+  id: text('id').primaryKey(),
+  networkId: text('network_id').notNull(),
+  nodeId: text('node_id').notNull(),
+  type: text('type').notNull(),
+  title: text('title').notNull(),
+  heldOn: date('held_on').notNull(),
+  location: text('location').notNull().default(''),
+  instrument: text('instrument').notNull(),
+  areas: jsonb('areas').$type<string[]>().notNull().default([]),
+  orgIds: jsonb('org_ids').$type<string[]>().notNull().default([]),
+  people: integer('people').notNull().default(0),
+  followUp: text('follow_up').notNull().default(''),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('network_exchanges_network_idx').on(t.networkId)])

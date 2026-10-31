@@ -93,6 +93,7 @@ import { Route as AppWorkspacesWorkspaceIdHealthSecurityRouteImport } from './ro
 import { Route as AppWorkspacesWorkspaceIdRegulatorySourcesRouteImport } from './routes/app.workspaces.$workspaceId.regulatory-sources'
 import { Route as AppWorkspacesWorkspaceIdSupportBotRouteImport } from './routes/app.workspaces.$workspaceId.support-bot'
 import { Route as AppWorkspacesWorkspaceIdSupportIssuesRouteImport } from './routes/app.workspaces.$workspaceId.support-issues'
+import { Route as NetworksNetworkIdBriefRoundIdRouteImport } from './routes/networks_.$networkId_.brief.$roundId'
 import { Route as AppWorkspacesWorkspaceIdActionsIndexRouteImport } from './routes/app.workspaces.$workspaceId.actions.index'
 import { Route as AppWorkspacesWorkspaceIdActionsCapIdRouteImport } from './routes/app.workspaces.$workspaceId.actions.$capId'
 import { Route as AppWorkspacesWorkspaceIdEsgFrameworksRouteImport } from './routes/app.workspaces.$workspaceId.esg.frameworks'
@@ -541,6 +542,12 @@ const AppWorkspacesWorkspaceIdSupportIssuesRoute =
     path: '/app/workspaces/$workspaceId/support-issues',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NetworksNetworkIdBriefRoundIdRoute =
+  NetworksNetworkIdBriefRoundIdRouteImport.update({
+    id: '/networks_/$networkId_/brief/$roundId',
+    path: '/networks/$networkId/brief/$roundId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppWorkspacesWorkspaceIdActionsIndexRoute =
   AppWorkspacesWorkspaceIdActionsIndexRouteImport.update({
     id: '/app/workspaces/$workspaceId/actions/',
@@ -739,6 +746,7 @@ export interface FileRoutesByFullPath {
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/networks/$networkId/brief/$roundId': typeof NetworksNetworkIdBriefRoundIdRoute
   '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   '/app/workspaces/$workspaceId/esg/planner': typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -843,6 +851,7 @@ export interface FileRoutesByTo {
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/networks/$networkId/brief/$roundId': typeof NetworksNetworkIdBriefRoundIdRoute
   '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   '/app/workspaces/$workspaceId/esg/planner': typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -948,6 +957,7 @@ export interface FileRoutesById {
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/networks_/$networkId_/brief/$roundId': typeof NetworksNetworkIdBriefRoundIdRoute
   '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   '/app/workspaces/$workspaceId/esg/planner': typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -1054,6 +1064,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
+    | '/networks/$networkId/brief/$roundId'
     | '/app/workspaces/$workspaceId/actions/$capId'
     | '/app/workspaces/$workspaceId/esg/frameworks'
     | '/app/workspaces/$workspaceId/esg/planner'
@@ -1158,6 +1169,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
+    | '/networks/$networkId/brief/$roundId'
     | '/app/workspaces/$workspaceId/actions/$capId'
     | '/app/workspaces/$workspaceId/esg/frameworks'
     | '/app/workspaces/$workspaceId/esg/planner'
@@ -1262,6 +1274,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
+    | '/networks_/$networkId_/brief/$roundId'
     | '/app/workspaces/$workspaceId/actions/$capId'
     | '/app/workspaces/$workspaceId/esg/frameworks'
     | '/app/workspaces/$workspaceId/esg/planner'
@@ -1367,6 +1380,7 @@ export interface RootRouteChildren {
   AppWorkspacesWorkspaceIdRegulatorySourcesRoute: typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   AppWorkspacesWorkspaceIdSupportBotRoute: typeof AppWorkspacesWorkspaceIdSupportBotRoute
   AppWorkspacesWorkspaceIdSupportIssuesRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  NetworksNetworkIdBriefRoundIdRoute: typeof NetworksNetworkIdBriefRoundIdRoute
   AppWorkspacesWorkspaceIdActionsCapIdRoute: typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   AppWorkspacesWorkspaceIdEsgFrameworksRoute: typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   AppWorkspacesWorkspaceIdEsgPlannerRoute: typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -1977,6 +1991,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/networks_/$networkId_/brief/$roundId': {
+      id: '/networks_/$networkId_/brief/$roundId'
+      path: '/networks/$networkId/brief/$roundId'
+      fullPath: '/networks/$networkId/brief/$roundId'
+      preLoaderRoute: typeof NetworksNetworkIdBriefRoundIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/workspaces/$workspaceId/actions/': {
       id: '/app/workspaces/$workspaceId/actions/'
       path: '/app/workspaces/$workspaceId/actions'
@@ -2198,6 +2219,7 @@ const rootRouteChildren: RootRouteChildren = {
     AppWorkspacesWorkspaceIdSupportBotRoute,
   AppWorkspacesWorkspaceIdSupportIssuesRoute:
     AppWorkspacesWorkspaceIdSupportIssuesRoute,
+  NetworksNetworkIdBriefRoundIdRoute: NetworksNetworkIdBriefRoundIdRoute,
   AppWorkspacesWorkspaceIdActionsCapIdRoute:
     AppWorkspacesWorkspaceIdActionsCapIdRoute,
   AppWorkspacesWorkspaceIdEsgFrameworksRoute:

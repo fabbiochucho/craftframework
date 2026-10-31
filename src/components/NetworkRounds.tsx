@@ -4,6 +4,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Progres
 import { PERSPECTIVES, PERSPECTIVE_LABEL, type Perspective } from '../lib/networkRounds'
 import { LEVEL_LABEL, type NetworkLevel } from '../lib/networks'
 import { CoordinatorResults, MemberBenchmark, ValueSurvey } from './NetworkResults'
+import { PlanAndProgress } from './NetworkExchange'
 import type { ValueAnswers } from '../lib/networkResults'
 
 // Assessment rounds in a network: coordinators open them and follow participation; members complete the
@@ -190,7 +191,7 @@ export function CoordinatorRounds({ networkId, nodes, coordinates }: { networkId
                 <div className="flex items-center gap-2"><RoundBadge state={r.state} /><Button size="sm" variant="outline" onClick={() => (detail?.id === r.id ? setDetail(null) : show(r.id))}>{detail?.id === r.id ? 'Hide' : 'Participation'}</Button><Button size="sm" variant="outline" onClick={() => setResultsFor(resultsFor === r.id ? null : r.id)}>{resultsFor === r.id ? 'Hide results' : 'Results'}</Button></div>
               </div>
               {detail?.id === r.id && <div className="mt-3"><Participation d={detail} onChange={() => { show(r.id); load() }} /></div>}
-              {resultsFor === r.id && <div className="mt-3 border-t border-slate-200 pt-3"><CoordinatorResults roundId={r.id} /></div>}
+              {resultsFor === r.id && <div className="mt-3 space-y-4 border-t border-slate-200 pt-3"><CoordinatorResults roundId={r.id} /><PlanAndProgress roundId={r.id} networkId={networkId} /></div>}
             </li>
           ))}
         </ul>

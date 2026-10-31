@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Network } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { CoordinatorRounds, MemberRounds } from '../components/NetworkRounds'
+import { ExchangeLog } from '../components/NetworkExchange'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
 
 // Civil society networks: levels from global to local, coordinators per level, and member organisations that
@@ -56,7 +57,7 @@ function MembershipCard({ m, onDone }: { m: Membership; onDone: () => void }) {
         {m.status === 'invited' ? (
           <><Button size="sm" onClick={() => void act('accept')}>Accept invitation</Button><Button size="sm" variant="outline" onClick={() => void act('decline')}>Decline</Button></>
         ) : (
-          <><Button size="sm" onClick={() => void act('sharing')} disabled={sharing === m.sharing}>Save sharing choice</Button><Button size="sm" variant="outline" onClick={() => void act('leave')}>Leave network</Button></>
+          <><Button size="sm" onClick={() => void act('sharing')} disabled={sharing === m.sharing}>Save sharing choice</Button><Button size="sm" variant="outline" onClick={() => void act('leave')}>Leave network</Button><Link to="/networks/$networkId" params={{ networkId: m.networkId }} className="inline-flex items-center rounded-md px-3 py-1.5 text-sm text-emerald-700 hover:underline">Learning and exchange →</Link></>
         )}
       </div>
       {error && <p className="text-sm text-rose-700">{error}</p>}
@@ -208,6 +209,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
         </div>
       )}
       {d.coordinates.length > 0 || d.views.length > 0 ? <CoordinatorRounds networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} /> : null}
+      <ExchangeLog networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} named={d.members?.named.map((x) => ({ orgId: x.orgId, name: x.name })).filter((x, i, a) => a.findIndex((y) => y.orgId === x.orgId) === i) ?? []} />
       <Card>
         <CardHeader><CardTitle>Levels</CardTitle></CardHeader>
         <CardContent><ul className="space-y-2">{children(null).map((n) => renderNode(n, 0))}</ul></CardContent>
