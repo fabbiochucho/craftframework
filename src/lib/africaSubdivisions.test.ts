@@ -20,6 +20,7 @@ assert.equal(AFRICA_SUBDIVISIONS.CI.length, 14, "Côte d'Ivoire: 12 districts an
 assert.equal(AFRICA_SUBDIVISIONS.DZ.length, 58, 'Algeria: 58 wilayas')
 assert.equal(AFRICA_SUBDIVISIONS.TZ.length, 31, 'Tanzania: 31 regions')
 assert.equal(AFRICA_SUBDIVISIONS.BF.length, 13, 'Burkina Faso: regions, not provinces')
-assert.ok(AFRICA_SUBDIVISIONS.ET.some(([c]) => c === 'SI'), 'Ethiopia: Sidama')
+assert.deepEqual(AFRICA_SUBDIVISIONS.ET.map(([c]) => c).filter((c) => ['SI', 'SW', 'CE', 'SE', 'SN'].includes(c)).sort(), ['CE', 'SE', 'SI', 'SW'], 'Ethiopia: SNNPR replaced by its 2023 successors')
+assert.equal(AFRICA_SUBDIVISIONS.ET.length, 14, 'Ethiopia: 12 regions and 2 chartered cities')
 assert.equal(AFRICA_SUBDIVISIONS.NG.length, 37, 'Nigeria: 36 states and the FCT')
 console.log('africaSubdivisions.test.ts ok')
