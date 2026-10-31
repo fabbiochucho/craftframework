@@ -57,7 +57,7 @@ const handleRequest = async (req: Request) => {
         if (loaded.net.status === 'archived' && !(caller.role === 'super_admin' && !caller.readOnly)) return json({ error: 'This network has been archived by CRAFT and can no longer be changed' }, 409)
         if (!templateById(p.data.template)) return bad('Unknown template')
         if (!validWindow(p.data.opensOn, p.data.closesOn)) return bad('Give an opening and closing date, opening first')
-        if (!unitsOf(loaded.nodes, p.data.nodeId, p.data.unitLevel).length) return bad('There are no levels of that kind under this level yet. Add them first.')
+        if (!unitsOf(loaded.nodes, p.data.nodeId, p.data.unitLevel).some((u) => u.status !== 'archived')) return bad('There are no levels of that kind under this level yet. Add them first.')
         const id = `psc_${crypto.randomUUID()}`
         await db.insert(programmeScorecards).values({ id, ...p.data, createdBy: caller.email })
         await audit(caller.email, `Opened programme scorecard ${p.data.name}`, id)
@@ -92,6 +92,7 @@ const handleRequest = async (req: Request) => {
       if (!p.success) return bad('Score each item 0, 1 or 2')
       if (!units.some((u) => u.id === p.data.nodeId)) return bad('That level is not part of this scorecard')
       if (!coord.has(p.data.nodeId)) return forbidden()
+      if (units.find((u) => u.id === p.data.nodeId)?.status === 'archived') return json({ error: 'This level is archived. Restore it first.' }, 409)
       if (state !== 'open') return json({ error: state === 'upcoming' ? 'This scorecard has not opened yet' : 'This scorecard has closed' }, 409)
       if (!validEntry(t, p.data.scores)) return bad('Score each item 0 (not in place), 1 (partly) or 2 (fully in place)')
       await db.insert(programmeScorecardEntries).values({ scorecardId: sc.id, nodeId: p.data.nodeId, scores: p.data.scores, enteredBy: caller.email })

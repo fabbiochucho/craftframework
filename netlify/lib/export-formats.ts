@@ -160,7 +160,41 @@ export async function renderPdf(d: ExportDoc): Promise<Uint8Array> {
 
 export const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 /** Responds with the document in the requested format, or null for formats this helper does not handle. */
-export async function exportResponse(d: ExportDoc, format: string, baseName: string): Promise<Response | null> {
+/**
+ * The document in the reader's language: every heading, paragraph, label, table title, header and text cell goes through
+ * the shared translation cache (reviewed translations first). Numbers, dates and codes are left as they are.
+ * Arabic PDFs stay in English: the PDF fonts cannot shape Arabic script, so they say where to get an Arabic version.
+ */
+export async function localiseDoc(d: ExportDoc, lang: string | null | undefined, format: string): Promise<ExportDoc> {
+  if (!lang || lang === 'en') return d
+  if (format === 'pdf' && lang === 'ar') {
+    return { ...d, meta: [['Language', 'This PDF is in English because PDF fonts cannot display Arabic script. Download the spreadsheet (XLSX) or print the on-screen report for Arabic.'], ...d.meta] }
+  }
+  const { translateTexts } = await import('./translation.js')
+  const texts: string[] = []
+  const put = (t: string) => { texts.push(t); return texts.length - 1 }
+  const titleI = put(d.title)
+  const meta = d.meta.map(([k, v]) => [put(k), put(v)] as const)
+  const blocks = d.blocks.map((b) => b.kind === 'table'
+    ? { title: put(b.table.title), headers: b.table.columns.map((c) => put(c.header)), rows: b.table.rows.map((r) => r.map((c) => (typeof c === 'string' ? put(c) : -1))) }
+    : { text: put(b.text) })
+  const footerI = d.footer ? put(d.footer) : -1
+  const tr = await translateTexts(lang, texts)
+  return {
+    title: tr[titleI],
+    meta: meta.map(([k, v]) => [tr[k], tr[v]]),
+    blocks: d.blocks.map((b, i) => {
+      const x = blocks[i] as { text?: number; title?: number; headers?: number[]; rows?: number[][] }
+      if (b.kind !== 'table') return { ...b, text: tr[x.text!] }
+      return { kind: 'table' as const, table: { ...b.table, title: tr[x.title!], columns: b.table.columns.map((c, j) => ({ ...c, header: tr[x.headers![j]] })),
+        rows: b.table.rows.map((r, ri) => r.map((c, ci) => (x.rows![ri][ci] >= 0 ? tr[x.rows![ri][ci]] : c))) } }
+    }),
+    footer: footerI >= 0 ? tr[footerI] : d.footer,
+  }
+}
+
+export async function exportResponse(d: ExportDoc, format: string, baseName: string, lang?: string | null): Promise<Response | null> {
+  d = await localiseDoc(d, lang, format)
   const name = baseName.replace(/[^\w.-]+/g, '_')
   if (format === 'xlsx') return new Response(new Uint8Array(renderXlsx(d)), { headers: { 'Content-Type': XLSX_TYPE, 'Content-Disposition': `attachment; filename="${name}.xlsx"` } })
   if (format === 'pdf') return new Response(new Uint8Array(await renderPdf(d)), { headers: { 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${name}.pdf"` } })

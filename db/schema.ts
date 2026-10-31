@@ -2132,6 +2132,7 @@ export const networkNodes = pgTable('network_nodes', {
   level: text('level').notNull(),
   name: text('name').notNull(),
   geoCode: text('geo_code').notNull().default(''),
+  status: text('status').notNull().default('active'), // 'active' | 'archived'
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('network_nodes_network_idx').on(t.networkId)])
 

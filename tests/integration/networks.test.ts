@@ -77,6 +77,28 @@ describe('networks: levels, coordinators and consenting members', () => {
     assert.equal((await call(ADA, 'GET', `/${cohort.body.id}/overview`)).status, 404)
   })
 
+  it('a guided structure builds countries and subdivisions; levels can be renamed and archived with what is below', async () => {
+    assert.equal((await call(STRANGER, 'POST', '', { name: 'Neither', template: 'blank' })).status, 400, 'a top level or a structure is required')
+    const g = await call(STRANGER, 'POST', '', { name: 'East and West CSO Alliance', structure: { countries: ['KE', 'NG'], grouping: 'au-region', zones: true, subdivisions: true } })
+    assert.equal(g.status, 201, g.text)
+    assert.equal(g.body.levels, 1 + 2 + 1 + 47 + 1 + 6 + 37, 'Africa, East and West, Kenya with 47 counties, Nigeria with zones and states')
+    const tree = (await call(STRANGER, 'GET', `/${g.body.id}`)).body.nodes
+    const sw = tree.find((n: any) => n.geoCode === 'NG-SW'), lagos = tree.find((n: any) => n.geoCode === 'NG-LA')
+    assert.equal(lagos.parentId, sw.id)
+
+    assert.equal((await call(STRANGER, 'PATCH', `/${g.body.id}/nodes/${sw.id}`, { name: 'South-West Zone' })).status, 200)
+    assert.equal((await call(ADA, 'PATCH', `/${g.body.id}/nodes/${sw.id}`, { archived: true })).status, 403, 'only coordinators')
+    assert.equal((await call(STRANGER, 'PATCH', `/${g.body.id}/nodes/${g.body.rootId}`, { archived: true })).status, 400, 'the top level stays')
+    assert.equal((await call(STRANGER, 'PATCH', `/${g.body.id}/nodes/${sw.id}`, { archived: true })).status, 200)
+    const after = (await call(STRANGER, 'GET', `/${g.body.id}`)).body.nodes
+    assert.equal(after.find((n: any) => n.id === sw.id).name, 'South-West Zone')
+    assert.equal(after.find((n: any) => n.id === lagos.id).status, 'archived', 'levels below are archived too')
+    assert.equal((await call(STRANGER, 'POST', `/${g.body.id}/invitations`, { nodeId: lagos.id, org: ADA_ORG })).status, 409)
+    assert.equal((await call(STRANGER, 'POST', `/${g.body.id}/nodes`, { parentId: lagos.id, level: 'local', name: 'Ikeja', geoCode: '' })).status, 409)
+    assert.equal((await call(STRANGER, 'PATCH', `/${g.body.id}/nodes/${sw.id}`, { archived: false })).status, 200)
+    assert.equal((await call(STRANGER, 'POST', `/${g.body.id}/invitations`, { nodeId: lagos.id, org: ADA_ORG })).status, 201, 'restored')
+  })
+
   it('new networks are limited to 50 invitations a day; invitees see who set it up', async () => {
     const n = await call(STRANGER, 'POST', '', { name: 'Fresh network', root: { level: 'national', name: 'Nigeria', geoCode: 'NG' } })
     await rows(`INSERT INTO organizations(id,name) SELECT 'org_' || g, 'Org ' || g FROM generate_series(1, 51) g`)

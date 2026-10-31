@@ -9,7 +9,12 @@ and turn the results into support, learning and evidence.
   economic community such as ECOWAS or EAC), national, zonal (a zone or region within a country, e.g. Nigeria's
   geopolitical zones), state or province, and local. A network can start at any level and skip levels.
 - **Anyone signed in can set up a network or a funder's grantee cohort** (up to 5 a day), starting from a structure
-  template (Africa → 5 AU regions → 54 countries; Nigeria → 6 zones → 36 states and the FCT; a flat cohort; or blank).
+  template (Africa → 5 AU regions → 54 countries; Nigeria → 6 zones → 36 states and the FCT; a flat cohort; or blank)
+  or a **guided structure**: choose countries, group them by AU region or regional economic community (each country's
+  first-listed REC), and optionally add first-level subdivisions (ISO 3166-2, all 54 countries; Nigeria can use its
+  six zones). A preview shows exactly what will be created. Coordinators can **rename** any level and **archive** or
+  restore a level with everything below it: archived levels keep their history but take no new members, child
+  levels, rounds or scorecard entries. The top level cannot be archived.
   The creator becomes coordinator of the top level. **Coordinators** are added per level and manage that level and
   everything below it; **viewers** see results only.
 - Safeguards: members see who set the network up and whether CRAFT has **verified** it before they accept; new
@@ -89,7 +94,8 @@ needed / Good, but may need improvement), by zone, with lists, change since the 
 response next to its members' capacity. Bands use CRAFT's thresholds (40% / 70%); NACA's are not published.
 Templates: subnational HIV prevention with NACA's seven programme areas (AGYW, condom programming, sex workers,
 men who have sex with men, people who inject drugs, transgender people, PrEP) as published in its 2023/2024 report,
-and a generic programme template.
+a generic programme template, and a CRAFT-authored climate response template (adaptation, emissions reduction,
+climate finance and accountability) that is not an official government scorecard.
 
 ## Outputs
 
@@ -98,8 +104,17 @@ levels), benchmark, capacity-building
 plan, mentoring pairs, progress between rounds, funder and government brief (printable, totals only), CSV export
 (aggregates; named rows only for named-results members), programme scorecard summaries.
 
+## Languages
+
+Every screen, chart label and report can be shown in French, Spanish, Portuguese, Swahili and Arabic (right to
+left). Screens are machine-translated with a fixed glossary; PDF, Excel and CSV exports are translated when
+downloaded in another language. Arabic PDF exports stay in English (the PDF font cannot shape Arabic script) and say
+so; use the Excel export or print the on-screen report for Arabic. For professional review, the Super Admin downloads every
+network-assessment string for a language (Admin → Translations), a translator corrects it, and the uploaded file
+replaces the machine translation everywhere. Emails are sent in English.
+
 ## API
 
 `/api/networks`, `/api/network-rounds`, `/api/network-results`, `/api/network-exchanges`,
-`/api/network-scorecards`. Rules live in `src/lib/networks.ts`, `networkRounds.ts`, `networkResults.ts`,
+`/api/network-scorecards`, `/api/translation-review` (Super Admin). Rules live in `src/lib/networks.ts`, `networkRounds.ts`, `networkResults.ts`,
 `networkExchange.ts` and `programmeScorecard.ts`, each with a self-check.

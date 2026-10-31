@@ -98,6 +98,30 @@ export const TEMPLATES: Template[] = [
       } },
     ],
   },
+  {
+    id: 'climate-response-subnational',
+    name: 'Climate response (state, province or district)',
+    source: "CRAFT-authored template on the same four components, drawing on the planning elements of national NDCs and National Adaptation Plans. It is not an official government scorecard; CRAFT's thresholds are used.",
+    areas: [
+      { key: 'adaptation', name: 'Adaptation and resilience', items: {
+        management: items('adaptation.m', ['A current local adaptation plan linked to the National Adaptation Plan', 'A climate coordination body that includes communities most at risk', 'A named lead office with staff for adaptation', 'Adaptation actions included in the annual budget']),
+        implementation: items('adaptation.i', ['Climate risk and vulnerability assessment done in the last five years', 'Early warning information reaches communities', 'Adaptation actions under way in priority sectors (water, agriculture, health)', 'Progress on adaptation actions monitored and reported']),
+        package: items('adaptation.p', ['Climate-smart agriculture and water support', 'Disaster preparedness and response plans', 'Health services prepared for heat, floods and climate-sensitive disease', 'Support reaches women, youth and marginalised groups']),
+        outcome: items('adaptation.o', ['Fewer people affected by climate disasters', 'Losses from extreme weather tracked', 'Communities report being better prepared']),
+      } },
+      { key: 'mitigation', name: 'Emissions reduction', items: {
+        management: items('mitigation.m', ['Local targets aligned to the national NDC', 'An emissions inventory or baseline', 'Mitigation responsibilities assigned across departments']),
+        implementation: items('mitigation.i', ['Clean energy or energy efficiency projects under way', 'Land use, forestry or waste actions under way', 'Emissions data collected and reported (MRV)']),
+        package: items('mitigation.p', ['Access to clean energy for households and services', 'Clean cooking or transport options', 'Protection or restoration of forests and land']),
+        outcome: items('mitigation.o', ['Emissions tracked against the baseline', 'Results reported against targets', 'Benefits shared fairly across communities']),
+      } },
+      { key: 'finance', name: 'Climate finance and accountability', items: {
+        management: items('finance.m', ['Climate spending tagged in the budget', 'A plan to raise national, donor or private climate finance', 'Rules for transparent use of climate funds']),
+        implementation: items('finance.i', ['Climate funds disbursed as planned', 'Spending reports published', 'Civil society and communities involved in monitoring spending']),
+        outcome: items('finance.o', ['Climate finance received against need', 'Share of climate finance reaching local level', 'Independent review or audit of climate spending']),
+      } },
+    ],
+  },
 ]
 export const templateById = (id: string) => TEMPLATES.find((t) => t.id === id)
 export const allItemIds = (t: Template) => t.areas.flatMap((a) => componentsOf(a).flatMap((c) => a.items[c]!.map((i) => i.id)))

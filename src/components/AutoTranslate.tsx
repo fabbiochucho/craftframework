@@ -20,7 +20,8 @@ import { useRouterState } from '@tanstack/react-router'
 // ---------------------------------------------------------------------------
 
 const ATTRS = ['placeholder', 'title', 'aria-label', 'alt'] as const
-const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CODE', 'PRE', 'KBD', 'SAMP', 'TEXTAREA', 'SVG', 'TEMPLATE', 'IFRAME', 'CANVAS'])
+// SVG is not skipped: chart axis labels, legends and tooltips (Recharts <text>/<tspan>) are translated too.
+const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CODE', 'PRE', 'KBD', 'SAMP', 'TEXTAREA', 'TEMPLATE', 'IFRAME', 'CANVAS'])
 const BATCH = 20
 const MAX_LEN = 4000
 const CACHE_PREFIX = 'craft_tx_v1_'

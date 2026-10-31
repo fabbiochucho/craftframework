@@ -66,6 +66,7 @@ const handleRequest = async (req: Request) => {
       if (!loaded) return notFound()
       if (!coordinatorScope(caller, loaded.nodes, loaded.admins, 'coordinator').has(p.data.nodeId)) return forbidden()
       if (loaded.net.status === 'archived' && !isSuper(caller)) return json({ error: 'This network has been archived by CRAFT and can no longer be changed' }, 409)
+      if (loaded.nodes.find((n) => n.id === p.data.nodeId)?.status === 'archived') return json({ error: 'This level is archived. Restore it first.' }, 409)
       if (!roundInstruments(isSuper(caller)).some((i) => i.id === p.data.instrument)) return bad('Unknown instrument')
       if (!validWindow(p.data.opensOn, p.data.closesOn)) return bad('Give an opening and closing date, opening first')
       const id = `nrd_${crypto.randomUUID()}`

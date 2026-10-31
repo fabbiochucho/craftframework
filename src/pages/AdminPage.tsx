@@ -19,6 +19,7 @@ import * as api from '../lib/api'
 import type { UserDirectoryRow } from '../lib/api'
 import { cn } from '../lib/utils'
 import { LawsRegisterPanel } from '../components/admin/LawsRegisterPanel'
+import { TranslationReviewPanel } from '../components/admin/TranslationReviewPanel'
 
 const HEATMAP_DOMAINS = [
   'Financial Management', 'Procurement & Supply Chain', 'Governance & Leadership',
@@ -303,6 +304,7 @@ export function AdminPage() {
           { id: 'audit', label: 'Security Audit Log' },
           { id: 'config', label: 'System Configuration' },
           { id: 'laws', label: 'Laws register' },
+          { id: 'translations', label: 'Translations' },
         ]}
         active={tab}
         onChange={setTab}
@@ -766,6 +768,8 @@ export function AdminPage() {
       )}
 
       {tab === 'laws' && <LawsRegisterPanel />}
+
+      {tab === 'translations' && <TranslationReviewPanel />}
 
       {tab === 'config' && (
         <div className="grid gap-6 lg:grid-cols-2">

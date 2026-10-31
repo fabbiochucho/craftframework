@@ -9,19 +9,22 @@ import { logger, monitored } from '../lib/logger.js'
 import {
   NETWORK_LEVELS, SHARING, canNest, distinctAcceptedOrgs, everyoneNamed, memberView, subtree, validGeoCode, type NetworkLevel,
 } from '../../src/lib/networks.js'
-import { NETWORK_TEMPLATES, templateNodes } from '../../src/lib/networkTemplates.js'
+import { GROUPINGS, NETWORK_TEMPLATES, buildStructure, templateNodes } from '../../src/lib/networkTemplates.js'
 import { instrumentById } from '../../src/lib/networkRounds.js'
 import { capacity, networkProfile } from '../../src/lib/networkResults.js'
 import { bandFor, compositeScore, answeredIn } from '../../src/lib/foundationModules.js'
 
 // /api/networks — civil society networks: levels, coordinators and member organisations (src/lib/networks.ts).
 //   GET                                   my networks, my organisations' invitations and memberships
-//   POST   { name, description, kind, template, root }   any signed-in organisation: create a network (5 a day);
+//   POST   { name, description, kind, template, root } or { name, description, kind, structure }   any signed-in
+//                                         organisation: create a network (5 a day) from a template or a guided structure;
 //                                         the creator becomes coordinator of its top level
 //   POST   :id/moderate { archived?, verified? }   Super Admin: archive a misused network, mark a known one verified
 //   GET    :id/overview                  coordinators: profile (secretariat, members, use) and alerts
 //   GET    :id                            the tree; coordinators see members in their scope (named only if "full")
 //   POST   :id/nodes { parentId, level, name, geoCode }       coordinator of the parent level
+//   PATCH  :id/nodes/:nodeId { name?, archived? }            coordinator of that level: rename, or archive/restore it
+//                                         with everything below it (the top level cannot be archived)
 //   POST   :id/admins { nodeId, email, role }                 coordinator of that level (or above)
 //   DELETE :id/admins { nodeId, email }
 //   POST   :id/invitations { nodeId, org }                    invite an organisation by CRAFT id or contact email
@@ -39,13 +42,20 @@ const createSchema = z.object({
   description: z.string().trim().max(2000).default(''),
   kind: z.enum(['network', 'cohort']).default('network'),
   template: z.enum(NETWORK_TEMPLATES).default('blank'),
-  root: z.object({ level, name: z.string().trim().min(2).max(160), geoCode: geo }).strict(),
-}).strict()
+  root: z.object({ level, name: z.string().trim().min(2).max(160), geoCode: geo }).strict().optional(),
+  structure: z.object({
+    countries: z.array(z.string().length(2).toUpperCase()).min(1).max(54),
+    grouping: z.enum(GROUPINGS).default('au-region'),
+    zones: z.boolean().default(false),
+    subdivisions: z.boolean().default(false),
+  }).strict().optional(),
+}).strict().refine((d) => !!d.root !== !!d.structure, 'Send either a top level (root) or a structure')
 const moderateSchema = z.object({ archived: z.boolean().optional(), verified: z.boolean().optional() }).strict()
 /** New networks per person per day, and invitations per network per day (verified networks get more). */
 const CREATE_PER_DAY = 5
 const INVITES_PER_DAY = { unverified: 50, verified: 500 }
 const DAY = 24 * 3600_000
+const nodePatchSchema = z.object({ name: z.string().trim().min(2).max(160).optional(), archived: z.boolean().optional() }).strict()
 const nodeSchema = z.object({ parentId: z.string().max(80), level, name: z.string().trim().min(2).max(160), geoCode: geo }).strict()
 const adminSchema = z.object({ nodeId: z.string().max(80), email: z.string().trim().toLowerCase().email().max(200), role: z.enum(['coordinator', 'viewer']).default('coordinator') }).strict()
 const adminDeleteSchema = z.object({ nodeId: z.string().max(80), email: z.string().trim().toLowerCase().email().max(200) }).strict()
@@ -99,20 +109,21 @@ const handleRequest = async (req: Request) => {
     if (req.method === 'POST' && sub.length === 0) {
       const p = createSchema.safeParse(body)
       if (!p.success) return bad(p.error.issues[0]?.message ?? 'Invalid network')
-      if (!validGeoCode(p.data.root.level, p.data.root.geoCode)) return bad('That geography code does not fit the level')
+      if (p.data.root && !validGeoCode(p.data.root.level, p.data.root.geoCode)) return bad('That geography code does not fit the level')
+      let tmpl
+      try { tmpl = p.data.structure ? buildStructure(p.data.structure) : templateNodes(p.data.template, p.data.root!) } catch (e) { return bad((e as Error).message) }
       if (!isSuper(caller)) {
         const recent = await db.select({ id: networks.id }).from(networks).where(and(eq(networks.createdBy, caller.email), gte(networks.createdAt, new Date(Date.now() - DAY))))
         if (recent.length >= CREATE_PER_DAY) return json({ error: `You can create up to ${CREATE_PER_DAY} networks a day` }, 429)
       }
       const id = newId('net')
-      const tmpl = templateNodes(p.data.template, p.data.root)
       const ids = new Map(tmpl.map((n) => [n.key, newId('nnd')]))
       await db.insert(networks).values({ id, name: p.data.name, description: p.data.description, kind: p.data.kind, createdBy: caller.email, secretariatOrgId: caller.orgId })
       // Parents before children (templates list them in that order)
       await db.insert(networkNodes).values(tmpl.map((n) => ({ id: ids.get(n.key)!, networkId: id, parentId: n.parent ? ids.get(n.parent)! : null, level: n.level, name: n.name, geoCode: n.geoCode })))
       const rootId = ids.get(tmpl[0].key)!
       await db.insert(networkAdmins).values({ nodeId: rootId, email: caller.email, role: 'coordinator', addedBy: caller.email })
-      await audit(caller.email, `Created network ${p.data.name} (${p.data.template})`, id)
+      await audit(caller.email, `Created network ${p.data.name} (${p.data.structure ? 'guided structure' : p.data.template})`, id)
       return json({ id, rootId, levels: tmpl.length }, 201)
     }
 
@@ -165,7 +176,7 @@ const handleRequest = async (req: Request) => {
       const perNode = Object.fromEntries(nodes.map((n) => [n.id, members.filter((m) => m.nodeId === n.id && m.status === 'accepted').length]))
       return json({
         network: { id: net.id, name: net.name, description: net.description, status: net.status, kind: net.kind, verified: net.verified, setUpBy: net.createdBy, canModerate: isSuper(caller) },
-        nodes: nodes.map((n) => ({ id: n.id, parentId: n.parentId, level: n.level, name: n.name, geoCode: n.geoCode, members: viewScope.has(n.id) ? perNode[n.id] : undefined })),
+        nodes: nodes.map((n) => ({ id: n.id, parentId: n.parentId, level: n.level, name: n.name, geoCode: n.geoCode, status: n.status, members: viewScope.has(n.id) ? perNode[n.id] : undefined })),
         coordinates: [...coordScope], views: [...viewScope],
         admins: admins.filter((a) => viewScope.has(a.nodeId)).map((a) => ({ nodeId: a.nodeId, email: a.email, role: a.role })),
         members: viewScope.size ? view : null,
@@ -227,12 +238,28 @@ const handleRequest = async (req: Request) => {
       const parent = nodes.find((n) => n.id === p.data.parentId)
       if (!parent) return bad('Unknown parent level')
       if (!coordScope.has(parent.id)) return forbidden()
+      if (parent.status === 'archived') return json({ error: `${parent.name} is archived. Restore it first.` }, 409)
       if (!canNest(parent.level, p.data.level as NetworkLevel)) return bad('A level must sit below its parent')
       if (!validGeoCode(p.data.level as NetworkLevel, p.data.geoCode)) return bad('That geography code does not fit the level')
       const id = newId('nnd')
       await db.insert(networkNodes).values({ id, networkId: net.id, parentId: parent.id, level: p.data.level, name: p.data.name, geoCode: p.data.geoCode })
       await audit(caller.email, `Added network level ${p.data.name}`, id)
       return json({ id }, 201)
+    }
+
+    if (req.method === 'PATCH' && sub[1] === 'nodes' && sub.length === 3) {
+      const p = nodePatchSchema.safeParse(body)
+      if (!p.success) return bad(p.error.issues[0]?.message ?? 'Give a new name or archived: true/false')
+      const node = nodes.find((n) => n.id === sub[2])
+      if (!node) return notFound()
+      if (!coordScope.has(node.id)) return forbidden()
+      if (p.data.archived !== undefined && node.parentId === null) return bad('The top level cannot be archived')
+      if (p.data.name) await db.update(networkNodes).set({ name: p.data.name }).where(eq(networkNodes.id, node.id))
+      if (p.data.archived !== undefined) {
+        await db.update(networkNodes).set({ status: p.data.archived ? 'archived' : 'active' }).where(inArray(networkNodes.id, [...subtree(nodes, node.id)]))
+      }
+      await audit(caller.email, p.data.archived === undefined ? `Renamed network level ${node.name} to ${p.data.name}` : `${p.data.archived ? 'Archived' : 'Restored'} network level ${node.name}`, node.id)
+      return json({ ok: true })
     }
 
     if (sub[1] === 'admins' && sub.length === 2 && (req.method === 'POST' || req.method === 'DELETE')) {
@@ -255,6 +282,7 @@ const handleRequest = async (req: Request) => {
       const p = inviteSchema.safeParse(body)
       if (!p.success) return bad('Choose a level and an organisation')
       if (!coordScope.has(p.data.nodeId)) return forbidden()
+      if (nodes.find((n) => n.id === p.data.nodeId)?.status === 'archived') return json({ error: 'This level is archived. Restore it first.' }, 409)
       const recentInvites = members.filter((m) => m.invitedAt && Date.now() - new Date(m.invitedAt).getTime() < DAY).length
       const cap = net.verified ? INVITES_PER_DAY.verified : INVITES_PER_DAY.unverified
       if (!isSuper(caller) && recentInvites >= cap) return json({ error: `This network can send up to ${cap} invitations a day${net.verified ? '' : ' until CRAFT verifies it'}` }, 429)

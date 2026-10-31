@@ -116,6 +116,14 @@ const handleRequest = async (req: Request) => {
         for (const x of namedSubs) rows.push([names.find((n) => n.id === x.orgId)?.name ?? x.orgId, '', compositeScore(m, x.scores), bandFor(m, x.scores)?.band.label ?? ''])
       }
       await audit(caller.email, 'Exported network results (CSV)', round.id)
+      // In the reader's language (a CSV can carry any script, Arabic included); numbers and codes stay as they are.
+      const lang = url.searchParams.get('lang')
+      if (lang && lang !== 'en') {
+        const { translateTexts } = await import('../lib/translation.js')
+        const cells = rows.flatMap((r, i) => r.map((c, j) => ({ i, j, c }))).filter((x) => typeof x.c === 'string' && /\p{L}/u.test(x.c as string))
+        const tr = await translateTexts(lang, cells.map((x) => x.c as string))
+        cells.forEach((x, k) => { rows[x.i][x.j] = tr[k] })
+      }
       return new Response(toCsv(rows), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="network-results-${round.id}.csv"`, 'Cache-Control': 'private, no-store' } })
     }
     const accepted = distinctAcceptedOrgs(members, scope)

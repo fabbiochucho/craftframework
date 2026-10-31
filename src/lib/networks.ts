@@ -22,7 +22,7 @@ export type MemberStatus = (typeof MEMBER_STATUSES)[number]
 /** Groups smaller than this are never shown as results, so no single organisation can be identified. */
 export const MIN_GROUP = 5
 
-export interface NetworkNode { id: string; networkId: string; parentId: string | null; level: NetworkLevel; name: string; geoCode: string }
+export interface NetworkNode { id: string; networkId: string; parentId: string | null; level: NetworkLevel; name: string; geoCode: string; status?: 'active' | 'archived' }
 export interface NetworkAdmin { nodeId: string; email: string; role: 'coordinator' | 'viewer' }
 export interface NetworkMember { id: string; nodeId: string; orgId: string; status: MemberStatus; sharing: Sharing }
 

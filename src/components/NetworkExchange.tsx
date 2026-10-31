@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
 import { EXCHANGE_LABEL, EXCHANGE_TYPES, type ExchangeType } from '../lib/networkExchange'
 import { instrumentById, roundInstruments } from '../lib/networkRounds'
+import { useI18n } from '../lib/i18n'
 
 // Learning between members (the exchange log) and what follows from results (plan, pairings, progress, exports).
 
@@ -133,6 +134,8 @@ type Progress = {
 /** Under a round's results: the capacity-building plan, pairings, progress since an earlier round, and exports. */
 export function PlanAndProgress({ roundId, nodeId, networkId }: { roundId: string; nodeId?: string; networkId: string }) {
   const q = nodeId ? `?nodeId=${encodeURIComponent(nodeId)}` : ''
+  const { lang } = useI18n()
+  const csvQ = `${q ? `${q}&` : '?'}${lang && lang !== 'en' ? `lang=${lang}` : ''}`.replace(/[?&]$/, '')
   const [plan, setPlan] = useState<Plan | null>(null)
   const [prog, setProg] = useState<Progress | null>(null)
   const [baseline, setBaseline] = useState('')
@@ -188,7 +191,7 @@ export function PlanAndProgress({ roundId, nodeId, networkId }: { roundId: strin
         )}
       </section>
       <div className="flex flex-wrap gap-2">
-        <a href={`/api/network-results/${roundId}/export.csv${q}`} className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50">Download results (CSV)</a>
+        <a href={`/api/network-results/${roundId}/export.csv${csvQ}`} className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50">Download results (CSV)</a>
         <Link to="/networks/$networkId/brief/$roundId" params={{ networkId, roundId }} className="inline-flex items-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-800 hover:bg-slate-50">Funder and government brief</Link>
       </div>
     </div>

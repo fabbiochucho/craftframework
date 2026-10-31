@@ -8,7 +8,8 @@ import { ProgrammeScorecards } from '../components/ProgrammeScorecards'
 import { useAuthCtx } from '../lib/context'
 import { canSeePreview, getFramework } from '../lib/frameworks'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
-import { NETWORK_TEMPLATES, TEMPLATE_LABEL, type NetworkTemplate } from '../lib/networkTemplates'
+import { NETWORK_TEMPLATES, TEMPLATE_LABEL, buildStructure, type NetworkTemplate, type StructureSpec } from '../lib/networkTemplates'
+import { AFRICA_COUNTRIES } from '../lib/africa-countries'
 
 // Civil society networks: levels from global to local, coordinators per level, and member organisations that
 // join by accepting an invitation. Every rule is enforced by /api/networks.
@@ -77,13 +78,19 @@ export function NetworksPage() {
   const [error, setError] = useState('')
   const setup = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('setup') : null
   const [form, setForm] = useState({ name: '', description: '', kind: (setup === 'cohort' ? 'cohort' : 'network') as 'network' | 'cohort',
-    template: (setup === 'cohort' ? 'cohort' : 'blank') as NetworkTemplate, level: (setup === 'cohort' ? 'global' : 'national') as NetworkLevel, rootName: '', geoCode: '' })
+    template: (setup === 'cohort' ? 'cohort' : 'guided') as NetworkTemplate | 'guided', level: (setup === 'cohort' ? 'global' : 'national') as NetworkLevel, rootName: '', geoCode: '' })
   const load = useCallback(() => { void api<Home>('/api/networks').then(setHome, (e) => setError(e.message)) }, [])
   useEffect(load, [load])
+  const [structure, setStructure] = useState<StructureSpec>({ countries: [], grouping: 'au-region', zones: true, subdivisions: true })
 
   const create = async () => {
     setError('')
     try {
+      if (form.template === 'guided') {
+        await api('/api/networks', { method: 'POST', json: { name: form.name, description: form.description, kind: form.kind, structure } })
+        setForm({ ...form, name: '', description: '' }); setStructure({ ...structure, countries: [] }); load()
+        return
+      }
       const top = form.template === 'blank' || form.template === 'cohort' ? { level: form.level, name: form.rootName || form.name, geoCode: form.geoCode } : { level: 'national' as NetworkLevel, name: form.name, geoCode: '' }
       await api('/api/networks', { method: 'POST', json: { name: form.name, description: form.description, kind: form.kind, template: form.template, root: top } })
       setForm({ ...form, name: '', description: '', rootName: '', geoCode: '' }); load()
@@ -138,7 +145,7 @@ export function NetworksPage() {
                     onChange={(v) => setForm({ ...form, kind: v as 'network' | 'cohort', template: v === 'cohort' ? 'cohort' : 'blank' })} />
                   <Input label={form.kind === 'cohort' ? 'Cohort name (e.g. GIZ Health Systems Grantees 2026)' : 'Network name'} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                   <Input label="What it does (optional)" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                  {form.kind === 'network' && <Select label="Starting structure" options={NETWORK_TEMPLATES.filter((t) => t !== 'cohort').map((t) => ({ value: t, label: TEMPLATE_LABEL[t] }))} value={form.template} onChange={(v) => setForm({ ...form, template: v as NetworkTemplate })} />}
+                  {form.kind === 'network' && <Select label="Starting structure" options={[{ value: 'guided', label: 'Choose countries and how deep to go' }, ...NETWORK_TEMPLATES.filter((t) => t !== 'cohort').map((t) => ({ value: t, label: TEMPLATE_LABEL[t] }))]} value={form.template} onChange={(v) => setForm({ ...form, template: v as NetworkTemplate | 'guided' })} />}
                   {(form.template === 'blank' || form.template === 'cohort') && (
                     <>
                       <Select label="Its top level" options={levelOptions()} value={form.level} onChange={(v) => setForm({ ...form, level: v as NetworkLevel })} />
@@ -147,7 +154,8 @@ export function NetworksPage() {
                     </>
                   )}
                 </div>
-                <Button onClick={() => void create()} disabled={form.name.trim().length < 3}>{form.kind === 'cohort' ? 'Create cohort' : 'Create network'}</Button>
+                {form.kind === 'network' && form.template === 'guided' && <GuidedStructure spec={structure} onChange={setStructure} />}
+                <Button onClick={() => void create()} disabled={form.name.trim().length < 3 || (form.template === 'guided' && form.kind === 'network' && structure.countries.length === 0)}>{form.kind === 'cohort' ? 'Create cohort' : 'Create network'}</Button>
                 <p className="text-xs text-slate-500">Members see who set the network up before they accept. New networks can send up to 50 invitations a day until CRAFT verifies them.</p>
               </CardContent>
             </Card>
@@ -158,14 +166,57 @@ export function NetworksPage() {
   )
 }
 
+// Pick countries, grouping and depth; the preview shows exactly what will be created. Levels can be renamed or archived later.
+function GuidedStructure({ spec, onChange }: { spec: StructureSpec; onChange: (s: StructureSpec) => void }) {
+  const toggle = (iso: string) => onChange({ ...spec, countries: spec.countries.includes(iso) ? spec.countries.filter((c) => c !== iso) : [...spec.countries, iso] })
+  const nodes = spec.countries.length ? buildStructure(spec) : []
+  const byLevel = NETWORK_LEVELS.map((l) => [l, nodes.filter((n) => n.level === l).length] as const).filter(([, n]) => n > 0)
+  const children = (key: string) => nodes.filter((n) => n.parent === key)
+  return (
+    <div className="space-y-3 rounded-lg border border-slate-200 p-3">
+      <details open={spec.countries.length === 0}>
+        <summary className="cursor-pointer text-sm font-medium text-slate-800">Countries ({spec.countries.length} chosen)</summary>
+        <div className="mt-2 flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => onChange({ ...spec, countries: AFRICA_COUNTRIES.map((c) => c.iso2) })}>All 54</Button>
+          <Button size="sm" variant="outline" onClick={() => onChange({ ...spec, countries: [] })}>None</Button>
+        </div>
+        <div className="mt-2 grid max-h-64 grid-cols-2 gap-1 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
+          {[...AFRICA_COUNTRIES].sort((a, b) => a.name.localeCompare(b.name)).map((c) => (
+            <label key={c.iso2} className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={spec.countries.includes(c.iso2)} onChange={() => toggle(c.iso2)} /> {c.name}</label>
+          ))}
+        </div>
+      </details>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {spec.countries.length > 1 && <Select label="Group countries by" value={spec.grouping} onChange={(v) => onChange({ ...spec, grouping: v as StructureSpec['grouping'] })}
+          options={[{ value: 'au-region', label: 'AU region (North, West, Central, East, Southern)' }, { value: 'rec', label: 'Regional economic community (first one listed)' }, { value: 'none', label: 'No grouping' }]} />}
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={spec.subdivisions} onChange={(e) => onChange({ ...spec, subdivisions: e.target.checked })} /> Add states, provinces, regions or counties</label>
+        {spec.subdivisions && spec.countries.includes('NG') && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={spec.zones} onChange={(e) => onChange({ ...spec, zones: e.target.checked })} /> Nigeria: group states into the 6 geopolitical zones</label>}
+      </div>
+      {nodes.length > 0 && (
+        <div className="rounded bg-slate-50 p-3 text-sm">
+          <p className="font-medium text-slate-800">Preview: {nodes.length} levels will be created</p>
+          <p className="text-slate-600">{byLevel.map(([l, n]) => `${n} ${LEVEL_LABEL[l].replace(/ \(.*\)$/, '').toLowerCase()}`).join(' · ')}</p>
+          <ul className="mt-2 space-y-0.5 text-slate-700">
+            <li>{nodes[0].name}</li>
+            {children(nodes[0].key).slice(0, 12).map((n) => <li key={n.key} className="pl-4">↳ {n.name}{children(n.key).length > 0 && <span className="text-slate-500"> ({children(n.key).length} below)</span>}</li>)}
+            {children(nodes[0].key).length > 12 && <li className="pl-4 text-slate-500">… and {children(nodes[0].key).length - 12} more</li>}
+          </ul>
+          <p className="mt-2 text-xs text-slate-500">You can rename or archive any level afterwards. Subdivision names follow ISO 3166-2 and may lag recent boundary changes.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function NodeTools({ networkId, node, onDone }: { networkId: string; node: TreeNode; onDone: () => void }) {
   const [child, setChild] = useState({ level: (levelOptions(node.level)[0]?.value ?? 'local') as NetworkLevel, name: '', geoCode: '' })
   const [admin, setAdmin] = useState({ email: '', role: 'coordinator' })
   const [org, setOrg] = useState('')
   const [msg, setMsg] = useState('')
-  const run = async (path: string, json: unknown, ok: string) => {
+  const [rename, setRename] = useState(node.name)
+  const run = async (path: string, json: unknown, ok: string, method = 'POST') => {
     setMsg('')
-    try { await api(`/api/networks/${networkId}/${path}`, { method: 'POST', json }); setMsg(ok); onDone() } catch (e) { setMsg((e as Error).message) }
+    try { await api(`/api/networks/${networkId}/${path}`, { method, json }); setMsg(ok); onDone() } catch (e) { setMsg((e as Error).message) }
   }
   const childLevels = levelOptions(node.level)
   return (
@@ -191,6 +242,13 @@ function NodeTools({ networkId, node, onDone }: { networkId: string; node: TreeN
         <p className="text-xs text-slate-500">The organisation must already use CRAFT. It joins only if it accepts, and chooses what you see.</p>
         <Button size="sm" disabled={org.trim().length < 2} onClick={() => void run('invitations', { nodeId: node.id, org }, 'Invitation sent')}>Invite</Button>
       </div>
+      <div className="flex flex-wrap items-end gap-2 lg:col-span-3">
+        <Input label="Rename this level" value={rename} onChange={(e) => setRename(e.target.value)} />
+        <Button size="sm" variant="outline" disabled={rename.trim().length < 2 || rename.trim() === node.name} onClick={() => void run(`nodes/${node.id}`, { name: rename }, 'Renamed', 'PATCH')}>Rename</Button>
+        {node.parentId && <Button size="sm" variant="outline" onClick={() => void run(`nodes/${node.id}`, { archived: node.status !== 'archived' }, node.status === 'archived' ? 'Restored' : 'Archived', 'PATCH')}>
+          {node.status === 'archived' ? 'Restore level' : 'Archive level (and those below)'}</Button>}
+      </div>
+      {node.parentId && <p className="text-xs text-slate-500 lg:col-span-3">Archiving keeps past rounds and scorecards; the level just stops taking new members, levels, rounds or scorecard entries.</p>}
       {msg && <p className="text-sm text-slate-700 lg:col-span-3">{msg}</p>}
     </div>
   )
@@ -272,6 +330,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
         <span className="font-medium text-slate-900">{n.name}</span>
         <Badge variant="outline">{LEVEL_LABEL[n.level]}</Badge>
         {n.geoCode && <span className="font-mono text-xs text-slate-500">{n.geoCode}</span>}
+        {n.status === 'archived' && <Badge className="bg-slate-200 text-slate-700">Archived</Badge>}
         {n.members !== undefined && <span className="text-xs text-slate-600">{n.members} member{n.members === 1 ? '' : 's'}</span>}
         {coord.has(n.id) && <Button size="sm" variant="outline" onClick={() => setOpen(open === n.id ? null : n.id)}>{open === n.id ? 'Close' : 'Manage'}</Button>}
       </div>
