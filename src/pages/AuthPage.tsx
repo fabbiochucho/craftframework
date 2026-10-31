@@ -19,6 +19,7 @@ import { useIdentityRecovery } from '../components/IdentityBridge'
 import { useAuthCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
 import { safeNextPath } from '../lib/safeNext'
+import { readStartChoice, unconfiguredHome } from '../lib/startChoice'
 
 type Status = 'idle' | 'submitting'
 
@@ -133,7 +134,7 @@ export function AuthPage() {
       // path is honoured, and someone who has finished onboarding is not sent back into it.
       const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
       if (next && !(configured && next.split(/[?#]/)[0] === '/onboarding')) router.history.push(next)
-      else navigate({ to: configured ? '/dashboard' : currentUser.role === 'super_admin' ? '/admin' : '/onboarding' })
+      else navigate({ to: configured ? '/dashboard' : currentUser.role === 'super_admin' ? '/admin' : unconfiguredHome(readStartChoice()) })
     }
   }, [currentUser, authReady, onboardingComplete, navigate, router, recovery.state, mode, entityProfile, profileSaveStatus])
 

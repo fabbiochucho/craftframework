@@ -77,3 +77,56 @@ assert.match(bandFor(SAFEGUARDS, allFives, highRisk)?.capReason ?? '', /independ
 assert.equal(bandFor(SAFEGUARDS, allFives, { ...highRisk, esIndependentAssessment: true })?.band.label, 'Exemplary')
 assert.equal(bandFor(SAFEGUARDS, allFives, { esCategory: 'moderate', esFlags: [] })?.band.label, 'Exemplary', 'moderate risk is not capped')
 console.log('indices (stage 2): ok')
+
+// CRAFT-ONC (networks plan step 3): pan-African organisational and network capacity
+import { CRAFT_ONC, ONC_LAW_AREAS, byNhocatDomain, maturityLevel } from './craftOnc.ts'
+import { LAW_AREAS } from '../laws/types.ts'
+{
+  const m = CRAFT_ONC
+  assert.equal(m.indicators.length, 44)
+  const dims = new Set(m.dimensions.map((d) => d.key))
+  m.indicators.forEach((i, n) => {
+    assert.equal(i.id, `CRAFT-ONC-${String(n + 1).padStart(2, '0')}`, 'ids sequential')
+    assert.ok(dims.has(i.dimension))
+    for (const s of [0, 1, 2, 3, 4, 5]) assert.ok((i.soe as Record<number, string>)[s]?.length > 10, `${i.id}: descriptor ${s}`)
+    assert.ok(i.evidence && i.recommendation && i.whyItMatters && (i.minWeeks ?? 0) >= 2)
+    assert.ok(!/\b(certif|complian)/i.test(`${i.question} ${i.soe[5]}`), `${i.id}: no certification/compliance claims`)
+    // Written for any African country: no country-specific bodies in the wording
+    assert.ok(!/\b(CAC|SCUML|FIRS|NACA|PAYE|NSITF|ICAN|Nigeria|Kenya)\b/.test(`${i.question} ${Object.values(i.soe).join(' ')} ${i.evidence}`), `${i.id}: country-neutral`)
+  })
+  for (const d of m.dimensions) assert.equal(m.indicators.filter((i) => i.dimension === d.key).length, 4, `${d.key}: four indicators`)
+  assert.deepEqual(crosswalkProblems(m.indicators.map((i) => ({ indicatorId: i.id, refs: i.crosswalk ?? [] }))), [])
+  for (const l of m.lenses) for (const x of l.indicatorIds) assert.ok(m.indicators.some((i) => i.id === x))
+  for (const [k, areas] of Object.entries(ONC_LAW_AREAS)) {
+    assert.ok(m.indicators.some((i) => i.id === k), `${k}: law areas for a real indicator`)
+    for (const a of areas) assert.ok(a in LAW_AREAS, `${k}: known law area ${a}`)
+  }
+  // Every NHOCAT domain is covered by at least two indicators
+  const all = Object.fromEntries(m.indicators.map((i) => [i.id, 3]))
+  for (const d of byNhocatDomain(all)) assert.ok(d.answered >= 2 && d.score === 3, `NHOCAT ${d.domain} covered`)
+  assert.deepEqual(byNhocatDomain({}).map((d) => d.score), Array(8).fill(null))
+  assert.deepEqual([0, 1.74, 1.75, 2.74, 2.75, 3.74, 3.75, 5].map(maturityLevel),
+    ['Latent', 'Latent', 'Emerging', 'Emerging', 'Established', 'Established', 'Advanced', 'Advanced'])
+  assert.ok(!m.preview, 'live for organisations (founder sign-off 2026-10-31)')
+  console.log('indices (CRAFT-ONC): ok')
+}
+
+// Network Capacity Index (networks plan step 7): the secretariat's own assessment
+import { NETWORK_CAPACITY } from './networkCapacity.ts'
+{
+  const m = NETWORK_CAPACITY
+  assert.equal(m.indicators.length, 24)
+  for (const d of m.dimensions) assert.equal(m.indicators.filter((i) => i.dimension === d.key).length, 4, `${d.key}: four indicators`)
+  m.indicators.forEach((i, n) => {
+    assert.equal(i.id, `CRAFT-NCI-${String(n + 1).padStart(2, '0')}`)
+    for (const s of [0, 1, 2, 3, 4, 5]) assert.ok((i.soe as Record<number, string>)[s]?.length > 10, `${i.id}: descriptor ${s}`)
+    assert.ok(i.evidence && i.recommendation && i.whyItMatters && (i.minWeeks ?? 0) >= 2)
+    assert.ok(!/\b(certif|complian)/i.test(`${i.question} ${i.soe[5]}`), `${i.id}: no certification/compliance claims`)
+  })
+  assert.deepEqual(crosswalkProblems(m.indicators.map((i) => ({ indicatorId: i.id, refs: i.crosswalk ?? [] }))), [])
+  for (const l of m.lenses) for (const x of l.indicatorIds) assert.ok(m.indicators.some((i) => i.id === x))
+  const all = FOUNDATION_MODULES.flatMap((x) => x.indicators.map((i) => i.id))
+  assert.equal(new Set(all).size, all.length, 'indicator ids still unique across modules')
+  assert.ok(!m.preview, 'live for organisations (founder sign-off 2026-10-31)')
+  console.log('indices (Network Capacity): ok')
+}

@@ -794,3 +794,11 @@ export async function setLawApproval(jurisdiction: string, approve: boolean, reg
     throw new Error(body.error === 'mfa_required' ? 'Confirm your two-step sign-in, then try again.' : body.error ?? `Request failed (${res.status})`)
   }
 }
+
+/** Super Admin: upload reviewed translations of network-assessment strings (english → translation). */
+export async function uploadReviewedTranslations(lang: string, entries: { english: string; translation: string }[]): Promise<number> {
+  const res = await fetch('/api/translation-review', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang, entries }) })
+  const body = await res.json().catch(() => ({})) as { error?: string; saved?: number }
+  if (!res.ok) throw new Error(body.error === 'mfa_required' ? 'Confirm your two-step sign-in, then try again.' : body.error ?? `Request failed (${res.status})`)
+  return body.saved ?? 0
+}

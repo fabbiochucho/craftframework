@@ -166,3 +166,24 @@ export function crosswalkProblems(refs: { indicatorId: string; refs: CrosswalkRe
   }
   return out
 }
+
+// Organisational capacity tools used across African civil society (CRAFT-ONC crosswalk). Domain names only, from public
+// sources; no questions, items or scoring are reproduced.
+EXTERNAL_FRAMEWORKS.push(
+  { id: 'nhocat', name: 'National Harmonised Organisational Capacity Assessment Tool (NHOCAT)', owner: 'Government of Nigeria (NACA and partners)', kind: 'tool',
+    // Domains as listed in the FCDO Nigeria Health Systems Strengthening thematic evaluation (2025), p.67
+    elements: el([['GL', 'Governance and leadership'], ['HRM', 'Human resources management'], ['FMS', 'Financial management and sustainability'],
+      ['PMPM', 'Programme management and performance monitoring'], ['PN', 'Partnerships and networking'], ['SDTC', 'Service delivery and technical capacity'],
+      ['RM', 'Resource mobilisation'], ['CA', 'Compliance and accountability']]) },
+  { id: 'nngo-cat', name: 'NNGO Capacity Assessment Tool (2016)', owner: 'South Sudan NGO Forum', kind: 'tool',
+    elements: el([['GOV', 'Governance'], ['OM', 'Organisational management'], ['FM', 'Finance management'], ['PMF', 'Programme management and framework'],
+      ['RMS', 'Resource mobilisation and sustainability']]) },
+  { id: 'near-oca', name: 'NEAR Organisational Capacity Assessment', owner: 'Network for Empowered Aid Response (NEAR)', kind: 'tool',
+    elements: el([['GL', 'Governance and leadership'], ['GMA', 'General management and administration'], ['HR', 'Human resources'], ['FM', 'Financial management'],
+      ['PDM', 'Programme development and management'], ['PPM', 'Project performance management'], ['ERS', 'External relations and sustainability']]) },
+  { id: 'ci-ms', name: 'Caritas Internationalis Management Standards', owner: 'Caritas Internationalis', kind: 'framework',
+    elements: el([['LEC', 'Laws and ethical codes'], ['GO', 'Governance and organisation'], ['FA', 'Finance and accountability'], ['ST', 'Stakeholders']]) },
+  { id: 'gf-css', name: 'Community systems strengthening (CRSS) interventions', owner: 'The Global Fund', kind: 'guidance',
+    elements: el([['CLM', 'Community-led monitoring'], ['CLRA', 'Community-led research and advocacy'], ['CBLD', 'Capacity building and leadership development'],
+      ['CELC', 'Community engagement, linkages and coordination']]) },
+)

@@ -24,6 +24,7 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   // Sign-up, onboarding, directory, training, public verification, policy and help pages
   auth: 'allowed',
   onboarding: 'allowed',
+  start: 'allowed',
   directory: 'allowed',
   'directory_.$kind.$id': 'allowed',
   training: 'allowed',
@@ -83,6 +84,9 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   'training_.manage': 'sensitive',
   validations: 'sensitive',
   'validations_.$id': 'sensitive',
+  networks: 'sensitive',
+  'networks_.$networkId': 'sensitive',
+  'networks_.$networkId_.brief.$roundId': 'sensitive',
   vaults: 'sensitive',
   verify: 'sensitive',
   wallboard: 'sensitive',

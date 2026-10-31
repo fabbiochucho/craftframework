@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { api, downloadApi, STATUS_STYLE } from '../../lib/workspaceApi'
 import { Badge, Button, Input, Select } from '../../components/ui'
+import { useI18n } from '../../lib/i18n'
 
 // Load JSON from the API on mount (and on `reload`). Browser-only.
 export function useApi<T = any>(path: string | null, scope = '') {
@@ -115,7 +116,9 @@ export function useAction(onDone?: () => void | Promise<void>) {
 /** Excel (XLSX) and PDF download buttons for an export endpoint that takes ?format=xlsx|pdf. */
 export function ExportButtons({ path, name }: { path: string; name: string }) {
   const { run, error, busy } = useAction()
-  const sep = path.includes('?') ? '&' : '?'
+  const { lang } = useI18n()
+  // The file comes back in the reader's language (Arabic PDFs stay in English: PDF fonts cannot shape Arabic).
+  const sep = `${path.includes('?') ? '&' : '?'}${lang && lang !== 'en' ? `lang=${lang}&` : ''}`
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <Button variant="outline" disabled={busy} onClick={() => run(() => downloadApi(`${path}${sep}format=xlsx`, `${name}.xlsx`))}>Excel (XLSX)</Button>

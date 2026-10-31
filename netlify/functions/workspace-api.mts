@@ -1134,7 +1134,7 @@ const routes: Route[] = [
     if (!doc) throw bad('after-action reviews and simulation exercises have no scorecard to export')
     const format = c.url.searchParams.get('format') ?? 'xlsx'
     await audit(c, orgId, wsId, 'assessment', a.id, 'read', { scorecardExport: format })
-    return (await exportResponse(doc, format, `${a.assessmentType.toLowerCase()}-scorecard-v${a.version}`)) ?? (() => { throw bad('format must be xlsx or pdf') })()
+    return (await exportResponse(doc, format, `${a.assessmentType.toLowerCase()}-scorecard-v${a.version}`, c.url.searchParams.get('lang'))) ?? (() => { throw bad('format must be xlsx or pdf') })()
   } },
   { method: 'GET', pattern: `${W}/craft-scorecard/catalogue`, access: 'viewer', scope: 'workspace', handler: async () =>
     json({ pillars: Object.values(GOVERNANCE_PILLARS), criteria: GOVERNANCE_CRITERIA }) },
@@ -1310,7 +1310,7 @@ const routes: Route[] = [
     const { items, analysis } = await buildRoadmap(orgId, wsId)
     const format = c.url.searchParams.get('format') ?? 'xlsx'
     await audit(c, orgId, wsId, 'org', wsId, 'read', { roadmapExport: format })
-    return (await exportResponse(roadmapExportDoc(items, analysis, await exportMeta(orgId, caller.email)), format, 'esg-roadmap')) ?? (() => { throw bad('format must be xlsx or pdf') })()
+    return (await exportResponse(roadmapExportDoc(items, analysis, await exportMeta(orgId, caller.email)), format, 'esg-roadmap', c.url.searchParams.get('lang'))) ?? (() => { throw bad('format must be xlsx or pdf') })()
   } },
 
   // ---------------------------- 2.3b SEC Nigeria IFRS S1/S2 plan generator ----------------------------
@@ -1361,7 +1361,7 @@ const routes: Route[] = [
     const { rows, settings } = await loadSecPlan(orgId, wsId)
     if (!settings.entityType) throw new HttpError(409, 'Generate the plan before exporting it')
     await audit(c, orgId, wsId, 'org', wsId, 'read', { secPlanExport: c.url.searchParams.get('format') ?? 'doc' })
-    const office = await exportResponse(planExportDoc(settings, rows, await exportMeta(orgId, caller.email)), c.url.searchParams.get('format') ?? '', 'ifrs-s1-s2-implementation-plan')
+    const office = await exportResponse(planExportDoc(settings, rows, await exportMeta(orgId, caller.email)), c.url.searchParams.get('format') ?? '', 'ifrs-s1-s2-implementation-plan', c.url.searchParams.get('lang'))
     if (office) return office
     if (c.url.searchParams.get('format') === 'csv') {
       return new Response(planCsv(rows, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="ifrs-s1-s2-implementation-plan.csv"' } })
@@ -1521,7 +1521,7 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'org', p.id, 'read', { qaExport: format, frozen: p.status === 'final' })
     const name = `esg-report-qa-${p.label.replace(/[^\w.-]+/g, '_')}`
     const reportId = `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`
-    const office = await exportResponse(qaExportDoc(view, await exportMeta(orgId, caller.email), reportId), c.url.searchParams.get('format') ?? '', name)
+    const office = await exportResponse(qaExportDoc(view, await exportMeta(orgId, caller.email), reportId), c.url.searchParams.get('format') ?? '', name, c.url.searchParams.get('lang'))
     if (office) return office
     if (format === 'csv') return new Response(qaCsv(view, csvEscape), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.csv"` } })
     return new Response(renderQaDoc(view, today(), { reportId: `QA-${p.id}-${p.status === 'final' ? 'FINAL' : 'DRAFT'}`, author: caller.email }), { headers: { 'Content-Type': 'application/msword; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}.doc"` } })

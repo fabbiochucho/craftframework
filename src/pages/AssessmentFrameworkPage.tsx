@@ -93,6 +93,8 @@ function renderEngine(id: string) {
     case 'craft-change':
     case 'craft-fiduciary':
     case 'craft-safeguards':
+    case 'craft-onc':
+    case 'craft-network':
       return <FoundationModulePanel moduleId={id} />
     default:
       return null

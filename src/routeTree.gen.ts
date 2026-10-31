@@ -41,6 +41,7 @@ import { Route as IssbDisclosuresRouteImport } from './routes/issb-disclosures'
 import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as NarrativeReportRouteImport } from './routes/narrative-report'
+import { Route as NetworksRouteImport } from './routes/networks'
 import { Route as ObligationsRouteImport } from './routes/obligations'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OpenSourceRouteImport } from './routes/open-source'
@@ -52,6 +53,7 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RiskRouteImport } from './routes/risk'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StartRouteImport } from './routes/start'
 import { Route as SubprocessorsRouteImport } from './routes/subprocessors'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrainingRouteImport } from './routes/training'
@@ -72,6 +74,7 @@ import { Route as FeedbackTokenRouteImport } from './routes/feedback.$token'
 import { Route as ForEsgReportingRouteImport } from './routes/for.esg-reporting'
 import { Route as ForGovernmentRouteImport } from './routes/for.government'
 import { Route as ForPublicHealthInstitutesRouteImport } from './routes/for.public-health-institutes'
+import { Route as NetworksNetworkIdRouteImport } from './routes/networks_.$networkId'
 import { Route as PanelIdRouteImport } from './routes/panel_.$id'
 import { Route as TrainingAssessmentRouteImport } from './routes/training_.assessment'
 import { Route as TrainingManageRouteImport } from './routes/training_.manage'
@@ -91,6 +94,7 @@ import { Route as AppWorkspacesWorkspaceIdHealthSecurityRouteImport } from './ro
 import { Route as AppWorkspacesWorkspaceIdRegulatorySourcesRouteImport } from './routes/app.workspaces.$workspaceId.regulatory-sources'
 import { Route as AppWorkspacesWorkspaceIdSupportBotRouteImport } from './routes/app.workspaces.$workspaceId.support-bot'
 import { Route as AppWorkspacesWorkspaceIdSupportIssuesRouteImport } from './routes/app.workspaces.$workspaceId.support-issues'
+import { Route as NetworksNetworkIdBriefRoundIdRouteImport } from './routes/networks_.$networkId_.brief.$roundId'
 import { Route as AppWorkspacesWorkspaceIdActionsIndexRouteImport } from './routes/app.workspaces.$workspaceId.actions.index'
 import { Route as AppWorkspacesWorkspaceIdActionsCapIdRouteImport } from './routes/app.workspaces.$workspaceId.actions.$capId'
 import { Route as AppWorkspacesWorkspaceIdEsgFrameworksRouteImport } from './routes/app.workspaces.$workspaceId.esg.frameworks'
@@ -270,6 +274,11 @@ const NarrativeReportRoute = NarrativeReportRouteImport.update({
   path: '/narrative-report',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NetworksRoute = NetworksRouteImport.update({
+  id: '/networks',
+  path: '/networks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ObligationsRoute = ObligationsRouteImport.update({
   id: '/obligations',
   path: '/obligations',
@@ -323,6 +332,11 @@ const SecurityRoute = SecurityRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StartRoute = StartRouteImport.update({
+  id: '/start',
+  path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SubprocessorsRoute = SubprocessorsRouteImport.update({
@@ -426,6 +440,11 @@ const ForPublicHealthInstitutesRoute =
     path: '/for/public-health-institutes',
     getParentRoute: () => rootRouteImport,
   } as any)
+const NetworksNetworkIdRoute = NetworksNetworkIdRouteImport.update({
+  id: '/networks_/$networkId',
+  path: '/networks/$networkId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PanelIdRoute = PanelIdRouteImport.update({
   id: '/panel_/$id',
   path: '/panel/$id',
@@ -527,6 +546,12 @@ const AppWorkspacesWorkspaceIdSupportIssuesRoute =
   AppWorkspacesWorkspaceIdSupportIssuesRouteImport.update({
     id: '/app/workspaces/$workspaceId/support-issues',
     path: '/app/workspaces/$workspaceId/support-issues',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const NetworksNetworkIdBriefRoundIdRoute =
+  NetworksNetworkIdBriefRoundIdRouteImport.update({
+    id: '/networks_/$networkId_/brief/$roundId',
+    path: '/networks/$networkId/brief/$roundId',
     getParentRoute: () => rootRouteImport,
   } as any)
 const AppWorkspacesWorkspaceIdActionsIndexRoute =
@@ -675,6 +700,7 @@ export interface FileRoutesByFullPath {
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
+  '/networks': typeof NetworksRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -686,6 +712,7 @@ export interface FileRoutesByFullPath {
   '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/start': typeof StartRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
@@ -706,6 +733,7 @@ export interface FileRoutesByFullPath {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/networks/$networkId': typeof NetworksNetworkIdRoute
   '/panel/$id': typeof PanelIdRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
@@ -725,6 +753,7 @@ export interface FileRoutesByFullPath {
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/networks/$networkId/brief/$roundId': typeof NetworksNetworkIdBriefRoundIdRoute
   '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   '/app/workspaces/$workspaceId/esg/planner': typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -777,6 +806,7 @@ export interface FileRoutesByTo {
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
+  '/networks': typeof NetworksRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -788,6 +818,7 @@ export interface FileRoutesByTo {
   '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/start': typeof StartRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
@@ -808,6 +839,7 @@ export interface FileRoutesByTo {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/networks/$networkId': typeof NetworksNetworkIdRoute
   '/panel/$id': typeof PanelIdRoute
   '/training/assessment': typeof TrainingAssessmentRoute
   '/training/manage': typeof TrainingManageRoute
@@ -827,6 +859,7 @@ export interface FileRoutesByTo {
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/networks/$networkId/brief/$roundId': typeof NetworksNetworkIdBriefRoundIdRoute
   '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   '/app/workspaces/$workspaceId/esg/planner': typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -880,6 +913,7 @@ export interface FileRoutesById {
   '/launch': typeof LaunchRoute
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
+  '/networks': typeof NetworksRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -891,6 +925,7 @@ export interface FileRoutesById {
   '/risk': typeof RiskRoute
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/start': typeof StartRoute
   '/subprocessors': typeof SubprocessorsRoute
   '/terms': typeof TermsRoute
   '/training': typeof TrainingRoute
@@ -911,6 +946,7 @@ export interface FileRoutesById {
   '/for/esg-reporting': typeof ForEsgReportingRoute
   '/for/government': typeof ForGovernmentRoute
   '/for/public-health-institutes': typeof ForPublicHealthInstitutesRoute
+  '/networks_/$networkId': typeof NetworksNetworkIdRoute
   '/panel_/$id': typeof PanelIdRoute
   '/training_/assessment': typeof TrainingAssessmentRoute
   '/training_/manage': typeof TrainingManageRoute
@@ -930,6 +966,7 @@ export interface FileRoutesById {
   '/app/workspaces/$workspaceId/regulatory-sources': typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   '/app/workspaces/$workspaceId/support-bot': typeof AppWorkspacesWorkspaceIdSupportBotRoute
   '/app/workspaces/$workspaceId/support-issues': typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  '/networks_/$networkId_/brief/$roundId': typeof NetworksNetworkIdBriefRoundIdRoute
   '/app/workspaces/$workspaceId/actions/$capId': typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   '/app/workspaces/$workspaceId/esg/frameworks': typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   '/app/workspaces/$workspaceId/esg/planner': typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -984,6 +1021,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/methodology'
     | '/narrative-report'
+    | '/networks'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -995,6 +1033,7 @@ export interface FileRouteTypes {
     | '/risk'
     | '/security'
     | '/settings'
+    | '/start'
     | '/subprocessors'
     | '/terms'
     | '/training'
@@ -1015,6 +1054,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/networks/$networkId'
     | '/panel/$id'
     | '/training/assessment'
     | '/training/manage'
@@ -1034,6 +1074,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
+    | '/networks/$networkId/brief/$roundId'
     | '/app/workspaces/$workspaceId/actions/$capId'
     | '/app/workspaces/$workspaceId/esg/frameworks'
     | '/app/workspaces/$workspaceId/esg/planner'
@@ -1086,6 +1127,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/methodology'
     | '/narrative-report'
+    | '/networks'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1097,6 +1139,7 @@ export interface FileRouteTypes {
     | '/risk'
     | '/security'
     | '/settings'
+    | '/start'
     | '/subprocessors'
     | '/terms'
     | '/training'
@@ -1117,6 +1160,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/networks/$networkId'
     | '/panel/$id'
     | '/training/assessment'
     | '/training/manage'
@@ -1136,6 +1180,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
+    | '/networks/$networkId/brief/$roundId'
     | '/app/workspaces/$workspaceId/actions/$capId'
     | '/app/workspaces/$workspaceId/esg/frameworks'
     | '/app/workspaces/$workspaceId/esg/planner'
@@ -1188,6 +1233,7 @@ export interface FileRouteTypes {
     | '/launch'
     | '/methodology'
     | '/narrative-report'
+    | '/networks'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1199,6 +1245,7 @@ export interface FileRouteTypes {
     | '/risk'
     | '/security'
     | '/settings'
+    | '/start'
     | '/subprocessors'
     | '/terms'
     | '/training'
@@ -1219,6 +1266,7 @@ export interface FileRouteTypes {
     | '/for/esg-reporting'
     | '/for/government'
     | '/for/public-health-institutes'
+    | '/networks_/$networkId'
     | '/panel_/$id'
     | '/training_/assessment'
     | '/training_/manage'
@@ -1238,6 +1286,7 @@ export interface FileRouteTypes {
     | '/app/workspaces/$workspaceId/regulatory-sources'
     | '/app/workspaces/$workspaceId/support-bot'
     | '/app/workspaces/$workspaceId/support-issues'
+    | '/networks_/$networkId_/brief/$roundId'
     | '/app/workspaces/$workspaceId/actions/$capId'
     | '/app/workspaces/$workspaceId/esg/frameworks'
     | '/app/workspaces/$workspaceId/esg/planner'
@@ -1291,6 +1340,7 @@ export interface RootRouteChildren {
   LaunchRoute: typeof LaunchRoute
   MethodologyRoute: typeof MethodologyRoute
   NarrativeReportRoute: typeof NarrativeReportRoute
+  NetworksRoute: typeof NetworksRoute
   ObligationsRoute: typeof ObligationsRoute
   OnboardingRoute: typeof OnboardingRoute
   OpenSourceRoute: typeof OpenSourceRoute
@@ -1302,6 +1352,7 @@ export interface RootRouteChildren {
   RiskRoute: typeof RiskRoute
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
+  StartRoute: typeof StartRoute
   SubprocessorsRoute: typeof SubprocessorsRoute
   TermsRoute: typeof TermsRoute
   TrainingRoute: typeof TrainingRoute
@@ -1322,6 +1373,7 @@ export interface RootRouteChildren {
   ForEsgReportingRoute: typeof ForEsgReportingRoute
   ForGovernmentRoute: typeof ForGovernmentRoute
   ForPublicHealthInstitutesRoute: typeof ForPublicHealthInstitutesRoute
+  NetworksNetworkIdRoute: typeof NetworksNetworkIdRoute
   PanelIdRoute: typeof PanelIdRoute
   TrainingAssessmentRoute: typeof TrainingAssessmentRoute
   TrainingManageRoute: typeof TrainingManageRoute
@@ -1341,6 +1393,7 @@ export interface RootRouteChildren {
   AppWorkspacesWorkspaceIdRegulatorySourcesRoute: typeof AppWorkspacesWorkspaceIdRegulatorySourcesRoute
   AppWorkspacesWorkspaceIdSupportBotRoute: typeof AppWorkspacesWorkspaceIdSupportBotRoute
   AppWorkspacesWorkspaceIdSupportIssuesRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRoute
+  NetworksNetworkIdBriefRoundIdRoute: typeof NetworksNetworkIdBriefRoundIdRoute
   AppWorkspacesWorkspaceIdActionsCapIdRoute: typeof AppWorkspacesWorkspaceIdActionsCapIdRoute
   AppWorkspacesWorkspaceIdEsgFrameworksRoute: typeof AppWorkspacesWorkspaceIdEsgFrameworksRoute
   AppWorkspacesWorkspaceIdEsgPlannerRoute: typeof AppWorkspacesWorkspaceIdEsgPlannerRoute
@@ -1587,6 +1640,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NarrativeReportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/networks': {
+      id: '/networks'
+      path: '/networks'
+      fullPath: '/networks'
+      preLoaderRoute: typeof NetworksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/obligations': {
       id: '/obligations'
       path: '/obligations'
@@ -1662,6 +1722,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/start': {
+      id: '/start'
+      path: '/start'
+      fullPath: '/start'
+      preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subprocessors': {
@@ -1804,6 +1871,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForPublicHealthInstitutesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/networks_/$networkId': {
+      id: '/networks_/$networkId'
+      path: '/networks/$networkId'
+      fullPath: '/networks/$networkId'
+      preLoaderRoute: typeof NetworksNetworkIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/panel_/$id': {
       id: '/panel_/$id'
       path: '/panel/$id'
@@ -1935,6 +2009,13 @@ declare module '@tanstack/react-router' {
       path: '/app/workspaces/$workspaceId/support-issues'
       fullPath: '/app/workspaces/$workspaceId/support-issues'
       preLoaderRoute: typeof AppWorkspacesWorkspaceIdSupportIssuesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/networks_/$networkId_/brief/$roundId': {
+      id: '/networks_/$networkId_/brief/$roundId'
+      path: '/networks/$networkId/brief/$roundId'
+      fullPath: '/networks/$networkId/brief/$roundId'
+      preLoaderRoute: typeof NetworksNetworkIdBriefRoundIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/workspaces/$workspaceId/actions/': {
@@ -2099,6 +2180,7 @@ const rootRouteChildren: RootRouteChildren = {
   LaunchRoute: LaunchRoute,
   MethodologyRoute: MethodologyRoute,
   NarrativeReportRoute: NarrativeReportRoute,
+  NetworksRoute: NetworksRoute,
   ObligationsRoute: ObligationsRoute,
   OnboardingRoute: OnboardingRoute,
   OpenSourceRoute: OpenSourceRoute,
@@ -2110,6 +2192,7 @@ const rootRouteChildren: RootRouteChildren = {
   RiskRoute: RiskRoute,
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
+  StartRoute: StartRoute,
   SubprocessorsRoute: SubprocessorsRoute,
   TermsRoute: TermsRoute,
   TrainingRoute: TrainingRoute,
@@ -2130,6 +2213,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForEsgReportingRoute: ForEsgReportingRoute,
   ForGovernmentRoute: ForGovernmentRoute,
   ForPublicHealthInstitutesRoute: ForPublicHealthInstitutesRoute,
+  NetworksNetworkIdRoute: NetworksNetworkIdRoute,
   PanelIdRoute: PanelIdRoute,
   TrainingAssessmentRoute: TrainingAssessmentRoute,
   TrainingManageRoute: TrainingManageRoute,
@@ -2156,6 +2240,7 @@ const rootRouteChildren: RootRouteChildren = {
     AppWorkspacesWorkspaceIdSupportBotRoute,
   AppWorkspacesWorkspaceIdSupportIssuesRoute:
     AppWorkspacesWorkspaceIdSupportIssuesRoute,
+  NetworksNetworkIdBriefRoundIdRoute: NetworksNetworkIdBriefRoundIdRoute,
   AppWorkspacesWorkspaceIdActionsCapIdRoute:
     AppWorkspacesWorkspaceIdActionsCapIdRoute,
   AppWorkspacesWorkspaceIdEsgFrameworksRoute:
