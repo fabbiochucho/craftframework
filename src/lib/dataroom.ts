@@ -102,7 +102,7 @@ export function countryFlag(code: string): string {
 // picks an organizational form, a public body picks a mandate.
 export const SECTORS_BY_ARCHETYPE: Record<Archetype, string[]> = {
   Private: ['Fintech', 'Healthtech', 'Agritech', 'Manufacturing', 'Tech / SaaS', 'Renewable Energy', 'Logistics'],
-  'Civil Society': ['NGO', 'Cooperative', 'Foundation', 'Faith-Based', 'Research Institute'],
+  'Civil Society': ['NGO', 'CBO', 'Faith-Based', 'Coalition', 'Advocacy Group', 'Union', 'Cooperative', 'Foundation', 'Research Institute'],
   Public: ['Ministry', 'Agency', 'National Public Health Institute (NPHI)', 'Regulatory Authority', 'Sub-National Entity'],
 }
 

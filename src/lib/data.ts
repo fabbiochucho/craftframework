@@ -40,7 +40,7 @@ export type Archetype = 'Public' | 'Civil Society' | 'Private'
 
 export const ARCHETYPES: { id: Archetype; label: string; blurb: string }[] = [
   { id: 'Public', label: 'Public Sector', blurb: 'Ministries, agencies, regulators & sub-national entities' },
-  { id: 'Civil Society', label: 'Civil Society', blurb: 'NGOs, foundations, cooperatives & member bodies' },
+  { id: 'Civil Society', label: 'Civil Society', blurb: 'NGOs, CBOs, faith-based bodies, coalitions, advocacy groups, unions, foundations & cooperatives' },
   { id: 'Private', label: 'Private Sector', blurb: 'SMEs, startups & corporates seeking capital or contracts' },
 ]
 
