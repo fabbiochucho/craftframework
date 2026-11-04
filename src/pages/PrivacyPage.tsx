@@ -3,7 +3,7 @@ import { BRAND } from '../lib/data'
 import { DpoClause, DpoMail, PolicyLayout, type PolicySection } from '../components/PolicyLayout'
 
 // Last substantive revision of this policy. Update when the text changes.
-export const PRIVACY_EFFECTIVE_DATE = '31 October 2026'
+export const PRIVACY_EFFECTIVE_DATE = '4 November 2026'
 // The analytics wording below is versioned with the consent banner (CONSENT_POLICY_VERSION in
 // src/lib/consent.ts). Change both together: visitors are asked again when the version changes.
 
@@ -18,7 +18,7 @@ const SECTIONS: PolicySection[] = [
     <li><b>Security data:</b> sign-in session records, multi-factor sign-in status (the authenticator secret is encrypted; recovery codes are stored only as one-way hashes), rate-limit counters and audit-log entries (who did what, when, and the IP address and browser type of the request).</li>
     <li><b>Workspace data:</b> assessment responses and scores, findings, corrective actions, plans, budgets, ESG report checks, organisational design reviews, health-security assessments, regulatory source checks and uploaded evidence.</li>
     <li><b>Directory and validation data:</b> if you create a validator, firm, funding-partner or organisation profile, the details you choose to publish in the directory; engagement records (who invited whom, consent, named team members, signed independence declarations); the scores, comments and outcome of an independent validation; ratings and comments given about a validator; and concerns reported from a public verification page, with the contact details the reporter chooses to give.</li>
-    <li><b>Support data:</b> messages you send to the support assistant, redacted before storage; an optional contact email.</li>
+    <li><b>Support data:</b> messages you send to the support assistant (redacted before storage) or through the contact form, with the name, organisation and email you give; and our replies and internal notes on your request. They are kept, encrypted, in our internal support tracker, which only our Super Admin can open.</li>
     <li><b>Usage data:</b> how far each account has got with setting up and using the platform (for example which onboarding steps are done and when you last signed in), kept in our own database; and, only if you agree, anonymous browsing analytics from PostHog (see “Product analytics and session replay”).</li>
     <li><b>We do not collect</b> payment card data, and we do not use advertising trackers.</li>
   </ul> },

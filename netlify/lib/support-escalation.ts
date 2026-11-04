@@ -5,6 +5,7 @@ import { decryptField, encryptField } from './crypto.js'
 import { HttpError } from './orgAccess.js'
 import { classifySupportMessage, isPrivateReport, rankSupportFaq, redactSupportMessage } from './support-bot.js'
 import { sendReminderEmail } from './reminder-email.js'
+import { openTicket } from './support-tickets.js'
 
 async function deliverEscalation(entry: typeof supportEscalations.$inferSelect) {
   return sendReminderEmail({
@@ -66,6 +67,11 @@ export async function escalateSupport(body: Record<string, unknown>): Promise<Re
         key, message: encryptField(message), contactEmail: encryptField(contactEmail),
         category: classification.type, reason: String(reason),
       }).returning()
+      await openTicket(tx, {
+        subject: privateReport ? 'Private report' : 'Support escalation', body: message,
+        source: privateReport ? 'private_report' : 'escalation', sourceRef: `escalation:${entry.id}`, contactEmail,
+        category: classification.type, priority: privateReport || classification.urgency === 'high' ? 'high' : 'normal',
+      })
     }
     if (entry.status === 'accepted') return { status: 'accepted', deduplicated: true }
     if (entry.createdAt.getTime() < Date.now() - 23 * 60 * 60 * 1000) return { status: 'needs_reconciliation', deduplicated: true }
