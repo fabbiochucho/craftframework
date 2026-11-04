@@ -802,3 +802,13 @@ export async function uploadReviewedTranslations(lang: string, entries: { englis
   if (!res.ok) throw new Error(body.error === 'mfa_required' ? 'Confirm your two-step sign-in, then try again.' : body.error ?? `Request failed (${res.status})`)
   return body.saved ?? 0
 }
+
+/** Super Admin: feature switches (Admin → Features). Throws with the server message on failure. */
+export async function featureAdmin<T = unknown>(path: string, init?: { method: string; body?: unknown }): Promise<T> {
+  const res = await fetch(`/api/features/${path}`, init && {
+    method: init.method, headers: { 'content-type': 'application/json' }, body: init.body === undefined ? undefined : JSON.stringify(init.body),
+  })
+  const body = await res.json().catch(() => ({})) as T & { error?: string }
+  if (!res.ok) throw new Error(body.error === 'mfa_required' ? 'Confirm your two-step sign-in, then try again.' : body.error ?? `Request failed (${res.status})`)
+  return body
+}

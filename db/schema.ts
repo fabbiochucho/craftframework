@@ -2233,3 +2233,17 @@ export const programmeScorecardEntries = pgTable('programme_scorecard_entries', 
   enteredBy: text('entered_by').notNull(),
   enteredAt: timestamp('entered_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.scorecardId, t.nodeId] })])
+
+// Feature switches (Admin → Features). One row per feature and target; the rules live in src/lib/features.ts.
+// scope: 'global' | 'archetype' | 'country' | 'network' | 'org' | 'user'; scopeId is '' for global.
+export const featureSwitches = pgTable('feature_switches', {
+  id: serial('id').primaryKey(),
+  feature: text('feature').notNull(),
+  scope: text('scope').notNull(),
+  scopeId: text('scope_id').notNull().default(''),
+  enabled: boolean('enabled').notNull(),
+  reason: text('reason').notNull(),
+  setBy: text('set_by').notNull(),
+  setAt: timestamp('set_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+}, (t) => [unique('feature_switches_target_uq').on(t.feature, t.scope, t.scopeId)])

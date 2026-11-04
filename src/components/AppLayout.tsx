@@ -15,6 +15,7 @@ import { ComplianceDeadlineBadge } from './ComplianceDeadlineBadge'
 import { MfaPrompt } from '../pages/workspace/shared'
 import { useOfflineSecurity } from '../hooks/use-offline-security'
 import { BRAND, getAccreditation, computeOrgScore } from '../lib/data'
+import { useFeatures } from '../lib/useFeatures'
 import { ShieldCheck, Handshake,
   LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart, Calculator,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
@@ -94,6 +95,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const pathname = router.location.pathname
   const mfaNeeded = useLegacyMfaRequired()
+  const { offFor } = useFeatures(!!currentUser && !currentUser.isDemo)
 
   useEffect(() => {
     let cancelled = false
@@ -287,9 +289,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/80">ICARF v4.0 Workspace</p>
-          {workspaceNav.map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
+          {workspaceNav.filter(i => !offFor(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
           <p className="mb-2 mt-4 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Organization</p>
-          {orgNav.map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
+          {orgNav.filter(i => !offFor(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
           {(currentUser.role === 'super_admin' || currentUser.role === 'admin' || currentUser.role === 'portfolio') && (
             <>
               <p className="mb-2 mt-4 px-2 text-xs font-semibold uppercase tracking-wider text-amber-500/80">Admin Portals</p>
@@ -404,7 +406,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 p-6 print:p-0">{mfaNeeded ? <MfaPrompt /> : bankStatus === 'loading' ? <p className="p-6 text-sm text-slate-500" role="status">Loading the assessment…</p> : (
             <>
               {bankStatus === 'failed' && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800" role="alert">The full question bank could not be loaded, so only sample questions are shown. Refresh the page to try again.</p>}
-              {children}
+              {offFor(pathname) ? <FeatureOff {...offFor(pathname)!} /> : children}
             </>
           )}</main>
           <div className="print:hidden"><Footer /></div>
@@ -415,3 +417,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   )
 }
+
+function FeatureOff({ label, reason }: { label: string; reason: string }) {
+  return (
+    <div role="status" className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+      <h1 className="font-display text-xl font-bold text-emerald-900">{label} is switched off</h1>
+      <p className="mt-2 text-sm text-slate-600">{reason || 'This part of CRAFT is not available for your organisation at the moment.'}</p>
+      <p className="mt-4 text-sm text-slate-600">Your data is kept and will be here when it is switched back on. Questions: <a className="font-semibold text-emerald-700 underline" href={`mailto:${BRAND.contactEmail}`}>{BRAND.contactEmail}</a></p>
+    </div>
+  )
+}
+
