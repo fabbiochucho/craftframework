@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions'
 import { listOfflineFrameworks, mutateOfflineFramework } from '../lib/offline-frameworks.js'
 import { escalateSupport } from '../lib/support-escalation.js'
+import { openTicket } from '../lib/support-tickets.js'
 import { createHash } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
 import { decodeEvidence, encodeEvidence } from '../lib/evidence-storage.js'
@@ -2226,6 +2227,10 @@ async function handleSupportChat(c: Ctx): Promise<Response> {
       contactEmail: encryptField(contactEmail),
       githubIssueUrl: url,
     }).returning({ id: supportIssues.id })
+    await openTicket(tx, {
+      subject: description.slice(0, 90), body: description, source: 'chat', sourceRef: `issue:${issue.id}`, contactEmail,
+      category: classification.type, priority: classification.urgency === 'high' ? 'high' : 'normal',
+    })
     return { id: issue.id, url, created: true }
   })
 
