@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type
 import { MessageCircle, Send, X } from 'lucide-react'
 import { setSupportAnalyticsConsent, trackSupportEvent } from '../lib/analytics'
 import { getConsentSnapshot, getServerConsentSnapshot, subscribeConsent } from '../lib/consent'
+import { useFeatures } from '../lib/useFeatures'
 
 interface Message {
   id: string
@@ -92,7 +93,12 @@ function SafeMarkdown({ content }: { content: string }) {
   return <div className="text-sm">{blocks}</div>
 }
 
+/** Hidden when the support assistant is switched off (Admin → Features); the server refuses it too. */
 export function SupportBot() {
+  return useFeatures(true).isOn('support-bot') ? <SupportBotPanel /> : null
+}
+
+function SupportBotPanel() {
   const [mounted, setMounted] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([{

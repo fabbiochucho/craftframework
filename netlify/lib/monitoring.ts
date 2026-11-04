@@ -6,6 +6,7 @@
 // nothing here throws, and the flush before returning is time-boxed.
 import buildInfo from '../../src/lib/build-info.json' with { type: 'json' }
 import { NO_DATA_COLLECTION, environmentFromContext, isExpectedError, scrubBreadcrumb, scrubEvent } from '../../src/lib/errorScrub.ts'
+import { featureForPath } from '../../src/lib/features.ts'
 
 type Sentry = typeof import('@sentry/node')
 type Transport = NonNullable<Parameters<Sentry['init']>[0]>['transport']
@@ -93,11 +94,19 @@ export async function flushMonitoring(timeoutMs = FLUSH_MS): Promise<void> {
 
 /**
  * Wraps a Netlify Function handler: an exception that escapes it is reported once and re-thrown unchanged, and
- * everything reported while it ran (including via `logger.error`) is flushed before the response goes out.
+ * everything reported while it ran (including via `logger.error`) is flushed before the response goes out. Requests to a
+ * switched-off feature are refused before the handler runs (see feature-gate.ts).
  */
 export function monitored<A extends unknown[], R>(handler: (...args: A) => R | Promise<R>): (...args: A) => Promise<R> {
   return async (...args: A) => {
     try {
+      // Feature switches: an API path owned by a switched-off feature is refused here, for every function at once.
+      // The gate (and its database access) loads only for paths a feature owns.
+      const req = args[0]
+      if (req instanceof Request && featureForPath(new URL(req.url).pathname, 'api')) {
+        const blocked = await (await import('./feature-gate.js')).featureBlock(req)
+        if (blocked) return blocked as R
+      }
       return await handler(...args)
     } catch (err) {
       reportError('uncaught', err)
