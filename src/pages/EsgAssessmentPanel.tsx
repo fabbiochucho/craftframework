@@ -31,7 +31,7 @@ import {
 import { cn } from '../lib/utils'
 import { FIDUCIARY_LEVELS } from '../lib/frameworks'
 import {
-  ESG_PILLARS, ESG_QUESTIONS, ESG_DOCS, EVIDENCE_LEVELS, questionsForPillar, docKey,
+  ESG_PILLARS, CORE_ESG_QUESTIONS, coreAnswered, ESG_DOCS, EVIDENCE_LEVELS, questionsForPillar, docKey,
   pillarVerifiedScore, compositeEsgScore, compositeVerifiedScore,
   evidenceCoveragePct, confidenceFromCoverage, identifyGaps, identifyStrengths,
   unansweredQuestions, getEsgBadge, ratedAnswered, financingPositioning,
@@ -60,8 +60,8 @@ export function EsgAssessmentPanel() {
     setEvidence(prev => ({ ...prev, [k]: prev[k] === value ? undefined as unknown as number : value }))
   }
 
-  const answeredCount = Object.keys(scores).length
-  const total = ESG_QUESTIONS.length
+  const answeredCount = coreAnswered(scores)
+  const total = CORE_ESG_QUESTIONS.length
   const completionPct = total === 0 ? 0 : Math.round((answeredCount / total) * 100)
 
   const responseComposite = useMemo(() => compositeEsgScore(scores), [scores])

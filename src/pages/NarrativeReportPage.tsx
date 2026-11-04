@@ -10,7 +10,7 @@ import { planTimeline } from '../lib/moduleFindings'
 import { PACE_LABEL } from '../lib/cipTimeline'
 import { useModuleProfile } from '../lib/moduleProfile'
 import {
-  compositeVerifiedScore, evidenceCoveragePct, getEsgBadge, ratedAnswered, identifyGaps, ESG_QUESTIONS,
+  compositeVerifiedScore, evidenceCoveragePct, getEsgBadge, ratedAnswered, identifyGaps, CORE_ESG_QUESTIONS, coreAnswered,
 } from '../lib/esg'
 import { REGULATORY_PILLARS, JurisdictionId } from '../lib/regulatory-context'
 import { MaterialityLens, MATERIALITY_LABEL } from '../lib/issb'
@@ -98,7 +98,7 @@ export function NarrativeReportPage() {
   const accreditation = getAccreditation(composite, implementationEvidence)
   const readiness = getReadinessClassification(composite)
 
-  const esgAnswered = Object.keys(esgScores).length
+  const esgAnswered = coreAnswered(esgScores)
   const esgEvidenceCoverage = evidenceCoveragePct(esgEvidence)
   const esgVerified = compositeVerifiedScore(esgScores, esgEvidence)
   const esgBadge = getEsgBadge(esgVerified, ratedAnswered(esgScores), esgEvidenceCoverage)
@@ -126,7 +126,7 @@ export function NarrativeReportPage() {
     esgBadge,
     esgVerifiedScore: esgVerified,
     esgAnswered,
-    esgTotal: ESG_QUESTIONS.length,
+    esgTotal: CORE_ESG_QUESTIONS.length,
     esgStage: stageLabel(esgMaturity(esgScores, esgEvidence)),
     esgGaps,
     cipFindings,

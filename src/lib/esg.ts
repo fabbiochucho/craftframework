@@ -50,6 +50,8 @@ export interface EsgQuestion extends RubricQuestion {
   frameworkRefs: string[]
   recommendation: string
   financingNote: string
+  /** Only for organisations it applies to: skipped in completion counts and never listed as missing. */
+  optional?: boolean
 }
 
 export const ESG_QUESTIONS: EsgQuestion[] = [
@@ -385,7 +387,24 @@ export const ESG_QUESTIONS: EsgQuestion[] = [
     recommendation: 'Stop counting credits towards targets; report them separately as action beyond your value chain.',
     financingNote: 'Misused credits are a growing legal and reputational risk under green-claims rules.',
   },
+  {
+    id: 'ESG-C1', pillar: 'Environmental', domain: 'Carbon Credit Generation', optional: true,
+    frameworkRefs: ['ICVCM Core Carbon Principles (reference)', 'Paris Agreement Article 6 (reference)'],
+    question: 'Only if the organisation generates or plans to generate carbon credits: can it measure, report and independently verify the emission reductions it claims?',
+    soe: { 0: 'Credits are planned or sold without a baseline or an approved methodology.', 1: 'A baseline exists, but no approved methodology or monitoring plan.',
+      2: 'An approved methodology is chosen and monitoring has started; leakage and reversal risk are not yet accounted for.',
+      3: 'The project is validated and registered on a recognised registry, and monitoring covers leakage and the buffer reserve.',
+      4: 'Reductions are independently verified and credits issued with traceable serial numbers; national registration or authorisation is in place where required.',
+      5: 'Every monitoring period is verified on schedule, issuances and retirements are disclosed, and double counting with national targets is ruled out.' },
+    evidence: 'Methodology and monitoring plan, validation and verification reports, registry project page and issuance records, national registration or authorisation (Article 6 where credits are transferred abroad).',
+    recommendation: 'Do not sell or promise credits until a third party has verified the reductions and a registry has issued them.',
+    financingNote: 'Buyers and funders check registry records; credits sold before issuance or counted twice expose the organisation to refunds and fraud claims.',
+  },
 ]
+
+/** Questions every organisation answers: the basis for completion counts. */
+export const CORE_ESG_QUESTIONS = ESG_QUESTIONS.filter((q) => !q.optional)
+export const coreAnswered = (scores: Record<string, number>): number => CORE_ESG_QUESTIONS.filter((q) => q.id in scores).length
 
 export function questionsForPillar(pillar: EsgPillar): EsgQuestion[] {
   return ESG_QUESTIONS.filter(q => q.pillar === pillar)
@@ -533,7 +552,7 @@ export function identifyStrengths(scores: Record<string, number>): EsgGap[] {
 
 /** Unanswered questions - these count against the badge but aren't "gaps" yet. */
 export function unansweredQuestions(scores: Record<string, number>): EsgQuestion[] {
-  return ESG_QUESTIONS.filter(q => scores[q.id] == null)
+  return CORE_ESG_QUESTIONS.filter(q => scores[q.id] == null)
 }
 
 // ----------------------------------------------------------------------------
