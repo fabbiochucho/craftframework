@@ -52,7 +52,7 @@ for (const entry of manifest.entries) {
     !Number.isFinite(Date.parse(meta.uploadedAt))) throw new Error('Source metadata is incomplete')
 
   await db.transaction(async tx => {
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${sourceDigest}, 0))`)
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${sourceDigest}, 0))`, 'objects')
     const matches = await tx.select().from(evidenceRegistry).where(like(evidenceRegistry.filePath, `%/${sourceDigest}`))
     if (matches.length > 1 || matches.some(row => row.filePath !== key || row.orgId !== entry.orgId || row.workspaceId !== entry.workspaceId)) {
       throw new Error('Source already mapped to a different workspace; manual reconciliation required')
@@ -68,7 +68,7 @@ for (const entry of manifest.entries) {
         throw new Error('Existing evidence lacks matching migration provenance')
       }
       if (mode === '--rollback' && !existing.archivedAt) {
-        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`offline-frameworks:${entry.orgId}:${entry.workspaceId}`}, 0))`)
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`offline-frameworks:${entry.orgId}:${entry.workspaceId}`}, 0))`, 'objects')
         const [links, approvals] = await Promise.all([
           tx.select({ id: evidenceLinks.id }).from(evidenceLinks).where(eq(evidenceLinks.evidenceId, existing.id)).limit(1),
           tx.select({ id: documentApprovals.id }).from(documentApprovals).where(eq(documentApprovals.evidenceId, existing.id)).limit(1),
