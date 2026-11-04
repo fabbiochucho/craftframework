@@ -6,7 +6,7 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
   documentApprovals, evidenceLinks, governanceFindings, governanceScores, reportSchedules, reportVersions,
-  supportIssues, userMfa, wsOrgMembers, wsOrganizations,
+  supportIssues, supportTickets, userMfa, wsOrgMembers, wsOrganizations,
 } from '../../db/schema.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import { offlineFrameworkReceipts, offlineFrameworks } from '../../db/offline-schema.js'
@@ -32,6 +32,8 @@ export async function runEncryptionBackfill({ rotate = false } = {}): Promise<Re
   await byId('evidence_links', await db.select().from(evidenceLinks), ['reviewerNotes'], (id, set) => db.update(evidenceLinks).set(set).where(eq(evidenceLinks.id, id)))
   await byId('document_approvals', await db.select().from(documentApprovals), ['comments'], (id, set) => db.update(documentApprovals).set(set).where(eq(documentApprovals.id, id)))
   await byId('support_issues', await db.select().from(supportIssues), ['contactEmail'], (id, set) => db.update(supportIssues).set(set).where(eq(supportIssues.id, id)))
+  // Rows copied into the support tracker by its migration arrive as plaintext; encrypt them here.
+  await byId('support_tickets', await db.select().from(supportTickets), ['subject', 'body', 'contactName', 'contactEmail'], (id, set) => db.update(supportTickets).set(set).where(eq(supportTickets.id, id)))
   await byId('report_versions', await db.select().from(reportVersions), ['emailSentTo'], (id, set) => db.update(reportVersions).set(set).where(eq(reportVersions.id, id)))
 
   for (const m of await db.select().from(wsOrgMembers)) {

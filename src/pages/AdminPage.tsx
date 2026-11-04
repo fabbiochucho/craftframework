@@ -20,6 +20,7 @@ import type { UserDirectoryRow } from '../lib/api'
 import { cn } from '../lib/utils'
 import { LawsRegisterPanel } from '../components/admin/LawsRegisterPanel'
 import { TranslationReviewPanel } from '../components/admin/TranslationReviewPanel'
+import { SupportPanel } from '../components/admin/SupportPanel'
 import { FeaturesPanel } from '../components/admin/FeaturesPanel'
 
 const HEATMAP_DOMAINS = [
@@ -300,6 +301,7 @@ export function AdminPage() {
         tabs={[
           { id: 'overview', label: 'Aggregate KPIs' },
           { id: 'users', label: 'User Directory' },
+          { id: 'support', label: 'Support' },
           { id: 'portfolios', label: 'Portfolios' },
           { id: 'heatmap', label: 'Systemic Risk Heatmap' },
           { id: 'audit', label: 'Security Audit Log' },
@@ -773,6 +775,7 @@ export function AdminPage() {
 
       {tab === 'translations' && <TranslationReviewPanel />}
 
+      {tab === 'support' && <SupportPanel />}
       {tab === 'features' && <FeaturesPanel />}
 
       {tab === 'config' && (

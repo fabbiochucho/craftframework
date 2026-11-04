@@ -1690,6 +1690,53 @@ export const supportIssueResponses = pgTable(
   (t) => [index('support_issue_responses_issue_idx').on(t.issueId)],
 )
 
+// Internal support tracker (Admin → Support). Super Admin only. subject, body, contactName and contactEmail are
+// encrypted at rest; events are an append-only timeline (no update or delete route exists).
+export const supportTickets = pgTable(
+  'support_tickets',
+  {
+    id: serial('id').primaryKey(),
+    subject: text('subject').notNull(),
+    body: text('body').notNull().default(''),
+    // 'chat' | 'escalation' | 'private_report' | 'contact_form' | 'email' | 'phone' | 'whatsapp' | 'meeting' | 'other'
+    source: text('source').notNull(),
+    // e.g. 'issue:12', 'escalation:5'; '' for tickets logged by hand. Unique per source so intake never duplicates.
+    sourceRef: text('source_ref').notNull().default(''),
+    contactName: text('contact_name').notNull().default(''),
+    contactEmail: text('contact_email').notNull().default(''),
+    organisation: text('organisation').notNull().default(''),
+    category: text('category').notNull().default('question'),
+    priority: text('priority').notNull().default('normal'),
+    // 'new' | 'open' | 'waiting' | 'resolved' | 'closed'
+    status: text('status').notNull().default('new'),
+    dueAt: timestamp('due_at', { withTimezone: true }),
+    createdBy: text('created_by').notNull().default('system'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('support_tickets_source_ref_uq').on(t.source, t.sourceRef).where(sql`${t.sourceRef} <> ''`),
+    index('support_tickets_status_idx').on(t.status, t.updatedAt),
+  ],
+)
+
+export const supportTicketEvents = pgTable(
+  'support_ticket_events',
+  {
+    id: serial('id').primaryKey(),
+    ticketId: integer('ticket_id').notNull(),
+    // 'created' | 'note' (internal, never sent) | 'reply' (emailed) | 'change'
+    kind: text('kind').notNull(),
+    body: text('body').notNull().default(''),
+    actor: text('actor').notNull(),
+    // replies only: 'accepted' | 'failed' | 'not_configured'
+    emailStatus: text('email_status'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('support_ticket_events_ticket_idx').on(t.ticketId, t.id)],
+)
+
 export const reportSchedules = pgTable(
   'report_schedules',
   {
