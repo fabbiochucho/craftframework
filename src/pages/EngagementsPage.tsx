@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Handshake } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { trackEvent } from '../lib/analytics'
+import { METHODOLOGIES } from '../lib/methodologies'
 import { INDEX_SCOPE_NAMES, scopeText, TYPE_LABEL, type EngagementScope, type EngagementType } from '../lib/engagements'
 import { SPECIALISM_INDEX, SPECIALISMS } from '../lib/specialisms'
 
@@ -113,6 +114,7 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
   const [actFirm, setActFirm] = useState('')
   const [levels, setLevels] = useState('')
   const [indices, setIndices] = useState<string[]>([])
+  const [methodology, setMethodology] = useState('')
   const [days, setDays] = useState('90')
   const [rereview, setRereview] = useState(false)
   const [q, setQ] = useState('')
@@ -137,7 +139,7 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
           try {
             await api('/api/engagements', { method: 'POST', json: {
               side, type, accessDays: Number(days) || 90, requiresRereview: rereview,
-              scope: { ...(lv.length ? { kind: 'levels', levels: lv } : { kind: 'whole' }), ...(indices.length ? { indices } : {}) },
+              scope: { ...(lv.length ? { kind: 'levels', levels: lv } : { kind: 'whole' }), ...(indices.length ? { indices } : {}), ...(methodology ? { methodology } : {}) },
               ...(side === 'organization' ? (type === 'funder_review' ? { funderFirmId: target.funderFirmId } : { validatorId: target.validatorId || undefined, validatorFirmId: target.validatorFirmId || undefined })
                 : { organizationProfileId: target.organizationProfileId, ...(side === 'funder' ? { funderFirmId: actFirm || funderFirms[0]?.id } : { validatorFirmId: actFirm || undefined }) }),
             } })
@@ -150,6 +152,8 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
           {side === 'funder' && funderFirms.length > 1 && <Select label="Funding partner" options={funderFirms.map((f) => ({ value: f.id, label: f.name }))} value={actFirm} onChange={setActFirm} />}
           {side === 'validator' && validatorFirms.length > 0 && <Select label="On behalf of firm" placeholder="Myself" options={validatorFirms.map((f) => ({ value: f.id, label: f.name }))} value={actFirm} onChange={setActFirm} />}
           <Input label="Levels in scope (comma-separated, blank = whole ladder)" value={levels} onChange={(e) => setLevels(e.target.value)} placeholder="e.g. 1, 2, 3" />
+          <Select label="Methodology (optional)" placeholder="None: ladder only" value={methodology} onChange={setMethodology}
+            options={METHODOLOGIES.map((m) => ({ value: m.id, label: m.name }))} />
           <fieldset className="space-y-1 sm:col-span-2">
             <legend className="text-sm font-medium text-slate-700">CRAFT indices to validate alongside the ladder (optional)</legend>
             {Object.entries(INDEX_SCOPE_NAMES).map(([k, name]) => {

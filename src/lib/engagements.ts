@@ -7,6 +7,8 @@
 // and access" and "Labels").
 // ============================================================================
 
+import { methodologyById } from './methodologies.ts'
+
 export const ENGAGEMENT_TYPES = ['independent_validation', 'funder_review'] as const
 export type EngagementType = (typeof ENGAGEMENT_TYPES)[number]
 
@@ -31,7 +33,8 @@ export const TYPE_LABEL: Record<EngagementType, string> = {
 }
 
 /** The ladder (whole or some levels), plus any v1 (102026) CRAFT indices validated alongside it (spec §7). */
-export type EngagementScope = ({ kind: 'whole' } | { kind: 'levels'; levels: number[] }) & { indices?: string[] }
+/** `methodology`: an engagement methodology id (src/lib/methodologies.ts) setting weights, thresholds and conclusion wording for the report. */
+export type EngagementScope = ({ kind: 'whole' } | { kind: 'levels'; levels: number[] }) & { indices?: string[]; methodology?: string }
 
 /** The CRAFT indices an engagement can include, in display order. */
 export const INDEX_SCOPE_NAMES: Record<string, string> = {
@@ -52,10 +55,12 @@ function parseIndices(input: unknown): string[] | null {
 // Untrusted scope input -> a normalised scope, or null when invalid.
 export function parseScope(input: unknown): EngagementScope | null {
   if (input == null) return { kind: 'whole' }
-  const s = input as { kind?: unknown; levels?: unknown; indices?: unknown }
+  const s = input as { kind?: unknown; levels?: unknown; indices?: unknown; methodology?: unknown }
   const indices = parseIndices(s.indices)
   if (indices === null) return null
-  const withIndices = <T extends object>(base: T) => (indices.length ? { ...base, indices } : base)
+  if (s.methodology != null && !(typeof s.methodology === 'string' && methodologyById(s.methodology))) return null
+  const extra = { ...(indices.length ? { indices } : {}), ...(typeof s.methodology === 'string' ? { methodology: s.methodology } : {}) }
+  const withIndices = <T extends object>(base: T) => ({ ...base, ...extra })
   if (s.kind === 'whole') return withIndices({ kind: 'whole' as const })
   if (s.kind === 'levels' && Array.isArray(s.levels)) {
     const unique = [...new Set(s.levels)]
@@ -68,7 +73,8 @@ export function parseScope(input: unknown): EngagementScope | null {
 export function scopeText(scope: EngagementScope): string {
   const ladder = scope.kind === 'whole' ? 'Whole ladder' : `Levels ${scope.levels.join(', ')}`
   const indices = (scope.indices ?? []).map((k) => INDEX_SCOPE_NAMES[k] ?? k)
-  return indices.length ? `${ladder}; CRAFT indices: ${indices.join(', ')}` : ladder
+  const method = methodologyById(scope.methodology)?.name
+  return [ladder, indices.length ? `CRAFT indices: ${indices.join(', ')}` : '', method ? `methodology: ${method}` : ''].filter(Boolean).join('; ')
 }
 
 // An engagement is active once every required party has accepted. Any decline ends it.

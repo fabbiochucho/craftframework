@@ -5,6 +5,8 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select 
 import { METHOD_LABEL, METHODS, OUTCOME_LABEL, OUTCOMES, SUFFICIENCY, type Method, type Outcome } from '../lib/validationReview'
 import { CHECK_LABEL, CHECK_VALUES, CONTROL_CHECKS, isComplete, scoreCap, scoreProblem, type CheckValue, type ControlChecks, type ScoreResult } from '../lib/controlChecks'
 import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
+import { methodologyById, methodologyConclusion } from '../lib/methodologies'
+import { scopeText, type EngagementScope } from '../lib/engagements'
 
 // Validator system PR 3: the review itself. Every rule (who may score, when the
 // debrief is open, what freezes) is enforced by /api/validation-reviews.
@@ -361,6 +363,7 @@ function Frozen({ v }: { v: View }) {
           {v.outcome !== 'not_validated' && <Link to="/validations" className="text-sm font-semibold text-emerald-700 hover:underline">See its validity, follow-ups and status →</Link>}
         </CardContent>
       </Card>
+      <EngagementReport s={s} />
       {s.qualifications.length > 0 && (
         <Card><CardHeader><CardTitle>Qualifications</CardTitle></CardHeader><CardContent><ul className="list-disc space-y-1 pl-5 text-sm">{s.qualifications.map((q: any) => <li key={q.text}>{q.text} <span className="font-mono text-xs text-slate-500">({q.indicatorIds.join(', ')})</span></li>)}</ul></CardContent></Card>
       )}
@@ -380,5 +383,47 @@ function Frozen({ v }: { v: View }) {
         </CardContent>
       </Card>
     </>
+  )
+}
+
+/**
+ * The engagement report sections that follow from the frozen record: methodology and scope, the methodology's working
+ * conclusion (never an audit opinion), limitations and the evidence register. Findings, risk, management responses
+ * and the corrective action plan live in the CAP hub and are linked, not copied.
+ */
+function EngagementReport({ s }: { s: any }) {
+  const scope = (s.scope ?? { kind: 'whole' }) as EngagementScope
+  const m = methodologyById(scope.methodology)
+  const rows = (s.indicators ?? []) as Array<{ id: string; domain: string; final: number | null; paperCap?: unknown; evidence?: unknown[] }>
+  const result = m ? methodologyConclusion(m, rows.map((i) => ({ domain: i.domain, final: i.final }))) : null
+  const unscored = rows.filter((i) => i.final == null)
+  const capped = rows.filter((i) => i.paperCap)
+  const linked = rows.reduce((n, i) => n + (i.evidence?.length ?? 0), 0)
+  return (
+    <Card>
+      <CardHeader><CardTitle>Engagement report</CardTitle></CardHeader>
+      <CardContent className="space-y-3 text-sm text-slate-700">
+        <div><p className="font-medium text-slate-900">Methodology and scope</p>
+          <p>{m ? `${m.name}: ${m.purpose}` : 'No methodology chosen: ladder validation only.'} Scope: {scopeText(scope)}. Method: {METHOD_LABEL[s.method as Method]}; fieldwork {s.fieldwork.start} to {s.fieldwork.end}.</p></div>
+        {m && result && (
+          <div className="rounded-lg border border-slate-200 p-3">
+            <p className="font-medium text-slate-900">Working conclusion: {result.conclusion} ({result.percent}% weighted)</p>
+            <p className="text-xs text-slate-500">From the final scores, weighted for this methodology (ready at {m.thresholds.ready}%, conditional at {m.thresholds.conditional}%). It supports the report; it is not an audit opinion or certification and does not change the validation statement.</p>
+            {result.weakKeyDomains.length > 0 && <p className="text-xs text-amber-700">Key domains below {m.floor}: {result.weakKeyDomains.join(', ')}.</p>}
+          </div>
+        )}
+        <div><p className="font-medium text-slate-900">Limitations</p>
+          <ul className="list-disc pl-5">
+            <li>{unscored.length ? `${unscored.length} indicator(s) in scope have no final score: ${unscored.map((i) => i.id).join(', ')}.` : 'Every indicator in scope has a final score.'}</li>
+            <li>{capped.length ? `${capped.length} score(s) were capped for insufficient evidence.` : 'No score was capped for insufficient evidence.'}</li>
+            {result && result.missingDomains.length > 0 && <li>Methodology domains not covered by this scope: {result.missingDomains.join(', ')}.</li>}
+            {s.qualifications.length > 0 && <li>{s.qualifications.length} qualification(s) form part of the conclusion (below).</li>}
+          </ul></div>
+        <div><p className="font-medium text-slate-900">Findings, risk profile, management response and corrective action plan</p>
+          <p>Recorded on the organisation’s corrective action plan with criteria, condition, cause, consequence, inherent and residual risk and the management response: <Link to="/cip" className="text-emerald-700 underline">Capacity plan</Link>.</p></div>
+        <div><p className="font-medium text-slate-900">Evidence register</p>
+          <p>{linked ? `${linked} evidence item(s) linked to indicators (listed under Scores).` : 'No evidence was linked to indicators.'}</p></div>
+      </CardContent>
+    </Card>
   )
 }
