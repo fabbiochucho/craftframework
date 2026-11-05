@@ -7,7 +7,7 @@ import { evidencedLevel, indicativeLevel } from '../lib/cca/crosswalk'
 import { CCA_MODULES } from '../lib/cca/modules'
 import type { CcaModule } from '../lib/cca/engine'
 
-const STYLE: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800' }
+const STYLE: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800', 'Not assessed': 'bg-slate-100 text-slate-600' }
 
 export function GrowthLevelCard({ orgId, composite, signedIn }: { orgId: string; composite: number; signedIn: boolean }) {
   const [evidenced, setEvidenced] = useState<ReturnType<typeof evidencedLevel>>(null)

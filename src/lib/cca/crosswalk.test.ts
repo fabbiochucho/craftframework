@@ -4,7 +4,8 @@ import { evidencedLevel, indicativeLevel } from './crosswalk.ts'
 
 assert.deepEqual(indicativeLevel(0), { score: 1, level: 'Nascent' })
 assert.deepEqual(indicativeLevel(100), { score: 4, level: 'Mature' })
-assert.deepEqual(indicativeLevel(50), { score: 2.5, level: 'Emerging' })
+assert.deepEqual(indicativeLevel(50), { score: 2.5, level: 'Expanding' })
+assert.equal(indicativeLevel(30).level, 'Emerging')
 assert.equal(indicativeLevel(60).level, 'Expanding')
 assert.equal(indicativeLevel(150).score, 4, 'clamped')
 

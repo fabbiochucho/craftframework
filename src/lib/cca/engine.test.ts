@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/cca/engine.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  availableReports, awardReadiness, cascade, dashboard, domainScore, growthLevel, improvementPlan, nextLevelGaps, planReview,
+  availableReports, awardReadiness, cascade, dashboard, domainScore, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
   resolveVotes, swotSeed, voteSpread, type CcaModule, type Domain, type Responses,
 } from './engine.ts'
 
@@ -26,14 +26,27 @@ assert.equal(domainScore(dom('X'), full), 4)
 assert.deepEqual(nextLevelGaps(dom('X'), { 'X.2a': ok }).map((s) => s.id), ['X.2b'])
 assert.deepEqual(nextLevelGaps(dom('X'), full), [])
 
-// Growth levels: half-open bands, no gaps.
-assert.deepEqual([1, 2, 2.01, 2.5, 2.505, 3.5, 3.51, 4].map(growthLevel), ['Nascent', 'Nascent', 'Emerging', 'Emerging', 'Expanding', 'Expanding', 'Mature', 'Mature'])
+// Growth levels: share of the maximum, half-open bands (up to 25%, 50%, 75%, above), no gaps.
+assert.deepEqual([0, 1, 1.01, 2, 2.01, 3, 3.01, 4].map(growthLevel), ['Not assessed', 'Nascent', 'Emerging', 'Emerging', 'Expanding', 'Expanding', 'Mature', 'Mature'])
+assert.deepEqual([1, 2, 3, 4].map(percentOfMax), [25, 50, 75, 100])
 
 // Dashboard.
 const r: Responses = { 'A1.2a': ok, 'A1.2b': ok, 'A1.3a': ok, 'A1.4a': ok, 'A2.2a': ok, 'A2.2b': ok }
 const d = dashboard(m, r)
-assert.deepEqual(d.areas.map((a) => [a.total, a.average, a.level]), [[6, 3, 'Expanding'], [1, 1, 'Nascent']])
-assert.deepEqual([d.total, d.average, d.level], [7, 2.33, 'Emerging'])
+assert.deepEqual(d.areas.map((a) => [a.total, a.average, a.percent, a.level]), [[6, 3, 75, 'Expanding'], [1, 1, 25, 'Nascent']])
+assert.deepEqual([d.total, d.average, d.percent, d.level], [7, 2, 50, 'Emerging'], 'overall is the average of the areas, each counting equally')
+// One area at 1.5 and six at 1 averages 1.07: Emerging, not Nascent.
+const seven: CcaModule = { id: 's', name: 'S', audience: 'S', areas: ['P', 'Q', 'R', 'S', 'T', 'U', 'V'].map((x) => ({ id: x, name: x, domains: [dom(`${x}1`), dom(`${x}2`)] })) }
+const s7 = dashboard(seven, { 'P1.2a': ok, 'P1.2b': ok })
+assert.deepEqual([s7.average, s7.level], [1.07, 'Emerging'])
+
+// Not assessed: left out of the area and overall averages, listed in the plan, skipped in the cascade.
+const na = dashboard(m, r, { B1: 'Not relevant: no field programmes this year' })
+assert.deepEqual([na.areas[1].level, na.areas[1].domains[0].assessed, na.average, na.level], ['Not assessed', false, 3, 'Expanding'])
+assert.deepEqual(dashboard(m, r, { A2: 'Records with the auditors' }).areas[0].average, 4)
+const naPlan = improvementPlan(m, r, [], { B1: 'Not relevant' })
+assert.deepEqual([naPlan.rows.map((x) => x.domainId), naPlan.toAssess.map((x) => x.domainId)], [['A2'], ['B1']])
+assert.deepEqual(swotSeed(na).weaknesses, [], 'a domain not assessed is not a weakness')
 
 // Improvement plan: one level up, actions from unmet statements, costs totalled.
 const plan = improvementPlan(m, r, [{ domainId: 'A2', costs: 1500, timeline: 'Q2', responsible: 'Finance lead' }, { domainId: 'B1', costs: 500 }])
@@ -59,6 +72,8 @@ assert.deepEqual(availableReports([2026, 2027, 2028, 2029, 2030].map((y) => rec(
 assert.deepEqual(availableReports([rec(2026), rec(2030), rec(2031)]), ['yearly'], 'mid-term needs three consecutive years')
 const c = cascade([rec(2026), rec(2027, { 'B1.2a': ok, 'B1.2b': ok })])
 assert.deepEqual(c.map((x) => [x.areaId, x.trend]), [['A', 'steady'], ['B', 'improving']])
+const skipped = cascade([{ year: 2026, dashboard: na }, rec(2027)])
+assert.deepEqual(skipped[1].series.map((x) => x.year), [2027])
 
 // Award readiness: critical domains gate it.
 assert.equal(awardReadiness(m, {}).rating, 'not_yet_ready')

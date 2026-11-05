@@ -9,13 +9,13 @@ import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
   availableReports, awardReadiness, cascade, dashboard, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
-  type CcaModule, type PlanEntry, type Responses, type Score, type Swot,
+  type CcaModule, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule } from '../lib/cca/modules'
 
 type Assessment = {
   id: string; orgId: string; module: string; year: number; awardRef: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
-  responses: Responses; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
+  responses: Responses; notAssessed: NotAssessed; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
 }
 
 async function api<T>(path: string, init?: { method: string; body?: unknown }): Promise<T> {
@@ -25,7 +25,8 @@ async function api<T>(path: string, init?: { method: string; body?: unknown }): 
   return body
 }
 
-const LEVEL_STYLE: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800' }
+const LEVEL_STYLE: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800', 'Not assessed': 'bg-slate-100 text-slate-600' }
+const fmt = (x: { average: number; percent: number }) => `${x.average.toFixed(2)} · ${x.percent}%`
 
 export function CapacityAssessmentPage() {
   const { currentOrg } = useWorkspace()
@@ -51,7 +52,7 @@ export function CapacityAssessmentPage() {
     <div className="space-y-6">
       <div>
         <h1 className="font-display text-2xl font-bold text-emerald-900">Capacity Assessment</h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-600">Score each domain from 1 to 4. A level counts only when every statement in it, and in the levels below, is met and backed by evidence you have seen. The results show your growth level, an improvement plan for the next 12 months, and your progress over five years.</p>
+        <p className="mt-1 max-w-3xl text-sm text-slate-600">Score each domain from 1 to 4. A level counts only when every statement in it, and in the levels below, is met and backed by evidence you have seen. Each capacity area counts equally in the overall score, read as a growth level: Nascent up to 25% of the maximum, Emerging up to 50%, Expanding up to 75%, Mature above. The results show an improvement plan for the next 12 months, and your progress over five years.</p>
       </div>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       <div className="flex flex-wrap gap-2">
@@ -103,11 +104,11 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
           {items.length === 0 ? <p className="text-sm text-slate-500">None yet.</p> : (
             <ul className="divide-y divide-slate-100">
               {items.map((a) => {
-                const d = dashboard(mod, a.responses)
+                const d = dashboard(mod, a.responses, a.notAssessed)
                 return (
                   <li key={a.id}><button type="button" onClick={() => onOpen(a.id)} className="flex w-full items-center justify-between py-2 text-left text-sm hover:text-emerald-700">
                     <span>{a.year}{a.awardRef && ` · ${awardTitle(a.awardRef)}`} · {a.status === 'complete' ? 'Complete' : 'Draft'}</span>
-                    <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>{d.average.toFixed(2)} {d.level}</span>
+                    <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>{fmt(d)} {d.level}</span>
                   </button></li>
                 )
               })}
@@ -121,20 +122,22 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
 
 function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
   const [responses, setResponses] = useState<Responses>(a.responses)
+  const [notAssessed, setNotAssessed] = useState<NotAssessed>(a.notAssessed ?? {})
   const [votes, setVotes] = useState<Record<string, number[]>>(a.votes)
   const [plan, setPlan] = useState<PlanEntry[]>(a.plan)
   const [swot, setSwot] = useState<Swot>(() => {
-    const seed = swotSeed(dashboard(mod, a.responses))
+    const seed = swotSeed(dashboard(mod, a.responses, a.notAssessed))
     return { strengths: a.swot.strengths ?? seed.strengths, weaknesses: a.swot.weaknesses ?? seed.weaknesses, opportunities: a.swot.opportunities ?? [], threats: a.swot.threats ?? [] }
   })
   const [meta, setMeta] = useState({ assessor: a.assessor, orgLead: a.orgLead })
   const [tab, setTab] = useState('assess')
   const [message, setMessage] = useState<string | null>(null)
   const locked = a.status === 'complete'
-  const d = useMemo(() => dashboard(mod, responses), [mod, responses])
+  const d = useMemo(() => dashboard(mod, responses, notAssessed), [mod, responses, notAssessed])
+  const canSkip = !isAwardModule(mod.id)
 
   const save = async (extra: Record<string, unknown> = {}) => {
-    try { await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, plan, swot, ...meta, ...extra } }); setMessage('Saved.'); onChanged() } catch (e) { setMessage((e as Error).message) }
+    try { await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, plan, swot, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } }); setMessage('Saved.'); onChanged() } catch (e) { setMessage((e as Error).message) }
   }
   const complete = async () => {
     await save()
@@ -146,7 +149,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" onClick={onBack}>← All assessments</Button>
         <h2 className="font-display text-lg font-bold text-emerald-900">{mod.name} · {a.year}{a.awardRef && ` · ${a.awardRef}`}</h2>
-        <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>Overall {d.average.toFixed(2)} · {d.level}</span>
+        <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>Overall {fmt(d)} · {d.level}</span>
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
@@ -165,15 +168,26 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
                 {area.domains.map((dom) => {
                   const score = domainScore(dom, responses)
                   const v = (votes[dom.id] ?? []) as Score[]
+                  const skipped = notAssessed[dom.id] !== undefined
+                  const toggleSkip = () => {
+                    const { [dom.id]: _, ...rest } = notAssessed
+                    setNotAssessed(skipped ? rest : { ...notAssessed, [dom.id]: '' })
+                  }
                   return (
-                    <div key={dom.id} className="rounded-lg border border-slate-200 p-3">
+                    <div key={dom.id} className={cn('rounded-lg border border-slate-200 p-3', skipped && 'bg-slate-50')}>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-medium text-slate-900">{dom.name}</p>
                         {dom.critical && <span className="rounded bg-rose-50 px-1.5 text-xs text-rose-700">Critical</span>}
-                        <span className="ml-auto rounded bg-emerald-50 px-2 py-0.5 text-sm font-semibold text-emerald-800">Score {score}</span>
+                        {canSkip && <label className="ml-auto flex items-center gap-1 text-xs text-slate-600"><input type="checkbox" checked={skipped} disabled={locked} onChange={toggleSkip} />Not assessed</label>}
+                        <span className={cn('rounded px-2 py-0.5 text-sm font-semibold', skipped ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-800', !canSkip && 'ml-auto')}>{skipped ? 'Not assessed' : `Score ${score}`}</span>
                       </div>
+                      {skipped && (
+                        <input aria-label={`Why ${dom.name} is not assessed`} placeholder="Why it is not assessed (left out of the averages)" value={notAssessed[dom.id]} disabled={locked}
+                          className={cn('mt-2 w-full rounded border px-2 py-1 text-xs', notAssessed[dom.id].trim().length < 3 ? 'border-amber-400' : 'border-slate-300')}
+                          onChange={(e) => setNotAssessed({ ...notAssessed, [dom.id]: e.target.value })} />
+                      )}
                       <p className="mt-1 text-xs text-slate-500"><b>Level 1:</b> {dom.level1}</p>
-                      {([2, 3, 4] as const).map((l) => (
+                      {!skipped && ([2, 3, 4] as const).map((l) => (
                         <fieldset key={l} className={cn('mt-2 rounded border p-2', score >= l ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-100')}>
                           <legend className="px-1 text-xs font-semibold text-slate-600">Level {l}: all must be met with evidence seen</legend>
                           {dom.levels[l].map((s) => {
@@ -192,12 +206,12 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
                           })}
                         </fieldset>
                       ))}
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                      {!skipped && <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                         <span>Facilitated votes (anonymous, 1–4):</span>
                         <input className="w-40 rounded border border-slate-300 px-2 py-1" placeholder="e.g. 3, 4, 3, 2" disabled={locked} defaultValue={v.join(', ')}
                           onBlur={(e) => setVotes({ ...votes, [dom.id]: e.target.value.split(/[ ,]+/).map(Number).filter((n) => n >= 1 && n <= 4) })} />
                         {v.length > 0 && <span>Highest vote the evidence supports: <b>{resolveVotes(v, score)}</b></span>}
-                      </div>
+                      </div>}
                     </div>
                   )
                 })}
@@ -209,7 +223,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
 
       {tab === 'dashboard' && <DashboardView d={d} mod={mod} responses={responses} />}
 
-      {tab === 'plan' && <PlanView mod={mod} responses={responses} plan={plan} setPlan={setPlan} locked={locked} onSave={() => void save()} />}
+      {tab === 'plan' && <PlanView mod={mod} responses={responses} notAssessed={notAssessed} plan={plan} setPlan={setPlan} locked={locked} onSave={() => void save()} />}
 
       {tab === 'swot' && (
         <div className="grid gap-4 md:grid-cols-2">
@@ -235,12 +249,12 @@ function DashboardView({ d, mod, responses }: { d: ReturnType<typeof dashboard>;
         <CardHeader><CardTitle>Dashboard</CardTitle></CardHeader>
         <CardContent>
           <table className="w-full text-sm">
-            <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Capacity area</th><th>Total</th><th>Average</th><th>Growth level</th></tr></thead>
+            <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Capacity area</th><th>Total</th><th>Average · % of max</th><th>Growth level</th></tr></thead>
             <tbody>
               {d.areas.map((a) => (
-                <tr key={a.id} className="border-t border-slate-100"><td className="py-1.5">{a.name}</td><td>{a.total}</td><td>{a.average.toFixed(2)}</td><td><span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[a.level])}>{a.level}</span></td></tr>
+                <tr key={a.id} className="border-t border-slate-100"><td className="py-1.5">{a.name}</td><td>{a.total}</td><td>{a.level === 'Not assessed' ? '–' : fmt(a)}</td><td><span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[a.level])}>{a.level}</span></td></tr>
               ))}
-              <tr className="border-t-2 border-slate-300 font-semibold"><td className="py-1.5">Overall</td><td>{d.total}</td><td>{d.average.toFixed(2)}</td><td><span className={cn('rounded px-2 py-0.5 text-xs', LEVEL_STYLE[d.level])}>{d.level}</span></td></tr>
+              <tr className="border-t-2 border-slate-300 font-semibold"><td className="py-1.5">Overall</td><td>{d.total}</td><td>{fmt(d)}</td><td><span className={cn('rounded px-2 py-0.5 text-xs', LEVEL_STYLE[d.level])}>{d.level}</span></td></tr>
             </tbody>
           </table>
           {readiness && (
@@ -266,8 +280,8 @@ function DashboardView({ d, mod, responses }: { d: ReturnType<typeof dashboard>;
   )
 }
 
-function PlanView({ mod, responses, plan, setPlan, locked, onSave }: { mod: CcaModule; responses: Responses; plan: PlanEntry[]; setPlan: (p: PlanEntry[]) => void; locked: boolean; onSave: () => void }) {
-  const p = improvementPlan(mod, responses, plan)
+function PlanView({ mod, responses, notAssessed, plan, setPlan, locked, onSave }: { mod: CcaModule; responses: Responses; notAssessed: NotAssessed; plan: PlanEntry[]; setPlan: (p: PlanEntry[]) => void; locked: boolean; onSave: () => void }) {
+  const p = improvementPlan(mod, responses, plan, notAssessed)
   const upd = (domainId: string, patch: Partial<PlanEntry>) => {
     const cur = plan.find((e) => e.domainId === domainId) ?? { domainId }
     setPlan([...plan.filter((e) => e.domainId !== domainId), { ...cur, ...patch }])
@@ -287,6 +301,7 @@ function PlanView({ mod, responses, plan, setPlan, locked, onSave }: { mod: CcaM
             </div>
           </div>
         ))}
+        {p.toAssess.length > 0 && <div className="rounded-lg border border-dashed border-slate-300 p-3 text-sm"><p className="font-medium">Yet to be assessed: assess these next time</p><ul className="mt-1 list-disc pl-5 text-slate-700">{p.toAssess.map((x) => <li key={x.domainId}>{x.domain}{x.reason && ` (${x.reason})`}</li>)}</ul></div>}
         <p className="text-sm font-semibold">Total cost: {p.totalCost.toLocaleString()}</p>
         {!locked && <Button size="sm" variant="outline" onClick={onSave}>Save plan</Button>}
       </CardContent>
@@ -295,7 +310,8 @@ function PlanView({ mod, responses, plan, setPlan, locked, onSave }: { mod: CcaM
 }
 
 function ReportsView({ mod, history }: { mod: CcaModule; history: Assessment[] }) {
-  const records = history.filter((a) => a.status === 'complete' && !a.awardRef).map((a) => ({ year: a.year, dashboard: dashboard(mod, a.responses) }))
+  const records = history.filter((a) => a.status === 'complete' && !a.awardRef).map((a) => ({ year: a.year, dashboard: dashboard(mod, a.responses, a.notAssessed) }))
+  const latest = [...records].sort((x, y) => y.year - x.year)[0]
   const kinds = availableReports(records)
   const [kind, setKind] = useState<string>('yearly')
   const c = cascade(records)
@@ -309,6 +325,7 @@ function ReportsView({ mod, history }: { mod: CcaModule; history: Assessment[] }
         <div className="w-60"><Select label="Report" value={kind} onChange={setKind} options={[{ value: 'yearly', label: 'Yearly' }, { value: 'mid_term', label: 'Mid-term' }, { value: 'five_year', label: 'Five-year' }]} /></div>
         {!kinds.includes(kind as never) ? <p className="text-sm text-slate-500">Not available yet: complete more yearly assessments.</p> : (
           <>
+            {latest && <p className="text-sm">Current assessment year <b>{latest.year}</b> · current rating <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[latest.dashboard.level])}>{latest.dashboard.level}</span> ({fmt(latest.dashboard)})</p>}
             <ul className="text-sm">{c.map((a) => <li key={a.areaId}>{a.name}: {a.series.map((s) => `${s.year} ${s.average.toFixed(2)}`).join(' → ')} (<b>{a.trend}</b>)</li>)}</ul>
             {kind !== 'yearly' && (
               <div className="h-72">

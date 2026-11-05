@@ -1,7 +1,7 @@
 // Growth levels next to other CRAFT results. The evidenced level comes from a completed Capacity Assessment; without
 // one, CRAFT's 0–5 scores are converted onto the 1–4 scale as an indicative level (clearly labelled as such).
 // Self-check: `node src/lib/cca/crosswalk.test.ts`.
-import { dashboard, growthLevel, type CcaModule, type GrowthLevel, type Responses } from './engine.ts'
+import { dashboard, growthLevel, type CcaModule, type GrowthLevel, type NotAssessed, type Responses } from './engine.ts'
 import { isAwardModule } from './modules.ts'
 
 /** CRAFT composite (0–100%, i.e. an average of 0–5 scores) → 1–4 → growth level. Linear: 0% → 1.00, 100% → 4.00. */
@@ -11,7 +11,7 @@ export function indicativeLevel(compositePct: number): { score: number; level: G
   return { score, level: growthLevel(score) }
 }
 
-type Assessment = { module: string; year: number; status: string; responses: Responses; completedAt: string | null }
+type Assessment = { module: string; year: number; status: string; responses: Responses; notAssessed?: NotAssessed; completedAt: string | null }
 
 /** The latest completed capacity assessment (not a grant-stage one), scored by the engine. */
 export function evidencedLevel(assessments: Assessment[], modules: CcaModule[]): { module: string; year: number; score: number; level: GrowthLevel } | null {
@@ -19,6 +19,6 @@ export function evidencedLevel(assessments: Assessment[], modules: CcaModule[]):
     .sort((a, b) => b.year - a.year || (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
   const a = done[0]
   if (!a) return null
-  const d = dashboard(modules.find((m) => m.id === a.module)!, a.responses)
+  const d = dashboard(modules.find((m) => m.id === a.module)!, a.responses, a.notAssessed)
   return { module: a.module, year: a.year, score: d.average, level: d.level }
 }
