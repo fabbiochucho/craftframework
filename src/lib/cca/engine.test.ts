@@ -1,0 +1,74 @@
+// Self-check — run directly with `node src/lib/cca/engine.test.ts`.
+import assert from 'node:assert/strict'
+import {
+  availableReports, awardReadiness, cascade, dashboard, domainScore, growthLevel, improvementPlan, nextLevelGaps, planReview,
+  resolveVotes, swotSeed, voteSpread, type CcaModule, type Domain, type Responses,
+} from './engine.ts'
+
+const dom = (id: string, critical = false): Domain => ({
+  id, name: `Domain ${id}`, level1: 'Nothing in place.', critical,
+  levels: { 2: [{ id: `${id}.2a`, text: `${id} level 2 a` }, { id: `${id}.2b`, text: `${id} level 2 b` }], 3: [{ id: `${id}.3a`, text: `${id} level 3 a` }], 4: [{ id: `${id}.4a`, text: `${id} level 4 a` }] },
+})
+const ok = { met: true, evidence: 'Seen: signed minutes' }
+const m: CcaModule = { id: 'test', name: 'Test', audience: 'Test', areas: [
+  { id: 'A', name: 'Area A', domains: [dom('A1', true), dom('A2')] },
+  { id: 'B', name: 'Area B', domains: [dom('B1')] },
+] }
+
+// Cumulative, evidence-gated scoring.
+assert.equal(domainScore(dom('X'), {}), 1, 'level 1 needs nothing')
+assert.equal(domainScore(dom('X'), { 'X.2a': ok }), 1, 'every statement in a level is needed')
+assert.equal(domainScore(dom('X'), { 'X.2a': ok, 'X.2b': ok }), 2)
+assert.equal(domainScore(dom('X'), { 'X.2a': ok, 'X.2b': ok, 'X.3a': { met: true, evidence: '  ' } }), 2, 'met without evidence does not count')
+assert.equal(domainScore(dom('X'), { 'X.2a': ok, 'X.2b': ok, 'X.4a': ok }), 2, 'cannot skip a level')
+const full: Responses = { 'X.2a': ok, 'X.2b': ok, 'X.3a': ok, 'X.4a': ok }
+assert.equal(domainScore(dom('X'), full), 4)
+assert.deepEqual(nextLevelGaps(dom('X'), { 'X.2a': ok }).map((s) => s.id), ['X.2b'])
+assert.deepEqual(nextLevelGaps(dom('X'), full), [])
+
+// Growth levels: half-open bands, no gaps.
+assert.deepEqual([1, 2, 2.01, 2.5, 2.505, 3.5, 3.51, 4].map(growthLevel), ['Nascent', 'Nascent', 'Emerging', 'Emerging', 'Expanding', 'Expanding', 'Mature', 'Mature'])
+
+// Dashboard.
+const r: Responses = { 'A1.2a': ok, 'A1.2b': ok, 'A1.3a': ok, 'A1.4a': ok, 'A2.2a': ok, 'A2.2b': ok }
+const d = dashboard(m, r)
+assert.deepEqual(d.areas.map((a) => [a.total, a.average, a.level]), [[6, 3, 'Expanding'], [1, 1, 'Nascent']])
+assert.deepEqual([d.total, d.average, d.level], [7, 2.33, 'Emerging'])
+
+// Improvement plan: one level up, actions from unmet statements, costs totalled.
+const plan = improvementPlan(m, r, [{ domainId: 'A2', costs: 1500, timeline: 'Q2', responsible: 'Finance lead' }, { domainId: 'B1', costs: 500 }])
+assert.deepEqual(plan.rows.map((x) => [x.domainId, x.current, x.envisioned]), [['A2', 2, 3], ['B1', 1, 2]])
+assert.deepEqual(plan.rows[1].actions, ['B1 level 2 a', 'B1 level 2 b'])
+assert.deepEqual([plan.totalCost, plan.byArea.A, plan.byArea.B], [2000, 1500, 500])
+assert.equal(improvementPlan(m, r, [{ domainId: 'A2', costs: -5 }]).totalCost, 0, 'negative costs are ignored')
+const review = planReview(plan.rows, dashboard(m, { ...r, 'A2.3a': ok }))
+assert.deepEqual(review.map((x) => [x.domainId, x.met]), [['A2', true], ['B1', false]])
+
+// Facilitated scoring (Approach I): highest vote that the evidence supports.
+assert.deepEqual(voteSpread([4, 3, 3, 2]), { 1: 0, 2: 1, 3: 2, 4: 1 })
+assert.equal(resolveVotes([4, 3, 3, 2], 4), 4)
+assert.equal(resolveVotes([4, 3, 3, 2], 3), 3, 'falls back to the most-voted supported score')
+assert.equal(resolveVotes([4, 2, 2, 3], 3), 2, 'most votes first among supported scores')
+assert.equal(resolveVotes([4, 4], 2), 2, 'never above the evidence')
+
+// Multi-year tracking.
+const rec = (year: number, extra: Responses = {}) => ({ year, dashboard: dashboard(m, { ...r, ...extra }) })
+assert.deepEqual(availableReports([rec(2026)]), ['yearly'])
+assert.deepEqual(availableReports([rec(2026), rec(2027), rec(2028)]), ['yearly', 'mid_term'])
+assert.deepEqual(availableReports([2026, 2027, 2028, 2029, 2030].map((y) => rec(y))), ['yearly', 'mid_term', 'five_year'])
+assert.deepEqual(availableReports([rec(2026), rec(2030), rec(2031)]), ['yearly'], 'mid-term needs three consecutive years')
+const c = cascade([rec(2026), rec(2027, { 'B1.2a': ok, 'B1.2b': ok })])
+assert.deepEqual(c.map((x) => [x.areaId, x.trend]), [['A', 'steady'], ['B', 'improving']])
+
+// Award readiness: critical domains gate it.
+assert.equal(awardReadiness(m, {}).rating, 'not_yet_ready')
+const w = awardReadiness(m, r)
+assert.equal(w.rating, 'ready_with_conditions')
+assert.deepEqual(w.conditions.map((x) => x.domainId), ['B1'])
+const allMet: Responses = Object.fromEntries(['A1', 'A2', 'B1'].flatMap((x) => [`${x}.2a`, `${x}.2b`, `${x}.3a`, `${x}.4a`]).map((k) => [k, ok]))
+assert.equal(awardReadiness(m, allMet).rating, 'ready')
+
+// SWOT seed.
+assert.deepEqual(swotSeed(d), { strengths: ['Domain A1'], weaknesses: ['Domain B1'], opportunities: [], threats: [] })
+
+console.log('cca/engine.test.ts: all assertions passed')
