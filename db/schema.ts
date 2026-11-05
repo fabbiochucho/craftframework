@@ -2430,6 +2430,36 @@ export const awards = pgTable('awards', {
   closedAt: timestamp('closed_at', { withTimezone: true }),
 }, (t) => [index('awards_org_idx').on(t.orgId)])
 
+// Milestone register and verification pack (src/lib/milestones.ts).
+export const awardMilestones = pgTable('award_milestones', {
+  id: text('id').primaryKey(),
+  awardId: text('award_id').notNull(),
+  orgId: text('org_id').notNull(),
+  title: text('title').notNull(),
+  owner: text('owner').notNull().default(''),
+  indicator: text('indicator').notNull().default(''),
+  baseline: text('baseline').notNull().default(''),
+  target: text('target').notNull().default(''),
+  verificationMeans: text('verification_means').notNull().default(''),
+  dueDate: date('due_date', { mode: 'string' }),
+  status: text('status').notNull().default('planned'),
+  approvedBy: text('approved_by'),
+  funderNote: text('funder_note').notNull().default(''),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('award_milestones_award_idx').on(t.awardId)])
+
+export const milestoneEvidence = pgTable('milestone_evidence', {
+  id: text('id').primaryKey(),
+  milestoneId: text('milestone_id').notNull(),
+  orgId: text('org_id').notNull(),
+  description: text('description').notNull(),
+  ref: text('ref').notNull(),
+  addedBy: text('added_by').notNull(),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('milestone_evidence_milestone_idx').on(t.milestoneId)])
+
 export const awardMeasures = pgTable('award_measures', {
   id: text('id').primaryKey(),
   awardId: text('award_id').notNull(),
