@@ -17,6 +17,7 @@ import { Route as ArchitectureRouteImport } from './routes/architecture'
 import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as AuditLogRouteImport } from './routes/audit-log'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AwardsRouteImport } from './routes/awards'
 import { Route as BadgeRouteImport } from './routes/badge'
 import { Route as CapacityRouteImport } from './routes/capacity'
 import { Route as CipRouteImport } from './routes/cip'
@@ -153,6 +154,11 @@ const AuditLogRoute = AuditLogRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AwardsRoute = AwardsRouteImport.update({
+  id: '/awards',
+  path: '/awards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BadgeRoute = BadgeRouteImport.update({
@@ -682,6 +688,7 @@ export interface FileRoutesByFullPath {
   '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
+  '/awards': typeof AwardsRoute
   '/badge': typeof BadgeRoute
   '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
@@ -789,6 +796,7 @@ export interface FileRoutesByTo {
   '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
+  '/awards': typeof AwardsRoute
   '/badge': typeof BadgeRoute
   '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
@@ -897,6 +905,7 @@ export interface FileRoutesById {
   '/assessment': typeof AssessmentRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
+  '/awards': typeof AwardsRoute
   '/badge': typeof BadgeRoute
   '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
@@ -1006,6 +1015,7 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/audit-log'
     | '/auth'
+    | '/awards'
     | '/badge'
     | '/capacity'
     | '/cip'
@@ -1113,6 +1123,7 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/audit-log'
     | '/auth'
+    | '/awards'
     | '/badge'
     | '/capacity'
     | '/cip'
@@ -1220,6 +1231,7 @@ export interface FileRouteTypes {
     | '/assessment'
     | '/audit-log'
     | '/auth'
+    | '/awards'
     | '/badge'
     | '/capacity'
     | '/cip'
@@ -1328,6 +1340,7 @@ export interface RootRouteChildren {
   AssessmentRoute: typeof AssessmentRoute
   AuditLogRoute: typeof AuditLogRoute
   AuthRoute: typeof AuthRoute
+  AwardsRoute: typeof AwardsRoute
   BadgeRoute: typeof BadgeRoute
   CapacityRoute: typeof CapacityRoute
   CipRoute: typeof CipRoute
@@ -1483,6 +1496,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/awards': {
+      id: '/awards'
+      path: '/awards'
+      fullPath: '/awards'
+      preLoaderRoute: typeof AwardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/badge': {
@@ -2176,6 +2196,7 @@ const rootRouteChildren: RootRouteChildren = {
   AssessmentRoute: AssessmentRoute,
   AuditLogRoute: AuditLogRoute,
   AuthRoute: AuthRoute,
+  AwardsRoute: AwardsRoute,
   BadgeRoute: BadgeRoute,
   CapacityRoute: CapacityRoute,
   CipRoute: CipRoute,

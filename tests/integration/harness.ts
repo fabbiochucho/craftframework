@@ -48,6 +48,7 @@ export async function truncateAll(): Promise<void> {
 export function placeholderQuestionBank(): void {
   const bank = QUESTION_INDEX.map((q) => ({
     question: `Question ${q.id}?`, insight: '', evidence: [], verificationMethod: '', capacityAction: 'Placeholder action', donorLink: '', nationalLink: '', ...q,
+    ...(q.id === 'FIN-06' ? { levels: { 1: ['a.', 'b.'], 2: ['c.', 'd.'], 3: ['e.', 'f.'], 4: ['g.', 'h.'], 5: ['i.', 'j.'] } } : {}),
   }))
   blobStores().set('questions-private', new Map([['bank', { bytes: Buffer.from(JSON.stringify(bank)) }]]))
 }
