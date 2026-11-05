@@ -2336,3 +2336,22 @@ export const ccaAssessments = pgTable('cca_assessments', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
 }, (t) => [unique('cca_assessments_one_per_year').on(t.orgId, t.module, t.year, t.awardRef), index('cca_assessments_org_idx').on(t.orgId)])
+
+// Exclusion, debarment and sanctions screening results (src/lib/screening.ts).
+export const screenings = pgTable('screenings', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  awardId: text('award_id'),
+  subjectName: text('subject_name').notNull(),
+  subjectType: text('subject_type').notNull(),
+  country: text('country').notNull().default(''),
+  provider: text('provider').notNull(),
+  status: text('status').notNull(),
+  matches: jsonb('matches').$type<{ id: string; caption: string; score: number; datasets: string[] }[]>().notNull().default([]),
+  checkedBy: text('checked_by').notNull(),
+  checkedAt: timestamp('checked_at', { withTimezone: true }).notNull().defaultNow(),
+  review: text('review').notNull().default(''),
+  reviewNote: text('review_note').notNull().default(''),
+  reviewedBy: text('reviewed_by'),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+}, (t) => [index('screenings_org_idx').on(t.orgId)])
