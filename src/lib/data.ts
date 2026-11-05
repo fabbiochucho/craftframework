@@ -1,5 +1,7 @@
 import { QUESTION_INDEX, type IndexedQuestion } from './questionIndex.ts'
 
+import type { QuestionLevels } from './evidenceGate.ts'
+
 export interface Question {
   id: string
   domain: string
@@ -33,6 +35,8 @@ export interface Question {
   requiredDataRoomDoc?: string
   // Who the assessor should interview for this question, where the bank says.
   interviewee?: string
+  // Evidence-gated level statements (1–5). When present the score comes from them (src/lib/evidenceGate.ts).
+  levels?: QuestionLevels
   // Funding models this question applies to. Undefined = every organisation; when present, the question is shown
   // only to organisations that receive funding on one of these bases (chosen in Settings).
   modalities?: FundingModality[]

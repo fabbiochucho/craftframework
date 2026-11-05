@@ -4,7 +4,7 @@
 // get the full bank from /api/questions.
 import type { Question } from './data.ts'
 
-type TextField = 'question' | 'insight' | 'evidence' | 'verificationMethod' | 'capacityAction' | 'donorLink' | 'nationalLink' | 'scoringGuide' | 'interviewee'
+type TextField = 'question' | 'insight' | 'evidence' | 'verificationMethod' | 'capacityAction' | 'donorLink' | 'nationalLink' | 'scoringGuide' | 'interviewee' | 'levels'
 export type IndexedQuestion = Omit<Question, TextField> & Partial<Pick<Question, TextField>>
 
 export const DEMO_SAMPLE_IDS = ["GOV-01","LEG-01","SP-01","FIN-01","PROC-01","RISK-01","GRANT-01","PM-01","MEL-01","USG-01","INTL-01","FMD-01","DIG-01","EPR-01","RES-01","CLIM-01","CLIM-02","CLIM-03","LEG-07","GRANT-12"]

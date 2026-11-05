@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, Lightbulb, Lock, ShieldCheck, UploadCloud, Layers, FolderCheck,
 } from 'lucide-react'
 import { useAuthCtx, useWorkspace, useScoresCtx, useLensCtx, useEntityProfileCtx } from '../lib/context'
+import { GATE_LEVELS, gatedScore, isGated, statementId, type QuestionLevels, type StatementResponse, type StatementResponses } from '../lib/evidenceGate'
 import { activeQuestions, getRiskColor, TIER_NAMES, computeTierScore, scopeLabel, archetypeMatch, modalityMatch, ARCHETYPES } from '../lib/data'
 import { Card, Button, Stepper, Toast } from '../components/ui'
 import { resolveRegulatoryContext, PRIORITY_RANK } from '../lib/regulatory-context'
@@ -38,6 +39,13 @@ export function AssessmentPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [evidence, setEvidence, evidenceStatus] = useLegacyAssessment<Record<string, number>>('craft:evidence-confidence', {})
+  // Evidence-gated questions: statement responses, kept separately for an independent assessor.
+  const [stmts, setStmts] = useLegacyAssessment<StatementResponses>(isIndependent ? 'craft:assessor-statements' : 'craft:statements', {})
+  const setStatement = (qId: string, levels: QuestionLevels, id: string, r: StatementResponse) => {
+    const next = { ...stmts, [id]: r }
+    setStmts(next)
+    writeScore(orgId, qId, gatedScore(qId, levels, next))
+  }
 
   // Only questions in the active scope (Core Foundation + active lenses) AND
   // matching the workspace's entity archetype are visible - a Private startup
@@ -219,7 +227,33 @@ export function AssessmentPage() {
                 </div>
               )}
 
-              {/* Slider */}
+              {isGated(q.levels) ? (
+                <div className="mt-5 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+                    <span>{isIndependent ? 'Independent maturity score' : 'Maturity score'}: each level counts only when all its statements, and those below, are met with evidence seen</span>
+                    <span className="font-mono text-base font-bold text-slate-800">{score} / 5</span>
+                  </div>
+                  {GATE_LEVELS.map(l => (
+                    <fieldset key={l} className={cn('rounded border p-2', score >= l ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-100')}>
+                      <legend className="px-1 text-xs font-semibold text-slate-600">Level {l}</legend>
+                      {(q.levels![l] ?? []).map((text, i) => {
+                        const id = statementId(q.id, l, i)
+                        const r = stmts[id] ?? { met: false, evidence: '' }
+                        return (
+                          <div key={id} className="grid gap-2 py-1 sm:grid-cols-[1fr_15rem] sm:items-center">
+                            <label className="flex items-start gap-2 text-sm text-slate-800">
+                              <input type="checkbox" className="mt-1" checked={r.met} onChange={() => setStatement(q.id, q.levels!, id, { ...r, met: !r.met })} />{text}
+                            </label>
+                            <input aria-label={`Evidence seen for: ${text}`} placeholder="Evidence seen (document, date)" value={r.evidence}
+                              className={cn('rounded border px-2 py-1 text-xs', r.met && !r.evidence.trim() ? 'border-amber-400' : 'border-slate-300')}
+                              onChange={e => setStatement(q.id, q.levels!, id, { ...r, evidence: e.target.value })} />
+                          </div>
+                        )
+                      })}
+                    </fieldset>
+                  ))}
+                </div>
+              ) : (
               <div className="mt-5">
                 <div className="mb-1 flex items-center justify-between text-xs font-medium text-slate-500">
                   <span>{isIndependent ? 'Independent maturity score' : 'Maturity score'}</span>
@@ -243,6 +277,7 @@ export function AssessmentPage() {
                   </p>
                 )}
               </div>
+              )}
 
               {/* 7-point evidence matrix */}
               <div className="mt-5">

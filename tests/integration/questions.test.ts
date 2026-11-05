@@ -25,6 +25,8 @@ describe('question bank (private text)', () => {
     assert.equal(res.body.find((q: any) => q.id === 'GOV-02').archetypes, undefined, 'universal questions carry no archetype list')
     assert.deepEqual(res.body.find((q: any) => q.id === 'FMD-MS-01').modalities, ['milestone'], 'funding-model tags survive the database')
     assert.equal(res.body.find((q: any) => q.id === 'FMD-01').modalities, undefined, 'general funding questions apply to everyone')
+    // Evidence-gated level statements survive the database (the placeholder bank gives FIN-06 levels below).
+    assert.deepEqual(Object.keys(res.body.find((q: any) => q.id === 'FIN-06').levels ?? {}), ['1', '2', '3', '4', '5'])
   })
 
   it('never fills the database from the public index when the private bank is missing', async () => {

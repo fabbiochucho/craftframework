@@ -120,6 +120,8 @@ export const questions = pgTable(
     interviewee: text('interviewee'),
     // Funding models the question applies to; empty = every organisation.
     modalities: jsonb('modalities').$type<string[]>().notNull().default([]),
+    // Evidence-gated level statements (1-5); null = slider scoring.
+    levels: jsonb('levels').$type<Record<string, string[]>>(),
   },
   (t) => [index('questions_domain_idx').on(t.domain), index('questions_tier_idx').on(t.tier)],
 )
