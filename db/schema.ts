@@ -2315,3 +2315,24 @@ export const featureSwitches = pgTable('feature_switches', {
   setAt: timestamp('set_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
 }, (t) => [unique('feature_switches_target_uq').on(t.feature, t.scope, t.scopeId)])
+
+// CRAFT Capacity Assessment (src/lib/cca). One per organisation, module and year (and award for grant-lifecycle
+// modules). Scores are computed from `responses` by the engine, never stored.
+export const ccaAssessments = pgTable('cca_assessments', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  module: text('module').notNull(),
+  year: integer('year').notNull(),
+  awardRef: text('award_ref').notNull().default(''),
+  status: text('status').notNull().default('draft'), // 'draft' | 'complete'
+  assessor: text('assessor').notNull().default(''),
+  orgLead: text('org_lead').notNull().default(''),
+  responses: jsonb('responses').$type<Record<string, { met: boolean; evidence: string }>>().notNull().default({}),
+  votes: jsonb('votes').$type<Record<string, number[]>>().notNull().default({}),
+  swot: jsonb('swot').$type<Record<string, string[]>>().notNull().default({}),
+  plan: jsonb('plan').$type<{ domainId: string; costs?: number; timeline?: string; responsible?: string }[]>().notNull().default([]),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (t) => [unique('cca_assessments_one_per_year').on(t.orgId, t.module, t.year, t.awardRef), index('cca_assessments_org_idx').on(t.orgId)])

@@ -18,6 +18,7 @@ import { Route as AssessmentRouteImport } from './routes/assessment'
 import { Route as AuditLogRouteImport } from './routes/audit-log'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BadgeRouteImport } from './routes/badge'
+import { Route as CapacityRouteImport } from './routes/capacity'
 import { Route as CipRouteImport } from './routes/cip'
 import { Route as CodeOfConductRouteImport } from './routes/code-of-conduct'
 import { Route as ComplianceRouteImport } from './routes/compliance'
@@ -157,6 +158,11 @@ const AuthRoute = AuthRouteImport.update({
 const BadgeRoute = BadgeRouteImport.update({
   id: '/badge',
   path: '/badge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CapacityRoute = CapacityRouteImport.update({
+  id: '/capacity',
+  path: '/capacity',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CipRoute = CipRouteImport.update({
@@ -677,6 +683,7 @@ export interface FileRoutesByFullPath {
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/badge': typeof BadgeRoute
+  '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
   '/compliance': typeof ComplianceRoute
@@ -783,6 +790,7 @@ export interface FileRoutesByTo {
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/badge': typeof BadgeRoute
+  '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
   '/compliance': typeof ComplianceRoute
@@ -890,6 +898,7 @@ export interface FileRoutesById {
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/badge': typeof BadgeRoute
+  '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
   '/compliance': typeof ComplianceRoute
@@ -998,6 +1007,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/auth'
     | '/badge'
+    | '/capacity'
     | '/cip'
     | '/code-of-conduct'
     | '/compliance'
@@ -1104,6 +1114,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/auth'
     | '/badge'
+    | '/capacity'
     | '/cip'
     | '/code-of-conduct'
     | '/compliance'
@@ -1210,6 +1221,7 @@ export interface FileRouteTypes {
     | '/audit-log'
     | '/auth'
     | '/badge'
+    | '/capacity'
     | '/cip'
     | '/code-of-conduct'
     | '/compliance'
@@ -1317,6 +1329,7 @@ export interface RootRouteChildren {
   AuditLogRoute: typeof AuditLogRoute
   AuthRoute: typeof AuthRoute
   BadgeRoute: typeof BadgeRoute
+  CapacityRoute: typeof CapacityRoute
   CipRoute: typeof CipRoute
   CodeOfConductRoute: typeof CodeOfConductRoute
   ComplianceRoute: typeof ComplianceRoute
@@ -1477,6 +1490,13 @@ declare module '@tanstack/react-router' {
       path: '/badge'
       fullPath: '/badge'
       preLoaderRoute: typeof BadgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/capacity': {
+      id: '/capacity'
+      path: '/capacity'
+      fullPath: '/capacity'
+      preLoaderRoute: typeof CapacityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cip': {
@@ -2157,6 +2177,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuditLogRoute: AuditLogRoute,
   AuthRoute: AuthRoute,
   BadgeRoute: BadgeRoute,
+  CapacityRoute: CapacityRoute,
   CipRoute: CipRoute,
   CodeOfConductRoute: CodeOfConductRoute,
   ComplianceRoute: ComplianceRoute,
@@ -2280,6 +2301,7 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
 
 import type { getRouter } from './router.tsx'
 import type { createStart } from '@tanstack/react-start'
