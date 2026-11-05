@@ -11,6 +11,7 @@ import { blockingIndicators, currentRung, LADDER_INDICATORS, LADDER_LEVELS, leve
 import { optimismBias, paperCompliancePenalty } from './frameworks.ts'
 import type { EngagementScope } from './engagements.ts'
 import { applicableIndicators, bandFor, FOUNDATION_MODULES, type ModuleProfile } from './foundationModules.ts'
+import { isComplete, scoreCap, type ControlChecks, type ScoreResult } from './controlChecks.ts'
 
 export const METHODS = ['document_review', 'sample_testing', 'interviews', 'site_visit', 'combined'] as const
 export type Method = (typeof METHODS)[number]
@@ -221,6 +222,8 @@ export type FinaliseInput = {
   now?: Date
   /** The organisation's module profile: which index indicators apply. */
   profile?: ModuleProfile
+  /** Per indicator: the seven control checks and whether it was scored or not evidenced (controlChecks.ts). */
+  checks?: Record<string, { result: ScoreResult; checks: ControlChecks }>
 }
 
 /** Everything that stops a review being finalised, as plain sentences. Empty = ready. */
@@ -241,6 +244,24 @@ export function finalisationProblems(i: FinaliseInput): string[] {
   for (const q of i.qualifications) {
     if (!q.text.trim()) problems.push('Every qualification needs wording')
     if (!q.indicatorIds.length || q.indicatorIds.some((x) => !ids.has(x))) problems.push('Link every qualification to indicators in scope')
+  }
+  if (i.checks) {
+    const scored = inScope.filter((x) => i.validatorScores[x.id] != null && i.checks![x.id]?.result !== 'not_evidenced')
+    const unchecked = scored.filter((x) => !isComplete(i.checks![x.id]?.checks)).length
+    if (unchecked) problems.push(`Record the seven checks for every scored indicator (${unchecked} missing)`)
+    for (const x of scored) {
+      const n = i.negotiated[x.id]
+      const c = i.checks[x.id]?.checks
+      if (n != null && isComplete(c) && n > scoreCap(c!).max) problems.push(`The negotiated score for ${x.id} is above what its checks allow (at most ${scoreCap(c!).max})`)
+    }
+    // Not evidenced is an evidence limitation: it rules out a plain "validated" and must be named in a qualification.
+    const notEvidenced = inScope.filter((x) => i.checks![x.id]?.result === 'not_evidenced').map((x) => x.id)
+    if (notEvidenced.length && i.outcome === 'validated') problems.push(`${notEvidenced.length} indicator(s) are not evidenced, so the outcome cannot be a plain "validated"`)
+    if (notEvidenced.length && i.outcome === 'validated_with_qualifications') {
+      const named = new Set(i.qualifications.flatMap((q) => q.indicatorIds))
+      const unnamed = notEvidenced.filter((id) => !named.has(id))
+      if (unnamed.length) problems.push(`Name every not-evidenced indicator in a qualification (${unnamed.join(', ')})`)
+    }
   }
   if (i.outcome === 'validated_with_qualifications' && !i.qualifications.length) problems.push('List at least one qualification')
   if (i.outcome === 'validated' && i.qualifications.length) problems.push('A plain "validated" outcome cannot carry qualifications')

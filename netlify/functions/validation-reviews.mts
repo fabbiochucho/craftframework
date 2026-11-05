@@ -24,6 +24,7 @@ import { ensureStatement } from '../lib/public-validation.js'
 import { loadModuleProfile, loadScopeSelfScores } from '../lib/validator-quality.js'
 import { missingSpecialismMessage } from '../../src/lib/specialisms.js'
 import type { ModuleProfile } from '../../src/lib/foundationModules.js'
+import { CHECK_VALUES, CONTROL_CHECKS, RESULTS, scoreProblem, type ControlChecks, type ScoreResult } from '../../src/lib/controlChecks.js'
 import { recordStatusHistory, sendDebriefNotice, syncCheckpoints } from '../lib/validation-lifecycle.js'
 import {
   allInScope, canonicalJson, isPrimaryFramework, cappedNegotiated, cleanScores, finalisationProblems, finalScores, FRAMEWORKS, impliedRung, indexResults, indicatorsInScope, levelConfirmations, levelsAchieved,
@@ -65,6 +66,8 @@ const scoreSchema = z.object({
   sufficiency: z.enum(SUFFICIENCY),
   comment: z.string().max(4000).optional(),
   evidenceRef: z.string().max(1000).optional(),
+  result: z.enum(RESULTS).optional(),
+  checks: z.object(Object.fromEntries(CONTROL_CHECKS.map((c) => [c.key, z.enum(CHECK_VALUES).optional()]))).strict().optional(),
 })
 const responseSchema = z.object({ response: z.string().trim().min(1).max(4000) })
 const negotiatedSchema = z.object({ score: z.number().int().min(0).max(5).nullable() })
@@ -216,15 +219,19 @@ const handleRequest = async (req: Request) => {
       if (!ids.has(who)) return bad('Not an indicator in scope')
       const p = scoreSchema.safeParse(await readBody())
       if (!p.success) return bad('A score from 0 to 5 and an evidence sufficiency are required')
+      const result = p.data.result ?? 'scored'
+      const checks = (p.data.checks ?? {}) as ControlChecks
+      const problem = scoreProblem(result, p.data.score, checks)
+      if (problem) return bad(problem)
       const r = await ensure()
       return await locked(r.id, async (tx, row) => {
         if (row.status === 'finalised') return conflict('This review is finalised')
         const [old] = await tx.select({ score: validationScores.score }).from(validationScores)
           .where(and(eq(validationScores.reviewId, row.id), eq(validationScores.indicatorId, who)))
-        const set = { score: p.data.score, sufficiency: p.data.sufficiency, comment: p.data.comment ?? '', evidenceRef: p.data.evidenceRef ?? '', scoredBy: caller.email, updatedAt: new Date() }
+        const set = { score: p.data.score, sufficiency: p.data.sufficiency, comment: p.data.comment ?? '', evidenceRef: p.data.evidenceRef ?? '', scoredBy: caller.email, updatedAt: new Date(), result, checks: result === 'not_evidenced' ? {} : checks }
         await tx.insert(validationScores).values({ reviewId: row.id, indicatorId: who, ...set })
           .onConflictDoUpdate({ target: [validationScores.reviewId, validationScores.indicatorId], set })
-        await tx.insert(auditLogs).values({ actor: caller.email, action: `scored ${who}: ${old ? old.score : '—'} → ${p.data.score} (${p.data.sufficiency})`, target: row.id, category: 'Validation', orgId: e.orgId })
+        await tx.insert(auditLogs).values({ actor: caller.email, action: `scored ${who}: ${old ? old.score : '—'} → ${result === 'not_evidenced' ? 'not evidenced' : p.data.score} (${p.data.sufficiency})`, target: row.id, category: 'Validation', orgId: e.orgId })
         return json({ ok: true })
       })
     }
@@ -327,7 +334,7 @@ const handleRequest = async (req: Request) => {
         const sufficiency = sufficiencyOf(scoreRows, ids)
         const problems = finalisationProblems({
           fw, scope, validatorScores, negotiated, sufficiency, method: row.method as never, fieldworkStart: row.fieldworkStart, fieldworkEnd: row.fieldworkEnd,
-          outcome: p.data.outcome, qualifications: quals, profile: ctx.profile,
+          outcome: p.data.outcome, qualifications: quals, profile: ctx.profile, checks: checksOf(scoreRows, ids),
         })
         if (problems.length) return bad('This review cannot be finalised yet', { problems })
 
@@ -437,9 +444,9 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
     const rows = trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiency, ctx.profile).map((t) => {
       const s = scoreRows.find((x) => x.indicatorId === t.id)
       const d = debriefRows.find((x) => x.indicatorId === t.id)
-      return { ...t, sufficiency: s?.sufficiency ?? null, comment: s?.comment ?? '', evidenceRef: s?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '', evidence: evidence.filter((x) => x.indicatorId === t.id) }
+      return { ...t, sufficiency: s?.sufficiency ?? null, comment: s?.comment ?? '', evidenceRef: s?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '', evidence: evidence.filter((x) => x.indicatorId === t.id), result: s?.result ?? null, checks: s?.checks ?? {} }
     })
-    const problems = finalisationProblems({ fw, scope, validatorScores, negotiated, sufficiency, method: (review?.method ?? null) as never, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null, outcome: null, qualifications: quals, profile: ctx.profile })
+    const problems = finalisationProblems({ fw, scope, validatorScores, negotiated, sufficiency, method: (review?.method ?? null) as never, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null, outcome: null, qualifications: quals, profile: ctx.profile, checks: checksOf(scoreRows, ids) })
       .filter((x) => x !== 'Choose an outcome')
     return {
       ...base, status: review?.status ?? 'draft', lead: ctx.lead, method: review?.method ?? null, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null,
@@ -472,6 +479,8 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
   return { ...base, status: review ? 'in_progress' : 'not_started', ...(ctx.org ? { indicators: allInScope(fw, scope, ctx.profile), evidence: await linkedEvidence(e.id) } : {}) }
 }
 
+const checksOf = (scoreRows: Array<{ indicatorId: string; result: string; checks: Record<string, string> }>, ids: Set<string>) =>
+  Object.fromEntries(scoreRows.filter((s) => ids.has(s.indicatorId)).map((s) => [s.indicatorId, { result: s.result as ScoreResult, checks: s.checks as ControlChecks }]))
 const sufficiencyOf = (scoreRows: Array<{ indicatorId: string; sufficiency: string }>, ids: Set<string>): Record<string, Sufficiency> =>
   Object.fromEntries(scoreRows.filter((s) => ids.has(s.indicatorId)).map((s) => [s.indicatorId, s.sufficiency as Sufficiency]))
 
@@ -567,6 +576,8 @@ async function buildSnapshot(s: SnapshotInput) {
       return {
         id: i.id, framework: i.framework, level: i.level, domain: i.domain, self: s.self[i.id] ?? null, validator: s.validatorScores[i.id] ?? null, negotiated: s.negotiated[i.id] ?? null, final: s.final[i.id] ?? null,
         sufficiency: sc?.sufficiency ?? null, comment: sc?.comment ?? '', evidenceRef: sc?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '',
+        // The control checks behind the score, and whether it was not evidenced (frozen with the review).
+        result: sc?.result ?? null, checks: sc?.checks ?? {},
         // Paper-compliance cap on the negotiated score, when it applied.
         paperCap: s.caps[i.id] ? { negotiated: s.caps[i.id].negotiated, capped: s.caps[i.id].capped } : null,
         // References only (id, name, hash): never file contents.

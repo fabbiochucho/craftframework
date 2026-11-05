@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, it } from 'node:test'
-import { installFetchMock, pool, rows, truncateAll } from './harness.ts'
+import { installFetchMock, pool, rows, truncateAll, CHECKS_OK } from './harness.ts'
 import { FRAMEWORKS } from '../../src/lib/validationReview.ts'
 
 const load = async (f: string) => (await import(new URL(`../../netlify/functions/${f}.mts`, import.meta.url).href)).default
@@ -54,7 +54,7 @@ async function startEngagement() {
   await eng(VAL, 'POST', `/${id}/respond`, { side: 'validator', decision: 'accept' })
   assert.equal((await eng(VAL, 'POST', `/${id}/declaration`, { confirmed: true, signedName: 'Valerie Okafor' })).status, 200)
   await rev(VAL, 'PUT', `/${id}/setup`, { method: 'combined', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
-  for (const ind of IDS) await rev(VAL, 'PUT', `/${id}/scores/${ind}`, { score: 4, sufficiency: 'sufficient' })
+  for (const ind of IDS) await rev(VAL, 'PUT', `/${id}/scores/${ind}`, { checks: CHECKS_OK, score: 4, sufficiency: 'sufficient' })
   return id as string
 }
 async function issue(opts: { qualify?: string[]; outcome?: string; finalise?: Record<string, unknown> } = {}) {
