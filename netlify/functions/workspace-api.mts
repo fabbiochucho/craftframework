@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { listOfflineFrameworks, mutateOfflineFramework } from '../lib/offline-frameworks.js'
 import { escalateSupport } from '../lib/support-escalation.js'
 import { openTicket } from '../lib/support-tickets.js'
+import { isRating, ratingProblem, RESPONSE_STANCES, RISK_CATEGORIES } from '../../src/lib/riskMatrix.js'
 import { createHash } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
 import { decodeEvidence, encodeEvidence } from '../lib/evidence-storage.js'
@@ -625,12 +626,23 @@ function declaredDocumentKind(v: unknown): string | null {
   return String(v)
 }
 
-// Root cause, expected outcome, resources, dependencies and residual risk on a CAP.
-function capDetailFields(body: Record<string, any>) {
-  const out: Record<string, string> = {}
-  for (const k of ['rootCause', 'expectedOutcome', 'resources', 'dependencies', 'residualRisk', 'immediateCorrection', 'preventiveAction'] as const) {
+// The finding and its analysis on a CAP: criteria, condition, cause (rootCause) and consequence; corrections and
+// actions; risk before and after controls (1-5 likelihood and impact); escalation category; management response.
+function capDetailFields(body: Record<string, any>, current?: { inherentLikelihood: number | null; inherentImpact: number | null; residualLikelihood: number | null; residualImpact: number | null }) {
+  const out: Record<string, string | number | null> = {}
+  for (const k of ['rootCause', 'expectedOutcome', 'resources', 'dependencies', 'residualRisk', 'immediateCorrection', 'preventiveAction', 'criteria', 'condition', 'consequence', 'managementResponse'] as const) {
     if (body[k] !== undefined) out[k] = str(body[k], k, 4000, false)
   }
+  for (const k of ['inherentLikelihood', 'inherentImpact', 'residualLikelihood', 'residualImpact'] as const) {
+    if (body[k] === undefined) continue
+    if (body[k] !== null && !isRating(body[k])) throw bad(`${k} must be 1 to 5`)
+    out[k] = body[k]
+  }
+  if (body.riskCategory !== undefined) out.riskCategory = oneOf(body.riskCategory, 'riskCategory', ['', ...RISK_CATEGORIES] as const, '')
+  if (body.responseStance !== undefined) out.responseStance = oneOf(body.responseStance, 'responseStance', ['', ...RESPONSE_STANCES] as const, '')
+  const v = (k: 'inherentLikelihood' | 'inherentImpact' | 'residualLikelihood' | 'residualImpact') => (k in out ? out[k] : current?.[k] ?? null) as number | null
+  const problem = ratingProblem({ likelihood: v('inherentLikelihood'), impact: v('inherentImpact') }, { likelihood: v('residualLikelihood'), impact: v('residualImpact') })
+  if (problem) throw bad(problem)
   return out
 }
 
@@ -1711,7 +1723,7 @@ const routes: Route[] = [
     if (c.body.severity !== undefined) set.severity = oneOf(c.body.severity, 'severity', SEVERITIES)
     if (c.body.correctiveAction !== undefined) set.correctiveAction = str(c.body.correctiveAction, 'correctiveAction', 4000, false)
     if (c.body.status !== undefined) set.status = oneOf(c.body.status, 'status', ['open', 'in_progress'] as const) // closing goes through /close
-    Object.assign(set, capDetailFields(c.body))
+    Object.assign(set, capDetailFields(c.body, cap))
     const comment = str(c.body.comment, 'comment', 2000, false)
     if (!Object.keys(set).length && !comment) throw bad('nothing to update')
     const [u] = Object.keys(set).length ? await db.update(capRecords).set(set).where(eq(capRecords.id, cap.id)).returning() : [cap]
