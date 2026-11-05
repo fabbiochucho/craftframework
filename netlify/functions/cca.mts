@@ -105,8 +105,11 @@ const handleRequest = async (req: Request) => {
     }
 
     if (req.method === 'POST' && action === 'complete') {
+      // Record the domains this assessment covered, so domains added to the module later never lower its result.
+      const mod = (await content())?.find((m) => m.id === row.module)
+      const domainIds = mod ? mod.areas.flatMap((a) => a.domains.map((d) => d.id)) : null
       await db.transaction(async (tx) => {
-        await tx.update(ccaAssessments).set({ status: 'complete', completedAt: new Date(), updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
+        await tx.update(ccaAssessments).set({ status: 'complete', domainIds, completedAt: new Date(), updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
         await tx.insert(auditLogs).values({ orgId: row.orgId, actor: caller.email, action: `Completed capacity assessment (${row.module} ${row.year})`, target: row.id, category: 'Assessment' })
       })
       return json({ ok: true })
