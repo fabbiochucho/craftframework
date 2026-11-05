@@ -25,13 +25,15 @@
 
 import type { Archetype } from './data'
 import {
-  resolveRegulatoryContext, JurisdictionId, SectorArchetype, pillar,
+  resolveRegulatoryContext, pillar, type JurisdictionId, type SectorArchetype,
 } from './regulatory-context'
 
 export type EvidenceType = 'upload' | 'external_link'
 
 // The lifecycle of a single Data Room requirement.
-export type DataRoomStatus = 'missing' | 'uploaded' | 'verified' | 'flagged'
+// not_available: the organisation states the document does not exist (with a reason), which is different from
+// missing (not yet provided). A desk review records the gap instead of asking for a document written for the review.
+export type DataRoomStatus = 'missing' | 'uploaded' | 'verified' | 'flagged' | 'not_available'
 
 export type DataRoomCategory =
   | 'Corporate & Legal'
@@ -67,6 +69,11 @@ export interface ComplianceRequirement {
   // requirement applies to every subsector of its sectors - most requirements
   // sit at the sector level and leave this unset.
   applicableSubsectors?: string[]
+  // The CRAFT Capacity Assessment domains this document is evidence for, so a desk review feeds scoring. Community
+  // ids are full domain ids; government keys omit the national/state/local prefix (e.g. 'plan-1' for nat-plan-1).
+  cca?: { community?: string[]; government?: string[] }
+  // For network documents: the network coordinating-body area it supports (src/lib/indices/networkCapacity.ts).
+  network?: string
 }
 
 // A user/assessor's working record against one requirement.
@@ -82,6 +89,14 @@ export interface DataRoomItem {
   assessorNote?: string
   verifiedBy?: string
   updatedAt?: string
+  // Desk review fields: when the document was approved, how it is shown to be in use, why it does not exist,
+  // who in the organisation holds it, and when it is due.
+  approvedOn?: string
+  evidenceOfUse?: string
+  notAvailableReason?: string
+  custodian?: string
+  dueDate?: string
+  providedBy?: string
 }
 
 // ----------------------------------------------------------------------------
@@ -102,7 +117,7 @@ export function countryFlag(code: string): string {
 // picks an organizational form, a public body picks a mandate.
 export const SECTORS_BY_ARCHETYPE: Record<Archetype, string[]> = {
   Private: ['Fintech', 'Healthtech', 'Agritech', 'Manufacturing', 'Tech / SaaS', 'Renewable Energy', 'Logistics'],
-  'Civil Society': ['NGO', 'CBO', 'Faith-Based', 'Coalition', 'Advocacy Group', 'Union', 'Cooperative', 'Foundation', 'Research Institute'],
+  'Civil Society': ['NGO', 'CBO', 'Faith-Based', 'Network', 'Coalition', 'Advocacy Group', 'Union', 'Cooperative', 'Foundation', 'Research Institute'],
   Public: ['Ministry', 'Agency', 'National Public Health Institute (NPHI)', 'Regulatory Authority', 'Sub-National Entity'],
 }
 
@@ -133,6 +148,15 @@ export const SUBSECTORS_BY_SECTOR: Record<string, string[]> = {
 // The subsector options available beneath a sector (empty if the sector has none).
 export function subsectorsForSector(sector: string): string[] {
   return SUBSECTORS_BY_SECTOR[sector] ?? []
+}
+
+type DeskRow = [string, DataRoomCategory, string, string, Priority, ComplianceRequirement['cca'], string?]
+// Compact rows for the desk review documents (same shape as every other requirement).
+function deskReview(rows: DeskRow[], archetypes: Archetype[], sectors: string[]): ComplianceRequirement[] {
+  return rows.map(([id, category, documentName, description, priority, cca, network]) => ({
+    id, category, documentName, description, priority, applicableArchetypes: archetypes, applicableCountries: ['ALL'], applicableSectors: sectors,
+    ...(cca ? { cca } : {}), ...(network ? { network } : {}),
+  }))
 }
 
 // ----------------------------------------------------------------------------
@@ -306,6 +330,39 @@ export const MASTER_COMPLIANCE_MATRIX: ComplianceRequirement[] = [
     applicableSubsectors: ['Humanitarian & Emergency'],
   },
 
+  // ── Desk review: documents every organisation should hold (owned by the CRAFT Capacity Assessment desk review) ──
+  ...deskReview([
+    ['UNI-ORG-01', 'Corporate & Legal', 'Current Organisational Profile', 'A current description of the organisation: mandate, programmes, locations, staffing and funding.', 'Moderate', { community: ['com-leg-1'], government: ['gov-1'] }],
+    ['UNI-ORG-02', 'Corporate & Legal', 'Current Strategic Plan', 'The approved strategic plan in force, with its period and approval record.', 'High', { community: ['com-prog-1', 'com-res-1'], government: ['plan-1', 'gov-4'] }],
+    ['UNI-ORG-03', 'Corporate & Legal', 'Organisational Structure (Organogram)', 'The approved organogram showing units, posts and reporting lines.', 'Moderate', { community: ['com-hr-1'], government: ['gov-1'] }],
+    ['UNI-GOV-01', 'Governance & Sovereign', 'Governing Board Membership List', 'Current members of the board or governing body, with appointment dates and roles.', 'High', { community: ['com-gov-1'], government: ['gov-5'] }],
+    ['UNI-GOV-02', 'Governance & Sovereign', 'Minutes of Board Meetings (Last Two Years)', 'Signed minutes of governing body meetings for the last two years.', 'High', { community: ['com-gov-1', 'com-gov-2'], government: ['gov-5', 'gov-2'] }],
+    ['UNI-GOV-03', 'Governance & Sovereign', 'Code of Conduct and Conflict of Interest Policy', 'The approved code of conduct and conflict of interest policy, with signed declarations.', 'High', { community: ['com-gov-4'], government: ['gov-3'] }],
+    ['UNI-FIN-04', 'Financial', 'Financial Management Policy or Manual', 'The approved finance manual covering accounting, controls, cash and reporting.', 'Critical', { community: ['com-fin-1', 'com-fin-3'], government: ['pfm-3', 'pfm-4'] }],
+    ['UNI-FIN-05', 'Financial', 'Procurement Policy', 'The approved procurement policy with methods, thresholds and approvals.', 'High', { community: ['com-fin-3'], government: ['proc-1'] }],
+    ['UNI-FIN-06', 'Financial', 'Annual and Operational Budgets', 'Approved budgets for the current and last financial year.', 'High', { community: ['com-fin-2'], government: ['pfm-1', 'pfm-5'] }],
+    ['UNI-PRG-01', 'Corporate & Legal', 'Programme or Project Implementation Reports (Last Two Years)', 'Progress and final reports for programmes and projects over the last two years.', 'High', { community: ['com-prog-2', 'com-rql-1'], government: ['plan-5'] }],
+    ['UNI-PRG-02', 'Corporate & Legal', 'Monitoring and Evaluation Framework', 'The results framework, indicators and data collection plan in use.', 'High', { community: ['com-prog-3'], government: ['plan-2'] }],
+    ['UNI-PRG-03', 'Corporate & Legal', 'Annual Reports', 'Published or board-approved annual reports for the last two years.', 'Moderate', { community: ['com-rql-1'], government: ['plan-5', 'adv-3'] }],
+    ['UNI-PRG-04', 'Corporate & Legal', 'Previous Capacity Assessment Reports', 'Reports of earlier organisational capacity assessments, if any, with the improvement plans that followed.', 'Low', undefined],
+    ['UNI-HR-04', 'HR & Data Compliance', 'Confidentiality Policy', 'The approved policy on confidential information, including personal data of people served.', 'Moderate', { community: ['com-leg-3'], government: ['plan-5'] }],
+    ['UNI-RES-01', 'Financial', 'Resource Mobilisation or Fundraising Strategy', 'The approved strategy for raising and diversifying funds.', 'Moderate', { community: ['com-res-1'], government: ['res-1'] }],
+    ['UNI-PRT-01', 'Corporate & Legal', 'Advocacy and Communication Strategy', 'The approved advocacy and communication strategy or plan.', 'Moderate', { community: ['com-part-1'], government: ['adv-1', 'adv-3'] }],
+    ['UNI-PRT-02', 'Corporate & Legal', 'Partnership Agreements and Memoranda of Understanding', 'Signed agreements with the main partners, funders and government bodies.', 'Moderate', { community: ['com-part-2'], government: ['part-4'] }],
+  ], ['Public', 'Civil Society', 'Private'], ['ALL']),
+  ...deskReview([
+    ['CS-HR-02', 'HR & Data Compliance', 'Child Protection Policy', 'The approved child protection policy, with the reporting procedure and focal person.', 'High', { community: ['com-svc-4'] }],
+  ], ['Civil Society'], ['ALL']),
+  // ── Networks, coalitions and unions: documents about members, chapters and representation ──
+  ...deskReview([
+    ['NET-01', 'Governance & Sovereign', 'Membership Policy and Guidelines', 'Who can join, members’ rights and duties, and how membership is granted or withdrawn.', 'Critical', { community: ['com-gov-1'] }, 'mandate'],
+    ['NET-02', 'Governance & Sovereign', 'Membership Register and List of Chapters', 'The current register of members and the list of state or regional chapters with contacts.', 'High', { community: ['com-part-2'] }, 'mandate'],
+    ['NET-03', 'Governance & Sovereign', 'Chapter Coordination Guidelines', 'How the national body and chapters coordinate, report and share decisions.', 'High', { community: ['com-gov-3'] }, 'coordination'],
+    ['NET-04', 'Governance & Sovereign', 'Records of National and Chapter Meetings', 'Minutes or reports of national and chapter meetings over the last two years.', 'High', { community: ['com-gov-1'] }, 'coordination'],
+    ['NET-05', 'Governance & Sovereign', 'Records of Elections and Leadership Transitions', 'Election notices, results and handover records for the governing body and officers.', 'High', { community: ['com-gov-2'] }, 'mandate'],
+    ['NET-06', 'Governance & Sovereign', 'Evidence of Representation in National Coordination Structures', 'Appointments, attendance or submissions showing the network represents members in national bodies.', 'Moderate', { community: ['com-part-1'] }, 'representation'],
+  ], ['Civil Society'], ['Network', 'Coalition', 'Union']),
+
   // --- Public sector / sovereign ---
   {
     id: 'PUB-GOV-01', category: 'Governance & Sovereign', documentName: 'Enabling Act / Establishment Instrument',
@@ -375,6 +432,7 @@ export const STATUS_META: Record<DataRoomStatus, { label: string; cls: string; d
   uploaded: { label: 'Uploaded', cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
   verified: { label: 'Assessor Verified', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   flagged: { label: 'Flagged for Correction', cls: 'bg-rose-100 text-rose-800 border-rose-300', dot: 'bg-rose-600' },
+  not_available: { label: 'Does not exist', cls: 'bg-slate-100 text-slate-700 border-slate-300', dot: 'bg-slate-500' },
 }
 
 export const PRIORITY_META: Record<Priority, string> = {
@@ -394,6 +452,7 @@ export interface DataRoomProgress {
   verified: number
   flagged: number
   missing: number
+  notAvailable: number // declared not to exist (a recorded gap, not a provided document)
   percent: number // completion: provided / total
   verifiedPercent: number
 }
@@ -406,6 +465,7 @@ export function computeProgress(
   let verified = 0
   let provided = 0
   let flagged = 0
+  let notAvailable = 0
   for (const r of reqs) {
     const s = statusOf(items[r.id])
     if (s === 'verified') {
@@ -415,15 +475,18 @@ export function computeProgress(
       provided++
     } else if (s === 'flagged') {
       flagged++
+    } else if (s === 'not_available') {
+      notAvailable++
     }
   }
-  const missing = total - provided - flagged
+  const missing = total - provided - flagged - notAvailable
   return {
     total,
     provided,
     verified,
     flagged,
     missing,
+    notAvailable,
     percent: total ? Math.round((provided / total) * 100) : 0,
     verifiedPercent: total ? Math.round((verified / total) * 100) : 0,
   }
@@ -512,4 +575,43 @@ export function injectedStatutoryRequirements(
       applicableSectors: ['ALL'],
     }
   })
+}
+
+// ----------------------------------------------------------------------------
+// Desk review helpers (CRAFT Capacity Assessment)
+// ----------------------------------------------------------------------------
+
+/** Documents approved this many days or fewer before the review date are flagged as possibly written for the review. */
+export const RECENT_APPROVAL_DAYS = 90
+
+/** True when a document was approved within RECENT_APPROVAL_DAYS before the review date (or after it). */
+export function approvedForReview(approvedOn: string | undefined, reviewDate: string, days = RECENT_APPROVAL_DAYS): boolean {
+  if (!approvedOn || !reviewDate) return false
+  const gap = (Date.parse(reviewDate) - Date.parse(approvedOn)) / 86_400_000
+  return Number.isFinite(gap) && gap <= days
+}
+
+/** The desk review documents that are evidence for a Capacity Assessment domain. */
+export function documentsForDomain(reqs: ComplianceRequirement[], moduleId: string, domainId: string): ComplianceRequirement[] {
+  const gov = moduleId === 'national' || moduleId === 'state' || moduleId === 'local'
+  const key = gov ? domainId.replace(/^[a-z]+-/, '') : domainId
+  return reqs.filter((r) => (gov ? r.cca?.government : r.cca?.community)?.includes(key))
+}
+
+const csvCell = (v: string | undefined) => `"${(v ?? '').replace(/"/g, '""')}"`
+
+/** The evidence request list as CSV: one row per document with status, custodian, due date and notes. */
+export function requestListCsv(reqs: ComplianceRequirement[], items: Record<string, DataRoomItem>): string {
+  const head = ['ID', 'Category', 'Document', 'Priority', 'Status', 'Custodian', 'Due date', 'Approved on', 'Evidence of use', 'Reason it does not exist', 'Assessor note']
+  const rows = reqs.map((r) => {
+    const it = items[r.id]
+    return [r.id, r.category, r.documentName, r.priority, STATUS_META[statusOf(it)].label, it?.custodian, it?.dueDate, it?.approvedOn, it?.evidenceOfUse, it?.notAvailableReason, it?.assessorNote]
+  })
+  return [head, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')
+}
+
+/** ISO-2 code for a country stored by name on an organisation ('' if unknown). */
+export function countryCode(nameOrCode: string): string {
+  const c = COUNTRIES.find((x) => x.code === nameOrCode || x.name.toLowerCase() === nameOrCode.toLowerCase())
+  return c?.code ?? ''
 }

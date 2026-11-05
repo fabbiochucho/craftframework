@@ -14,6 +14,8 @@ import {
 import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
 import { ScreeningCard } from '../components/ScreeningCard'
 import { QuickScreenCard } from '../components/QuickScreenCard'
+import { DeskReviewPanel, deskRequirements, useDeskReview } from '../components/DeskReviewPanel'
+import { documentsForDomain, STATUS_META } from '../lib/dataroom'
 
 type Assessment = {
   id: string; orgId: string; module: string; year: number; awardRef: string; region: string; district: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
@@ -65,8 +67,12 @@ export function CapacityAssessmentPage() {
             className={cn('rounded-full border px-3 py-1 text-xs font-semibold', moduleId === m.id ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300', !modules?.some((x) => x.id === m.id) && 'opacity-50')}
             title={m.audience}>{m.name}</button>
         ))}
+        <button type="button" onClick={() => { setModuleId('desk'); setOpenId(null) }}
+          className={cn('rounded-full border px-3 py-1 text-xs font-semibold', moduleId === 'desk' ? 'border-sky-700 bg-sky-700 text-white' : 'border-sky-200 bg-white text-sky-800 hover:border-sky-400')}
+          title="Documents, custodians, due dates and the fieldwork log">Desk review</button>
       </div>
-      {!modules ? <p className="text-sm text-slate-500">{error ? '' : 'Loading…'}</p>
+      {moduleId === 'desk' ? (orgId ? <DeskReviewPanel orgId={orgId} modules={modules ?? []} /> : null)
+        : !modules ? <p className="text-sm text-slate-500">{error ? '' : 'Loading…'}</p>
         : !mod ? <Card><CardContent className="py-8 text-sm text-slate-600">The {CCA_MODULES.find((m) => m.id === moduleId)?.name} module is being prepared and will be available soon.</CardContent></Card>
         : open ? <AssessmentView key={open.id} a={open} mod={mod} history={mine.filter((x) => placeLabel(x) === placeLabel(open))} onBack={() => setOpenId(null)} onChanged={load} />
         : <ModuleHome mod={mod} items={mine} orgId={orgId} onOpen={setOpenId} onCreated={async (id) => { await load(); setOpenId(id) }} />}
@@ -197,6 +203,10 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
   const [message, setMessage] = useState<string | null>(null)
   const locked = a.status === 'complete'
   const d = useMemo(() => dashboard(mod, responses, notAssessed), [mod, responses, notAssessed])
+  // Desk review documents behind each domain, so the evidence already gathered is in front of the assessor.
+  const desk = useDeskReview(a.orgId)
+  const deskReqs = useMemo(() => deskRequirements(desk.data?.profile ?? null), [desk.data])
+  const deskStatus = (id: string) => desk.data?.items.find((i) => i.requirementId === id)?.status ?? 'missing'
   const canSkip = !isAwardModule(mod.id)
 
   const save = async (extra: Record<string, unknown> = {}) => {
@@ -250,6 +260,9 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
                           onChange={(e) => setNotAssessed({ ...notAssessed, [dom.id]: e.target.value })} />
                       )}
                       <p className="mt-1 text-xs text-slate-500"><b>Level 1:</b> {dom.level1}</p>
+                      {documentsForDomain(deskReqs, mod.id, dom.id).length > 0 && (
+                        <p className="mt-1 text-xs text-slate-600">Desk review: {documentsForDomain(deskReqs, mod.id, dom.id).map((r) => `${r.documentName} (${STATUS_META[deskStatus(r.id)].label.toLowerCase()})`).join(' · ')}</p>
+                      )}
                       {!skipped && ([2, 3, 4] as const).map((l) => (
                         <fieldset key={l} className={cn('mt-2 rounded border p-2', score >= l ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-100')}>
                           <legend className="px-1 text-xs font-semibold text-slate-600">Level {l}: all must be met with evidence seen</legend>
