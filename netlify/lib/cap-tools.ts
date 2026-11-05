@@ -1,5 +1,6 @@
 // Corrective-action helpers: escalation rules and duplicate detection.
 // Self-check: `node netlify/lib/cap-tools.test.ts`.
+import { band, RISK_CATEGORIES, RISK_CATEGORY_LABEL, scoreOf } from '../../src/lib/riskMatrix.ts'
 
 export const ESCALATION_LEVELS = ['None', 'Workspace admins', 'Organisation owner / executive', 'Board or governing body'] as const
 // Days overdue at which each level is reached, by severity. Critical items escalate fastest.
@@ -10,7 +11,28 @@ export const ESCALATION_RULES: Record<string, [number, number, number]> = {
   low: [60, 90, 120],
 }
 
-export interface CapLike { id: number; status: string; severity: string; dueDate: string | null; effectivenessStatus?: string; escalationLevel?: number; findingDescription: string; sourceType: string; sourceId: number | null }
+export interface CapLike {
+  id: number; status: string; severity: string; dueDate: string | null; effectivenessStatus?: string; escalationLevel?: number; findingDescription: string; sourceType: string; sourceId: number | null
+  // Finding risk (src/lib/riskMatrix.ts): residual rating, falling back to inherent; escalation category.
+  inherentLikelihood?: number | null; inherentImpact?: number | null; residualLikelihood?: number | null; residualImpact?: number | null; riskCategory?: string
+}
+
+/**
+ * The level the finding's risk calls for: High → 1 (workspace admins), Critical → 2 (owner / executive); a statutory,
+ * fiduciary, safeguarding or safety finding → at least 2 whatever its score; Critical in one of those categories → 3
+ * (board). Uses the residual rating, or the inherent one when residual is not rated yet.
+ */
+export function riskEscalation(cap: CapLike): { level: number; reason: string } {
+  const residual = scoreOf({ likelihood: cap.residualLikelihood ?? null, impact: cap.residualImpact ?? null })
+  const s = residual ?? scoreOf({ likelihood: cap.inherentLikelihood ?? null, impact: cap.inherentImpact ?? null })
+  const b = s == null ? null : band(s)
+  const category = (RISK_CATEGORIES as readonly string[]).includes(cap.riskCategory ?? '') ? cap.riskCategory as keyof typeof RISK_CATEGORY_LABEL : null
+  let level = b === 'Critical' ? 2 : b === 'High' ? 1 : 0
+  if (category) level = Math.max(level, b === 'Critical' ? 3 : 2)
+  if (!level) return { level: 0, reason: '' }
+  const parts = [b && (b === 'Critical' || b === 'High') ? `${residual != null ? 'Residual' : 'Inherent'} risk ${b} (${s})` : '', category ? `${RISK_CATEGORY_LABEL[category]} finding` : ''].filter(Boolean)
+  return { level, reason: parts.join('; ') }
+}
 
 /** The escalation level a CAP should be at on `today` (YYYY-MM-DD), with the reason. */
 export function escalationFor(cap: CapLike, today: string): { level: number; reason: string } {
@@ -24,6 +46,11 @@ export function escalationFor(cap: CapLike, today: string): { level: number; rea
     if (level) reason = `${cap.severity} CAP ${days} day(s) overdue`
   }
   if (cap.effectivenessStatus === 'not_effective' && level < 1) { level = 1; reason = 'Effectiveness review found the action not effective' }
+  // Risk-based escalation applies while the finding is open (not once it is closed as effective).
+  if (cap.status !== 'completed') {
+    const r = riskEscalation(cap)
+    if (r.level > level) { level = r.level; reason = r.reason }
+  }
   return { level, reason }
 }
 

@@ -31,6 +31,18 @@ describe('CAP upgrades', () => {
     assert.match(got.managementResponse, /ageing/)
   })
 
+  it('escalates by risk as soon as a finding is rated, and never lowers a level', async () => {
+    const a = expectStatus(await newCap({ findingDescription: 'Child safeguarding complaint not reported', severity: 'medium', riskCategory: 'safeguarding' }), 201).body
+    assert.deepEqual([a.escalationLevel, a.escalationReason], [2, 'Safeguarding finding'], 'category escalates on creation')
+    const b = expectStatus(await newCap({ findingDescription: 'Ledger not reconciled', severity: 'low' }), 201).body
+    assert.equal(b.escalationLevel, 0)
+    const up = expectStatus(await as(ASSESSOR).put(`${P()}/cap/${b.id}`, { inherentLikelihood: 5, inherentImpact: 4, riskCategory: 'fiduciary' }), 200).body
+    assert.deepEqual([up.escalationLevel, up.escalatedTo], [3, 'Board or governing body'])
+    // Lowering the rating does not de-escalate; the level only rises.
+    const down = expectStatus(await as(ASSESSOR).put(`${P()}/cap/${b.id}`, { residualLikelihood: 1, residualImpact: 1, riskCategory: '' }), 200).body
+    assert.equal(down.escalationLevel, 3)
+  })
+
   it('records correction and preventive action, merges duplicates with provenance, and escalates', async () => {
     const a = expectStatus(await newCap({ findingDescription: 'Board minutes are not signed or filed on time', severity: 'medium', immediateCorrection: 'Sign and file the last three sets', preventiveAction: 'Company secretary checklist' }), 201).body
     assert.equal(a.immediateCorrection, 'Sign and file the last three sets')
