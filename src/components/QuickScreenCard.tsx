@@ -41,7 +41,7 @@ export function QuickScreenCard({ orgId, awards }: { orgId: string; awards: { id
     <Card className="lg:col-span-2">
       <CardHeader>
         <CardTitle>Quick pre-award screen</CardTitle>
-        <p className="text-sm text-slate-500">A short check of policies, finances, controls, audit, assets and technical capacity, answered by the applicant. It sorts the applicant into one of four outcomes; a borderline result calls for the full Pre-Award assessment below, which needs evidence.</p>
+        <p className="text-sm text-slate-500">A short check of policies, finances, controls, audit, assets and technical capacity, answered by the applicant. It sorts the applicant into one of four outcomes; a borderline result calls for the full Pre-Award assessment (start it above), which needs evidence.</p>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex flex-wrap items-end gap-2">
