@@ -38,6 +38,7 @@ function toRow(q: Question): QuestionRow {
     requiredDataRoomDoc: q.requiredDataRoomDoc ?? null,
     interviewee: q.interviewee ?? null,
     modalities: q.modalities ?? [],
+    levels: (q.levels as Record<string, string[]> | undefined) ?? null,
   }
 }
 
@@ -67,6 +68,7 @@ export function rowToQuestion(r: QuestionRow): Question {
     requiredDataRoomDoc: r.requiredDataRoomDoc ?? undefined,
     interviewee: r.interviewee ?? undefined,
     modalities: (r.modalities as Question['modalities'])?.length ? (r.modalities as Question['modalities']) : undefined,
+    levels: (r.levels as Question['levels']) ?? undefined,
   }
 }
 
@@ -113,6 +115,7 @@ export async function seedQuestions(): Promise<number> {
           requiredDataRoomDoc: sql`excluded.required_data_room_doc`,
           interviewee: sql`excluded.interviewee`,
           modalities: sql`excluded.modalities`,
+          levels: sql`excluded.levels`,
         },
       })
   }

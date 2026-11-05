@@ -120,6 +120,8 @@ export const questions = pgTable(
     interviewee: text('interviewee'),
     // Funding models the question applies to; empty = every organisation.
     modalities: jsonb('modalities').$type<string[]>().notNull().default([]),
+    // Evidence-gated level statements (1-5); null = slider scoring.
+    levels: jsonb('levels').$type<Record<string, string[]>>(),
   },
   (t) => [index('questions_domain_idx').on(t.domain), index('questions_tier_idx').on(t.tier)],
 )
@@ -2355,3 +2357,62 @@ export const screenings = pgTable('screenings', {
   reviewedBy: text('reviewed_by'),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
 }, (t) => [index('screenings_org_idx').on(t.orgId)])
+
+// Awards, funder measures, the organisation-level issue register and consented sharing (src/lib/awards.ts).
+export const awards = pgTable('awards', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  title: text('title').notNull(),
+  funderName: text('funder_name').notNull().default(''),
+  funderEmail: text('funder_email').notNull().default(''),
+  agreementRef: text('agreement_ref').notNull().default(''),
+  value: numeric('value'),
+  currency: text('currency').notNull().default(''),
+  modality: text('modality').notNull().default(''),
+  startDate: date('start_date', { mode: 'string' }),
+  endDate: date('end_date', { mode: 'string' }),
+  status: text('status').notNull().default('active'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+}, (t) => [index('awards_org_idx').on(t.orgId)])
+
+export const awardMeasures = pgTable('award_measures', {
+  id: text('id').primaryKey(),
+  awardId: text('award_id').notNull(),
+  kind: text('kind').notNull(),
+  description: text('description').notNull(),
+  liftedWhen: text('lifted_when').notNull().default(''),
+  status: text('status').notNull().default('active'),
+  imposedAt: timestamp('imposed_at', { withTimezone: true }).notNull().defaultNow(),
+  liftedAt: timestamp('lifted_at', { withTimezone: true }),
+  createdBy: text('created_by').notNull(),
+})
+
+export const orgIssues = pgTable('org_issues', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  awardId: text('award_id'),
+  source: text('source').notNull(),
+  type: text('type').notNull(),
+  title: text('title').notNull(),
+  description: text('description').notNull().default(''),
+  verified: boolean('verified').notNull().default(false),
+  verifiedBy: text('verified_by'),
+  orgResponse: text('org_response').notNull().default(''),
+  status: text('status').notNull().default('open'),
+  dueDate: date('due_date', { mode: 'string' }),
+  openedAt: timestamp('opened_at', { withTimezone: true }).notNull().defaultNow(),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  fixHeld: boolean('fix_held'),
+  recurrenceOf: text('recurrence_of'),
+  createdBy: text('created_by').notNull(),
+}, (t) => [index('org_issues_org_idx').on(t.orgId)])
+
+export const issueShares = pgTable('issue_shares', {
+  orgId: text('org_id').notNull(),
+  viewerEmail: text('viewer_email').notNull(),
+  level: text('level').notNull(),
+  grantedBy: text('granted_by').notNull(),
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.orgId, t.viewerEmail] })])

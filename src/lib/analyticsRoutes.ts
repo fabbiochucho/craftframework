@@ -86,6 +86,7 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   'validations_.$id': 'sensitive',
   networks: 'sensitive',
   capacity: 'sensitive',
+  awards: 'sensitive',
   'networks_.$networkId': 'sensitive',
   'networks_.$networkId_.brief.$roundId': 'sensitive',
   vaults: 'sensitive',

@@ -2,6 +2,7 @@
 // plan, capture the SWOT debrief, and read the yearly, mid-term and five-year reports. Scoring rules live in
 // src/lib/cca/engine.ts; the server stores only the responses.
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Line, LineChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs } from '../components/ui'
 import { useWorkspace } from '../lib/context'
@@ -73,7 +74,12 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [award, setAward] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [awards, setAwards] = useState<{ id: string; title: string }[]>([])
   const award_ = isAwardModule(mod.id)
+  useEffect(() => {
+    if (award_ && orgId) fetch(`/api/awards?orgId=${encodeURIComponent(orgId)}`).then((r) => (r.ok ? r.json() : { awards: [] })).then((b) => setAwards(b.awards ?? [])).catch(() => setAwards([]))
+  }, [award_, orgId])
+  const awardTitle = (ref: string) => awards.find((a) => a.id === ref)?.title ?? ref
   const start = async () => {
     try { onCreated((await api<{ id: string }>('', { method: 'POST', body: { orgId, module: mod.id, year: Number(year), ...(award_ ? { awardRef: award } : {}) } })).id) } catch (e) { setError((e as Error).message) }
   }
@@ -84,7 +90,9 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Input label="Year" type="number" value={year} onChange={(e) => setYear(e.target.value)} />
-            {award_ && <Input label="Grant or contract" placeholder="e.g. Health systems grant 2026" value={award} onChange={(e) => setAward(e.target.value)} />}
+            {award_ && (awards.length
+              ? <Select label="Grant or contract" placeholder="Choose an award" value={award} onChange={setAward} options={awards.map((a) => ({ value: a.id, label: a.title }))} />
+              : <p className="self-end text-sm text-slate-600">Add the grant or contract in <Link to="/awards" className="text-emerald-700 underline">Awards &amp; Issues</Link> first.</p>)}
           </div>
           {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
           <Button onClick={start} disabled={!orgId || (award_ && !award.trim())}>Start assessment</Button>
@@ -99,7 +107,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
                 const d = dashboard(mod, a.responses)
                 return (
                   <li key={a.id}><button type="button" onClick={() => onOpen(a.id)} className="flex w-full items-center justify-between py-2 text-left text-sm hover:text-emerald-700">
-                    <span>{a.year}{a.awardRef && ` · ${a.awardRef}`} · {a.status === 'complete' ? 'Complete' : 'Draft'}</span>
+                    <span>{a.year}{a.awardRef && ` · ${awardTitle(a.awardRef)}`} · {a.status === 'complete' ? 'Complete' : 'Draft'}</span>
                     <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>{d.average.toFixed(2)} {d.level}</span>
                   </button></li>
                 )
