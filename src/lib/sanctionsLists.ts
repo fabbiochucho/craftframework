@@ -94,7 +94,9 @@ export function parseEu(text: string): ListEntry[] {
   return [...by.values()]
 }
 
-const tag = (block: string, t: string) => [...block.matchAll(new RegExp(`<${t}>([\\s\\S]*?)</${t}>`, 'g'))].map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&apos;/g, "'").replace(/&quot;/g, '"').trim())
+// One pass, so an escaped entity such as &amp;quot; is decoded once, to &quot;, never twice.
+const ENTITIES: Record<string, string> = { amp: '&', apos: "'", quot: '"', lt: '<', gt: '>' }
+const tag = (block: string, t: string) => [...block.matchAll(new RegExp(`<${t}>([\\s\\S]*?)</${t}>`, 'g'))].map((m) => m[1].replace(/<[^>]+>/g, ' ').replace(/&(amp|apos|quot|lt|gt);/g, (_, e: string) => ENTITIES[e]).trim())
 
 /** UN consolidated XML: INDIVIDUAL and ENTITY blocks with names, aliases, nationality or address country, birth year. */
 export function parseUn(xml: string): ListEntry[] {

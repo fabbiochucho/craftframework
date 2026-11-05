@@ -22,6 +22,7 @@ assert.deepEqual(eu.map((e) => [e.id, e.type, e.names, e.countries, e.birthYears
 
 const un = parseUn('<CONSOLIDATED_LIST><INDIVIDUALS><INDIVIDUAL><REFERENCE_NUMBER>QDi.1</REFERENCE_NUMBER><FIRST_NAME>ABU</FIRST_NAME><SECOND_NAME>HAMZA</SECOND_NAME><NATIONALITY><VALUE>Somalia</VALUE></NATIONALITY><INDIVIDUAL_ALIAS><ALIAS_NAME>Abu Hamsa</ALIAS_NAME></INDIVIDUAL_ALIAS><INDIVIDUAL_DATE_OF_BIRTH><YEAR>1968</YEAR></INDIVIDUAL_DATE_OF_BIRTH></INDIVIDUAL></INDIVIDUALS><ENTITIES><ENTITY><REFERENCE_NUMBER>QDe.2</REFERENCE_NUMBER><FIRST_NAME>AL-HARAMAIN &amp; PARTNERS</FIRST_NAME><ENTITY_ADDRESS><COUNTRY>Kenya</COUNTRY></ENTITY_ADDRESS></ENTITY></ENTITIES></CONSOLIDATED_LIST>')
 assert.deepEqual(un.map((e) => [e.id, e.type, e.names, e.countries, e.birthYears]), [['QDi.1', 'person', ['ABU HAMZA', 'Abu Hamsa'], ['somalia'], [1968]], ['QDe.2', 'organisation', ['AL-HARAMAIN & PARTNERS'], ['kenya'], []]])
+assert.deepEqual(parseUn('<CONSOLIDATED_LIST><ENTITY><REFERENCE_NUMBER>QDe.9</REFERENCE_NUMBER><FIRST_NAME>A &amp;quot;B&amp;quot; &amp;amp; C</FIRST_NAME></ENTITY></CONSOLIDATED_LIST>')[0].names, ['A &quot;B&quot; &amp; C'], 'entities decoded once, not twice')
 
 // Matching: word order, legal forms and accents do not matter.
 assert.equal(normalised('BELLO, Musa'), normalised('Musa Bello'))
