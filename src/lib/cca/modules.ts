@@ -14,6 +14,10 @@ export const CCA_MODULES = [
 ] as const
 export type CcaModuleId = (typeof CCA_MODULES)[number]['id']
 export const CCA_MODULE_IDS = CCA_MODULES.map((m) => m.id) as CcaModuleId[]
+/** Government modules can be run for a place within the body (state or region, district or local government area). */
+export const isGovernmentModule = (id: string) => id === 'national' || id === 'state' || id === 'local'
+/** "Region · District", or '' for the whole body. */
+export const placeLabel = (a: { region?: string; district?: string }) => [a.region, a.district].filter(Boolean).join(' · ')
 export const isAwardModule = (id: string) => CCA_MODULES.some((m) => m.id === id && m.stage === 'award')
 
 /** Problems with module content (empty = valid): known ids, 3–5 domains per area, statements at levels 2–4, unique ids. */

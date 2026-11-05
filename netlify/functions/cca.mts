@@ -7,7 +7,7 @@ import { db } from '../../db/index.js'
 import { auditLogs, ccaAssessments } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
-import { CCA_MODULE_IDS, contentProblems, isAwardModule } from '../../src/lib/cca/modules.js'
+import { CCA_MODULE_IDS, contentProblems, isAwardModule, isGovernmentModule, placeLabel } from '../../src/lib/cca/modules.js'
 import { COST_LINES, type CcaModule } from '../../src/lib/cca/engine.js'
 
 // /api/cca — CRAFT Capacity Assessment.
@@ -38,6 +38,7 @@ const putSchema = z.object({
 const createSchema = z.object({
   orgId: z.string().min(1).max(200), module: z.enum(CCA_MODULE_IDS as [string, ...string[]]),
   year: z.number().int().min(2000).max(2100), awardRef: z.string().trim().max(120).optional(),
+  region: z.string().trim().max(120).optional(), district: z.string().trim().max(120).optional(),
 }).strict()
 
 async function content(): Promise<CcaModule[] | null> {
@@ -74,11 +75,13 @@ const handleRequest = async (req: Request) => {
       if (!(await canAccessOrg(caller, p.data.orgId, 'write'))) return json({ error: 'Forbidden' }, 403)
       const awardRef = isAwardModule(p.data.module) ? (p.data.awardRef ?? '') : ''
       if (isAwardModule(p.data.module) && !awardRef) return json({ error: 'Name the grant or contract this assessment is for.' }, 400)
+      const gov = isGovernmentModule(p.data.module)
+      const place = { region: gov ? (p.data.region ?? '') : '', district: gov ? (p.data.district ?? '') : '' }
       const id = `cca_${randomUUID()}`
-      const inserted = await db.insert(ccaAssessments).values({ id, orgId: p.data.orgId, module: p.data.module, year: p.data.year, awardRef, createdBy: caller.email })
+      const inserted = await db.insert(ccaAssessments).values({ id, orgId: p.data.orgId, module: p.data.module, year: p.data.year, awardRef, ...place, createdBy: caller.email })
         .onConflictDoNothing().returning({ id: ccaAssessments.id })
-      if (!inserted.length) return json({ error: 'There is already an assessment for this module and year.' }, 409)
-      await db.insert(auditLogs).values({ orgId: p.data.orgId, actor: caller.email, action: `Started capacity assessment (${p.data.module} ${p.data.year}${awardRef ? `, ${awardRef}` : ''})`, target: id, category: 'Assessment' })
+      if (!inserted.length) return json({ error: `There is already an assessment for this module and year${placeLabel(place) ? ' in this place' : ''}.` }, 409)
+      await db.insert(auditLogs).values({ orgId: p.data.orgId, actor: caller.email, action: `Started capacity assessment (${p.data.module} ${p.data.year}${awardRef ? `, ${awardRef}` : ''}${placeLabel(place) ? `, ${placeLabel(place)}` : ''})`, target: id, category: 'Assessment' })
       return json({ id }, 201)
     }
 

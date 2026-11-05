@@ -82,7 +82,16 @@ describe('CRAFT Capacity Assessment API', () => {
     assert.deepEqual(list.map((a: any) => [a.module, a.status]), [['community', 'complete'], ['pre_award', 'draft']])
     assert.deepEqual(list.map((a: any) => a.domainIds), [['g1', 'g2', 'g3'], null], 'completion records the domains covered')
     assert.equal((await call(BOB, 'GET', '?orgId=org_a')).status, 403)
-    const audit = await rows(`SELECT action FROM audit_logs WHERE org_id='org_a' ORDER BY id`)
+    // Government modules can be run per place; the same module and year twice for one place is refused.
+    const govMods = [...MODULES, { ...MODULES[0], id: 'local', name: 'Local Government' }]
+    blobStores().set('cca-private', new Map([['modules', { bytes: Buffer.from(JSON.stringify(govMods)) }]]))
+    assert.equal((await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'local', year: 2026, region: 'Kano', district: 'Dala' })).status, 201)
+    assert.equal((await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'local', year: 2026, region: 'Kano', district: 'Fagge' })).status, 201)
+    assert.equal((await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'local', year: 2026, region: 'Kano', district: 'Dala' })).status, 409)
+    assert.equal((await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2027, region: 'Kano' })).status, 201)
+    const places = (await call(ALICE, 'GET', '?orgId=org_a')).body.assessments.map((a: any) => [a.module, a.year, a.region, a.district])
+    assert.deepEqual(places.filter((p: any[]) => p[0] !== 'pre_award').sort(), [['community', 2026, '', ''], ['community', 2027, '', ''], ['local', 2026, 'Kano', 'Dala'], ['local', 2026, 'Kano', 'Fagge']], 'place only for government modules')
+    const audit = await rows(`SELECT action FROM audit_logs WHERE org_id='org_a' AND action NOT LIKE '%local%' AND action NOT LIKE '%2027%' ORDER BY id`)
     assert.deepEqual(audit.map((a) => a.action.split(' (')[0]), ['Started capacity assessment', 'Started capacity assessment', 'Completed capacity assessment'])
   })
 })
