@@ -99,7 +99,7 @@ const handleRequest = async (req: Request) => {
       for (const email of emails) {
         // One send at a time per address: the lock makes "check the last nudge, then record this one" atomic.
         const claim = await db.transaction(async (tx): Promise<{ refused: NudgeBlock } | { refused?: undefined; id: string; person: OnboardingPerson }> => {
-          await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'onboarding-nudge:' + email}))`)
+          await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'onboarding-nudge:' + email}))`, 'objects')
           const [p] = await onboardingPeople(now, [email])
           if (!p) return { refused: 'not_started' as NudgeBlock }
           const recent = await tx.select({ sentAt: onboardingNudges.sentAt }).from(onboardingNudges).where(and(

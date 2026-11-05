@@ -71,7 +71,7 @@ const handleRequest = async (req: Request) => {
 
       return await db.transaction(async (tx) => {
       // Serialize both first creation and transitions for this reporting context.
-      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${body.orgId}), hashtext(${body.contextKey}))`)
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${body.orgId}), hashtext(${body.contextKey}))`, 'objects')
       const [existing] = await tx.select().from(financialTriangulations).where(and(
         eq(financialTriangulations.orgId, body.orgId), eq(financialTriangulations.contextKey, body.contextKey),
       )).limit(1)
