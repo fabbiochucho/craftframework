@@ -11,12 +11,12 @@ import {
   availableReports, awardReadiness, cascade, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
   type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
-import { CCA_MODULES, isAwardModule } from '../lib/cca/modules'
+import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
 import { ScreeningCard } from '../components/ScreeningCard'
 import { QuickScreenCard } from '../components/QuickScreenCard'
 
 type Assessment = {
-  id: string; orgId: string; module: string; year: number; awardRef: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
+  id: string; orgId: string; module: string; year: number; awardRef: string; region: string; district: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
   responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
 }
 
@@ -68,7 +68,7 @@ export function CapacityAssessmentPage() {
       </div>
       {!modules ? <p className="text-sm text-slate-500">{error ? '' : 'Loading…'}</p>
         : !mod ? <Card><CardContent className="py-8 text-sm text-slate-600">The {CCA_MODULES.find((m) => m.id === moduleId)?.name} module is being prepared and will be available soon.</CardContent></Card>
-        : open ? <AssessmentView key={open.id} a={open} mod={mod} history={mine} onBack={() => setOpenId(null)} onChanged={load} />
+        : open ? <AssessmentView key={open.id} a={open} mod={mod} history={mine.filter((x) => placeLabel(x) === placeLabel(open))} onBack={() => setOpenId(null)} onChanged={load} />
         : <ModuleHome mod={mod} items={mine} orgId={orgId} onOpen={setOpenId} onCreated={async (id) => { await load(); setOpenId(id) }} />}
     </div>
   )
@@ -77,6 +77,8 @@ export function CapacityAssessmentPage() {
 function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; items: Assessment[]; orgId: string; onOpen: (id: string) => void; onCreated: (id: string) => void }) {
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [award, setAward] = useState('')
+  const [place, setPlace] = useState({ region: '', district: '' })
+  const gov = isGovernmentModule(mod.id)
   const [error, setError] = useState<string | null>(null)
   const [awards, setAwards] = useState<{ id: string; title: string }[]>([])
   const award_ = isAwardModule(mod.id)
@@ -85,7 +87,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
   }, [award_, orgId])
   const awardTitle = (ref: string) => awards.find((a) => a.id === ref)?.title ?? ref
   const start = async () => {
-    try { onCreated((await api<{ id: string }>('', { method: 'POST', body: { orgId, module: mod.id, year: Number(year), ...(award_ ? { awardRef: award } : {}) } })).id) } catch (e) { setError((e as Error).message) }
+    try { onCreated((await api<{ id: string }>('', { method: 'POST', body: { orgId, module: mod.id, year: Number(year), ...(award_ ? { awardRef: award } : {}), ...(gov ? place : {}) } })).id) } catch (e) { setError((e as Error).message) }
   }
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -97,7 +99,12 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
             {award_ && (awards.length
               ? <Select label="Grant or contract" placeholder="Choose an award" value={award} onChange={setAward} options={awards.map((a) => ({ value: a.id, label: a.title }))} />
               : <p className="self-end text-sm text-slate-600">Add the grant or contract in <Link to="/awards" className="text-emerald-700 underline">Awards &amp; Issues</Link> first.</p>)}
+            {gov && <>
+              <Input label="State or region (optional)" value={place.region} onChange={(e) => setPlace({ ...place, region: e.target.value })} />
+              <Input label="District or local government area (optional)" value={place.district} onChange={(e) => setPlace({ ...place, district: e.target.value })} />
+            </>}
           </div>
+          {gov && <p className="text-xs text-slate-500">Leave both empty to assess the whole body. Name a place to assess an office or area within it; results can then be compared by place.</p>}
           {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
           <Button onClick={start} disabled={!orgId || (award_ && !award.trim())}>Start assessment</Button>
         </CardContent>
@@ -111,7 +118,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
                 const d = dashboard(mod, a.responses, skips(mod, a))
                 return (
                   <li key={a.id}><button type="button" onClick={() => onOpen(a.id)} className="flex w-full items-center justify-between py-2 text-left text-sm hover:text-emerald-700">
-                    <span>{a.year}{a.awardRef && ` · ${awardTitle(a.awardRef)}`} · {a.status === 'complete' ? 'Complete' : 'Draft'}</span>
+                    <span>{a.year}{a.awardRef && ` · ${awardTitle(a.awardRef)}`}{placeLabel(a) && ` · ${placeLabel(a)}`} · {a.status === 'complete' ? 'Complete' : 'Draft'}</span>
                     <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>{fmt(d)} {d.level}</span>
                   </button></li>
                 )
@@ -120,8 +127,34 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
           )}
         </CardContent>
       </Card>
+      {gov && <ByPlace mod={mod} items={items} />}
       {mod.id === 'pre_award' && <QuickScreenCard orgId={orgId} awards={awards} />}
     </div>
+  )
+}
+
+/** The latest completed assessment for each place, side by side, when a body has assessed more than one place. */
+function ByPlace({ mod, items }: { mod: CcaModule; items: Assessment[] }) {
+  const latest = new Map<string, Assessment>()
+  for (const a of items.filter((x) => x.status === 'complete').sort((x, y) => x.year - y.year)) latest.set(placeLabel(a), a)
+  if (latest.size < 2) return null
+  const rows = [...latest.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([place, a]) => ({ place, a, d: dashboard(mod, a.responses, skips(mod, a)) }))
+  return (
+    <Card className="lg:col-span-2">
+      <CardHeader><CardTitle>By place</CardTitle><p className="text-sm text-slate-500">The latest completed assessment for each place.</p></CardHeader>
+      <CardContent className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Place</th><th>Year</th>{mod.areas.map((x) => <th key={x.id} className="px-1">{x.name}</th>)}<th>Overall</th></tr></thead>
+          <tbody>{rows.map(({ place, a, d }) => (
+            <tr key={place} className="border-t border-slate-100">
+              <td className="py-1.5">{place || 'Whole body'}</td><td>{a.year}</td>
+              {d.areas.map((x) => <td key={x.id} className="px-1 tabular-nums">{x.level === 'Not assessed' ? '–' : `${x.percent}%`}</td>)}
+              <td><span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>{fmt(d)} {d.level}</span></td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -154,7 +187,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" onClick={onBack}>← All assessments</Button>
-        <h2 className="font-display text-lg font-bold text-emerald-900">{mod.name} · {a.year}{a.awardRef && ` · ${a.awardRef}`}</h2>
+        <h2 className="font-display text-lg font-bold text-emerald-900">{mod.name} · {a.year}{a.awardRef && ` · ${a.awardRef}`}{placeLabel(a) && ` · ${placeLabel(a)}`}</h2>
         <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>Overall {fmt(d)} · {d.level}</span>
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>

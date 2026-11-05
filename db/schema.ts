@@ -2326,6 +2326,8 @@ export const ccaAssessments = pgTable('cca_assessments', {
   module: text('module').notNull(),
   year: integer('year').notNull(),
   awardRef: text('award_ref').notNull().default(''),
+  region: text('region').notNull().default(''), // government modules: state or region ('' = whole body)
+  district: text('district').notNull().default(''), // government modules: district or local government area
   status: text('status').notNull().default('draft'), // 'draft' | 'complete'
   assessor: text('assessor').notNull().default(''),
   orgLead: text('org_lead').notNull().default(''),
@@ -2339,7 +2341,7 @@ export const ccaAssessments = pgTable('cca_assessments', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
-}, (t) => [unique('cca_assessments_one_per_year').on(t.orgId, t.module, t.year, t.awardRef), index('cca_assessments_org_idx').on(t.orgId)])
+}, (t) => [unique('cca_assessments_one_per_year').on(t.orgId, t.module, t.year, t.awardRef, t.region, t.district), index('cca_assessments_org_idx').on(t.orgId)])
 
 // Exclusion, debarment and sanctions screening results (src/lib/screening.ts).
 export const screenings = pgTable('screenings', {
