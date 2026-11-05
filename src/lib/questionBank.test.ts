@@ -8,12 +8,12 @@ const allLenses = { climate: true, emergency: true, research: true }
 const sample = new Set(DEMO_SAMPLE_IDS)
 
 // The public index: every question's structure, text only for the sample
-assert.equal(QUESTION_INDEX.length, 519)
+assert.equal(QUESTION_INDEX.length, 591) // 519 + 72 universal assessment questions (November 2026)
 for (const q of QUESTION_INDEX) assert.equal(!!q.question, sample.has(q.id), `${q.id}: text only in the demo sample`)
 assert.ok(!QUESTION_INDEX.some((q) => !sample.has(q.id) && (q.insight || q.capacityAction || q.scoringGuide)))
 
 // Before the full bank loads (the demo): counts and scoring see every question, the wizard and findings only the sample
-assert.equal(data.MOCK_QUESTIONS.length, 519)
+assert.equal(data.MOCK_QUESTIONS.length, 591)
 assert.deepEqual(['climate', 'emergency', 'research'].map((l) => data.lensQuestionCount(l as data.LensId)), [51, 20, 16], 'lens counts as before')
 assert.ok(data.activeQuestions(allLenses).every((q) => sample.has(q.id)), 'the demo wizard shows only sample questions')
 assert.ok(data.activeQuestions(allLenses).length > 0)
@@ -23,7 +23,7 @@ assert.ok(data.deriveFindings(allScores).every((f) => sample.has(f.qId) && f.que
 // Signed in: the server's full bank replaces it (rows with an empty archetype list mean "every archetype")
 const full = QUESTION_INDEX.map((q) => ({ question: `Q ${q.id}?`, insight: 'i', evidence: ['e'], verificationMethod: 'v', capacityAction: 'a', donorLink: 'd', nationalLink: 'n', ...q, archetypes: q.archetypes ?? [] }))
 data.setQuestionBank(full as data.Question[])
-assert.equal(data.MOCK_QUESTIONS.length, 519)
+assert.equal(data.MOCK_QUESTIONS.length, 591)
 assert.equal(data.activeQuestions(allLenses).filter((q) => data.archetypeMatch(q, 'Public')).length,
   QUESTION_INDEX.filter((q) => !q.archetypes || q.archetypes.includes('Public')).length, 'universal questions stay visible')
 assert.ok(data.deriveFindings(allScores).some((f) => !sample.has(f.qId)), 'findings cover the full bank once loaded')

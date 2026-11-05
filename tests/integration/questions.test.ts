@@ -20,9 +20,11 @@ describe('question bank (private text)', () => {
     assert.equal((await call(questions, null)).status, 401)
     const res = await call(questions, 'member@org.example')
     assert.equal(res.status, 200)
-    assert.equal(res.body.length, 519)
+    assert.equal(res.body.length, 591)
     assert.ok(res.body.every((q: any) => q.question), 'every question has its text')
     assert.equal(res.body.find((q: any) => q.id === 'GOV-02').archetypes, undefined, 'universal questions carry no archetype list')
+    assert.deepEqual(res.body.find((q: any) => q.id === 'FMD-MS-01').modalities, ['milestone'], 'funding-model tags survive the database')
+    assert.equal(res.body.find((q: any) => q.id === 'FMD-01').modalities, undefined, 'general funding questions apply to everyone')
   })
 
   it('never fills the database from the public index when the private bank is missing', async () => {
@@ -38,6 +40,6 @@ describe('question bank (private text)', () => {
     assert.equal((await call(seed, 'member@org.example', 'POST')).status, 403)
     const res = await call(seed, ADMIN, 'POST')
     assert.equal(res.status, 200)
-    assert.equal(res.body.questions, 519)
+    assert.equal(res.body.questions, 591)
   })
 })
