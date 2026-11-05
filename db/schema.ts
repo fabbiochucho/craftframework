@@ -1440,6 +1440,18 @@ export const capRecords = pgTable(
     effectivenessReviewedBy: text('effectiveness_reviewed_by'),
     effectivenessReviewedAt: timestamp('effectiveness_reviewed_at', { withTimezone: true }),
     reopenedCount: integer('reopened_count').notNull().default(0),
+    // The full finding (cause is rootCause), risk before and after controls (1-5 each), escalation category and the
+    // management response. Rules in src/lib/riskMatrix.ts.
+    criteria: text('criteria').notNull().default(''),
+    condition: text('condition').notNull().default(''),
+    consequence: text('consequence').notNull().default(''),
+    inherentLikelihood: integer('inherent_likelihood'),
+    inherentImpact: integer('inherent_impact'),
+    residualLikelihood: integer('residual_likelihood'),
+    residualImpact: integer('residual_impact'),
+    riskCategory: text('risk_category').notNull().default(''),
+    managementResponse: text('management_response').notNull().default(''),
+    responseStance: text('response_stance').notNull().default(''),
     // Correction (fix this instance now) vs corrective action (remove the cause) vs preventive action (stop it elsewhere).
     immediateCorrection: text('immediate_correction').notNull().default(''),
     preventiveAction: text('preventive_action').notNull().default(''),
