@@ -8,7 +8,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs }
 import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
-  availableReports, awardReadiness, cascade, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
+  availableReports, awardReadiness, cascade, rollup, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
   type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
@@ -139,6 +139,8 @@ function ByPlace({ mod, items }: { mod: CcaModule; items: Assessment[] }) {
   for (const a of items.filter((x) => x.status === 'complete').sort((x, y) => x.year - y.year)) latest.set(placeLabel(a), a)
   if (latest.size < 2) return null
   const rows = [...latest.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([place, a]) => ({ place, a, d: dashboard(mod, a.responses, skips(mod, a)) }))
+  const ru = rollup(rows.map(({ a, d }) => ({ region: a.region || 'No region named', district: a.district, dashboard: d })))
+  const groups = ru.overall ? [...ru.byRegion, { ...ru.overall, region: 'All places' }] : []
   return (
     <Card className="lg:col-span-2">
       <CardHeader><CardTitle>By place</CardTitle><p className="text-sm text-slate-500">The latest completed assessment for each place.</p></CardHeader>
@@ -153,8 +155,30 @@ function ByPlace({ mod, items }: { mod: CcaModule; items: Assessment[] }) {
             </tr>
           ))}</tbody>
         </table>
+        <RollupTable mod={mod} groups={groups} />
       </CardContent>
     </Card>
+  )
+}
+
+/** Roll-up of the places above: per region (state) and for the whole body; areas count equally, places count equally. */
+function RollupTable({ mod, groups }: { mod: CcaModule; groups: ReturnType<typeof rollup>['byRegion'] }) {
+  if (!groups.length) return null
+  return (
+    <div className="mt-4">
+      <p className="text-sm font-medium text-slate-800">Roll-up</p>
+      <p className="text-xs text-slate-500">Each area is the average of the places that assessed it; every place counts equally.</p>
+      <table className="mt-1 w-full text-sm">
+        <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Region</th><th>Places</th>{mod.areas.map((x) => <th key={x.id} className="px-1">{x.name}</th>)}<th>Overall</th></tr></thead>
+        <tbody>{groups.map((g) => (
+          <tr key={g.region} className={cn('border-t border-slate-100', g.region === 'All places' && 'border-t-2 border-slate-300 font-semibold')}>
+            <td className="py-1.5">{g.region}</td><td>{g.places}</td>
+            {g.areas.map((x) => <td key={x.id} className="px-1 tabular-nums">{x.level === 'Not assessed' ? '–' : `${x.percent}%`}</td>)}
+            <td><span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[g.level])}>{fmt(g)} {g.level}</span></td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
   )
 }
 
