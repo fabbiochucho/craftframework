@@ -12,6 +12,7 @@ import {
   type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule } from '../lib/cca/modules'
+import { QuickScreenCard } from '../components/QuickScreenCard'
 
 type Assessment = {
   id: string; orgId: string; module: string; year: number; awardRef: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
@@ -116,6 +117,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
           )}
         </CardContent>
       </Card>
+      {mod.id === 'pre_award' && <QuickScreenCard orgId={orgId} awards={awards} />}
     </div>
   )
 }
