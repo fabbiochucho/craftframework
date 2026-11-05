@@ -2359,6 +2359,23 @@ export const screenings = pgTable('screenings', {
   reviewedBy: text('reviewed_by'),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
 }, (t) => [index('screenings_org_idx').on(t.orgId)])
+// Quick pre-award screens (src/lib/cca/quickScreen.ts): one per organisation and award. The outcome is kept at
+// completion so a later change to the questions never rewrites a past decision.
+export const ccaScreens = pgTable('cca_screens', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  awardRef: text('award_ref').notNull(),
+  status: text('status').notNull().default('draft'), // 'draft' | 'complete'
+  answers: jsonb('answers').$type<Record<string, string>>().notNull().default({}),
+  notes: text('notes').notNull().default(''),
+  score: integer('score'),
+  maxScore: integer('max_score'),
+  outcome: text('outcome'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (t) => [unique('cca_screens_one_per_award').on(t.orgId, t.awardRef), index('cca_screens_org_idx').on(t.orgId)])
 
 // Awards, funder measures, the organisation-level issue register and consented sharing (src/lib/awards.ts).
 export const awards = pgTable('awards', {
