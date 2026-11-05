@@ -22,8 +22,12 @@ export function getStore(name) {
     async delete(key) {
       store.delete(key)
     },
-    async setJSON(key, value) {
-      store.set(key, { bytes: Buffer.from(JSON.stringify(value)) })
+    async setJSON(key, value, options) {
+      store.set(key, { bytes: Buffer.from(JSON.stringify(value)), metadata: options?.metadata })
+    },
+    async getMetadata(key) {
+      const entry = store.get(key)
+      return entry ? { etag: 'test', metadata: entry.metadata ?? {} } : null
     },
   }
 }
