@@ -14,25 +14,47 @@ export const SOURCE_URLS: Record<ListSource, string[]> = {
   uk: ['https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv'],
 }
 
-/** RFC 4180-style CSV: quoted fields, doubled quotes, separators and newlines inside quotes. */
-export function parseCsv(text: string, sep = ','): string[][] {
-  const rows: string[][] = []
-  let row: string[] = [], field = '', q = false
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i]
-    if (q) {
-      if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++ } else q = false }
-      else field += ch
-    } else if (ch === '"') q = true
-    else if (ch === sep) { row.push(field); field = '' }
-    else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && text[i + 1] === '\n') i++
-      row.push(field); rows.push(row); row = []; field = ''
-    } else field += ch
+/**
+ * RFC 4180-style CSV rows, one at a time: quoted fields, doubled quotes, separators and newlines inside quotes. Fields
+ * are cut out with slices and rows are not kept, so a 50 MB list parses in a small, steady amount of memory.
+ */
+export function* csvRows(text: string, sep = ','): Generator<string[]> {
+  let i = text.charCodeAt(0) === 0xfeff ? 1 : 0
+  const n = text.length
+  while (i < n) {
+    const row: string[] = []
+    for (;;) {
+      let field: string
+      if (text[i] === '"') {
+        // Quoted: join the pieces between doubled quotes.
+        let out = '', start = i + 1
+        for (;;) {
+          const q = text.indexOf('"', start)
+          if (q < 0) { out += text.slice(start); i = n; break }
+          if (text[q + 1] === '"') { out += text.slice(start, q + 1); start = q + 2; continue }
+          out += text.slice(start, q); i = q + 1; break
+        }
+        // Anything between the closing quote and the separator is kept, as a lenient reader would.
+        let k = i
+        while (k < n && text[k] !== sep && text[k] !== '\n' && text[k] !== '\r') k++
+        field = out + text.slice(i, k); i = k
+      } else {
+        let k = i
+        while (k < n && text[k] !== sep && text[k] !== '\n' && text[k] !== '\r') k++
+        field = text.slice(i, k); i = k
+      }
+      row.push(field.trim())
+      if (i < n && text[i] === sep) { i++; if (i === n) { row.push(''); break } continue }
+      if (text[i] === '\r' && text[i + 1] === '\n') i += 2
+      else if (i < n) i++
+      break
+    }
+    yield row
   }
-  if (field || row.length) { row.push(field); rows.push(row) }
-  return rows.map((r) => r.map((x) => x.replace(/^﻿/, '').trim()))
 }
+
+/** Every CSV row at once (for small files and tests). */
+export const parseCsv = (text: string, sep = ','): string[][] => [...csvRows(text, sep)]
 
 const clean = (s: string | undefined) => (s ?? '').replace(/\s+/g, ' ').trim()
 const nonEmpty = (xs: (string | undefined)[]) => [...new Set(xs.map(clean).filter((x) => x && x !== '-0-'))]
@@ -42,10 +64,10 @@ const lc = (xs: string[]) => [...new Set(xs.map((x) => x.toLowerCase()))]
 /** OFAC: SDN.CSV (no header: ent_num, name, type, …), ALT.CSV (aliases), ADD.CSV (addresses with country). Vessels and aircraft are skipped. */
 export function parseOfac(sdn: string, alt: string, add: string): ListEntry[] {
   const aliases = new Map<string, string[]>(), countries = new Map<string, string[]>()
-  for (const r of parseCsv(alt)) if (r[0]) aliases.set(r[0], [...(aliases.get(r[0]) ?? []), r[3]])
-  for (const r of parseCsv(add)) if (r[0]) countries.set(r[0], [...(countries.get(r[0]) ?? []), r[4]])
+  for (const r of csvRows(alt)) if (r[0]) aliases.set(r[0], [...(aliases.get(r[0]) ?? []), r[3]])
+  for (const r of csvRows(add)) if (r[0]) countries.set(r[0], [...(countries.get(r[0]) ?? []), r[4]])
   const out: ListEntry[] = []
-  for (const r of parseCsv(sdn)) {
+  for (const r of csvRows(sdn)) {
     const kind = clean(r[2]).toLowerCase()
     if (!r[0] || !r[1] || kind === 'vessel' || kind === 'aircraft') continue
     out.push({ source: 'ofac', id: r[0], type: kind === 'individual' ? 'person' : 'organisation', names: nonEmpty([r[1], ...(aliases.get(r[0]) ?? [])]), countries: lc(nonEmpty(countries.get(r[0]) ?? [])), birthYears: years([r[11]]), ids: [] })
@@ -55,13 +77,15 @@ export function parseOfac(sdn: string, alt: string, add: string): ListEntry[] {
 
 /** UK Sanctions List CSV: a "Report Date" line, a header row, then one row per name, grouped by Unique ID. Ships are skipped. */
 export function parseUk(text: string): ListEntry[] {
-  const rows = parseCsv(text)
-  const h = rows.findIndex((r) => r.includes('Unique ID'))
-  if (h < 0) return []
-  const head = rows[h], col = (name: string) => head.indexOf(name)
+  const rows = csvRows(text)
+  let head: string[] | undefined
+  // next(), not for…of with break: breaking would close the generator before the data rows.
+  for (let x = rows.next(); !x.done; x = rows.next()) if (x.value.includes('Unique ID')) { head = x.value; break }
+  if (!head) return []
+  const col = (name: string) => head.indexOf(name)
   const c = { id: col('Unique ID'), n6: col('Name 6'), n: [1, 2, 3, 4, 5].map((i) => col(`Name ${i}`)), type: col('Designation Type'), country: col('Address Country'), nat: col('Nationality(/ies)'), cob: col('Country of birth'), dob: col('D.O.B'), nid: col('National Identifier number'), pass: col('Passport number'), reg: col('Business registration number (s)') }
   const by = new Map<string, ListEntry>()
-  for (const r of rows.slice(h + 1)) {
+  for (const r of rows) {
     const id = r[c.id]
     if (!id || /ship/i.test(r[c.type] ?? '')) continue
     const name = clean([...c.n.map((i) => r[i]), r[c.n6]].filter(Boolean).join(' '))
@@ -77,11 +101,11 @@ export function parseUk(text: string): ListEntry[] {
 
 /** EU consolidated list CSV (semicolon-separated, one row per name/address/birth date), grouped by Entity_LogicalId. */
 export function parseEu(text: string): ListEntry[] {
-  const rows = parseCsv(text, ';')
-  const head = rows[0] ?? [], col = (name: string) => head.indexOf(name)
+  const rows = csvRows(text, ';')
+  const head = rows.next().value ?? [], col = (name: string) => head.indexOf(name)
   const c = { id: col('Entity_LogicalId'), type: col('Entity_SubjectType'), code: col('Entity_SubjectType_ClassificationCode'), name: col('NameAlias_WholeName'), country: col('Address_CountryDescription'), cit: col('Citizenship_CountryDescription'), year: col('BirthDate_Year'), ident: col('Identification_Number') }
   const by = new Map<string, ListEntry>()
-  for (const r of rows.slice(1)) {
+  for (const r of rows) {
     const id = r[c.id]
     if (!id) continue
     const e = by.get(id) ?? { source: 'eu' as const, id, type: r[c.type] === 'P' || r[c.code] === 'person' ? 'person' as const : 'organisation' as const, names: [], countries: [], birthYears: [], ids: [] }
