@@ -7,7 +7,10 @@
 // - Every domain scores 1 to 4, whole numbers only. Level 1 is the starting point and needs no evidence.
 // - Each higher level is a set of statements. A level is reached only when every statement in it, and in every level
 //   below it, is met *and* backed by evidence that was seen. Anything not seen counts as not met.
-// - The capacity-area and overall scores are averages of domain scores, read as a growth level.
+// - A capacity area's score is the average of its assessed domains; the overall score is the average of the area
+//   scores, so every area counts equally. A domain marked "not assessed" (with a reason) is left out of both.
+// - Growth levels read the average as a share of the maximum (4): Nascent up to 25%, Emerging up to 50%, Expanding
+//   up to 75%, Mature above 75%.
 
 export type Statement = { id: string; text: string }
 export type Domain = {
@@ -26,6 +29,22 @@ export type CcaModule = { id: string; name: string; audience: string; areas: Cap
 /** One statement's response: met, and what evidence was seen. Met without evidence does not count. */
 export type StatementResponse = { met: boolean; evidence: string }
 export type Responses = Record<string, StatementResponse>
+/** Domains deliberately left out of this assessment: domain id -> the reason. Not allowed in grant-stage modules. */
+export type NotAssessed = Record<string, string>
+
+export const ADDED_LATER = 'Added to the module after this assessment was completed'
+
+/**
+ * The domains to leave out when scoring a stored assessment: those marked not assessed, plus, for a completed
+ * assessment, any domain added to the module after it was completed (domainIds is the list it covered). New content
+ * therefore never lowers a past result.
+ */
+export function effectiveNotAssessed(m: CcaModule, notAssessed: NotAssessed = {}, domainIds?: string[] | null): NotAssessed {
+  if (!domainIds?.length) return notAssessed
+  const covered = new Set(domainIds)
+  const later = m.areas.flatMap((a) => a.domains).filter((d) => !covered.has(d.id)).map((d) => [d.id, ADDED_LATER])
+  return { ...Object.fromEntries(later), ...notAssessed }
+}
 
 export const LEVELS = [1, 2, 3, 4] as const
 export type Score = (typeof LEVELS)[number]
@@ -50,32 +69,45 @@ export function nextLevelGaps(d: Domain, responses: Responses): Statement[] {
 }
 
 export const GROWTH_LEVELS = ['Nascent', 'Emerging', 'Expanding', 'Mature'] as const
-export type GrowthLevel = (typeof GROWTH_LEVELS)[number]
+export type GrowthLevel = (typeof GROWTH_LEVELS)[number] | 'Not assessed'
 
-/** Growth level from an average score: Nascent 1.00–2.00, Emerging >2.00–2.50, Expanding >2.50–3.50, Mature >3.50–4.00. */
+/**
+ * Growth level from an average score (1–4), as a share of the maximum: Nascent up to 25% (1.00), Emerging >25–50%
+ * (to 2.00), Expanding >50–75% (to 3.00), Mature above 75%. Nothing scored (0) is Not assessed.
+ */
 export function growthLevel(avg: number): GrowthLevel {
-  if (avg <= 2.0) return 'Nascent'
-  if (avg <= 2.5) return 'Emerging'
-  if (avg <= 3.5) return 'Expanding'
+  if (avg <= 0) return 'Not assessed'
+  if (avg <= 1) return 'Nascent'
+  if (avg <= 2) return 'Emerging'
+  if (avg <= 3) return 'Expanding'
   return 'Mature'
 }
 
-const mean = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : 0)
+/** The average as a percentage of the maximum score (4). */
+export const percentOfMax = (avg: number) => Math.round((avg / 4) * 100)
 
-export type AreaResult = { id: string; name: string; domains: { id: string; name: string; score: Score }[]; total: number; average: number; level: GrowthLevel }
-export type Dashboard = { areas: AreaResult[]; total: number; average: number; level: GrowthLevel }
+const rawMean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0)
+const round2 = (x: number) => Math.round(x * 100) / 100
 
-/** The dashboard: each capacity area's domain scores, total, average and growth level, plus the overall figures. */
-export function dashboard(m: CcaModule, responses: Responses): Dashboard {
-  const areas = m.areas.map((a) => {
-    const domains = a.domains.map((d) => ({ id: d.id, name: d.name, score: domainScore(d, responses) }))
-    const scores = domains.map((d) => d.score)
-    const average = mean(scores)
-    return { id: a.id, name: a.name, domains, total: scores.reduce<number>((x, y) => x + y, 0), average, level: growthLevel(average) }
+export type DomainResult = { id: string; name: string; score: Score; assessed: boolean }
+export type AreaResult = { id: string; name: string; domains: DomainResult[]; total: number; average: number; percent: number; level: GrowthLevel }
+export type Dashboard = { areas: AreaResult[]; total: number; average: number; percent: number; level: GrowthLevel }
+
+/**
+ * The dashboard: each capacity area's domain scores, total, average and growth level, plus the overall figures. Levels
+ * are read from the unrounded averages, so rounding for display never moves a result across a band.
+ */
+export function dashboard(m: CcaModule, responses: Responses, notAssessed: NotAssessed = {}): Dashboard {
+  const raw = m.areas.map((a) => {
+    const domains = a.domains.map((d) => ({ id: d.id, name: d.name, score: domainScore(d, responses), assessed: !notAssessed[d.id] }))
+    const scores = domains.filter((d) => d.assessed).map((d) => d.score)
+    return { a, domains, scores, avg: rawMean(scores) }
   })
-  const all = areas.flatMap((a) => a.domains.map((d) => d.score))
-  const average = mean(all)
-  return { areas, total: all.reduce<number>((x, y) => x + y, 0), average, level: growthLevel(average) }
+  const areas = raw.map(({ a, domains, scores, avg }) => ({
+    id: a.id, name: a.name, domains, total: scores.reduce<number>((x, y) => x + y, 0), average: round2(avg), percent: percentOfMax(avg), level: growthLevel(avg),
+  }))
+  const avg = rawMean(raw.filter((r) => r.scores.length).map((r) => r.avg))
+  return { areas, total: areas.reduce((t, a) => t + a.total, 0), average: round2(avg), percent: percentOfMax(avg), level: growthLevel(avg) }
 }
 
 // ---------------------------------------------------------------- Improvement plan (12 months)
@@ -89,10 +121,14 @@ export type PlanRow = {
  * The automatic improvement plan: every domain below 4 aims one level up within 12 months, with the unmet statements
  * of that level as the actions. The organisation adds cost, timeline and responsible person (entries).
  */
-export function improvementPlan(m: CcaModule, responses: Responses, entries: PlanEntry[] = []): { rows: PlanRow[]; totalCost: number; byArea: Record<string, number> } {
+export function improvementPlan(m: CcaModule, responses: Responses, entries: PlanEntry[] = [], notAssessed: NotAssessed = {}): {
+  rows: PlanRow[]; totalCost: number; byArea: Record<string, number>; toAssess: { domainId: string; domain: string; reason: string }[]
+} {
   const byDomain = new Map(entries.map((e) => [e.domainId, e]))
   const rows: PlanRow[] = []
+  const toAssess: { domainId: string; domain: string; reason: string }[] = []
   for (const a of m.areas) for (const d of a.domains) {
+    if (notAssessed[d.id]) { toAssess.push({ domainId: d.id, domain: d.name, reason: notAssessed[d.id] }); continue }
     const current = domainScore(d, responses)
     if (current === 4) continue
     const e = byDomain.get(d.id)
@@ -104,7 +140,7 @@ export function improvementPlan(m: CcaModule, responses: Responses, entries: Pla
   }
   const byArea: Record<string, number> = {}
   for (const r of rows) byArea[r.areaId] = (byArea[r.areaId] ?? 0) + r.cost
-  return { rows, totalCost: rows.reduce((t, r) => t + r.cost, 0), byArea }
+  return { rows, totalCost: rows.reduce((t, r) => t + r.cost, 0), byArea, toAssess }
 }
 
 /** At the next assessment: which envisioned scores were reached. */
@@ -155,12 +191,15 @@ export function availableReports(records: YearRecord[]): ReportKind[] {
   return out
 }
 
-/** The cascade: each capacity area's average, year by year, with the direction of travel. */
+/** The cascade: each capacity area's average, year by year (years it was not assessed are left out), with the direction of travel. */
 export function cascade(records: YearRecord[]): { areaId: string; name: string; series: { year: number; average: number }[]; trend: 'improving' | 'steady' | 'declining' }[] {
   const sorted = [...records].sort((a, b) => a.year - b.year)
   const areas = sorted[0]?.dashboard.areas ?? []
   return areas.map((a) => {
-    const series = sorted.map((r) => ({ year: r.year, average: r.dashboard.areas.find((x) => x.id === a.id)?.average ?? 0 }))
+    const series = sorted.flatMap((r) => {
+      const x = r.dashboard.areas.find((y) => y.id === a.id)
+      return x && x.level !== 'Not assessed' ? [{ year: r.year, average: x.average }] : []
+    })
     const delta = series.length > 1 ? series.at(-1)!.average - series[0].average : 0
     return { areaId: a.id, name: a.name, series, trend: delta > 0.1 ? 'improving' : delta < -0.1 ? 'declining' : 'steady' }
   })
@@ -172,19 +211,19 @@ export const READINESS_LABEL: Record<Readiness, string> = { ready: 'Ready', read
 
 /**
  * Not yet ready: any critical domain at 1, or overall Nascent. Ready with conditions: any critical domain at 2, or any
- * domain at 1, or overall below Expanding. Ready otherwise. Conditions are the critical domains below 3 and every
+ * domain at 1, or overall below Expanding (Emerging). Every domain counts: grant-stage modules cannot skip domains. Ready otherwise. Conditions are the critical domains below 3 and every
  * domain at 1, each with its unmet statements.
  */
 export function awardReadiness(m: CcaModule, responses: Responses): { rating: Readiness; conditions: { domainId: string; domain: string; score: Score; actions: string[] }[] } {
   const all = m.areas.flatMap((a) => a.domains)
   const scored = all.map((d) => ({ d, score: domainScore(d, responses) }))
-  const avg = mean(scored.map((x) => x.score))
+  const level = dashboard(m, responses).level
   const conditions = scored
     .filter(({ d, score }) => (d.critical && score < 3) || score === 1)
     .map(({ d, score }) => ({ domainId: d.id, domain: d.name, score, actions: nextLevelGaps(d, responses).map((s) => s.text) }))
   let rating: Readiness = 'ready'
-  if (scored.some(({ d, score }) => d.critical && score === 1) || growthLevel(avg) === 'Nascent') rating = 'not_yet_ready'
-  else if (conditions.length || avg <= 2.5) rating = 'ready_with_conditions'
+  if (scored.some(({ d, score }) => d.critical && score === 1) || level === 'Nascent') rating = 'not_yet_ready'
+  else if (conditions.length || level === 'Emerging') rating = 'ready_with_conditions'
   return { rating, conditions }
 }
 
@@ -193,6 +232,6 @@ export type Swot = { strengths: string[]; weaknesses: string[]; opportunities: s
 
 /** A starting SWOT from the scores: domains at 4 are strengths, domains at 1 weaknesses. Facilitators add the rest. */
 export function swotSeed(d: Dashboard): Swot {
-  const domains = d.areas.flatMap((a) => a.domains)
+  const domains = d.areas.flatMap((a) => a.domains).filter((x) => x.assessed)
   return { strengths: domains.filter((x) => x.score === 4).map((x) => x.name), weaknesses: domains.filter((x) => x.score === 1).map((x) => x.name), opportunities: [], threats: [] }
 }

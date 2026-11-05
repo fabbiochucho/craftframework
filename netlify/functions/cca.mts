@@ -14,7 +14,7 @@ import type { CcaModule } from '../../src/lib/cca/engine.js'
 //   GET    modules                    signed-in: the module content (private, from blob store cca-private)
 //   GET    ?orgId=                    organisation members (read): its assessments
 //   POST   { orgId, module, year, awardRef? }          (write) start an assessment
-//   PUT    :id { responses?, votes?, swot?, plan?, assessor?, orgLead? }   (write) while draft
+//   PUT    :id { responses?, votes?, swot?, plan?, notAssessed?, assessor?, orgLead? }   (write) while draft
 //   POST   :id/complete               (write) complete it; a completed assessment cannot change
 // Scores are computed from the responses by src/lib/cca/engine.ts, so they always follow the evidence.
 
@@ -27,6 +27,8 @@ const putSchema = z.object({
   votes: z.record(z.string().max(80), z.array(z.number().int().min(1).max(4)).max(60)).optional(),
   swot: z.object({ strengths: z.array(z.string().max(300)).max(30), weaknesses: z.array(z.string().max(300)).max(30), opportunities: z.array(z.string().max(300)).max(30), threats: z.array(z.string().max(300)).max(30) }).strict().optional(),
   plan: z.array(z.object({ domainId: z.string().max(80), costs: z.number().min(0).max(1e12).optional(), timeline: z.string().max(200).optional(), responsible: z.string().max(200).optional() }).strict()).max(300).optional(),
+  // Replaces the whole map: domain id -> why it was left out.
+  notAssessed: z.record(z.string().max(80), z.string().trim().min(3).max(300)).optional(),
   assessor: z.string().max(200).optional(),
   orgLead: z.string().max(200).optional(),
 }).strict()
@@ -86,12 +88,13 @@ const handleRequest = async (req: Request) => {
 
     if (req.method === 'PUT' && !action) {
       const p = putSchema.safeParse(await req.json().catch(() => null))
-      if (!p.success) return json({ error: 'Some of the answers could not be saved. Check the evidence notes are under 1,000 characters.' }, 400)
+      if (!p.success) return json({ error: 'Some of the answers could not be saved. Check the evidence notes are under 1,000 characters and every domain marked not assessed has a reason.' }, 400)
       const d = p.data
+      if (d.notAssessed && Object.keys(d.notAssessed).length && isAwardModule(row.module)) return json({ error: 'Every domain must be assessed for a grant or contract.' }, 400)
       await db.update(ccaAssessments).set({
         ...(d.responses ? { responses: { ...row.responses, ...d.responses } } : {}),
         ...(d.votes ? { votes: { ...row.votes, ...d.votes } } : {}),
-        ...(d.swot ? { swot: d.swot } : {}), ...(d.plan ? { plan: d.plan } : {}),
+        ...(d.swot ? { swot: d.swot } : {}), ...(d.plan ? { plan: d.plan } : {}), ...(d.notAssessed ? { notAssessed: d.notAssessed } : {}),
         ...(d.assessor !== undefined ? { assessor: d.assessor } : {}), ...(d.orgLead !== undefined ? { orgLead: d.orgLead } : {}),
         updatedAt: new Date(),
       }).where(and(eq(ccaAssessments.id, row.id), eq(ccaAssessments.status, 'draft')))
@@ -99,8 +102,11 @@ const handleRequest = async (req: Request) => {
     }
 
     if (req.method === 'POST' && action === 'complete') {
+      // Record the domains this assessment covered, so domains added to the module later never lower its result.
+      const mod = (await content())?.find((m) => m.id === row.module)
+      const domainIds = mod ? mod.areas.flatMap((a) => a.domains.map((d) => d.id)) : null
       await db.transaction(async (tx) => {
-        await tx.update(ccaAssessments).set({ status: 'complete', completedAt: new Date(), updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
+        await tx.update(ccaAssessments).set({ status: 'complete', domainIds, completedAt: new Date(), updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
         await tx.insert(auditLogs).values({ orgId: row.orgId, actor: caller.email, action: `Completed capacity assessment (${row.module} ${row.year})`, target: row.id, category: 'Assessment' })
       })
       return json({ ok: true })

@@ -64,10 +64,20 @@ describe('CRAFT Capacity Assessment API', () => {
     const d = dashboard(MODULES[0] as any, got.responses)
     assert.deepEqual(d.areas[0].domains.map((x) => x.score), [3, 1, 1])
 
+    // A domain can be left out with a reason, except in grant-stage modules.
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { notAssessed: { g3: '' } })).status, 400, 'needs a reason')
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { notAssessed: { g3: 'No volunteers this year' } })).status, 200)
+    const pre = (await call(ALICE, 'GET', '?orgId=org_a')).body.assessments.find((a: any) => a.module === 'pre_award')
+    assert.equal((await call(ALICE, 'PUT', `/${pre.id}`, { notAssessed: { g3: 'Not relevant' } })).status, 400, 'grant stages assess every domain')
+    const saved = (await call(ALICE, 'GET', `/${id}`)).body.assessment
+    assert.deepEqual(saved.notAssessed, { g3: 'No volunteers this year' })
+    assert.deepEqual(dashboard(MODULES[0] as any, saved.responses, saved.notAssessed).areas[0].average, 2, 'g3 left out: (3 + 1) / 2')
+
     assert.equal((await call(ALICE, 'POST', `/${id}/complete`)).status, 200)
     assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g2.2': ok } })).status, 409, 'complete is final')
     const list = (await call(ALICE, 'GET', '?orgId=org_a')).body.assessments
     assert.deepEqual(list.map((a: any) => [a.module, a.status]), [['community', 'complete'], ['pre_award', 'draft']])
+    assert.deepEqual(list.map((a: any) => a.domainIds), [['g1', 'g2', 'g3'], null], 'completion records the domains covered')
     assert.equal((await call(BOB, 'GET', '?orgId=org_a')).status, 403)
     const audit = await rows(`SELECT action FROM audit_logs WHERE org_id='org_a' ORDER BY id`)
     assert.deepEqual(audit.map((a) => a.action.split(' (')[0]), ['Started capacity assessment', 'Started capacity assessment', 'Completed capacity assessment'])
