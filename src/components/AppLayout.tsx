@@ -17,7 +17,7 @@ import { useOfflineSecurity } from '../hooks/use-offline-security'
 import { BRAND, getAccreditation, computeOrgScore } from '../lib/data'
 import { useFeatures } from '../lib/useFeatures'
 import { ShieldCheck, Handshake,
-  LayoutDashboard, ClipboardList, AlertTriangle, TrendingUp, FileBarChart, Calculator,
+  LayoutDashboard, ClipboardList, Gauge, AlertTriangle, TrendingUp, FileBarChart, Calculator,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
   BarChart3, Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap,
@@ -51,6 +51,7 @@ const workspaceNav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/frameworks', label: 'Assessment Frameworks', icon: Layers },
   { to: '/assessment', label: 'Assessment Wizard', icon: ClipboardList },
+  { to: '/capacity', label: 'Capacity Assessment', icon: Gauge },
   { to: '/findings', label: 'Findings', icon: AlertTriangle },
   { to: '/verify', label: 'Trust Delta & Verify', icon: Scale },
   { to: '/cip', label: 'Capacity Plan', icon: TrendingUp },
