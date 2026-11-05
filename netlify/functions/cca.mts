@@ -8,7 +8,7 @@ import { auditLogs, ccaAssessments } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import { CCA_MODULE_IDS, contentProblems, isAwardModule } from '../../src/lib/cca/modules.js'
-import type { CcaModule } from '../../src/lib/cca/engine.js'
+import { COST_LINES, type CcaModule } from '../../src/lib/cca/engine.js'
 
 // /api/cca — CRAFT Capacity Assessment.
 //   GET    modules                    signed-in: the module content (private, from blob store cca-private)
@@ -26,7 +26,10 @@ const putSchema = z.object({
   responses: z.record(z.string().max(80), response).optional(),
   votes: z.record(z.string().max(80), z.array(z.number().int().min(1).max(4)).max(60)).optional(),
   swot: z.object({ strengths: z.array(z.string().max(300)).max(30), weaknesses: z.array(z.string().max(300)).max(30), opportunities: z.array(z.string().max(300)).max(30), threats: z.array(z.string().max(300)).max(30) }).strict().optional(),
-  plan: z.array(z.object({ domainId: z.string().max(80), costs: z.number().min(0).max(1e12).optional(), timeline: z.string().max(200).optional(), responsible: z.string().max(200).optional() }).strict()).max(300).optional(),
+  plan: z.array(z.object({
+    domainId: z.string().max(80), costs: z.number().min(0).max(1e12).optional(),
+    lines: z.object({ ...Object.fromEntries(COST_LINES.map((c) => [c.id, z.number().min(0).max(1e12).optional()])), participants: z.number().int().min(0).max(100000).optional() }).strict().optional(),
+    timeline: z.string().max(200).optional(), responsible: z.string().max(200).optional() }).strict()).max(300).optional(),
   // Replaces the whole map: domain id -> why it was left out.
   notAssessed: z.record(z.string().max(80), z.string().trim().min(3).max(300)).optional(),
   assessor: z.string().max(200).optional(),

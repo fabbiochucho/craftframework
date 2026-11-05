@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { blobStores, rows, truncateAll } from './harness.ts'
-import { dashboard } from '../../src/lib/cca/engine.ts'
+import { dashboard, improvementPlan } from '../../src/lib/cca/engine.ts'
 
 const cca = (await import(new URL('../../netlify/functions/cca.mts', import.meta.url).href)).default
 
@@ -56,10 +56,13 @@ describe('CRAFT Capacity Assessment API', () => {
     assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': ok }, assessor: 'Amina', orgLead: 'Musa' })).status, 200)
     assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.3': ok, 'g2.2': { met: true, evidence: '' } }, votes: { g1: [3, 3, 4] } })).status, 200)
     assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': { met: true, evidence: 'x'.repeat(1001) } } })).status, 400)
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { plan: [{ domainId: 'g2', lines: { technicalAssistance: 500, trainingPerParticipant: 20, participants: 10 }, timeline: 'Q1', responsible: 'Programme lead' }] })).status, 200)
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { plan: [{ domainId: 'g2', lines: { bribes: 1 } }] })).status, 400, 'only the known cost lines')
     assert.equal((await call(BOB, 'GET', `/${id}`)).status, 403)
     const got = (await call(ALICE, 'GET', `/${id}`)).body.assessment
     assert.deepEqual(Object.keys(got.responses).sort(), ['g1.2', 'g1.3', 'g2.2'])
     assert.deepEqual(got.votes.g1, [3, 3, 4])
+    assert.equal(improvementPlan(MODULES[0] as any, got.responses, got.plan).rows.find((x) => x.domainId === 'g2')!.cost, 700)
     // The engine scores from the saved responses: g1 reaches 3; g2 stays at 1 (met without evidence does not count).
     const d = dashboard(MODULES[0] as any, got.responses)
     assert.deepEqual(d.areas[0].domains.map((x) => x.score), [3, 1, 1])

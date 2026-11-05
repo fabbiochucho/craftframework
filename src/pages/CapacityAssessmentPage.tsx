@@ -8,8 +8,8 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs }
 import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
-  availableReports, awardReadiness, cascade, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
-  type CcaModule, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
+  availableReports, awardReadiness, cascade, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
+  type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule } from '../lib/cca/modules'
 import { ScreeningCard } from '../components/ScreeningCard'
@@ -292,23 +292,43 @@ function PlanView({ mod, responses, notAssessed, plan, setPlan, locked, onSave }
     const cur = plan.find((e) => e.domainId === domainId) ?? { domainId }
     setPlan([...plan.filter((e) => e.domainId !== domainId), { ...cur, ...patch }])
   }
+  // A plan saved with a single cost figure starts its lines from that figure as technical assistance.
+  const lineOf = (domainId: string): CostLines => {
+    const e = plan.find((x) => x.domainId === domainId)
+    return e?.lines ?? (e?.costs ? { technicalAssistance: e.costs } : {})
+  }
+  const setLine = (domainId: string, patch: CostLines) => upd(domainId, { lines: { ...lineOf(domainId), ...patch }, costs: undefined })
   return (
     <Card>
-      <CardHeader><CardTitle>Improvement plan (next 12 months)</CardTitle><p className="text-sm text-slate-500">Each domain below 4 aims one level up. The actions are the statements not yet met; add the timeline, cost and who is responsible.</p></CardHeader>
+      <CardHeader><CardTitle>Improvement plan (next 12 months)</CardTitle><p className="text-sm text-slate-500">Each domain below 4 aims one level up. The actions are the statements not yet met; add the timeline, who is responsible and the costs by kind.</p></CardHeader>
       <CardContent className="space-y-3">
         {p.rows.length === 0 ? <p className="text-sm text-slate-500">Every domain is at 4. Keep the evidence current.</p> : p.rows.map((r) => (
           <div key={r.domainId} className="rounded-lg border border-slate-200 p-3 text-sm">
             <p className="font-medium">{r.domain}: {r.current} → <b>{r.envisioned}</b></p>
             <ul className="mt-1 list-disc pl-5 text-slate-700">{r.actions.map((x) => <li key={x}>{x}</li>)}</ul>
-            <div className="mt-2 grid gap-2 sm:grid-cols-3">
-              <Input label="Timeline" value={r.timeline} disabled={locked} onChange={(e) => upd(r.domainId, { timeline: e.target.value })} />
-              <Input label="Cost" type="number" min={0} value={r.cost || ''} disabled={locked} onChange={(e) => upd(r.domainId, { costs: Number(e.target.value) || 0 })} />
-              <Input label="Responsible" value={r.responsible} disabled={locked} onChange={(e) => upd(r.domainId, { responsible: e.target.value })} />
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <Input label="Timeline (e.g. weeks 2–6, June)" value={r.timeline} disabled={locked} onChange={(e) => upd(r.domainId, { timeline: e.target.value })} />
+              <Input label="Responsible (by role)" value={r.responsible} disabled={locked} onChange={(e) => upd(r.domainId, { responsible: e.target.value })} />
             </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {COST_LINES.map((c) => (
+                <Input key={c.id} label={c.label} type="number" min={0} value={lineOf(r.domainId)[c.id] || ''} disabled={locked}
+                  onChange={(e) => setLine(r.domainId, { [c.id]: Number(e.target.value) || 0 })} />
+              ))}
+              <Input label="Participants" type="number" min={0} value={lineOf(r.domainId).participants || ''} disabled={locked}
+                onChange={(e) => setLine(r.domainId, { participants: Math.floor(Number(e.target.value)) || 0 })} />
+            </div>
+            <p className="mt-1 text-right text-xs text-slate-600">Domain total: <b>{r.cost.toLocaleString()}</b></p>
           </div>
         ))}
         {p.toAssess.length > 0 && <div className="rounded-lg border border-dashed border-slate-300 p-3 text-sm"><p className="font-medium">Yet to be assessed: assess these next time</p><ul className="mt-1 list-disc pl-5 text-slate-700">{p.toAssess.map((x) => <li key={x.domainId}>{x.domain}{x.reason && ` (${x.reason})`}</li>)}</ul></div>}
-        <p className="text-sm font-semibold">Total cost: {p.totalCost.toLocaleString()}</p>
+        <div className="rounded-lg bg-slate-50 p-3 text-sm">
+          <p className="font-semibold">Total cost of capacity improvement: {p.totalCost.toLocaleString()}</p>
+          <ul className="mt-1 grid gap-x-6 text-slate-700 sm:grid-cols-2">
+            {COST_LINES.map((c) => <li key={c.id}>{c.label === 'Training, per participant' ? 'Training' : c.label}: {p.byLine[c.id].toLocaleString()}</li>)}
+            {mod.areas.filter((a) => p.byArea[a.id]).map((a) => <li key={a.id}>{a.name}: {p.byArea[a.id].toLocaleString()}</li>)}
+          </ul>
+        </div>
         {!locked && <Button size="sm" variant="outline" onClick={onSave}>Save plan</Button>}
       </CardContent>
     </Card>
