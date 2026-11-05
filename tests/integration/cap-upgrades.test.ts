@@ -13,6 +13,24 @@ describe('CAP upgrades', () => {
     ;({ wsId } = await createOrg())
   })
 
+  it('records the full finding, risk before and after controls, escalation category and management response', async () => {
+    const cap = expectStatus(await newCap({
+      findingDescription: 'Advances to field staff are not retired', severity: 'high',
+      criteria: 'Finance manual 4.2: advances retired within 14 days', condition: '9 of 15 sampled advances open over 60 days',
+      rootCause: 'No ageing report', consequence: 'Funds may be misused; funder may disallow costs',
+      inherentLikelihood: 4, inherentImpact: 4, riskCategory: 'fiduciary',
+    }), 201).body
+    assert.deepEqual([cap.criteria, cap.inherentLikelihood, cap.riskCategory], ['Finance manual 4.2: advances retired within 14 days', 4, 'fiduciary'])
+    // Residual risk above inherent is refused, on update too (checked against the saved inherent rating).
+    assert.equal((await as(ASSESSOR).put(`${P()}/cap/${cap.id}`, { residualLikelihood: 5, residualImpact: 5 })).status, 400)
+    assert.equal((await as(ASSESSOR).put(`${P()}/cap/${cap.id}`, { residualLikelihood: 6 })).status, 400, 'ratings are 1 to 5')
+    assert.equal((await as(ASSESSOR).put(`${P()}/cap/${cap.id}`, { riskCategory: 'nonsense' })).status, 400)
+    expectStatus(await as(ASSESSOR).put(`${P()}/cap/${cap.id}`, { residualLikelihood: 2, residualImpact: 4, responseStance: 'partly', managementResponse: 'Agree on ageing; 3 advances were retired late but documented.' }), 200)
+    const got = expectStatus(await as(VIEWER).get(`${P()}/cap/${cap.id}`), 200).body
+    assert.deepEqual([got.residualLikelihood, got.residualImpact, got.responseStance], [2, 4, 'partly'])
+    assert.match(got.managementResponse, /ageing/)
+  })
+
   it('records correction and preventive action, merges duplicates with provenance, and escalates', async () => {
     const a = expectStatus(await newCap({ findingDescription: 'Board minutes are not signed or filed on time', severity: 'medium', immediateCorrection: 'Sign and file the last three sets', preventiveAction: 'Company secretary checklist' }), 201).body
     assert.equal(a.immediateCorrection, 'Sign and file the last three sets')

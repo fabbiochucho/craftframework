@@ -4,6 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { api, SEVERITY_STYLE, wsPath } from '../../lib/workspaceApi'
 import { Accordion, Badge, Button, Card, CardContent, Input, ProgressBar, Select, Table, Tbody, Td, Th, Thead } from '../../components/ui'
 import { EditFields, ErrorLine, ExportButtons, Header, State, StatusPill, Tile, useAction, useApi } from './shared'
+import { band, heatMap, IMPACT, LIKELIHOOD, mustEscalate, ratingProblem, RESPONSE_STANCES, RISK_CATEGORIES, RISK_CATEGORY_LABEL, scoreOf, STANCE_LABEL, type Band } from '../../lib/riskMatrix'
 
 const dash = (workspaceId: string) => ({ to: '/app/workspaces/$workspaceId/dashboard', params: { workspaceId }, label: 'Dashboard' })
 
@@ -243,6 +244,7 @@ export function CapHubPage({ workspaceId }: { workspaceId: string }) {
       <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => run(async () => { const r = await api(wsPath(workspaceId, '/cap/escalations/run'), { method: 'POST', body: {} }); setNote(`${r.escalated} CAP(s) escalated`) })}>Run escalation check (admin)</Button>
         {note && <span role="status" className="self-center text-sm text-slate-600">{note}</span>}</div>
       <p className="text-xs text-slate-500">Escalation rises with days overdue: critical after 1, 14 and 30 days; high after 14, 30 and 60; medium after 30, 60 and 90; low after 60, 90 and 120. Levels: workspace admins, organisation owner or executive, board or governing body. A daily check applies these automatically.</p>
+      {list.data && <RiskHeatMap caps={list.data.filter((x: any) => x.status !== 'completed' && x.status !== 'merged')} />}
       <Duplicates workspaceId={workspaceId} onMerged={async () => { await list.reload(); await sum.reload() }} />
       <p className="text-xs text-slate-500">Closing a corrective action never changes a score or marks a requirement compliant: the source criterion must be reassessed against verified evidence.</p>
       <div className="flex flex-wrap gap-3">
@@ -313,6 +315,9 @@ export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; cap
       <Card><CardContent className="space-y-3">
         <h2 className="font-semibold">Finding analysis</h2>
         <EditFields key={`${c.id}-${c.status}`} initial={c} disabled={closed} fields={[
+          { name: 'criteria', label: 'Criteria (the policy, law or standard that applies)' },
+          { name: 'condition', label: 'Condition (what was found)' },
+          { name: 'consequence', label: 'Consequence (what could happen, or did)' },
           { name: 'immediateCorrection', label: 'Immediate correction (fix this instance now)' },
           { name: 'rootCause', label: 'Root cause (why the gap occurred)' }, { name: 'correctiveAction', label: 'Corrective action (remove the cause)' },
           { name: 'preventiveAction', label: 'Preventive action (stop it happening elsewhere)' },
@@ -320,6 +325,7 @@ export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; cap
           { name: 'dependencies', label: 'Dependencies' }, { name: 'residualRisk', label: 'Residual risk' },
         ]} save={async body => { await api(wsPath(workspaceId, `/cap/${capId}`), { method: 'PUT', body }); await cap.reload() }} />
       </CardContent></Card>
+      <RiskCard key={`risk-${c.id}-${c.status}`} c={c} disabled={closed} save={async body => { await api(wsPath(workspaceId, `/cap/${capId}`), { method: 'PUT', body }); await cap.reload() }} />
       <Select label="Evidence to link to an action" value={linkedEvidence} onChange={setLinkedEvidence} options={(evidence.data ?? []).map(e => ({ value: String(e.id), label: `${e.documentName} (${e.status})` }))} />
       <State loading={evidence.loading} error={evidence.error} />
       <Accordion title="Source">{<p className="p-3 text-sm">{c.sourceType.replace('_', ' ')} {c.sourceId ?? ''}</p>}</Accordion>
@@ -365,5 +371,71 @@ export function CapDetailPage({ workspaceId, capId }: { workspaceId: string; cap
       </CardContent></Card>}
       <ProgressBar value={c.actions.length ? (c.actions.filter((x: any) => x.status === 'completed').length / c.actions.length) * 100 : 0} />
     </div>
+  )
+}
+
+const BAND_STYLE: Record<Band, string> = { Low: 'bg-emerald-100 text-emerald-800', Moderate: 'bg-amber-100 text-amber-800', High: 'bg-orange-100 text-orange-800', Critical: 'bg-rose-100 text-rose-800' }
+
+// Risk before and after controls (likelihood x impact), escalation category, and the management response.
+function RiskCard({ c, disabled, save }: { c: any; disabled: boolean; save: (body: Record<string, unknown>) => Promise<unknown> }) {
+  const [f, setF] = useState({
+    inherentLikelihood: c.inherentLikelihood ?? null, inherentImpact: c.inherentImpact ?? null, residualLikelihood: c.residualLikelihood ?? null, residualImpact: c.residualImpact ?? null,
+    riskCategory: c.riskCategory ?? '', responseStance: c.responseStance ?? '', managementResponse: c.managementResponse ?? '',
+  })
+  const { run, error, busy } = useAction(() => {})
+  const opts = (labels: readonly string[]) => [{ value: '', label: '–' }, ...labels.map((l, i) => ({ value: String(i + 1), label: `${i + 1} ${l}` }))]
+  const num = (v: string) => (v ? Number(v) : null)
+  const inh = { likelihood: f.inherentLikelihood, impact: f.inherentImpact }, res = { likelihood: f.residualLikelihood, impact: f.residualImpact }
+  const show = (r: typeof inh) => { const s = scoreOf(r); return s == null ? <span className="text-slate-400">not rated</span> : <span className={`rounded px-2 py-0.5 text-xs font-semibold ${BAND_STYLE[band(s)]}`}>{s} {band(s)}</span> }
+  const problem = ratingProblem(inh, res)
+  return (
+    <Card><CardContent className="space-y-3">
+      <h2 className="font-semibold">Risk rating and management response</h2>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <fieldset className="rounded border border-slate-200 p-3" disabled={disabled || busy}><legend className="px-1 text-xs font-semibold text-slate-600">Before controls (inherent)</legend>
+          <div className="grid grid-cols-2 gap-2"><Select label="Likelihood" value={String(f.inherentLikelihood ?? '')} onChange={v => setF({ ...f, inherentLikelihood: num(v) })} options={opts(LIKELIHOOD)} />
+            <Select label="Impact" value={String(f.inherentImpact ?? '')} onChange={v => setF({ ...f, inherentImpact: num(v) })} options={opts(IMPACT)} /></div>
+          <p className="mt-2 text-sm">Score: {show(inh)}</p></fieldset>
+        <fieldset className="rounded border border-slate-200 p-3" disabled={disabled || busy}><legend className="px-1 text-xs font-semibold text-slate-600">After existing controls (residual)</legend>
+          <div className="grid grid-cols-2 gap-2"><Select label="Likelihood" value={String(f.residualLikelihood ?? '')} onChange={v => setF({ ...f, residualLikelihood: num(v) })} options={opts(LIKELIHOOD)} />
+            <Select label="Impact" value={String(f.residualImpact ?? '')} onChange={v => setF({ ...f, residualImpact: num(v) })} options={opts(IMPACT)} /></div>
+          <p className="mt-2 text-sm">Score: {show(res)}</p></fieldset>
+      </div>
+      <fieldset className="grid gap-3 sm:grid-cols-2" disabled={disabled || busy}>
+        <Select label="Escalate regardless of score if the finding is…" value={f.riskCategory} onChange={v => setF({ ...f, riskCategory: v })} options={[{ value: '', label: 'None of these' }, ...RISK_CATEGORIES.map(k => ({ value: k, label: RISK_CATEGORY_LABEL[k] }))]} />
+        <Select label="Management response" value={f.responseStance} onChange={v => setF({ ...f, responseStance: v })} options={[{ value: '', label: 'Not yet given' }, ...RESPONSE_STANCES.map(k => ({ value: k, label: STANCE_LABEL[k] }))]} />
+      </fieldset>
+      <label className="block text-sm font-medium text-slate-700">Management's comments, context and commitments
+        <textarea rows={3} disabled={disabled || busy} className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm" value={f.managementResponse} onChange={e => setF({ ...f, managementResponse: e.target.value })} /></label>
+      {mustEscalate(inh, res, f.riskCategory) && <p className="rounded bg-rose-50 p-2 text-sm text-rose-800" role="status">This finding should be escalated: {f.riskCategory ? RISK_CATEGORY_LABEL[f.riskCategory as keyof typeof RISK_CATEGORY_LABEL] : 'its risk is High or Critical'}.</p>}
+      {problem && <p className="text-sm text-rose-700" role="alert">{problem}</p>}
+      <ErrorLine error={error} />
+      {!disabled && <Button size="sm" disabled={!!problem || busy} onClick={() => run(() => save(f))}>Save risk and response</Button>}
+    </CardContent></Card>
+  )
+}
+
+// Open findings on the 5x5 matrix, by residual rating (inherent where residual is not rated yet).
+function RiskHeatMap({ caps }: { caps: any[] }) {
+  const rated = caps.map(x => x.residualLikelihood && x.residualImpact ? { likelihood: x.residualLikelihood, impact: x.residualImpact } : { likelihood: x.inherentLikelihood ?? null, impact: x.inherentImpact ?? null })
+  const grid = heatMap(rated)
+  const total = grid.flat().reduce((a, b) => a + b, 0)
+  if (!total) return null
+  return (
+    <Card><CardContent className="space-y-2">
+      <h2 className="font-semibold">Risk heat map (open findings)</h2>
+      <p className="text-xs text-slate-500">After existing controls, or before controls where that is all that has been rated. {caps.length - total} open finding(s) not rated yet.</p>
+      <table className="text-xs" aria-label="Risk heat map: likelihood by impact">
+        <tbody>
+          {grid.map((row, r) => (
+            <tr key={r}>
+              <th scope="row" className="pr-2 text-right font-normal text-slate-500">{5 - r} {LIKELIHOOD[4 - r]}</th>
+              {row.map((n, i) => { const b = band((5 - r) * (i + 1)); return <td key={i} className={`h-9 w-16 border border-white text-center font-semibold ${BAND_STYLE[b]}`} title={`${b}: ${n}`}>{n || ''}</td> })}
+            </tr>
+          ))}
+          <tr><td />{IMPACT.map((l, i) => <td key={l} className="pt-1 text-center text-slate-500">{i + 1} {l}</td>)}</tr>
+        </tbody>
+      </table>
+    </CardContent></Card>
   )
 }
