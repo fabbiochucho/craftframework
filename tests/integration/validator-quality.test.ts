@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
-import { pool, rows, truncateAll } from './harness.ts'
+import { pool, rows, truncateAll, CHECKS_OK } from './harness.ts'
 import { FRAMEWORKS } from '../../src/lib/validationReview.ts'
 import { devMapperSummary } from '../../netlify/lib/validator-quality.ts'
 
@@ -51,7 +51,7 @@ async function startEngagement() {
   await eng(VAL, 'POST', `/${id}/respond`, { side: 'validator', decision: 'accept' })
   assert.equal((await eng(VAL, 'POST', `/${id}/declaration`, { confirmed: true, signedName: 'Valerie Okafor' })).status, 200)
   await rev(VAL, 'PUT', `/${id}/setup`, { method: 'combined', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
-  for (const ind of IDS) await rev(VAL, 'PUT', `/${id}/scores/${ind}`, { score: 4, sufficiency: 'sufficient' })
+  for (const ind of IDS) await rev(VAL, 'PUT', `/${id}/scores/${ind}`, { checks: CHECKS_OK, score: 4, sufficiency: 'sufficient' })
   return id as string
 }
 async function issue(opts: { qualify?: string[]; outcome?: string; finalise?: Record<string, unknown> } = {}) {
