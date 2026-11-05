@@ -1,6 +1,6 @@
 // Self-check — run directly with `node src/lib/screening.test.ts`.
 import assert from 'node:assert/strict'
-import { classify, cleanSubjects, listName, screeningState } from './screening.ts'
+import { classify, cleanSubjects, listName, screeningState, summarise } from './screening.ts'
 
 const m = (score: number) => ({ id: `x${score}`, caption: 'Acme Ltd', score, datasets: ['worldbank_debarred'] })
 assert.deepEqual(classify([m(0.4), m(0.69)]).status, 'clear')
@@ -23,4 +23,10 @@ assert.equal(screeningState([{ status: 'possible_match', review: '' }]), 'needs_
 assert.equal(screeningState([{ status: 'possible_match', review: 'confirmed_match' }, { status: 'clear', review: '' }]), 'confirmed_match')
 assert.equal(screeningState([{ status: 'error', review: '' }]), 'not_screened')
 
+// Automatic review outcome per name.
+const rm = (decision: 'false_positive' | 'confirmed_match' | 'needs_review', name = 'X') => ({ id: name, caption: name, matchedName: name, score: 0.9, datasets: ['us_ofac_sdn'], decision, rule: `rule ${decision}` })
+assert.deepEqual(summarise([]), { status: 'clear', review: '', note: '' })
+assert.deepEqual(summarise([rm('false_positive', 'A'), rm('false_positive', 'B')]), { status: 'possible_match', review: 'false_positive', note: 'A: rule false_positive; B: rule false_positive' })
+assert.equal(summarise([rm('false_positive'), rm('confirmed_match', 'C')]).review, 'confirmed_match', 'one confirmation wins')
+assert.deepEqual(summarise([rm('false_positive'), rm('needs_review')]), { status: 'possible_match', review: '', note: '' }, 'anything unsettled goes to a person')
 console.log('screening.test.ts: all assertions passed')
