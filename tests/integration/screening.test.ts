@@ -77,6 +77,20 @@ describe('free official-list screening with automatic review', () => {
     assert.equal((await call(BOB, 'GET', '?orgId=org_a')).status, 403)
   })
 
+  it('refreshes only lists older than six hours, reading just their dates', async () => {
+    const { getStore } = await import('@netlify/blobs')
+    const fresh = new Date().toISOString()
+    for (const s of ['un', 'ofac', 'eu', 'uk']) await getStore('screening-lists').setJSON(s, { fetchedAt: fresh, count: 1, entries: [] }, { metadata: { fetchedAt: fresh } })
+    const refresh = (await import(new URL('../../netlify/functions/screening-lists-refresh-background.mts', import.meta.url).href)).default
+    const mock = installFetchMock(() => new Response('', { status: 500 }))
+    try { await refresh() } finally { mock.restore() }
+    assert.equal(mock.calls.length, 0, 'nothing downloaded: every list is fresh')
+    await getStore('screening-lists').setJSON('uk', { fetchedAt: '2020-01-01T00:00:00Z', count: 1, entries: [] }, { metadata: { fetchedAt: '2020-01-01T00:00:00Z' } })
+    const again = installFetchMock(() => new Response('', { status: 500 }))
+    try { await refresh() } finally { again.restore() }
+    assert.deepEqual(again.calls.map((c: any) => c.url), ['https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv'], 'only the stale list')
+  })
+
   it('uses OpenSanctions only when a paid key is set, and records provider failures as errors', async () => {
     process.env.OPENSANCTIONS_API_KEY = 'test-key-not-a-credential'
     const mock = installFetchMock(() => new Response(JSON.stringify({ responses: { q0: { results: [{ id: 'x', caption: 'Musa Bello', score: 0.93, datasets: ['worldbank_debarred'] }] } } }), { status: 200 }))

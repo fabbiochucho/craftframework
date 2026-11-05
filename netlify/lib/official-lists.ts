@@ -18,9 +18,16 @@ export async function refreshSource(source: ListSource): Promise<number> {
   const entries = source === 'un' ? parseUn(texts[0]) : source === 'ofac' ? parseOfac(texts[0], texts[1], texts[2]) : source === 'eu' ? parseEu(texts[0]) : parseUk(texts[0])
   // A list that suddenly shrinks to almost nothing is a broken download or a format change: keep the previous copy.
   if (entries.length < 100) throw new Error(`${source}: only ${entries.length} entries parsed; keeping the previous copy`)
-  await getStore(LISTS_STORE).setJSON(source, { fetchedAt: new Date().toISOString(), count: entries.length, entries } satisfies Stored)
+  const fetchedAt = new Date().toISOString()
+  await getStore(LISTS_STORE).setJSON(source, { fetchedAt, count: entries.length, entries } satisfies Stored, { metadata: { fetchedAt } })
   cache = null
   return entries.length
+}
+
+/** When a list was last downloaded, from the blob's metadata (without loading the list itself). */
+export async function fetchedAt(source: ListSource): Promise<string | null> {
+  const m = await getStore(LISTS_STORE).getMetadata(source)
+  return typeof m?.metadata?.fetchedAt === 'string' ? m.metadata.fetchedAt : null
 }
 
 let cache: { at: number; entries: ListEntry[]; status: ListStatus[] } | null = null
