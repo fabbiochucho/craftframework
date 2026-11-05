@@ -36,6 +36,8 @@ function toRow(q: Question): QuestionRow {
     archetypes: q.archetypes ?? [],
     scoringGuide: q.scoringGuide ?? null,
     requiredDataRoomDoc: q.requiredDataRoomDoc ?? null,
+    interviewee: q.interviewee ?? null,
+    modalities: q.modalities ?? [],
   }
 }
 
@@ -63,6 +65,8 @@ export function rowToQuestion(r: QuestionRow): Question {
     archetypes: (r.archetypes as Question['archetypes'])?.length ? (r.archetypes as Question['archetypes']) : undefined,
     scoringGuide: r.scoringGuide ?? undefined,
     requiredDataRoomDoc: r.requiredDataRoomDoc ?? undefined,
+    interviewee: r.interviewee ?? undefined,
+    modalities: (r.modalities as Question['modalities'])?.length ? (r.modalities as Question['modalities']) : undefined,
   }
 }
 
@@ -107,6 +111,8 @@ export async function seedQuestions(): Promise<number> {
           archetypes: sql`excluded.archetypes`,
           scoringGuide: sql`excluded.scoring_guide`,
           requiredDataRoomDoc: sql`excluded.required_data_room_doc`,
+          interviewee: sql`excluded.interviewee`,
+          modalities: sql`excluded.modalities`,
         },
       })
   }

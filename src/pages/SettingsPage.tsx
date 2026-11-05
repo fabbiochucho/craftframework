@@ -4,7 +4,7 @@ import { EmailPreferencesPage } from './EmailPreferencesPage'
 import { Settings, Building2, Users, Shield, Lock, UserPlus, X, Check, Layers, Clock, Mail, Eye, Globe, Briefcase, ShieldOff } from 'lucide-react'
 import { useAuthCtx, useTeamCtx, useWorkspace, useLensCtx, useEntityProfileCtx, useAccessCtx, UserRole } from '../lib/context'
 import { Card, CardContent, CardHeader, CardTitle, Input, Select, Button, Badge, Tabs, Toast, Switch } from '../components/ui'
-import { VIEW_LEVELS, ASSIGNABLE_VIEW_LEVELS, getViewLevel, isSuperAdminEmail, Portfolio, BRAND, SESSION_TIMEOUT_OPTIONS, LENSES, lensQuestionCount, ARCHETYPES, Archetype } from '../lib/data'
+import { VIEW_LEVELS, ASSIGNABLE_VIEW_LEVELS, getViewLevel, isSuperAdminEmail, Portfolio, BRAND, SESSION_TIMEOUT_OPTIONS, LENSES, lensQuestionCount, ARCHETYPES, Archetype, FUNDING_MODALITIES } from '../lib/data'
 import { buildWelcomeEmail, buildWelcomeEmailHtml } from '../lib/inviteEmail'
 import { COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector } from '../lib/dataroom'
 import { cn } from '../lib/utils'
@@ -199,6 +199,23 @@ export function SettingsPage() {
                 />
               )}
             </div>
+            <fieldset>
+              <legend className="text-sm font-medium text-slate-700">How are you funded?</legend>
+              <p className="mt-0.5 text-xs text-slate-500">Tick every model your funders use. The assessment then adds the questions for those models; the general funding questions apply to everyone.</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {FUNDING_MODALITIES.map(m => {
+                  const chosen = entityProfile.fundingModalities ?? []
+                  const on = chosen.includes(m.id)
+                  return (
+                    <label key={m.id} className={cn('flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm', on ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200')}>
+                      <input type="checkbox" className="mt-0.5" checked={on}
+                        onChange={() => setEntityProfile({ fundingModalities: on ? chosen.filter(x => x !== m.id) : [...chosen, m.id] })} />
+                      <span><span className="font-medium text-slate-800">{m.label}</span><span className="block text-xs text-slate-500">{m.blurb}</span></span>
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
             <Input label="Primary Contact Email" defaultValue={currentUser?.email} />
             <Button onClick={() => setToast('Profile saved.')}>Save Changes</Button>
           </CardContent>

@@ -31,6 +31,11 @@ export interface Question {
   // Optional link to a Data Room requirement that satisfies this question's
   // evidence - the wizard surfaces a "Link from Data Room" affordance for these.
   requiredDataRoomDoc?: string
+  // Who the assessor should interview for this question, where the bank says.
+  interviewee?: string
+  // Funding models this question applies to. Undefined = every organisation; when present, the question is shown
+  // only to organisations that receive funding on one of these bases (chosen in Settings).
+  modalities?: FundingModality[]
 }
 
 // The three institutional archetypes the platform adapts to. The Core fiduciary
@@ -50,6 +55,23 @@ export const ARCHETYPES: { id: Archetype; label: string; blurb: string }[] = [
 export function archetypeMatch(q: Question, archetype?: Archetype | ''): boolean {
   if (!q.archetypes) return true
   return !!archetype && q.archetypes.includes(archetype)
+}
+
+// How an organisation is paid by its funders. Milestone-based funding is one model among several; each brings its
+// own controls, so questions specific to a model are shown only to organisations funded that way.
+export type FundingModality = 'milestone' | 'cost_reimbursement' | 'advance' | 'fixed_price' | 'pooled' | 'performance'
+export const FUNDING_MODALITIES: { id: FundingModality; label: string; blurb: string }[] = [
+  { id: 'milestone', label: 'Milestone or results-linked disbursement', blurb: 'Paid when agreed milestones or disbursement-linked indicators are verified' },
+  { id: 'cost_reimbursement', label: 'Cost reimbursement', blurb: 'Paid back for eligible costs you have already spent' },
+  { id: 'advance', label: 'Advances or imprest', blurb: 'Paid in advance and you account for the spending afterwards' },
+  { id: 'fixed_price', label: 'Fixed price or lump sum', blurb: 'A set amount for agreed outputs, whatever they cost you' },
+  { id: 'pooled', label: 'Pooled funds or budget support', blurb: 'Funds pass through the government budget, a treasury account or a basket fund' },
+  { id: 'performance', label: 'Payment by results', blurb: 'Paid per outcome achieved, verified independently' },
+]
+
+// A question is visible when it applies to every funding model, or to one the organisation has chosen.
+export function modalityMatch(q: Question, chosen: readonly FundingModality[] = []): boolean {
+  return !q.modalities || q.modalities.some((m) => chosen.includes(m))
 }
 
 export interface Organization {
@@ -142,6 +164,13 @@ const DOMAIN_DISPLAY: Record<string, string> = {
   Emergency: 'Emergency Preparedness',
   Research: 'Research & Innovation',
   PMO: 'PMO & Delivery',
+  // Universal institutional assessment domains (added November 2026).
+  Mandate: 'Mandate & Operating Context',
+  Structure: 'Organisational Structure & Roles',
+  Operations: 'Operations & Service Delivery',
+  DataGov: 'Data Governance & Information Management',
+  Continuity: 'Business Continuity & Resilience',
+  Funding: 'Funding Modalities & Disbursement Readiness',
 }
 
 export const DOMAINS = Object.values(DOMAIN_DISPLAY)

@@ -3,7 +3,7 @@ import { ALL_DOMAINS, GOVERNANCE_DOMAINS } from './governanceDomains.ts'
 import { DOMAINS, MOCK_QUESTIONS, TIER_NAMES } from './data.ts'
 
 assert.equal(ALL_DOMAINS.length, DOMAINS.length)
-assert.equal(ALL_DOMAINS.length, 20)
+assert.equal(ALL_DOMAINS.length, 26) // 20 original domains + 6 universal assessment domains (November 2026)
 assert.deepEqual(Object.keys(GOVERNANCE_DOMAINS), TIER_NAMES)
 assert.deepEqual(new Set(ALL_DOMAINS.map(({ domain }) => domain)), new Set(DOMAINS))
 
