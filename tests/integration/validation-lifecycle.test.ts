@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
-import { installFetchMock, rows, truncateAll } from './harness.ts'
+import { installFetchMock, rows, truncateAll, CHECKS_OK } from './harness.ts'
 import { FRAMEWORKS } from '../../src/lib/validationReview.ts'
 
 const load = async (f: string) => (await import(new URL(`../../netlify/functions/${f}.mts`, import.meta.url).href)).default
@@ -51,7 +51,7 @@ async function issue(opts: { scoreFor?: (id: string) => number; outcome?: string
   await eng(VAL, 'POST', `/${id}/respond`, { side: 'validator', decision: 'accept' })
   assert.equal((await eng(VAL, 'POST', `/${id}/declaration`, { confirmed: true, signedName: 'Valerie Okafor' })).status, 200)
   await rev(VAL, 'PUT', `/${id}/setup`, { method: 'combined', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
-  for (const ind of IDS) assert.equal((await rev(VAL, 'PUT', `/${id}/scores/${ind}`, { score: (opts.scoreFor ?? (() => 4))(ind), sufficiency: 'sufficient' })).status, 200)
+  for (const ind of IDS) assert.equal((await rev(VAL, 'PUT', `/${id}/scores/${ind}`, { checks: CHECKS_OK, score: (opts.scoreFor ?? (() => 4))(ind), sufficiency: 'sufficient' })).status, 200)
   for (const q of opts.qualify ?? []) await rev(VAL, 'POST', `/${id}/qualifications`, { text: `Gap in ${q}`, indicatorIds: [q] })
   const res = await rev(VAL, 'POST', `/${id}/finalise`, { outcome: opts.outcome ?? 'validated', ...(opts.finalise ?? {}) })
   return res

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, it } from 'node:test'
 import { getStore } from '@netlify/blobs'
-import { rows, truncateAll } from './harness.ts'
+import { rows, truncateAll, CHECKS_OK } from './harness.ts'
 import { encodeEvidence } from '../../netlify/lib/evidence-storage.ts'
 import { devMapperSummary } from '../../netlify/lib/validator-quality.ts'
 import { FRAMEWORKS } from '../../src/lib/validationReview.ts'
@@ -55,7 +55,7 @@ const startEngagement = async (scope: unknown) => {
 const open = async () => assert.equal((await eng(VAL, 'POST', `/${engId}/declaration`, { confirmed: true, signedName: 'Valerie Okafor' })).status, 200)
 const setup = () => rev(VAL, 'PUT', `/${engId}/setup`, { method: 'combined', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
 const score = async (ids: string[], value: number, sufficiency = 'sufficient') => {
-  for (const id of ids) assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${id}`, { score: value, sufficiency, comment: '', evidenceRef: '' })).status, 200)
+  for (const id of ids) assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${id}`, { checks: CHECKS_OK, score: value, sufficiency, comment: '', evidenceRef: '' })).status, 200)
 }
 
 describe('validation review follow-ups', () => {

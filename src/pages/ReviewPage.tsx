@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ClipboardCheck } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { METHOD_LABEL, METHODS, OUTCOME_LABEL, OUTCOMES, SUFFICIENCY, type Method, type Outcome } from '../lib/validationReview'
+import { CHECK_LABEL, CHECK_VALUES, CONTROL_CHECKS, isComplete, scoreCap, scoreProblem, type CheckValue, type ControlChecks, type ScoreResult } from '../lib/controlChecks'
 import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
 
 // Validator system PR 3: the review itself. Every rule (who may score, when the
@@ -12,6 +13,7 @@ type Row = {
   id: string; framework?: string; level: number; domain: string; question: string; self: number | null; validator: number | null; delta: number | null; optimismBias: number | null
   sufficiency?: string | null; comment?: string; evidenceRef?: string; orgResponse?: string; negotiated?: number | null
   paperCap?: { negotiated: number; capped: number; message: string } | null; final?: number | null; evidence?: LinkedEvidence[]
+  result?: ScoreResult | null; checks?: ControlChecks
 }
 type LinkedEvidence = {
   indicatorId: string; evidenceId: number; name: string; documentType: string; sha256: string | null; linkedAt: string
@@ -169,7 +171,11 @@ function IndicatorRow({ r, debrief, lead, act, call }: { r: Row; debrief: boolea
   const [comment, setComment] = useState(r.comment ?? '')
   const [ref, setRef] = useState(r.evidenceRef ?? '')
   const [neg, setNeg] = useState(r.negotiated == null ? '' : String(r.negotiated))
+  const [result, setResult] = useState<ScoreResult>(r.result ?? 'scored')
+  const [checks, setChecks] = useState<ControlChecks>(r.checks ?? {})
   const scores = [0, 1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))
+  const cap = isComplete(checks) ? scoreCap(checks) : null
+  const problem = score === '' ? null : scoreProblem(result, result === 'not_evidenced' ? 0 : Number(score), checks)
   return (
     <div className="space-y-2 border-b border-slate-100 pb-4 last:border-0">
       <p className="text-sm font-medium text-slate-800"><span className="font-mono text-xs text-slate-500">{r.id}</span> {r.question}</p>
@@ -178,13 +184,37 @@ function IndicatorRow({ r, debrief, lead, act, call }: { r: Row; debrief: boolea
         {r.optimismBias != null && r.optimismBias !== 0 && <span className="text-slate-500"> ({r.optimismBias}% optimism bias)</span>}
       </p>
       <EvidenceList items={r.evidence ?? []} />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-44"><Select label="Result" options={[{ value: 'scored', label: 'Scored' }, { value: 'not_evidenced', label: 'Not evidenced' }]} value={result}
+          onChange={(v) => { setResult(v as ScoreResult); if (v === 'not_evidenced') setScore('0') }} /></div>
+        {result === 'not_evidenced' && <p className="pb-2 text-xs text-amber-700">Recorded as 0. It cannot confirm a level and must be named in a qualification.</p>}
+      </div>
+      {result === 'scored' && (
+        <fieldset className="rounded-lg border border-slate-200 p-3">
+          <legend className="px-1 text-xs font-semibold text-slate-600">Control checks (a check you did not test counts as not met)</legend>
+          <div className="grid gap-2 sm:grid-cols-4 lg:grid-cols-7">
+            {CONTROL_CHECKS.map((c) => (
+              <label key={c.key} className="text-xs text-slate-700" title={c.help}>
+                <span className="block font-medium">{c.label}</span>
+                <select className="mt-1 w-full rounded border border-slate-300 px-1 py-1 text-xs" value={checks[c.key] ?? ''}
+                  onChange={(e) => setChecks({ ...checks, [c.key]: e.target.value as CheckValue })}>
+                  <option value="">–</option>
+                  {CHECK_VALUES.map((v) => <option key={v} value={v}>{CHECK_LABEL[v]}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">{cap ? <>These checks allow a score of at most <b>{cap.max}</b>{cap.reasons.length ? ` (${cap.reasons.join(', ')})` : ''}.</> : 'Record all seven checks to score.'}</p>
+        </fieldset>
+      )}
       <div className="grid gap-2 sm:grid-cols-[6rem_12rem_1fr_1fr_auto] sm:items-end">
-        <Select label="Your score" placeholder="–" options={scores} value={score} onChange={setScore} />
+        <Select label="Your score" placeholder="–" options={result === 'not_evidenced' ? [{ value: '0', label: '0' }] : scores} value={score} onChange={setScore} />
         <Select label="Evidence" options={SUFFICIENCY.map((x) => ({ value: x, label: SUFF_LABEL[x] }))} value={suff} onChange={setSuff} />
         <Input label="Comment" value={comment} onChange={(e) => setComment(e.target.value)} />
         <Input label="Evidence reference" value={ref} onChange={(e) => setRef(e.target.value)} />
-        <Button size="sm" disabled={score === ''} onClick={() => void act(call(`/scores/${r.id}`, 'PUT', { score: Number(score), sufficiency: suff, comment, evidenceRef: ref }), `${r.id} saved`)}>Save</Button>
+        <Button size="sm" disabled={score === '' || !!problem} onClick={() => void act(call(`/scores/${r.id}`, 'PUT', { score: result === 'not_evidenced' ? 0 : Number(score), sufficiency: suff, comment, evidenceRef: ref, result, ...(result === 'scored' ? { checks } : {}) }), `${r.id} saved`)}>Save</Button>
       </div>
+      {problem && <p className="text-xs text-rose-700" role="alert">{problem}</p>}
       {debrief && (
         <div className="rounded-lg bg-amber-50/60 p-3 text-sm">
           <p className="text-slate-700"><span className="font-medium">Organisation response:</span> {r.orgResponse || <span className="text-slate-400">none yet</span>}</p>
