@@ -97,10 +97,34 @@ export function dashboard(m: CcaModule, responses: Responses, notAssessed: NotAs
 }
 
 // ---------------------------------------------------------------- Improvement plan (12 months)
-export type PlanEntry = { domainId: string; costs?: number; timeline?: string; responsible?: string }
+/** What capacity improvement costs, by kind. Training is per participant, multiplied by the number of participants. */
+export const COST_LINES = [
+  { id: 'technicalAssistance', label: 'Technical assistance' },
+  { id: 'trainingPerParticipant', label: 'Training, per participant' },
+  { id: 'printing', label: 'Printing guidelines, policies and tools' },
+  { id: 'exchangeVisits', label: 'Exchange and learning visits' },
+  { id: 'eLearning', label: 'E-learning' },
+] as const
+export type CostLine = (typeof COST_LINES)[number]['id']
+export type CostLines = Partial<Record<CostLine, number>> & { participants?: number }
+
+/** costs: a single figure (plans saved before cost lines existed); lines replace it when present. */
+export type PlanEntry = { domainId: string; costs?: number; lines?: CostLines; timeline?: string; responsible?: string }
 export type PlanRow = {
   areaId: string; domainId: string; domain: string; current: Score; envisioned: Score
-  actions: string[]; cost: number; timeline: string; responsible: string
+  actions: string[]; lines: Record<CostLine, number>; cost: number; timeline: string; responsible: string
+}
+
+const pos = (x: number | undefined) => (Number.isFinite(x) && x! > 0 ? x! : 0)
+
+/** One entry's cost by line (training already multiplied by participants) and its total. */
+export function entryCost(e: PlanEntry | undefined): { lines: Record<CostLine, number>; total: number } {
+  const l = e?.lines
+  const lines = Object.fromEntries(COST_LINES.map((c) => [c.id, 0])) as Record<CostLine, number>
+  if (!l) return { lines, total: pos(e?.costs) }
+  for (const c of COST_LINES) lines[c.id] = pos(l[c.id])
+  lines.trainingPerParticipant *= Math.max(1, Math.floor(pos(l.participants)))
+  return { lines, total: COST_LINES.reduce((t, c) => t + lines[c.id], 0) }
 }
 
 /**
@@ -108,7 +132,7 @@ export type PlanRow = {
  * of that level as the actions. The organisation adds cost, timeline and responsible person (entries).
  */
 export function improvementPlan(m: CcaModule, responses: Responses, entries: PlanEntry[] = [], notAssessed: NotAssessed = {}): {
-  rows: PlanRow[]; totalCost: number; byArea: Record<string, number>; toAssess: { domainId: string; domain: string; reason: string }[]
+  rows: PlanRow[]; totalCost: number; byArea: Record<string, number>; byLine: Record<CostLine, number>; toAssess: { domainId: string; domain: string; reason: string }[]
 } {
   const byDomain = new Map(entries.map((e) => [e.domainId, e]))
   const rows: PlanRow[] = []
@@ -118,15 +142,20 @@ export function improvementPlan(m: CcaModule, responses: Responses, entries: Pla
     const current = domainScore(d, responses)
     if (current === 4) continue
     const e = byDomain.get(d.id)
+    const c = entryCost(e)
     rows.push({
       areaId: a.id, domainId: d.id, domain: d.name, current, envisioned: (current + 1) as Score,
       actions: nextLevelGaps(d, responses).map((s) => s.text),
-      cost: Math.max(0, e?.costs ?? 0), timeline: e?.timeline ?? '', responsible: e?.responsible ?? '',
+      lines: c.lines, cost: c.total, timeline: e?.timeline ?? '', responsible: e?.responsible ?? '',
     })
   }
   const byArea: Record<string, number> = {}
-  for (const r of rows) byArea[r.areaId] = (byArea[r.areaId] ?? 0) + r.cost
-  return { rows, totalCost: rows.reduce((t, r) => t + r.cost, 0), byArea, toAssess }
+  const byLine = Object.fromEntries(COST_LINES.map((c) => [c.id, 0])) as Record<CostLine, number>
+  for (const r of rows) {
+    byArea[r.areaId] = (byArea[r.areaId] ?? 0) + r.cost
+    for (const c of COST_LINES) byLine[c.id] += r.lines[c.id]
+  }
+  return { rows, totalCost: rows.reduce((t, r) => t + r.cost, 0), byArea, byLine, toAssess }
 }
 
 /** At the next assessment: which envisioned scores were reached. */

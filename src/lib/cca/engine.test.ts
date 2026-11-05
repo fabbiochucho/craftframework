@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/cca/engine.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  availableReports, awardReadiness, cascade, dashboard, domainScore, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
+  availableReports, awardReadiness, cascade, dashboard, domainScore, entryCost, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
   resolveVotes, swotSeed, voteSpread, type CcaModule, type Domain, type Responses,
 } from './engine.ts'
 
@@ -54,6 +54,14 @@ assert.deepEqual(plan.rows.map((x) => [x.domainId, x.current, x.envisioned]), [[
 assert.deepEqual(plan.rows[1].actions, ['B1 level 2 a', 'B1 level 2 b'])
 assert.deepEqual([plan.totalCost, plan.byArea.A, plan.byArea.B], [2000, 1500, 500])
 assert.equal(improvementPlan(m, r, [{ domainId: 'A2', costs: -5 }]).totalCost, 0, 'negative costs are ignored')
+// Cost lines replace the single figure; training is per participant.
+const lined = improvementPlan(m, r, [
+  { domainId: 'A2', costs: 9999, lines: { technicalAssistance: 1000, trainingPerParticipant: 50, participants: 12, printing: 200, exchangeVisits: -3 } },
+  { domainId: 'B1', lines: { eLearning: 300, trainingPerParticipant: 40 } },
+])
+assert.deepEqual(lined.rows.map((x) => x.cost), [1000 + 600 + 200, 300 + 40], 'one participant when none given; negatives ignored')
+assert.deepEqual([lined.byLine.trainingPerParticipant, lined.byLine.eLearning, lined.totalCost, lined.byArea.A], [640, 300, 2140, 1800])
+assert.equal(entryCost(undefined).total, 0)
 const review = planReview(plan.rows, dashboard(m, { ...r, 'A2.3a': ok }))
 assert.deepEqual(review.map((x) => [x.domainId, x.met]), [['A2', true], ['B1', false]])
 
