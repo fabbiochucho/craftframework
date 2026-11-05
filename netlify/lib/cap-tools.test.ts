@@ -28,4 +28,15 @@ const groups = findDuplicateGroups([
 assert.deepEqual(groups.map((g) => g.ids), [[1, 2], [3, 4]])
 assert.match(groups[1].reason, /same governance finding #9/)
 assert.equal(maxSeverity(['medium', 'critical', 'high']), 'critical')
+// Risk-based escalation: the highest of overdue, effectiveness and risk wins.
+const today = '2026-11-05'
+const notDue = { dueDate: '2026-12-31' }
+assert.deepEqual(escalationFor(cap(20, { ...notDue, residualLikelihood: 3, residualImpact: 4 }), today), { level: 1, reason: 'Residual risk High (12)' })
+assert.deepEqual(escalationFor(cap(21, { ...notDue, inherentLikelihood: 5, inherentImpact: 4 }), today), { level: 2, reason: 'Inherent risk Critical (20)' }, 'inherent when residual is not rated')
+assert.equal(escalationFor(cap(22, { ...notDue, inherentLikelihood: 5, inherentImpact: 5, residualLikelihood: 1, residualImpact: 2 }), today).level, 0, 'controls brought it down')
+assert.deepEqual(escalationFor(cap(23, { ...notDue, riskCategory: 'safeguarding' }), today), { level: 2, reason: 'Safeguarding finding' }, 'category escalates regardless of score')
+assert.deepEqual(escalationFor(cap(24, { ...notDue, riskCategory: 'fiduciary', residualLikelihood: 4, residualImpact: 5 }), today), { level: 3, reason: 'Residual risk Critical (20); Fiduciary (misuse of funds) finding' }, 'Critical and fiduciary: board')
+assert.equal(escalationFor(cap(25, { status: 'completed', riskCategory: 'safety', residualLikelihood: 5, residualImpact: 5 }), today).level, 0, 'closed and effective: no escalation')
+const overdue = escalationFor(cap(26, { severity: 'critical', dueDate: '2026-09-01', residualLikelihood: 3, residualImpact: 4 }), today)
+assert.equal(overdue.level, 3, 'overdue rule still wins when higher')
 console.log('cap-tools.test.ts: all assertions passed')

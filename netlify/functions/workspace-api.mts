@@ -43,7 +43,7 @@ import { renderOrgDoc } from '../lib/org-design-report.js'
 import { renderSVG } from 'uqr'
 import { analysePlan, findCycle, type PlanTask } from '../../src/lib/plan-graph.js'
 import { nphiForEmail } from '../../src/lib/nphi-registry.js'
-import { escalationFor, ESCALATION_LEVELS, findDuplicateGroups, maxSeverity } from '../lib/cap-tools.js'
+import { escalationFor, ESCALATION_LEVELS, findDuplicateGroups, maxSeverity, riskEscalation } from '../lib/cap-tools.js'
 import {
   generateRecoveryCodes, generateSecret, hashRecoveryCode, MFA_COOKIE, MFA_SESSION_HOURS, mfaCookieHeader, mfaSessionKey, mfaUserKey, otpauthUri,
   readCookie, signMfaSession, verifyMfaSession, verifyTotp,
@@ -1693,6 +1693,8 @@ const routes: Route[] = [
       ...capDetailFields(c.body),
     }).returning()
     await audit(c, orgId, wsId, 'cap', cap.id, 'create', { sourceType, sourceId })
+    // A finding rated High or Critical, or in a statutory/fiduciary/safeguarding/safety category, escalates now.
+    if (riskEscalation(cap).level > cap.escalationLevel && await applyEscalations([cap], c.caller?.email ?? 'system', c, wsId)) return json(await loadCap(orgId, wsId, cap.id), 201)
     return json(cap, 201)
   } },
   { method: 'GET', pattern: `${W}/cap/duplicates`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
@@ -1728,6 +1730,8 @@ const routes: Route[] = [
     if (!Object.keys(set).length && !comment) throw bad('nothing to update')
     const [u] = Object.keys(set).length ? await db.update(capRecords).set(set).where(eq(capRecords.id, cap.id)).returning() : [cap]
     await audit(c, orgId, wsId, 'cap', cap.id, 'update', { fields: Object.keys(set), comment: comment || undefined })
+    // A change of risk rating or category can raise the escalation level straight away.
+    if (riskEscalation(u).level > u.escalationLevel && await applyEscalations([u], c.caller?.email ?? 'system', c, wsId)) return json(await loadCap(orgId, wsId, cap.id))
     return json(u)
   } },
   { method: 'POST', pattern: `${W}/cap/:id/merge`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
