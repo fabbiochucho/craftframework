@@ -27,6 +27,7 @@ import { DEFAULT_TIMELINE, normaliseTimeline, type TimelineSettings } from './ci
 import { offlineDB } from './offline/db'
 import { queueAndSync } from './offline/sync-engine'
 import type { JurisdictionId, SectorArchetype } from './regulatory-context'
+import type { FundingModality } from './data'
 import { useTenantState, type SaveStatus } from './legacy-state'
 import { clearOfflineSession } from './offline/session'
 
@@ -108,6 +109,8 @@ export interface EntityProfile {
   // dynamic injection of statutory checklists into the Data Room & Wizard.
   jurisdictions: JurisdictionId[]
   regSector: SectorArchetype | ''
+  // How the organisation is funded (Settings). Questions specific to a funding model appear only for chosen models.
+  fundingModalities?: FundingModality[]
 }
 
 interface AuthUser {

@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight, Lightbulb, Lock, ShieldCheck, UploadCloud, Layers, FolderCheck,
 } from 'lucide-react'
 import { useAuthCtx, useWorkspace, useScoresCtx, useLensCtx, useEntityProfileCtx } from '../lib/context'
-import { activeQuestions, getRiskColor, TIER_NAMES, computeTierScore, scopeLabel, archetypeMatch, ARCHETYPES } from '../lib/data'
+import { activeQuestions, getRiskColor, TIER_NAMES, computeTierScore, scopeLabel, archetypeMatch, modalityMatch, ARCHETYPES } from '../lib/data'
 import { Card, Button, Stepper, Toast } from '../components/ui'
 import { resolveRegulatoryContext, PRIORITY_RANK } from '../lib/regulatory-context'
 import { ExcelImport } from '../components/ExcelImport'
@@ -43,8 +43,8 @@ export function AssessmentPage() {
   // matching the workspace's entity archetype are visible - a Private startup
   // never sees Supreme Audit questions; a Public ministry never sees Cap Table.
   const inScope = useMemo(
-    () => activeQuestions(activeLenses).filter(q => archetypeMatch(q, entityProfile.archetype)),
-    [activeLenses, entityProfile.archetype],
+    () => activeQuestions(activeLenses).filter(q => archetypeMatch(q, entityProfile.archetype) && modalityMatch(q, entityProfile.fundingModalities)),
+    [activeLenses, entityProfile.archetype, entityProfile.fundingModalities],
   )
   const archetypeLabel = entityProfile.archetype
     ? ARCHETYPES.find(a => a.id === entityProfile.archetype)?.label
@@ -200,6 +200,9 @@ export function AssessmentPage() {
 
               {q.scoringGuide && (
                 <p className="mt-2 font-mono text-[10px] leading-relaxed text-slate-400">{q.scoringGuide}</p>
+              )}
+              {q.interviewee && (
+                <p className="mt-1 text-xs text-slate-500"><span className="font-semibold">Who to ask:</span> {q.interviewee}</p>
               )}
 
               {/* Data Room link - evidence for this question lives in the Data Room */}

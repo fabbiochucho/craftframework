@@ -116,6 +116,10 @@ export const questions = pgTable(
     archetypes: jsonb('archetypes').$type<string[]>().notNull().default([]),
     scoringGuide: text('scoring_guide'),
     requiredDataRoomDoc: text('required_data_room_doc'),
+    // Who the assessor should interview (universal assessment questions, November 2026).
+    interviewee: text('interviewee'),
+    // Funding models the question applies to; empty = every organisation.
+    modalities: jsonb('modalities').$type<string[]>().notNull().default([]),
   },
   (t) => [index('questions_domain_idx').on(t.domain), index('questions_tier_idx').on(t.tier)],
 )
