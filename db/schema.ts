@@ -2334,6 +2334,7 @@ export const ccaAssessments = pgTable('cca_assessments', {
   swot: jsonb('swot').$type<Record<string, string[]>>().notNull().default({}),
   plan: jsonb('plan').$type<{ domainId: string; costs?: number; timeline?: string; responsible?: string }[]>().notNull().default([]),
   notAssessed: jsonb('not_assessed').$type<Record<string, string>>().notNull().default({}), // domain id -> reason
+  domainIds: jsonb('domain_ids').$type<string[]>(), // domains covered, set at completion
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

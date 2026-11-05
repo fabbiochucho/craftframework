@@ -32,6 +32,20 @@ export type Responses = Record<string, StatementResponse>
 /** Domains deliberately left out of this assessment: domain id -> the reason. Not allowed in grant-stage modules. */
 export type NotAssessed = Record<string, string>
 
+export const ADDED_LATER = 'Added to the module after this assessment was completed'
+
+/**
+ * The domains to leave out when scoring a stored assessment: those marked not assessed, plus, for a completed
+ * assessment, any domain added to the module after it was completed (domainIds is the list it covered). New content
+ * therefore never lowers a past result.
+ */
+export function effectiveNotAssessed(m: CcaModule, notAssessed: NotAssessed = {}, domainIds?: string[] | null): NotAssessed {
+  if (!domainIds?.length) return notAssessed
+  const covered = new Set(domainIds)
+  const later = m.areas.flatMap((a) => a.domains).filter((d) => !covered.has(d.id)).map((d) => [d.id, ADDED_LATER])
+  return { ...Object.fromEntries(later), ...notAssessed }
+}
+
 export const LEVELS = [1, 2, 3, 4] as const
 export type Score = (typeof LEVELS)[number]
 

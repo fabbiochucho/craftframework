@@ -77,6 +77,7 @@ describe('CRAFT Capacity Assessment API', () => {
     assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g2.2': ok } })).status, 409, 'complete is final')
     const list = (await call(ALICE, 'GET', '?orgId=org_a')).body.assessments
     assert.deepEqual(list.map((a: any) => [a.module, a.status]), [['community', 'complete'], ['pre_award', 'draft']])
+    assert.deepEqual(list.map((a: any) => a.domainIds), [['g1', 'g2', 'g3'], null], 'completion records the domains covered')
     assert.equal((await call(BOB, 'GET', '?orgId=org_a')).status, 403)
     const audit = await rows(`SELECT action FROM audit_logs WHERE org_id='org_a' ORDER BY id`)
     assert.deepEqual(audit.map((a) => a.action.split(' (')[0]), ['Started capacity assessment', 'Started capacity assessment', 'Completed capacity assessment'])

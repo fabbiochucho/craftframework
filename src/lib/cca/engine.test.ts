@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/cca/engine.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  availableReports, awardReadiness, cascade, dashboard, domainScore, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
+  ADDED_LATER, availableReports, awardReadiness, cascade, dashboard, domainScore, effectiveNotAssessed, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
   resolveVotes, swotSeed, voteSpread, type CcaModule, type Domain, type Responses,
 } from './engine.ts'
 
@@ -47,6 +47,11 @@ assert.deepEqual(dashboard(m, r, { A2: 'Records with the auditors' }).areas[0].a
 const naPlan = improvementPlan(m, r, [], { B1: 'Not relevant' })
 assert.deepEqual([naPlan.rows.map((x) => x.domainId), naPlan.toAssess.map((x) => x.domainId)], [['A2'], ['B1']])
 assert.deepEqual(swotSeed(na).weaknesses, [], 'a domain not assessed is not a weakness')
+
+// Domains added after an assessment was completed do not lower its result.
+assert.deepEqual(effectiveNotAssessed(m, { A2: 'Skipped' }, ['A1', 'A2']), { B1: ADDED_LATER, A2: 'Skipped' })
+assert.deepEqual(effectiveNotAssessed(m, { A2: 'Skipped' }, null), { A2: 'Skipped' }, 'drafts and older rows: as stored')
+assert.equal(dashboard(m, r, effectiveNotAssessed(m, {}, ['A1', 'A2'])).average, 3, 'B1 (added later) left out')
 
 // Improvement plan: one level up, actions from unmet statements, costs totalled.
 const plan = improvementPlan(m, r, [{ domainId: 'A2', costs: 1500, timeline: 'Q2', responsible: 'Finance lead' }, { domainId: 'B1', costs: 500 }])

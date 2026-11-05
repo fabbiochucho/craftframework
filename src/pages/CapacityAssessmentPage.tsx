@@ -8,14 +8,14 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs }
 import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
-  availableReports, awardReadiness, cascade, dashboard, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
+  availableReports, awardReadiness, cascade, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
   type CcaModule, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule } from '../lib/cca/modules'
 
 type Assessment = {
   id: string; orgId: string; module: string; year: number; awardRef: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
-  responses: Responses; notAssessed: NotAssessed; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
+  responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
 }
 
 async function api<T>(path: string, init?: { method: string; body?: unknown }): Promise<T> {
@@ -26,6 +26,8 @@ async function api<T>(path: string, init?: { method: string; body?: unknown }): 
 }
 
 const LEVEL_STYLE: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800', 'Not assessed': 'bg-slate-100 text-slate-600' }
+/** What to leave out when scoring a stored assessment (skipped domains, and domains added after completion). */
+const skips = (mod: CcaModule, a: Assessment) => effectiveNotAssessed(mod, a.notAssessed ?? {}, a.domainIds)
 const fmt = (x: { average: number; percent: number }) => `${x.average.toFixed(2)} · ${x.percent}%`
 
 export function CapacityAssessmentPage() {
@@ -104,7 +106,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
           {items.length === 0 ? <p className="text-sm text-slate-500">None yet.</p> : (
             <ul className="divide-y divide-slate-100">
               {items.map((a) => {
-                const d = dashboard(mod, a.responses, a.notAssessed)
+                const d = dashboard(mod, a.responses, skips(mod, a))
                 return (
                   <li key={a.id}><button type="button" onClick={() => onOpen(a.id)} className="flex w-full items-center justify-between py-2 text-left text-sm hover:text-emerald-700">
                     <span>{a.year}{a.awardRef && ` · ${awardTitle(a.awardRef)}`} · {a.status === 'complete' ? 'Complete' : 'Draft'}</span>
@@ -122,11 +124,11 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
 
 function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
   const [responses, setResponses] = useState<Responses>(a.responses)
-  const [notAssessed, setNotAssessed] = useState<NotAssessed>(a.notAssessed ?? {})
+  const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => skips(mod, a))
   const [votes, setVotes] = useState<Record<string, number[]>>(a.votes)
   const [plan, setPlan] = useState<PlanEntry[]>(a.plan)
   const [swot, setSwot] = useState<Swot>(() => {
-    const seed = swotSeed(dashboard(mod, a.responses, a.notAssessed))
+    const seed = swotSeed(dashboard(mod, a.responses, skips(mod, a)))
     return { strengths: a.swot.strengths ?? seed.strengths, weaknesses: a.swot.weaknesses ?? seed.weaknesses, opportunities: a.swot.opportunities ?? [], threats: a.swot.threats ?? [] }
   })
   const [meta, setMeta] = useState({ assessor: a.assessor, orgLead: a.orgLead })
@@ -310,7 +312,7 @@ function PlanView({ mod, responses, notAssessed, plan, setPlan, locked, onSave }
 }
 
 function ReportsView({ mod, history }: { mod: CcaModule; history: Assessment[] }) {
-  const records = history.filter((a) => a.status === 'complete' && !a.awardRef).map((a) => ({ year: a.year, dashboard: dashboard(mod, a.responses, a.notAssessed) }))
+  const records = history.filter((a) => a.status === 'complete' && !a.awardRef).map((a) => ({ year: a.year, dashboard: dashboard(mod, a.responses, skips(mod, a)) }))
   const latest = [...records].sort((x, y) => y.year - x.year)[0]
   const kinds = availableReports(records)
   const [kind, setKind] = useState<string>('yearly')
