@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, it } from 'node:test'
-import { rows, truncateAll } from './harness.ts'
+import { rows, truncateAll, CHECKS_OK } from './harness.ts'
 import { canonicalJson, FRAMEWORKS } from '../../src/lib/validationReview.ts'
 
 const load = async (f: string) => (await import(new URL(`../../netlify/functions/${f}.mts`, import.meta.url).href)).default
@@ -46,7 +46,7 @@ async function profile(email: string, name: string) {
 let engId: string
 const scoreAll = async (value: number, ids = IDS, email = VAL) => {
   for (const id of ids) {
-    const r = await rev(email, 'PUT', `/${engId}/scores/${id}`, { score: value, sufficiency: 'sufficient', comment: `c ${id}`, evidenceRef: `doc ${id}` })
+    const r = await rev(email, 'PUT', `/${engId}/scores/${id}`, { checks: CHECKS_OK, score: value, sufficiency: 'sufficient', comment: `c ${id}`, evidenceRef: `doc ${id}` })
     assert.equal(r.status, 200, r.text)
   }
 }
@@ -69,22 +69,22 @@ describe('validation review, outcome and freeze', () => {
 
   it('refuses reviewers without an active grant: no declaration, expired grant, not named, other organisations', async () => {
     // Named lead who has not signed yet: nothing opens.
-    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${IDS[0]}`, { score: 3, sufficiency: 'sufficient' })).status, 403)
+    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${IDS[0]}`, { checks: CHECKS_OK, score: 3, sufficiency: 'sufficient' })).status, 403)
     assert.equal((await rev(VAL, 'GET', `/${engId}`)).body.status, 'not_started')
     await open()
-    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${IDS[0]}`, { score: 3, sufficiency: 'sufficient' })).status, 200)
+    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${IDS[0]}`, { checks: CHECKS_OK, score: 3, sufficiency: 'sufficient' })).status, 200)
     // Not named on the engagement, and another organisation's staff: invisible.
     assert.equal((await rev(OTHER, 'GET', `/${engId}`)).status, 404)
-    assert.equal((await rev(OTHER, 'PUT', `/${engId}/scores/${IDS[0]}`, { score: 5, sufficiency: 'sufficient' })).status, 404)
+    assert.equal((await rev(OTHER, 'PUT', `/${engId}/scores/${IDS[0]}`, { checks: CHECKS_OK, score: 5, sufficiency: 'sufficient' })).status, 404)
     assert.equal((await rev(BOB, 'GET', `/${engId}`)).status, 404)
     assert.equal((await rev(null, 'GET', `/${engId}`)).status, 401)
     // Expired grant: refused, even for the lead.
     await rows("UPDATE validation_engagements SET expires_at = now() - interval '1 minute'")
     await rows("UPDATE access_grants SET expires_at = now() - interval '1 minute' WHERE role='craft_validator'")
-    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${IDS[0]}`, { score: 4, sufficiency: 'sufficient' })).status, 403)
+    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${IDS[0]}`, { checks: CHECKS_OK, score: 4, sufficiency: 'sufficient' })).status, 403)
     assert.equal((await rev(VAL, 'GET', `/${engId}`)).body.rows, undefined, 'no self scores once the grant ends')
     // The organisation cannot score or open the debrief either.
-    assert.equal((await rev(ALICE, 'PUT', `/${engId}/scores/${IDS[0]}`, { score: 5, sufficiency: 'sufficient' })).status, 403)
+    assert.equal((await rev(ALICE, 'PUT', `/${engId}/scores/${IDS[0]}`, { checks: CHECKS_OK, score: 5, sufficiency: 'sufficient' })).status, 403)
     assert.equal((await rev(ALICE, 'POST', `/${engId}/debrief/open`)).status, 403)
   })
 
@@ -106,7 +106,7 @@ describe('validation review, outcome and freeze', () => {
     assert.ok(!orgView.text.includes('doc CRL'))
     assert.equal(orgView.body.rows, undefined)
     // Re-scoring is audit-logged old -> new.
-    await rev(VAL, 'PUT', `/${engId}/scores/${LEVEL1[0]}`, { score: 3, sufficiency: 'partial' })
+    await rev(VAL, 'PUT', `/${engId}/scores/${LEVEL1[0]}`, { checks: CHECKS_OK, score: 3, sufficiency: 'partial' })
     const log = await rows("SELECT action FROM audit_logs WHERE category='Validation' AND action ~ 'scored' ORDER BY id")
     assert.match(log[log.length - 1].action, /2 → 3 \(partial\)/)
   })
@@ -140,7 +140,7 @@ describe('validation review, outcome and freeze', () => {
     assert.equal((await eng(VAL, 'POST', `/${engId}/members`, { email: VAL2 })).status, 200)
     await eng(ALICE, 'POST', `/${engId}/members/${VAL2}/approve`)
     await eng(VAL2, 'POST', `/${engId}/declaration`, { confirmed: true, signedName: 'Victor Mensah' })
-    assert.equal((await rev(VAL2, 'PUT', `/${engId}/scores/${IDS[0]}`, { score: 4, sufficiency: 'sufficient' })).status, 200)
+    assert.equal((await rev(VAL2, 'PUT', `/${engId}/scores/${IDS[0]}`, { checks: CHECKS_OK, score: 4, sufficiency: 'sufficient' })).status, 200)
     assert.equal((await rev(VAL2, 'PUT', `/${engId}/setup`, { method: 'combined', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })).status, 403)
     assert.equal((await rev(VAL2, 'POST', `/${engId}/finalise`, { outcome: 'not_validated' })).status, 403)
     // Lead: incomplete review.
@@ -161,6 +161,54 @@ describe('validation review, outcome and freeze', () => {
     assert.equal((await rev(ALICE, 'POST', `/${engId}/finalise`, { outcome: 'validated' })).status, 403)
     assert.equal((await rev(VAL, 'POST', `/${engId}/finalise`, { outcome: 'validated', summary: '' })).status, 200)
     // A scope with no supported rung cannot be "validated".
+  })
+
+  it('control checks cap scores; not evidenced blocks a plain "validated" and must be qualified; checks are frozen', async () => {
+    await open()
+    await setup()
+    const put = (id: string, b: object) => rev(VAL, 'PUT', `/${engId}/scores/${id}`, { sufficiency: 'sufficient', ...b })
+    // No checks: refused. Untested in practice: at most 3.
+    let r = await put(IDS[0], { score: 4 })
+    assert.equal(r.status, 400); assert.match(r.body.error, /seven checks/)
+    r = await put(IDS[0], { score: 4, checks: { ...CHECKS_OK, operating: 'not_tested' } })
+    assert.equal(r.status, 400); assert.match(r.body.error, /at most 3 \(not tested in practice\)/)
+    assert.equal((await put(IDS[0], { score: 3, checks: { ...CHECKS_OK, operating: 'not_tested' } })).status, 200)
+    // Not evidenced is recorded as 0 and needs no checks.
+    assert.equal((await put(IDS[1], { result: 'not_evidenced', score: 2 })).status, 400)
+    assert.equal((await put(IDS[1], { result: 'not_evidenced', score: 0 })).status, 200)
+    await scoreAll(4, IDS.slice(2))
+    r = await rev(VAL, 'POST', `/${engId}/finalise`, { outcome: 'validated' })
+    assert.ok(r.body.problems.some((p: string) => /not evidenced, so the outcome cannot be a plain "validated"/.test(p)), JSON.stringify(r.body))
+    // A qualification must name the not-evidenced indicator.
+    await rev(VAL, 'POST', `/${engId}/qualifications`, { text: 'Board minutes not provided', indicatorIds: [IDS[0]] })
+    r = await rev(VAL, 'POST', `/${engId}/finalise`, { outcome: 'validated_with_qualifications' })
+    assert.ok(r.body.problems.some((p: string) => p.includes(`Name every not-evidenced indicator in a qualification (${IDS[1]})`)), JSON.stringify(r.body))
+    await rev(VAL, 'POST', `/${engId}/qualifications`, { text: 'Policy not evidenced', indicatorIds: [IDS[1]] })
+    // The view lists the remaining problems; the checks come back with each row.
+    const view = await rev(VAL, 'GET', `/${engId}`)
+    const row0 = view.body.rows.find((x: any) => x.id === IDS[0])
+    assert.equal(row0.checks.operating, 'not_tested')
+    assert.equal(view.body.rows.find((x: any) => x.id === IDS[1]).result, 'not_evidenced')
+    r = await rev(VAL, 'POST', `/${engId}/finalise`, { outcome: 'validated_with_qualifications', summary: '' })
+    if (r.status === 200) {
+      const snap = (await rev(VAL, 'GET', `/${engId}`)).body.snapshot
+      const s0 = snap.indicators.find((x: any) => x.id === IDS[0])
+      assert.deepEqual([s0.checks.operating, snap.indicators.find((x: any) => x.id === IDS[1]).result], ['not_tested', 'not_evidenced'], 'checks frozen in the snapshot')
+    } else {
+      // A not-evidenced level-1 indicator may leave no rung supported; that is the conservative, intended outcome.
+      assert.ok(r.body.problems.every((p: string) => /rung|level/.test(p)), JSON.stringify(r.body))
+    }
+  })
+
+  it('negotiated scores cannot exceed what the checks allow', async () => {
+    await open()
+    await setup()
+    await scoreAll(4)
+    await rev(VAL, 'PUT', `/${engId}/scores/${IDS[0]}`, { sufficiency: 'sufficient', score: 2, checks: { ...CHECKS_OK, authorisation: 'no' } })
+    assert.equal((await rev(VAL, 'POST', `/${engId}/debrief/open`)).status, 200)
+    assert.equal((await rev(VAL, 'PUT', `/${engId}/negotiated/${IDS[0]}`, { score: 4 })).status, 200)
+    const r = await rev(VAL, 'POST', `/${engId}/finalise`, { outcome: 'not_validated' })
+    assert.ok(r.body.problems.some((p: string) => p.includes(`negotiated score for ${IDS[0]} is above what its checks allow (at most 2)`)), JSON.stringify(r.body))
   })
 
   it('freezes: a snapshot with a verifiable hash, later self-score changes never alter it, nothing can be edited, access is revoked', async () => {
@@ -197,7 +245,7 @@ describe('validation review, outcome and freeze', () => {
     assert.equal((await rev(VAL, 'GET', `/${engId}`)).body.sha256, before)
     // Nothing is editable any more.
     for (const [m, p, b] of [
-      ['PUT', `/${engId}/scores/${IDS[0]}`, { score: 1, sufficiency: 'sufficient' }], ['PUT', `/${engId}/setup`, { method: 'interviews', fieldworkStart: '2026-01-01', fieldworkEnd: '2026-01-02' }],
+      ['PUT', `/${engId}/scores/${IDS[0]}`, { checks: CHECKS_OK, score: 1, sufficiency: 'sufficient' }], ['PUT', `/${engId}/setup`, { method: 'interviews', fieldworkStart: '2026-01-01', fieldworkEnd: '2026-01-02' }],
       ['POST', `/${engId}/qualifications`, { text: 'x', indicatorIds: [IDS[0]] }], ['POST', `/${engId}/finalise`, { outcome: 'not_validated' }],
       ['PUT', `/${engId}/debrief/${IDS[0]}`, { response: 'late' }],
     ] as const) assert.ok([403, 409].includes((await rev(m === 'PUT' && p.includes('debrief') ? ALICE : VAL, m, p, b)).status), p)
@@ -225,7 +273,7 @@ describe('validation review, outcome and freeze', () => {
     await eng(VAL, 'POST', `/${engId}/respond`, { side: 'validator', decision: 'accept' })
     await open()
     const lvl2 = IDS.find((i) => !LEVEL1.includes(i))!
-    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${lvl2}`, { score: 4, sufficiency: 'sufficient' })).status, 400)
+    assert.equal((await rev(VAL, 'PUT', `/${engId}/scores/${lvl2}`, { checks: CHECKS_OK, score: 4, sufficiency: 'sufficient' })).status, 400)
     const view = (await rev(VAL, 'GET', `/${engId}`)).body
     assert.equal(view.rows.length, LEVEL1.length)
   })

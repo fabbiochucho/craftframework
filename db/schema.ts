@@ -656,6 +656,11 @@ export const validationScores = pgTable(
     evidenceRef: text('evidence_ref').notNull().default(''),
     scoredBy: text('scored_by').notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // The seven control checks behind the score (src/lib/controlChecks.ts): design, authorisation, systemSupport,
+    // operating, traceability, adequacy, sustainability → 'yes' | 'no' | 'not_tested'. They cap the score.
+    checks: jsonb('checks').$type<Record<string, string>>().notNull().default({}),
+    // 'scored' | 'not_evidenced' (recorded as 0; never confirms a level; listed as an evidence limitation).
+    result: text('result').notNull().default('scored'),
   },
   (t) => [primaryKey({ columns: [t.reviewId, t.indicatorId] })],
 )

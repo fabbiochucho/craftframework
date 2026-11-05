@@ -88,7 +88,7 @@ async function seedValidation(opts: { orgEmail?: string; qualify?: boolean } = {
   await call(VAL, reviews, 'PUT', `validation-reviews/${id}/setup`, { method: 'site_visit', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
   const { FRAMEWORKS } = await import('../../src/lib/validationReview.ts')
   for (const ind of FRAMEWORKS['capital-readiness'].indicators) {
-    await call(VAL, reviews, 'PUT', `validation-reviews/${id}/scores/${ind.id}`, { score: 4, sufficiency: 'sufficient', comment: 'PRIVATE-COMMENT' })
+    await call(VAL, reviews, 'PUT', `validation-reviews/${id}/scores/${ind.id}`, { checks: { design: 'yes', authorisation: 'yes', systemSupport: 'yes', operating: 'yes', traceability: 'yes', adequacy: 'yes', sustainability: 'yes' }, score: 4, sufficiency: 'sufficient', comment: 'PRIVATE-COMMENT' })
   }
   if (opts.qualify) await call(VAL, reviews, 'POST', `validation-reviews/${id}/qualifications`, { text: 'Board minutes are incomplete', indicatorIds: [FRAMEWORKS['capital-readiness'].indicators[1].id] })
   await call(VAL, reviews, 'POST', `validation-reviews/${id}/finalise`, { outcome: opts.qualify ? 'validated_with_qualifications' : 'validated' })

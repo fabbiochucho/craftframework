@@ -185,3 +185,6 @@ export async function uploadEvidence(wsId: number, user = ASSESSOR, file = pdfFi
 export async function auditCount(where: string, params: unknown[] = []): Promise<number> {
   return Number((await rows(`SELECT count(*)::int AS n FROM ws_audit_log WHERE ${where}`, params))[0].n)
 }
+
+// All seven validator control checks met (src/lib/controlChecks.ts), for tests that score reviews.
+export const CHECKS_OK = { design: 'yes', authorisation: 'yes', systemSupport: 'yes', operating: 'yes', traceability: 'yes', adequacy: 'yes', sustainability: 'yes' } as const

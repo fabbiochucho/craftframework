@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { beforeEach, describe, it } from 'node:test'
 import { extractText, getDocumentProxy } from 'unpdf'
-import { rows, truncateAll } from './harness.ts'
+import { rows, truncateAll, CHECKS_OK } from './harness.ts'
 import { FRAMEWORKS } from '../../src/lib/validationReview.ts'
 import { VERIFICATION_ID_RE } from '../../src/lib/validationStatement.ts'
 
@@ -44,7 +44,7 @@ async function profile(email: string, name: string) {
 
 async function finalise(engagementId: string, opts: { qualify?: string[]; outcome?: string } = {}) {
   await rev(VAL, 'PUT', `/${engagementId}/setup`, { method: 'combined', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
-  for (const ind of IDS) await rev(VAL, 'PUT', `/${engagementId}/scores/${ind}`, { score: 4, sufficiency: 'sufficient', comment: 'PRIVATE-COMMENT', evidenceRef: 'PRIVATE-EVIDENCE-REF' })
+  for (const ind of IDS) await rev(VAL, 'PUT', `/${engagementId}/scores/${ind}`, { checks: CHECKS_OK, score: 4, sufficiency: 'sufficient', comment: 'PRIVATE-COMMENT', evidenceRef: 'PRIVATE-EVIDENCE-REF' })
   for (const q of opts.qualify ?? []) await rev(VAL, 'POST', `/${engagementId}/qualifications`, { text: 'Board minutes incomplete', indicatorIds: [q] })
   const res = await rev(VAL, 'POST', `/${engagementId}/finalise`, { outcome: opts.outcome ?? 'validated' })
   assert.equal(res.status, 200, res.text)
@@ -175,7 +175,7 @@ describe('public verification', () => {
     await eng(ALICE, 'POST', `/${id}/respond`, { side: 'organization', decision: 'accept' })
     await eng(FUND, 'POST', `/${id}/declaration`, { confirmed: true, signedName: 'Fund Staff' })
     await rev(FUND, 'PUT', `/${id}/setup`, { method: 'document_review', fieldworkStart: '2026-01-05', fieldworkEnd: '2026-01-09' })
-    for (const ind of IDS) await rev(FUND, 'PUT', `/${id}/scores/${ind}`, { score: 4, sufficiency: 'sufficient' })
+    for (const ind of IDS) await rev(FUND, 'PUT', `/${id}/scores/${ind}`, { checks: CHECKS_OK, score: 4, sufficiency: 'sufficient' })
     assert.equal((await rev(FUND, 'POST', `/${id}/finalise`, { outcome: 'validated' })).status, 200)
     const v = (await rows('SELECT verification_id FROM validations'))[0]
     const p = (await pub('GET', `/${v.verification_id}`)).body
