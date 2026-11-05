@@ -264,3 +264,28 @@ export function swotSeed(d: Dashboard): Swot {
   const domains = d.areas.flatMap((a) => a.domains).filter((x) => x.assessed)
   return { strengths: domains.filter((x) => x.score === 4).map((x) => x.name), weaknesses: domains.filter((x) => x.score === 1).map((x) => x.name), opportunities: [], threats: [] }
 }
+
+// ---------------------------------------------------------------- Roll-up across places
+export type PlaceResult = { region: string; district: string; dashboard: Dashboard }
+export type RollupGroup = { region: string; places: number; areas: { id: string; name: string; average: number; percent: number; level: GrowthLevel }[]; average: number; percent: number; level: GrowthLevel }
+
+/**
+ * Combine place results (each place's latest completed assessment) into one result per region and one for the whole
+ * body. Each area's figure is the average over the places that assessed it; the overall figure averages the areas, so
+ * every area counts equally, as in the dashboard. Places count equally whatever their size.
+ */
+export function rollup(places: PlaceResult[]): { byRegion: RollupGroup[]; overall: RollupGroup | null } {
+  const combine = (region: string, ps: PlaceResult[]): RollupGroup => {
+    const first = ps[0].dashboard.areas
+    const areas = first.map((a) => {
+      const vals = ps.map((p) => p.dashboard.areas.find((x) => x.id === a.id)).filter((x) => x && x.level !== 'Not assessed').map((x) => x!.average)
+      const avg = rawMean(vals)
+      return { id: a.id, name: a.name, average: round2(avg), percent: percentOfMax(avg), level: growthLevel(avg) }
+    })
+    const avg = rawMean(areas.filter((a) => a.level !== 'Not assessed').map((a) => a.average))
+    return { region, places: ps.length, areas, average: round2(avg), percent: percentOfMax(avg), level: growthLevel(avg) }
+  }
+  if (!places.length) return { byRegion: [], overall: null }
+  const regions = [...new Set(places.map((p) => p.region))].sort()
+  return { byRegion: regions.map((r) => combine(r, places.filter((p) => p.region === r))), overall: combine('', places) }
+}
