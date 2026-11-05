@@ -9,6 +9,7 @@ import {
   AWARD_STATUS_LABEL, ISSUE_SOURCES, ISSUE_TYPES, MEASURE_KINDS, MEASURE_LABEL, SOURCE_LABEL, type AwardStatus, type TrackRecord,
 } from '../lib/awards'
 import { FUNDING_MODALITIES } from '../lib/data'
+import { MilestonesCard } from '../components/MilestonesCard'
 
 type Award = { id: string; title: string; funderName: string; funderEmail: string; agreementRef: string; value: string | null; currency: string; modality: string; startDate: string | null; endDate: string | null; status: AwardStatus }
 type Measure = { id: string; awardId: string; kind: string; description: string; liftedWhen: string; status: string; imposedAt: string }
@@ -109,6 +110,7 @@ function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
                     <Button size="sm" variant="outline" disabled={mf.description.trim().length < 3} onClick={() => run(() => awardsApi(`/${a.id}/measures`, { method: 'POST', body: mf }))}>Record</Button>
                   </div>)}
               </div>
+              <MilestonesCard awardId={a.id} />
               <p>Issues on this award: {issues.length} ({issues.filter((i) => i.status === 'open').length} open). See the issue register.</p>
               {a.status === 'active' && <Button size="sm" variant="outline" onClick={() => run(() => awardsApi(`/${a.id}`, { method: 'PUT', body: { close: true } }))}>Close award</Button>}
             </CardContent>
@@ -213,7 +215,11 @@ function FunderView() {
         <Card key={o.orgId}>
           <CardHeader><CardTitle>{o.name}</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
-            {o.awards.length > 0 && <div><p className="font-medium">Your awards</p><ul className="mt-1 list-disc pl-5">{o.awards.map((a) => <li key={a.id}>{a.title} · {AWARD_STATUS_LABEL[a.status]} · {o.ownAwardIssues.filter((i) => i.awardId === a.id && i.status === 'open').length} open issue(s) · {o.measures.filter((m) => m.awardId === a.id && m.status === 'active').length} active measure(s)</li>)}</ul></div>}
+            {o.awards.length > 0 && <div className="space-y-3"><p className="font-medium">Your awards</p>{o.awards.map((a) => (
+              <div key={a.id} className="rounded-lg border border-slate-200 p-3">
+                <p>{a.title} · {AWARD_STATUS_LABEL[a.status]} · {o.ownAwardIssues.filter((i) => i.awardId === a.id && i.status === 'open').length} open issue(s) · {o.measures.filter((m) => m.awardId === a.id && m.status === 'active').length} active measure(s)</p>
+                <MilestonesCard awardId={a.id} asFunder />
+              </div>))}</div>}
             {o.shared ? (
               <div className="space-y-2"><p className="font-medium">Shared track record ({o.shared.level})</p><TrackRecordCard t={o.shared.trackRecord} />
                 {o.shared.issues.length > 0 && <ul className="list-disc pl-5">{o.shared.issues.map((i) => <li key={i.id}><b>{i.title}</b> ({label(i.type)}, {i.status}){i.orgResponse && <> · their response: {i.orgResponse}</>}</li>)}</ul>}</div>
