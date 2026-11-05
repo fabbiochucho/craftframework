@@ -9,6 +9,7 @@ import { Link } from '@tanstack/react-router'
 import { Lock, AlertOctagon, ShieldCheck, ArrowRight, Gauge, ClipboardList, Globe, Radio } from 'lucide-react'
 import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useLensCtx, useQuestionsCtx } from '../lib/context'
 import { PlainSummaryCard } from '../components/PlainSummaryCard'
+import { GrowthLevelCard } from '../components/GrowthLevelCard'
 import { coreSummary } from '../lib/plainSummary'
 import {
   computeOrgScore, computeTierScore, computeCompositeIndices,
@@ -162,6 +163,8 @@ export function DashboardPage() {
         <Stat label="Open Critical Risks" value={criticalFindings.length} accent="rose" hint="Top of the mitigation queue" />
         <Stat label="Plan Items Off-Track" value={offTrack} accent="amber" hint="Capacity plan attention" />
       </div>
+
+      <GrowthLevelCard orgId={currentOrg?.id ?? ''} composite={composite} signedIn={!!currentUser && !currentUser.isDemo} />
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">

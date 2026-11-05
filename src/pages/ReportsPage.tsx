@@ -25,6 +25,7 @@ import { esgMaturity, stageLabel } from '../lib/esgMaturity'
 import { useLawApprovals } from '../lib/laws/useLawApprovals'
 import { LAW_REGISTER } from '../lib/laws/register'
 import { Card, CardContent, CardHeader, CardTitle, Button, Toast, StatusBadge } from '../components/ui'
+import { GrowthLevelCard } from '../components/GrowthLevelCard'
 
 function csvCell(v: string | number) {
   return `"${String(v).replace(/"/g, '""')}"`
@@ -154,6 +155,8 @@ export function ReportsPage() {
           Every export is built from your own assessment answers, with owners, due dates, and statuses included.
         </p>
       </div>
+
+      <div className="print:hidden"><GrowthLevelCard orgId={currentOrg?.id ?? ''} composite={composite} signedIn={!!currentUser && !currentUser.isDemo} /></div>
 
       {answered === 0 && (
         <Card className="print:hidden">
