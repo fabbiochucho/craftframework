@@ -18,7 +18,7 @@ export type Feature = {
 
 export const FEATURES: Feature[] = [
   { key: 'frameworks', label: 'Assessment frameworks', description: 'Framework library and the assessment wizard.', routes: ['/frameworks', '/assessment'], api: [] },
-  { key: 'capacity', label: 'Capacity Assessment', description: 'Capacity assessment modules, grant lifecycle (pre, during and post award), plans and reports.', routes: ['/capacity'], api: ['/api/cca', '/api/cca-screen'] },
+  { key: 'capacity', label: 'Capacity Assessment', description: 'Capacity assessment modules, grant lifecycle (pre, during and post award), plans and reports.', routes: ['/capacity'], api: ['/api/cca', '/api/cca-screen', '/api/desk-review'] },
   { key: 'awards', label: 'Awards & issues', description: 'Grants and contracts, funder measures, the issue register and track record sharing.', routes: ['/awards'], api: ['/api/awards', '/api/milestones'] },
   { key: 'findings', label: 'Findings', description: 'Findings from assessments.', routes: ['/findings'], api: [] },
   { key: 'verify', label: 'Trust delta & verify', description: 'Self-score against evidence-verified score.', routes: ['/verify', '/dashboard/trust-delta'], api: [] },

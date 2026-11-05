@@ -2361,6 +2361,38 @@ export const screenings = pgTable('screenings', {
   reviewedBy: text('reviewed_by'),
   reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
 }, (t) => [index('screenings_org_idx').on(t.orgId)])
+// Desk review: one row per organisation and document from the src/lib/dataroom.ts requirement list.
+export const deskReviewItems = pgTable('desk_review_items', {
+  orgId: text('org_id').notNull(),
+  requirementId: text('requirement_id').notNull(),
+  status: text('status').notNull().default('missing'), // missing | uploaded | verified | flagged | not_available
+  evidenceRef: text('evidence_ref').notNull().default(''), // link, or where the document is held
+  approvedOn: date('approved_on', { mode: 'string' }),
+  evidenceOfUse: text('evidence_of_use').notNull().default(''),
+  notAvailableReason: text('not_available_reason').notNull().default(''),
+  custodian: text('custodian').notNull().default(''),
+  dueDate: date('due_date', { mode: 'string' }),
+  assessorNote: text('assessor_note').notNull().default(''),
+  providedBy: text('provided_by'),
+  verifiedBy: text('verified_by'),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ name: 'desk_review_items_pk', columns: [t.orgId, t.requirementId] })])
+
+// Fieldwork log: interviews, walkthroughs, sample tests and site visits during a review.
+export const fieldworkEntries = pgTable('fieldwork_entries', {
+  id: text('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  kind: text('kind').notNull(), // interview | walkthrough | sample_test | site_visit
+  heldOn: date('held_on', { mode: 'string' }).notNull(),
+  people: text('people').notNull().default(''),
+  requirementId: text('requirement_id'),
+  domainRef: text('domain_ref'),
+  summary: text('summary').notNull(),
+  result: text('result').notNull().default(''),
+  recordedBy: text('recorded_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('fieldwork_entries_org_idx').on(t.orgId)])
+
 // Quick pre-award screens (src/lib/cca/quickScreen.ts): one per organisation and award. The outcome is kept at
 // completion so a later change to the questions never rewrites a past decision.
 export const ccaScreens = pgTable('cca_screens', {

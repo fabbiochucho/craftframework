@@ -35,4 +35,9 @@ assert.equal(engagementLabel({ type: 'independent_validation', engagedBy: 'Acme'
 assert.equal(engagementLabel({ type: 'independent_validation', engagedBy: 'Acme', members: [ok, { name: 'Ann', accreditation: 'suspended' }] }).statement, 'Review by Ann')
 assert.equal(engagementLabel({ type: 'funder_review', funderName: 'Savannah', engagedBy: 'Savannah', members: [] }).statement, 'Reviewed by Savannah')
 assert.notEqual(DECLARATIONS.independent_validation.version, DECLARATIONS.funder_review.version)
+// A methodology travels in the scope; unknown ones are rejected.
+assert.deepEqual(parseScope({ kind: 'whole', methodology: 'g2g_readiness' }), { kind: 'whole', methodology: 'g2g_readiness' })
+assert.deepEqual(parseScope({ kind: 'levels', levels: [2], indices: ['craft-fiduciary'], methodology: 'grant_readiness' }), { kind: 'levels', levels: [2], indices: ['craft-fiduciary'], methodology: 'grant_readiness' })
+assert.equal(parseScope({ kind: 'whole', methodology: 'made_up' }), null)
+assert.equal(scopeText({ kind: 'whole', methodology: 'g2g_readiness' }), 'Whole ladder; methodology: Government-to-government (G2G) readiness')
 console.log('engagements.test.ts ok')
