@@ -12,6 +12,7 @@ import {
   type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule } from '../lib/cca/modules'
+import { ScreeningCard } from '../components/ScreeningCard'
 import { QuickScreenCard } from '../components/QuickScreenCard'
 
 type Assessment = {
@@ -125,6 +126,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
 }
 
 function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
+  const currentOrgName = useWorkspace().currentOrg?.name ?? ''
   const [responses, setResponses] = useState<Responses>(a.responses)
   const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => skips(mod, a))
   const [votes, setVotes] = useState<Record<string, number[]>>(a.votes)
@@ -157,7 +159,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
-      <Tabs tabs={[{ id: 'assess', label: 'Assess' }, { id: 'dashboard', label: 'Dashboard' }, { id: 'plan', label: 'Improvement plan' }, { id: 'swot', label: 'SWOT debrief' }, { id: 'reports', label: 'Reports' }]} active={tab} onChange={setTab} />
+      <Tabs tabs={[{ id: 'assess', label: 'Assess' }, { id: 'dashboard', label: 'Dashboard' }, { id: 'plan', label: 'Improvement plan' }, { id: 'swot', label: 'SWOT debrief' }, { id: 'reports', label: 'Reports' }, ...(mod.id === 'pre_award' ? [{ id: 'screening', label: 'Screening' }] : [])]} active={tab} onChange={setTab} />
 
       {tab === 'assess' && (
         <div className="space-y-4">
@@ -241,6 +243,8 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
       )}
 
       {tab === 'reports' && <ReportsView mod={mod} history={history} />}
+
+      {tab === 'screening' && <ScreeningCard orgId={a.orgId} orgName={currentOrgName} awardId={a.awardRef || undefined} />}
     </div>
   )
 }
