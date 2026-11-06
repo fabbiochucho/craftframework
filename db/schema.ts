@@ -2333,6 +2333,7 @@ export const ccaAssessments = pgTable('cca_assessments', {
   orgLead: text('org_lead').notNull().default(''),
   responses: jsonb('responses').$type<Record<string, { met: boolean; evidence: string }>>().notNull().default({}),
   votes: jsonb('votes').$type<Record<string, number[]>>().notNull().default({}),
+  consensus: jsonb('consensus').$type<Record<string, { agreed: number; note: string }>>().notNull().default({}), // Approach II per domain
   swot: jsonb('swot').$type<Record<string, string[]>>().notNull().default({}),
   plan: jsonb('plan').$type<{ domainId: string; costs?: number; lines?: Record<string, number>; timeline?: string; responsible?: string }[]>().notNull().default([]),
   notAssessed: jsonb('not_assessed').$type<Record<string, string>>().notNull().default({}), // domain id -> reason

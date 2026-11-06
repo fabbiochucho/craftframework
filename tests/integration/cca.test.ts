@@ -94,4 +94,16 @@ describe('CRAFT Capacity Assessment API', () => {
     const audit = await rows(`SELECT action FROM audit_logs WHERE org_id='org_a' AND action NOT LIKE '%local%' AND action NOT LIKE '%2027%' ORDER BY id`)
     assert.deepEqual(audit.map((a) => a.action.split(' (')[0]), ['Started capacity assessment', 'Started capacity assessment', 'Completed capacity assessment'])
   })
+
+  it('Approach II: an agreed score above the evidence needs a note before completion', async () => {
+    publish()
+    const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': ok }, consensus: { g1: { agreed: 4, note: '' }, g2: { agreed: 1, note: '' } } })).status, 200)
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { consensus: { g1: { agreed: 5, note: '' } } })).status, 400, 'scores are 1 to 4')
+    const blocked = await call(ALICE, 'POST', `/${id}/complete`)
+    assert.deepEqual([blocked.status, blocked.body.consensusGaps], [400, ['g1']], 'g1 agreed 4, evidence supports 2; g2 agreed 1 stands')
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { consensus: { g1: { agreed: 4, note: 'Practice is strong but minutes are not signed' } } })).status, 200)
+    assert.equal((await call(ALICE, 'POST', `/${id}/complete`)).status, 200)
+    assert.equal((await call(ALICE, 'GET', `/${id}`)).body.assessment.consensus.g2.agreed, 1, 'entries merge across saves')
+  })
 })

@@ -203,6 +203,16 @@ export function resolveVotes(votes: Score[], evidencedScore: Score): Score {
   return candidates[0] ?? evidencedScore
 }
 
+/** Approach II: the group agrees a score; the evidence check never lets it stand above what the evidence supports. */
+export function resolveConsensus(agreed: Score, evidencedScore: Score): { final: Score; steppedDown: boolean } {
+  return agreed <= evidencedScore ? { final: agreed, steppedDown: false } : { final: evidencedScore, steppedDown: true }
+}
+
+/** Consensus records whose agreed score was stepped down by the evidence but carry no note on why the group differed. */
+export function consensusGaps(c: Record<string, { agreed: number; note: string }>, evidenced: (domainId: string) => Score): string[] {
+  return Object.entries(c).filter(([id, x]) => resolveConsensus(x.agreed as Score, evidenced(id)).steppedDown && x.note.trim().length < 3).map(([id]) => id)
+}
+
 // ---------------------------------------------------------------- Multi-year tracking and reports
 export type YearRecord = { year: number; dashboard: Dashboard }
 export type ReportKind = 'yearly' | 'mid_term' | 'five_year'
