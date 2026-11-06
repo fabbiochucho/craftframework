@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/cca/engine.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  ADDED_LATER, availableReports, rollup, awardReadiness, cascade, dashboard, domainScore, effectiveNotAssessed, entryCost, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
+  ADDED_LATER, consensusGaps, resolveConsensus, availableReports, rollup, awardReadiness, cascade, dashboard, domainScore, effectiveNotAssessed, entryCost, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview, previousAssessment, reassessmentsDue, unexplainedMisses,
   resolveVotes, swotSeed, voteSpread, type CcaModule, type Domain, type Responses,
 } from './engine.ts'
 
@@ -107,5 +107,23 @@ const ru = rollup([placeA, placeB, placeC])
 assert.deepEqual(ru.byRegion.map((g) => [g.region, g.places, g.areas.map((a) => a.average), g.average]), [['Kano', 2, [3.5, 2.5], 3], ['Lagos', 1, [3, 0], 3]])
 assert.deepEqual([ru.overall!.places, ru.overall!.areas.map((a) => a.average), ru.overall!.level], [3, [3.33, 2.5], 'Expanding'])
 assert.deepEqual(rollup([]), { byRegion: [], overall: null })
+
+// Facilitated scoring (Approach II): the agreed score stands only as far as the evidence supports it.
+assert.deepEqual(resolveConsensus(3, 4), { final: 3, steppedDown: false })
+assert.deepEqual(resolveConsensus(4, 2), { final: 2, steppedDown: true })
+assert.deepEqual(consensusGaps({ A1: { agreed: 4, note: '' }, A2: { agreed: 4, note: 'Minutes not yet signed' }, B1: { agreed: 1, note: '' } }, (id) => (id === 'B1' ? 2 : 2)), ['A1'])
+// 12-month reassessment: the previous assessment for the same module and place; due a year after completion.
+const ref = (id: string, year: number, status: string, completedAt: string | null, extra = {}) => ({ id, module: 'community', year, awardRef: '', region: '', district: '', status, completedAt, ...extra })
+const hist = [ref('a24', 2024, 'complete', '2024-06-01T00:00:00Z'), ref('a25', 2025, 'complete', '2025-06-01T00:00:00Z'), ref('k25', 2025, 'complete', '2025-01-01T00:00:00Z', { region: 'Kano' })]
+assert.equal(previousAssessment(hist, ref('a26', 2026, 'draft', null))?.id, 'a25')
+assert.equal(previousAssessment(hist, ref('x', 2026, 'draft', null, { region: 'Kano' }))?.id, 'k25', 'same place only')
+assert.equal(previousAssessment(hist, ref('a24', 2024, 'draft', null)), null)
+assert.deepEqual(reassessmentsDue(hist, '2026-05-31').map((d) => d.last.id), ['k25'])
+assert.deepEqual(reassessmentsDue(hist, '2026-06-01').map((d) => [d.last.id, d.dueOn]), [['a25', '2026-06-01'], ['k25', '2026-01-01']])
+assert.deepEqual(reassessmentsDue([...hist, ref('a26', 2026, 'draft', null)], '2026-07-01').map((d) => d.last.id), ['k25'], 'a started reassessment clears it')
+// The gate: every missed target needs an explanation.
+const missed = [{ domainId: 'A2', envisioned: 3 as const, reached: 2 as const, met: false }, { domainId: 'B1', envisioned: 2 as const, reached: 2 as const, met: true }]
+assert.deepEqual(unexplainedMisses(missed, {}), ['A2'])
+assert.deepEqual(unexplainedMisses(missed, { A2: 'Funding for the audit was cut' }), [])
 
 console.log('cca/engine.test.ts: all assertions passed')

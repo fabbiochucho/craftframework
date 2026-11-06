@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
-import { rows, truncateAll } from './harness.ts'
+import { blobStores, rows, truncateAll } from './harness.ts'
 
 const api = (await import(new URL('../../netlify/functions/awards.mts', import.meta.url).href)).default
 
@@ -55,6 +55,15 @@ describe('awards, measures, issues and consented sharing', () => {
     // Funder one sees its own award's issues only; funder two sees its own award (with the allegation) but no track record.
     let f1 = (await call(FUNDER, 'GET', '/funder')).body.organisations
     assert.deepEqual(f1.map((o: any) => [o.name, o.ownAwardIssues.length, o.shared]), [['Riverbend', 1, null]])
+    // Lifecycle stage and rating: this award was closed above, so it is post-award; no rating yet.
+    assert.deepEqual([f1[0].awards[0].stage, f1[0].awards[0].rating], ['post_award', null])
+    const st = (id: string) => [{ id, text: id }, { id: `${id}b`, text: `${id}b` }]
+    const dom = (id: string, critical = false) => ({ id, name: id, level1: 'x', critical, levels: { 2: st(`${id}.2`), 3: st(`${id}.3`), 4: st(`${id}.4`) } })
+    blobStores().set('cca-private', new Map([['modules', { bytes: Buffer.from(JSON.stringify([{ id: 'pre_award', name: 'Pre-Award', audience: 'x', areas: [{ id: 'pa', name: 'Finance', domains: [dom('p1', true), dom('p2'), dom('p3')] }] }])) }]]))
+    const seen = { met: true, evidence: 'seen' }
+    await rows(`INSERT INTO cca_assessments(id,org_id,module,year,award_ref,status,responses,created_by,completed_at) VALUES('cca_pa','org_a','pre_award',2026,'${aw}','complete','${JSON.stringify({ 'p1.2': seen, 'p1.2b': seen, 'p1.3': seen, 'p1.3b': seen })}','${ALICE}',now())`)
+    const rated = (await call(FUNDER, 'GET', '/funder')).body.organisations[0].awards.find((x: any) => x.id === aw)
+    assert.deepEqual([rated.stage, rated.rating.module, rated.rating.level, rated.rating.percent, rated.rating.readiness], ['post_award', 'pre_award', 'Emerging', 42, 'Ready with conditions'])
     let f2 = (await call(OTHER, 'GET', '/funder')).body.organisations[0]
     assert.deepEqual([f2.ownAwardIssues.map((i: any) => i.title), f2.shared], [['Unverified allegation'], null])
 

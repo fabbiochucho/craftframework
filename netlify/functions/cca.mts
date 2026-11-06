@@ -8,7 +8,7 @@ import { auditLogs, ccaAssessments } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import { CCA_MODULE_IDS, contentProblems, isAwardModule, isGovernmentModule, placeLabel } from '../../src/lib/cca/modules.js'
-import { COST_LINES, type CcaModule } from '../../src/lib/cca/engine.js'
+import { consensusGaps, COST_LINES, dashboard, domainScore, effectiveNotAssessed, improvementPlan, planReview, previousAssessment, unexplainedMisses, type CcaModule } from '../../src/lib/cca/engine.js'
 
 // /api/cca — CRAFT Capacity Assessment.
 //   GET    modules                    signed-in: the module content (private, from blob store cca-private)
@@ -25,6 +25,8 @@ const response = z.object({ met: z.boolean(), evidence: z.string().max(1000) }).
 const putSchema = z.object({
   responses: z.record(z.string().max(80), response).optional(),
   votes: z.record(z.string().max(80), z.array(z.number().int().min(1).max(4)).max(60)).optional(),
+  // Approach II: domain id -> the score the group agreed and, when the evidence brings it down, why the group differed.
+  consensus: z.record(z.string().max(80), z.object({ agreed: z.number().int().min(1).max(4), note: z.string().trim().max(1000) }).strict()).optional(),
   swot: z.object({ strengths: z.array(z.string().max(300)).max(30), weaknesses: z.array(z.string().max(300)).max(30), opportunities: z.array(z.string().max(300)).max(30), threats: z.array(z.string().max(300)).max(30) }).strict().optional(),
   plan: z.array(z.object({
     domainId: z.string().max(80), costs: z.number().min(0).max(1e12).optional(),
@@ -32,6 +34,8 @@ const putSchema = z.object({
     timeline: z.string().max(200).optional(), responsible: z.string().max(200).optional() }).strict()).max(300).optional(),
   // Replaces the whole map: domain id -> why it was left out.
   notAssessed: z.record(z.string().max(80), z.string().trim().min(3).max(300)).optional(),
+  // Replaces the whole map: last year's missed plan target (domain id) -> why it was missed.
+  planReviewNotes: z.record(z.string().max(80), z.string().trim().max(1000)).optional(),
   assessor: z.string().max(200).optional(),
   orgLead: z.string().max(200).optional(),
 }).strict()
@@ -100,7 +104,8 @@ const handleRequest = async (req: Request) => {
       await db.update(ccaAssessments).set({
         ...(d.responses ? { responses: { ...row.responses, ...d.responses } } : {}),
         ...(d.votes ? { votes: { ...row.votes, ...d.votes } } : {}),
-        ...(d.swot ? { swot: d.swot } : {}), ...(d.plan ? { plan: d.plan } : {}), ...(d.notAssessed ? { notAssessed: d.notAssessed } : {}),
+        ...(d.consensus ? { consensus: { ...row.consensus, ...d.consensus } } : {}),
+        ...(d.swot ? { swot: d.swot } : {}), ...(d.plan ? { plan: d.plan } : {}), ...(d.notAssessed ? { notAssessed: d.notAssessed } : {}), ...(d.planReviewNotes ? { planReviewNotes: d.planReviewNotes } : {}),
         ...(d.assessor !== undefined ? { assessor: d.assessor } : {}), ...(d.orgLead !== undefined ? { orgLead: d.orgLead } : {}),
         updatedAt: new Date(),
       }).where(and(eq(ccaAssessments.id, row.id), eq(ccaAssessments.status, 'draft')))
@@ -111,6 +116,23 @@ const handleRequest = async (req: Request) => {
       // Record the domains this assessment covered, so domains added to the module later never lower its result.
       const mod = (await content())?.find((m) => m.id === row.module)
       const domainIds = mod ? mod.areas.flatMap((a) => a.domains.map((d) => d.id)) : null
+      // Approach II: where the evidence brought an agreed score down, the reason the group differed must be recorded.
+      if (mod) {
+        const domains = new Map(mod.areas.flatMap((a) => a.domains.map((d) => [d.id, d] as const)))
+        const gaps = consensusGaps(row.consensus, (id) => (domains.has(id) ? domainScore(domains.get(id)!, row.responses) : 4))
+        if (gaps.length) return json({ error: 'Note why the group’s agreed score differed from the evidence for each domain marked, then complete.', consensusGaps: gaps }, 400)
+      }
+      // A reassessment completes only when every target missed from last year's plan is explained.
+      if (mod && !row.awardRef) {
+        const earlier = await db.select().from(ccaAssessments).where(and(eq(ccaAssessments.orgId, row.orgId), eq(ccaAssessments.module, row.module)))
+        const prev = previousAssessment(earlier.map((a) => ({ ...a, completedAt: a.completedAt?.toISOString() ?? null })), { ...row, completedAt: null })
+        if (prev) {
+          const lastPlan = improvementPlan(mod, prev.responses, prev.plan, effectiveNotAssessed(mod, prev.notAssessed, prev.domainIds)).rows
+          const review = planReview(lastPlan, dashboard(mod, row.responses, effectiveNotAssessed(mod, row.notAssessed)))
+          const missing = unexplainedMisses(review, row.planReviewNotes)
+          if (missing.length) return json({ error: `Explain why ${missing.length} target(s) from the ${prev.year} improvement plan were not reached, then complete.`, missing }, 400)
+        }
+      }
       await db.transaction(async (tx) => {
         await tx.update(ccaAssessments).set({ status: 'complete', domainIds, completedAt: new Date(), updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
         await tx.insert(auditLogs).values({ orgId: row.orgId, actor: caller.email, action: `Completed capacity assessment (${row.module} ${row.year})`, target: row.id, category: 'Assessment' })
