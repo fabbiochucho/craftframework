@@ -181,6 +181,34 @@ export function planReview(previous: PlanRow[], now: Dashboard): { domainId: str
   })
 }
 
+// ---------------------------------------------------------------- 12-month reassessment
+export const REASSESS_AFTER_DAYS = 365
+type AssessmentRef = { id: string; module: string; year: number; awardRef: string; region?: string; district?: string; status: string; completedAt: string | null }
+const samePlace = (a: AssessmentRef, b: AssessmentRef) => a.module === b.module && !a.awardRef && !b.awardRef && (a.region ?? '') === (b.region ?? '') && (a.district ?? '') === (b.district ?? '')
+
+/** The latest completed assessment of the same module and place from an earlier year (null if none). */
+export function previousAssessment<T extends AssessmentRef>(all: T[], current: AssessmentRef): T | null {
+  return all.filter((a) => samePlace(a, current) && a.status === 'complete' && a.year < current.year).sort((x, y) => y.year - x.year)[0] ?? null
+}
+
+/** Module and place pairs due for reassessment: completed at least REASSESS_AFTER_DAYS ago with no later assessment started. */
+export function reassessmentsDue<T extends AssessmentRef>(all: T[], today: string): { last: T; dueOn: string }[] {
+  const latest = new Map<string, T>()
+  for (const a of all.filter((x) => !x.awardRef)) {
+    const k = `${a.module}|${a.region ?? ''}|${a.district ?? ''}`
+    if (!latest.has(k) || latest.get(k)!.year < a.year) latest.set(k, a)
+  }
+  return [...latest.values()].filter((a) => a.status === 'complete' && a.completedAt).map((a) => {
+    const due = new Date(Date.parse(a.completedAt!) + REASSESS_AFTER_DAYS * 86_400_000).toISOString().slice(0, 10)
+    return { last: a, dueOn: due }
+  }).filter((x) => x.dueOn <= today)
+}
+
+/** Targets from last year's plan that were not reached and have no explanation (the gate on completing a reassessment). */
+export function unexplainedMisses(review: ReturnType<typeof planReview>, notes: Record<string, string>): string[] {
+  return review.filter((r) => !r.met && (notes[r.domainId] ?? '').trim().length < 3).map((r) => r.domainId)
+}
+
 // ---------------------------------------------------------------- Facilitated scoring
 /** Approach I: anonymous votes. The spread of votes for display. */
 export function voteSpread(votes: Score[]): Record<Score, number> {
