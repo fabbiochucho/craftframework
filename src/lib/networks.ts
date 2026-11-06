@@ -13,7 +13,7 @@ export const SHARING = ['aggregate', 'full'] as const
 export type Sharing = (typeof SHARING)[number]
 export const SHARING_LABEL: Record<Sharing, string> = {
   aggregate: 'Totals only: counted in network results, never named (small groups are hidden)',
-  full: 'Named results: coordinators at my level and above see my scores',
+  full: 'Named results: coordinators at my level and above see my scores, including my Capacity Assessment level',
 }
 
 export const MEMBER_STATUSES = ['invited', 'accepted', 'declined', 'left'] as const

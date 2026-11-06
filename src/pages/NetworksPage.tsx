@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { AlertTriangle, BadgeCheck, Network } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
 import { CoordinatorRounds, MemberRounds } from '../components/NetworkRounds'
+import { NetworkCcaCard } from '../components/NetworkCcaCard'
 import { ExchangeLog } from '../components/NetworkExchange'
 import { ProgrammeScorecards } from '../components/ProgrammeScorecards'
 import { useAuthCtx } from '../lib/context'
@@ -369,6 +370,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
       )}
       {d.coordinates.length > 0 || d.views.length > 0 ? <CoordinatorRounds networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} /> : null}
       {(d.coordinates.length > 0 || d.views.length > 0) && <ProgrammeScorecards networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} />}
+      {(d.coordinates.length > 0 || d.views.length > 0) && <NetworkCcaCard nodes={d.nodes} roots={[...d.coordinates, ...d.views]} />}
       <ExchangeLog networkId={d.network.id} nodes={d.nodes} coordinates={d.coordinates} named={d.members?.named.map((x) => ({ orgId: x.orgId, name: x.name })).filter((x, i, a) => a.findIndex((y) => y.orgId === x.orgId) === i) ?? []} />
       <Card>
         <CardHeader><CardTitle>Levels</CardTitle></CardHeader>
