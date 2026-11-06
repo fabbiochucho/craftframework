@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/cca/engine.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  ADDED_LATER, previousAssessment, reassessmentsDue, unexplainedMisses, availableReports, rollup, awardReadiness, cascade, dashboard, domainScore, effectiveNotAssessed, entryCost, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
+  ADDED_LATER, consensusGaps, resolveConsensus, availableReports, rollup, awardReadiness, cascade, dashboard, domainScore, effectiveNotAssessed, entryCost, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview, previousAssessment, reassessmentsDue, unexplainedMisses,
   resolveVotes, swotSeed, voteSpread, type CcaModule, type Domain, type Responses,
 } from './engine.ts'
 
@@ -108,6 +108,10 @@ assert.deepEqual(ru.byRegion.map((g) => [g.region, g.places, g.areas.map((a) => 
 assert.deepEqual([ru.overall!.places, ru.overall!.areas.map((a) => a.average), ru.overall!.level], [3, [3.33, 2.5], 'Expanding'])
 assert.deepEqual(rollup([]), { byRegion: [], overall: null })
 
+// Facilitated scoring (Approach II): the agreed score stands only as far as the evidence supports it.
+assert.deepEqual(resolveConsensus(3, 4), { final: 3, steppedDown: false })
+assert.deepEqual(resolveConsensus(4, 2), { final: 2, steppedDown: true })
+assert.deepEqual(consensusGaps({ A1: { agreed: 4, note: '' }, A2: { agreed: 4, note: 'Minutes not yet signed' }, B1: { agreed: 1, note: '' } }, (id) => (id === 'B1' ? 2 : 2)), ['A1'])
 // 12-month reassessment: the previous assessment for the same module and place; due a year after completion.
 const ref = (id: string, year: number, status: string, completedAt: string | null, extra = {}) => ({ id, module: 'community', year, awardRef: '', region: '', district: '', status, completedAt, ...extra })
 const hist = [ref('a24', 2024, 'complete', '2024-06-01T00:00:00Z'), ref('a25', 2025, 'complete', '2025-06-01T00:00:00Z'), ref('k25', 2025, 'complete', '2025-01-01T00:00:00Z', { region: 'Kano' })]
