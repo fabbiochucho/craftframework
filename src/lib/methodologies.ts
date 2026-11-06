@@ -104,3 +104,13 @@ export function methodologyConclusion(m: Methodology, scores: { domain: string; 
   if (idx === 0 && weakKeyDomains.length) idx = 1
   return { percent, conclusion: m.conclusions[idx], scoredDomains: byDomain.size, missingDomains: Object.keys(m.weights).filter((d) => !byDomain.has(d)), weakKeyDomains }
 }
+
+export type ReportIndicator = { final: number | null; self?: number | null; sufficiency?: string | null; comment?: string; qualifications?: string[] }
+
+/**
+ * The findings for an engagement report: indicators where the validator wrote a finding, the evidence fell short,
+ * the final score is below the self-assessment, or a qualification names the indicator.
+ */
+export function reportFindings<T extends ReportIndicator>(rows: T[]): T[] {
+  return rows.filter((i) => !!i.comment?.trim() || (!!i.sufficiency && i.sufficiency !== 'sufficient') || (i.final != null && i.self != null && i.final < i.self) || !!i.qualifications?.length)
+}
