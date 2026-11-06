@@ -2338,6 +2338,7 @@ export const ccaAssessments = pgTable('cca_assessments', {
   plan: jsonb('plan').$type<{ domainId: string; costs?: number; lines?: Record<string, number>; timeline?: string; responsible?: string }[]>().notNull().default([]),
   notAssessed: jsonb('not_assessed').$type<Record<string, string>>().notNull().default({}), // domain id -> reason
   domainIds: jsonb('domain_ids').$type<string[]>(), // domains covered, set at completion
+  planReviewNotes: jsonb('plan_review_notes').$type<Record<string, string>>().notNull().default({}), // missed plan target -> explanation
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

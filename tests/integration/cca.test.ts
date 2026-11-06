@@ -106,4 +106,21 @@ describe('CRAFT Capacity Assessment API', () => {
     assert.equal((await call(ALICE, 'POST', `/${id}/complete`)).status, 200)
     assert.equal((await call(ALICE, 'GET', `/${id}`)).body.assessment.consensus.g2.agreed, 1, 'entries merge across saves')
   })
+
+  it('a reassessment completes only once every missed target from last year’s plan is explained', async () => {
+    publish()
+    const y1 = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2025 })).body.id
+    assert.equal((await call(ALICE, 'PUT', `/${y1}`, { responses: { 'g1.2': ok } })).status, 200) // plan: g1 2→3, g2 1→2, g3 1→2
+    assert.equal((await call(ALICE, 'POST', `/${y1}/complete`)).status, 200, 'first year: nothing to review')
+    const y2 = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
+    assert.equal((await call(ALICE, 'PUT', `/${y2}`, { responses: { 'g1.2': ok, 'g2.2': ok } })).status, 200) // g2 reached; g1 and g3 missed
+    const blocked = await call(ALICE, 'POST', `/${y2}/complete`)
+    assert.deepEqual([blocked.status, blocked.body.missing.sort()], [400, ['g1', 'g3']])
+    assert.equal((await call(ALICE, 'PUT', `/${y2}`, { planReviewNotes: { g1: 'Auditor contract delayed to Q1', g3: 'x' } })).status, 200)
+    assert.deepEqual((await call(ALICE, 'POST', `/${y2}/complete`)).body.missing, ['g3'], 'a two-letter note is not an explanation')
+    assert.equal((await call(ALICE, 'PUT', `/${y2}`, { planReviewNotes: { g1: 'Auditor contract delayed to Q1', g3: 'No volunteers recruited; budget moved to outreach' } })).status, 200)
+    assert.equal((await call(ALICE, 'POST', `/${y2}/complete`)).status, 200)
+    const saved = (await call(ALICE, 'GET', `/${y2}`)).body.assessment
+    assert.equal(saved.planReviewNotes.g3, 'No volunteers recruited; budget moved to outreach')
+  })
 })
