@@ -1,6 +1,6 @@
 // Self-check — run directly with `node src/lib/awards.test.ts`.
 import assert from 'node:assert/strict'
-import { closingStatus, funderView, repeatedTypes, trackRecord, type Award, type Issue } from './awards.ts'
+import { closingStatus, funderView, repeatedTypes, trackRecord, type Award, type Issue, awardStage, latestRated } from './awards.ts'
 
 const issue = (id: string, o: Partial<Issue> = {}): Issue => ({
   id, orgId: 'org_a', awardId: 'aw1', source: 'audit', type: 'financial', title: `Issue ${id}`, verified: true, orgResponse: 'We fixed it',
@@ -44,4 +44,14 @@ assert.equal(funderView('new@funder-three.example', 'org_b', awards, issues, [{ 
 
 assert.deepEqual(repeatedTypes(issues.filter((i) => i.orgId === 'org_a')), ['financial'], 'financial issues on two different awards')
 
+// Lifecycle stage and rating for the funder's portfolio.
+const st = (module: string, status: string, createdAt: string, completedAt: string | null = null) => ({ module, year: 2026, status, createdAt, completedAt })
+assert.equal(awardStage('active', []), 'during_award')
+assert.equal(awardStage('closed', []), 'post_award')
+assert.equal(awardStage('active', [st('pre_award', 'complete', '2026-01-01', '2026-01-10'), st('during_award', 'draft', '2026-06-01')]), 'during_award', 'latest started stage')
+assert.equal(awardStage('active', [st('community', 'complete', '2026-09-01')]), 'during_award', 'capacity modules do not set the stage')
+assert.equal(awardStage('closed', [st('pre_award', 'complete', '2026-01-01', '2026-01-10')]), 'post_award', 'closed is always post-award')
+assert.equal(awardStage('active', [st('pre_award', 'draft', '2026-01-01')]), 'pre_award')
+assert.equal(latestRated([st('pre_award', 'complete', '2026-01-01', '2026-01-10'), st('during_award', 'draft', '2026-06-01')])?.module, 'pre_award', 'drafts carry no rating')
+assert.equal(latestRated([]), null)
 console.log('awards.test.ts: all assertions passed')
