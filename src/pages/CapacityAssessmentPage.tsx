@@ -15,6 +15,7 @@ import {
 import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
 import { ScreeningCard } from '../components/ScreeningCard'
 import { QuickScreenCard } from '../components/QuickScreenCard'
+import { ASSESSMENT_SCRIPT, ORIENTATION_AGENDA } from '../lib/cca/facilitatorGuide'
 import { DeskReviewPanel, deskRequirements, useDeskReview } from '../components/DeskReviewPanel'
 import { documentsForDomain, STATUS_META } from '../lib/dataroom'
 
@@ -71,8 +72,12 @@ export function CapacityAssessmentPage() {
         <button type="button" onClick={() => { setModuleId('desk'); setOpenId(null) }}
           className={cn('rounded-full border px-3 py-1 text-xs font-semibold', moduleId === 'desk' ? 'border-sky-700 bg-sky-700 text-white' : 'border-sky-200 bg-white text-sky-800 hover:border-sky-400')}
           title="Documents, custodians, due dates and the fieldwork log">Desk review</button>
+        <button type="button" onClick={() => { setModuleId('guide'); setOpenId(null) }}
+          className={cn('rounded-full border px-3 py-1 text-xs font-semibold', moduleId === 'guide' ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-500')}
+          title="Orientation agenda and assessment script">Facilitator guide</button>
       </div>
-      {moduleId === 'desk' ? (orgId ? <DeskReviewPanel orgId={orgId} modules={modules ?? []} /> : null)
+      {moduleId === 'guide' ? <FacilitatorGuide />
+        : moduleId === 'desk' ? (orgId ? <DeskReviewPanel orgId={orgId} modules={modules ?? []} /> : null)
         : !modules ? <p className="text-sm text-slate-500">{error ? '' : 'Loading…'}</p>
         : !mod ? <Card><CardContent className="py-8 text-sm text-slate-600">The {CCA_MODULES.find((m) => m.id === moduleId)?.name} module is being prepared and will be available soon.</CardContent></Card>
         : open ? <AssessmentView key={open.id} a={open} mod={mod} history={mine.filter((x) => placeLabel(x) === placeLabel(open))} onBack={() => setOpenId(null)} onChanged={load} />
@@ -294,6 +299,34 @@ function ConsensusRow({ name, evidenced, value, locked, onChange }: {
               className={cn('w-64 rounded border px-2 py-0.5', value.note.trim().length < 3 ? 'border-amber-400' : 'border-slate-300')}
               onChange={(e) => onChange({ ...value, note: e.target.value })} /></>
         : <span>Agreed score stands: <b>{r.final}</b></span>)}
+    </div>
+  )
+}
+
+/** Facilitator orientation agenda and the script for each assessment session. */
+function FacilitatorGuide() {
+  const total = ORIENTATION_AGENDA.reduce((t, x) => t + x.minutes, 0)
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader><CardTitle>Orientation agenda</CardTitle><p className="text-sm text-slate-500">For facilitators and the organisation’s team before the first session: about {Math.round(total / 60 * 10) / 10} hours.</p></CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {ORIENTATION_AGENDA.map((x) => (
+            <div key={x.title}><p className="font-medium text-slate-900">{x.title} <span className="text-xs font-normal text-slate-500">({x.minutes} min)</span></p>
+              <ul className="list-disc pl-5 text-slate-700">{x.points.map((p) => <li key={p}>{p}</li>)}</ul></div>
+          ))}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle>Assessment script</CardTitle><p className="text-sm text-slate-500">What to say and do in each session.</p></CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {ASSESSMENT_SCRIPT.map((x) => (
+            <div key={x.title}><p className="font-medium text-slate-900">{x.title}</p>
+              <p className="mt-1 rounded bg-slate-50 p-2 italic text-slate-700">“{x.say}”</p>
+              <ul className="mt-1 list-disc pl-5 text-slate-700">{x.do.map((p) => <li key={p}>{p}</li>)}</ul></div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   )
 }
