@@ -80,3 +80,23 @@ export function repeatedTypes(issues: Issue[]): string[] {
   for (const i of issues) if (i.verified && i.awardId) awardsByType.set(i.type, (awardsByType.get(i.type) ?? new Set()).add(i.awardId))
   return [...awardsByType].filter(([, a]) => a.size >= 2).map(([t]) => t).sort()
 }
+
+// ---------------------------------------------------------------- Lifecycle stage for the funder's portfolio
+export const STAGE_LABEL = { pre_award: 'Pre-award', during_award: 'During award', post_award: 'Post-award' } as const
+export type Stage = keyof typeof STAGE_LABEL
+type StageAssessment = { module: string; year: number; status: string; completedAt: string | null; createdAt: string }
+
+/**
+ * Where an award is in its lifecycle. A closed award is post-award. An active award is at the stage of its most recent
+ * grant-stage assessment (started or completed), or during award when none has started.
+ */
+export function awardStage(status: AwardStatus, assessments: StageAssessment[]): Stage {
+  if (status !== 'active') return 'post_award'
+  const graded = assessments.filter((a) => a.module in STAGE_LABEL).sort((x, y) => y.createdAt.localeCompare(x.createdAt))
+  return (graded[0]?.module as Stage | undefined) ?? 'during_award'
+}
+
+/** The latest completed grant-stage assessment, which carries the award's rating. */
+export function latestRated<T extends StageAssessment>(assessments: T[]): T | null {
+  return assessments.filter((a) => a.module in STAGE_LABEL && a.status === 'complete' && a.completedAt).sort((x, y) => y.completedAt!.localeCompare(x.completedAt!))[0] ?? null
+}

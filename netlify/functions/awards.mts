@@ -1,15 +1,17 @@
 import type { Config } from '@netlify/functions'
 import { randomUUID } from 'node:crypto'
+import { getStore } from '@netlify/blobs'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { auditLogs, awardMeasures, awards, issueShares, orgIssues, organizations } from '../../db/schema.js'
+import { auditLogs, awardMeasures, awards, ccaAssessments, issueShares, orgIssues, organizations } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import {
-  closingStatus, funderView, ISSUE_SOURCES, ISSUE_TYPES, MEASURE_KINDS, repeatedTypes, trackRecord, type Issue,
+  awardStage, closingStatus, funderView, ISSUE_SOURCES, ISSUE_TYPES, latestRated, MEASURE_KINDS, repeatedTypes, trackRecord, type AwardStatus, type Issue,
 } from '../../src/lib/awards.js'
 import { FUNDING_MODALITIES } from '../../src/lib/data.js'
+import { awardReadiness, dashboard, effectiveNotAssessed, READINESS_LABEL, type CcaModule } from '../../src/lib/cca/engine.js'
 
 // /api/awards — grants and contracts, funder measures, the organisation's issue register and consented sharing.
 //   GET    ?orgId=                         organisation members: awards, measures, issues, shares, track record
@@ -95,12 +97,19 @@ const handleRequest = async (req: Request) => {
         mine.length ? db.select().from(awardMeasures).where(inArray(awardMeasures.awardId, mine.map((x) => x.id))) : [],
       ])
       const allAwards = await db.select().from(awards).where(inArray(awards.orgId, orgIds))
+      // Grant-stage assessments on the funder's own awards: the stage and the latest completed rating.
+      const stageRows = mine.length ? await db.select().from(ccaAssessments).where(inArray(ccaAssessments.awardRef, mine.map((x) => x.id))) : []
+      const modules = stageRows.length ? (await getStore('cca-private').get('modules', { type: 'json' }) as CcaModule[] | null) ?? [] : []
       const shares = shared.map((s) => ({ orgId: s.orgId, viewerEmail: s.viewerEmail, level: s.level as 'summary' | 'full' }))
       return json({
         organisations: orgIds.map((orgId) => {
           const v = funderView(me, orgId, allAwards.map((x) => ({ id: x.id, orgId: x.orgId, funderEmail: x.funderEmail, status: x.status })), issues.map(toIssue), shares)
           const own = mine.filter((x) => x.orgId === orgId)
-          return { orgId, name: orgs.find((o) => o.id === orgId)?.name ?? orgId, awards: own, measures: measures.filter((m) => own.some((x) => x.id === m.awardId)), ownAwardIssues: v.ownAwardIssues, shared: v.shared }
+          const withStage = own.map((x) => {
+            const as = stageRows.filter((r) => r.awardRef === x.id).map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), completedAt: r.completedAt?.toISOString() ?? null }))
+            return { ...x, stage: awardStage(x.status as AwardStatus, as), rating: ratingOf(latestRated(as), modules) }
+          })
+          return { orgId, name: orgs.find((o) => o.id === orgId)?.name ?? orgId, awards: withStage, measures: measures.filter((m) => own.some((x) => x.id === m.awardId)), ownAwardIssues: v.ownAwardIssues, shared: v.shared }
         }),
       })
     }
@@ -216,3 +225,11 @@ const handleRequest = async (req: Request) => {
 export const config: Config = { path: ['/api/awards', '/api/awards/*'] }
 
 export default monitored(handleRequest)
+
+/** An award's rating from its latest completed grant-stage assessment: growth level and percentage, plus readiness for a Pre-Award. */
+function ratingOf(a: (Pick<typeof ccaAssessments.$inferSelect, 'module' | 'year' | 'responses' | 'notAssessed' | 'domainIds'> & { completedAt: string | null }) | null, modules: CcaModule[]) {
+  const mod = a && modules.find((m) => m.id === a.module)
+  if (!a || !mod) return null
+  const d = dashboard(mod, a.responses, effectiveNotAssessed(mod, a.notAssessed, a.domainIds))
+  return { module: a.module, year: a.year, completedAt: a.completedAt, level: d.level, percent: d.percent, readiness: a.module === 'pre_award' ? READINESS_LABEL[awardReadiness(mod, a.responses).rating] : null }
+}

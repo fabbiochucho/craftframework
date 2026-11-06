@@ -1,6 +1,6 @@
 // Self-check — run directly with `node src/lib/methodologies.test.ts`.
 import assert from 'node:assert/strict'
-import { METHODOLOGIES, methodologyById, methodologyConclusion } from './methodologies.ts'
+import { METHODOLOGIES, methodologyById, methodologyConclusion, reportFindings } from './methodologies.ts'
 import { LADDER_INDICATORS } from './capitalReadiness.ts'
 import { MASTER_COMPLIANCE_MATRIX } from './dataroom.ts'
 
@@ -29,4 +29,7 @@ assert.deepEqual([partial.percent, partial.scoredDomains], [80, 1])
 assert.ok(partial.missingDomains.includes('Auditable Financial Records'))
 assert.equal(methodologyConclusion(g2g, []).conclusion, 'Not yet ready')
 assert.equal(methodologyById('nope'), undefined)
+// Report findings: a written finding, short evidence, a score below the self-assessment, or a qualification.
+const ind = (id: string, x: object) => ({ id, final: 3, self: 3, sufficiency: 'sufficient', comment: '', qualifications: [] as string[], ...x })
+assert.deepEqual(reportFindings([ind('a', {}), ind('b', { comment: 'Minutes unsigned' }), ind('c', { sufficiency: 'partial' }), ind('d', { final: 2 }), ind('e', { qualifications: ['Q1'] }), ind('f', { final: 4 })]).map((x) => x.id), ['b', 'c', 'd', 'e'])
 console.log('methodologies.test.ts: all assertions passed')

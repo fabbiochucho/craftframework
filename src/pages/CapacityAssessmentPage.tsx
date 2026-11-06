@@ -9,7 +9,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs }
 import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
-  availableReports, awardReadiness, cascade, rollup, weakestDomains, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
+  availableReports, awardReadiness, cascade, rollup, weakestDomains, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed, resolveConsensus, planReview, previousAssessment, reassessmentsDue, unexplainedMisses,
   type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
@@ -20,7 +20,7 @@ import { documentsForDomain, STATUS_META } from '../lib/dataroom'
 
 type Assessment = {
   id: string; orgId: string; module: string; year: number; awardRef: string; region: string; district: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
-  responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
+  responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; planReviewNotes: Record<string, string>; votes: Record<string, number[]>; consensus: Record<string, { agreed: number; note: string }>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
 }
 
 async function api<T>(path: string, init?: { method: string; body?: unknown }): Promise<T> {
@@ -134,6 +134,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
           )}
         </CardContent>
       </Card>
+      <ReassessmentDue mod={mod} items={items} />
       {gov && <ByPlace mod={mod} items={items} />}
       {mod.id === 'pre_award' && <QuickScreenCard orgId={orgId} awards={awards} />}
     </div>
@@ -232,12 +233,79 @@ function Factsheet({ mod, group, places, onClose }: { mod: CcaModule; group: Ret
   )
 }
 
+/** Banner when a module and place were last assessed a year or more ago and no new assessment has started. */
+function ReassessmentDue({ mod, items }: { mod: CcaModule; items: Assessment[] }) {
+  const due = reassessmentsDue(items, new Date().toISOString().slice(0, 10))
+  if (!due.length) return null
+  return (
+    <Card className="border-amber-300 lg:col-span-2">
+      <CardContent className="space-y-1 py-4 text-sm text-amber-900">
+        <p className="font-semibold">Reassessment due</p>
+        {due.map(({ last, dueOn }) => <p key={last.id}>{mod.name}{placeLabel(last) && ` · ${placeLabel(last)}`}: last completed for {last.year}; due since {dueOn}. Start the {last.year + 1} assessment. You will review progress on the {last.year} improvement plan as part of it.</p>)}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Last year's improvement plan against this assessment's scores; every missed target needs an explanation to complete. */
+function LastYearPlan({ a, mod, history, current, notes, setNotes, locked, onSave }: {
+  a: Assessment; mod: CcaModule; history: Assessment[]; current: ReturnType<typeof dashboard>
+  notes: Record<string, string>; setNotes: (n: Record<string, string>) => void; locked: boolean; onSave: () => void
+}) {
+  const prev = previousAssessment(history, a)
+  if (!prev) return null
+  const rows = improvementPlan(mod, prev.responses, prev.plan, skips(mod, prev)).rows
+  const review = planReview(rows, current)
+  const names = new Map(mod.areas.flatMap((x) => x.domains.map((dd) => [dd.id, dd.name] as const)))
+  const open = unexplainedMisses(review, notes)
+  return (
+    <Card className="mb-4">
+      <CardHeader><CardTitle>Progress on the {prev.year} improvement plan</CardTitle>
+        <p className="text-sm text-slate-500">{review.filter((r) => r.met).length} of {review.length} targets reached. Explain each target not reached before completing this assessment.</p></CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        {review.map((r) => (
+          <div key={r.domainId} className="grid gap-2 sm:grid-cols-[1fr_10rem_2fr] sm:items-center">
+            <span>{names.get(r.domainId) ?? r.domainId}</span>
+            <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', r.met ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800')}>{r.met ? 'Reached' : 'Not reached'}: {r.reached} of {r.envisioned}</span>
+            {!r.met && <Input aria-label={`Why the target for ${names.get(r.domainId)} was not reached`} placeholder="Why it was not reached" value={notes[r.domainId] ?? ''} disabled={locked} onChange={(e) => setNotes({ ...notes, [r.domainId]: e.target.value })} />}
+          </div>
+        ))}
+        {!locked && <div className="flex items-center gap-3"><Button size="sm" variant="outline" onClick={onSave}>Save</Button>{open.length > 0 && <span className="text-xs text-amber-700">{open.length} still to explain.</span>}</div>}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Approach II for one domain: the score the group agreed, checked against the evidence, with a note when they differ. */
+function ConsensusRow({ name, evidenced, value, locked, onChange }: {
+  name: string; evidenced: Score; value?: { agreed: number; note: string }; locked: boolean; onChange: (c: { agreed: number; note: string } | null) => void
+}) {
+  const r = value ? resolveConsensus(value.agreed as Score, evidenced) : null
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+      <span>Group consensus (1–4):</span>
+      <select aria-label={`Score the group agreed for ${name}`} className="rounded border border-slate-300 px-1 py-0.5" disabled={locked} value={value?.agreed ?? ''}
+        onChange={(e) => onChange(e.target.value ? { agreed: Number(e.target.value), note: value?.note ?? '' } : null)}>
+        <option value="">Not used</option>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}</option>)}
+      </select>
+      {r && value && (r.steppedDown
+        ? <><span className="text-amber-700">The evidence supports {r.final}, not {value.agreed}.</span>
+            <input aria-label={`Why the group agreed a higher score for ${name}`} placeholder="Why the group differed" disabled={locked} value={value.note}
+              className={cn('w-64 rounded border px-2 py-0.5', value.note.trim().length < 3 ? 'border-amber-400' : 'border-slate-300')}
+              onChange={(e) => onChange({ ...value, note: e.target.value })} /></>
+        : <span>Agreed score stands: <b>{r.final}</b></span>)}
+    </div>
+  )
+}
+
 function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
   const currentOrgName = useWorkspace().currentOrg?.name ?? ''
   const [responses, setResponses] = useState<Responses>(a.responses)
   const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => skips(mod, a))
   const [votes, setVotes] = useState<Record<string, number[]>>(a.votes)
+  const [consensus, setConsensus] = useState<Record<string, { agreed: number; note: string }>>(a.consensus ?? {})
   const [plan, setPlan] = useState<PlanEntry[]>(a.plan)
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>(a.planReviewNotes ?? {})
   const [swot, setSwot] = useState<Swot>(() => {
     const seed = swotSeed(dashboard(mod, a.responses, skips(mod, a)))
     return { strengths: a.swot.strengths ?? seed.strengths, weaknesses: a.swot.weaknesses ?? seed.weaknesses, opportunities: a.swot.opportunities ?? [], threats: a.swot.threats ?? [] }
@@ -254,7 +322,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
   const canSkip = !isAwardModule(mod.id)
 
   const save = async (extra: Record<string, unknown> = {}) => {
-    try { await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, plan, swot, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } }); setMessage('Saved.'); onChanged() } catch (e) { setMessage((e as Error).message) }
+    try { await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, consensus, plan, swot, planReviewNotes: reviewNotes, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } }); setMessage('Saved.'); onChanged() } catch (e) { setMessage((e as Error).message) }
   }
   const complete = async () => {
     await save()
@@ -332,6 +400,8 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
                           onBlur={(e) => setVotes({ ...votes, [dom.id]: e.target.value.split(/[ ,]+/).map(Number).filter((n) => n >= 1 && n <= 4) })} />
                         {v.length > 0 && <span>Highest vote the evidence supports: <b>{resolveVotes(v, score)}</b></span>}
                       </div>}
+                      {!skipped && <ConsensusRow name={dom.name} evidenced={score} value={consensus[dom.id]} locked={locked}
+                        onChange={(c) => { const { [dom.id]: _, ...rest } = consensus; setConsensus(c ? { ...consensus, [dom.id]: c } : rest) }} />}
                     </div>
                   )
                 })}
@@ -343,6 +413,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
 
       {tab === 'dashboard' && <DashboardView d={d} mod={mod} responses={responses} />}
 
+      {tab === 'plan' && <LastYearPlan a={a} mod={mod} history={history} current={d} notes={reviewNotes} setNotes={setReviewNotes} locked={locked} onSave={() => void save()} />}
       {tab === 'plan' && <PlanView mod={mod} responses={responses} notAssessed={notAssessed} plan={plan} setPlan={setPlan} locked={locked} onSave={() => void save()} />}
 
       {tab === 'swot' && (

@@ -5,7 +5,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select 
 import { METHOD_LABEL, METHODS, OUTCOME_LABEL, OUTCOMES, SUFFICIENCY, type Method, type Outcome } from '../lib/validationReview'
 import { CHECK_LABEL, CHECK_VALUES, CONTROL_CHECKS, isComplete, scoreCap, scoreProblem, type CheckValue, type ControlChecks, type ScoreResult } from '../lib/controlChecks'
 import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
-import { methodologyById, methodologyConclusion } from '../lib/methodologies'
+import { methodologyById, methodologyConclusion, reportFindings } from '../lib/methodologies'
 import { scopeText, type EngagementScope } from '../lib/engagements'
 
 // Validator system PR 3: the review itself. Every rule (who may score, when the
@@ -394,7 +394,13 @@ function Frozen({ v }: { v: View }) {
 function EngagementReport({ s }: { s: any }) {
   const scope = (s.scope ?? { kind: 'whole' }) as EngagementScope
   const m = methodologyById(scope.methodology)
-  const rows = (s.indicators ?? []) as Array<{ id: string; domain: string; final: number | null; paperCap?: unknown; evidence?: unknown[] }>
+  const rows = (s.indicators ?? []) as Array<{
+    id: string; domain: string; final: number | null; self?: number | null; paperCap?: unknown; evidence?: unknown[]
+    sufficiency?: string | null; comment?: string; orgResponse?: string; qualifications?: string[]
+  }>
+  // A finding: the validator wrote one, the evidence fell short, the final score is below the self-assessment, or a
+  // qualification names the indicator. Each comes with the organisation's debrief response (its management response).
+  const findings = reportFindings(rows)
   const result = m ? methodologyConclusion(m, rows.map((i) => ({ domain: i.domain, final: i.final }))) : null
   const unscored = rows.filter((i) => i.final == null)
   const capped = rows.filter((i) => i.paperCap)
@@ -419,8 +425,22 @@ function EngagementReport({ s }: { s: any }) {
             {result && result.missingDomains.length > 0 && <li>Methodology domains not covered by this scope: {result.missingDomains.join(', ')}.</li>}
             {s.qualifications.length > 0 && <li>{s.qualifications.length} qualification(s) form part of the conclusion (below).</li>}
           </ul></div>
-        <div><p className="font-medium text-slate-900">Findings, risk profile, management response and corrective action plan</p>
-          <p>Recorded on the organisation’s corrective action plan with criteria, condition, cause, consequence, inherent and residual risk and the management response: <Link to="/cip" className="text-emerald-700 underline">Capacity plan</Link>.</p></div>
+        <div><p className="font-medium text-slate-900">Findings and management response</p>
+          {findings.length === 0 ? <p>No findings: every indicator in scope met the self-assessed score with sufficient evidence.</p> : (
+            <table className="mt-1 w-full text-left text-xs">
+              <thead><tr className="text-slate-500"><th className="py-1 pr-2">Indicator</th><th className="pr-2">Self → final</th><th className="pr-2">Evidence</th><th className="pr-2">Finding</th><th>Management response</th></tr></thead>
+              <tbody>{findings.map((i) => (
+                <tr key={i.id} className="border-t border-slate-100 align-top">
+                  <td className="py-1 pr-2"><span className="font-mono">{i.id}</span> {i.domain}</td>
+                  <td className="pr-2 tabular-nums">{i.self ?? '—'} → {i.final ?? '—'}</td>
+                  <td className="pr-2">{i.sufficiency ? SUFF_LABEL[i.sufficiency] ?? i.sufficiency : '—'}</td>
+                  <td className="pr-2">{i.comment || '—'}{i.qualifications?.length ? <span className="block text-slate-500">Qualification: {i.qualifications.join('; ')}</span> : null}</td>
+                  <td>{i.orgResponse || <span className="text-slate-400">No response recorded</span>}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          )}
+          <p className="mt-1 text-xs text-slate-500">Taken from the frozen record. Improvement actions answering the qualifications are tracked on <Link to="/validations" className="text-emerald-700 underline">Validations</Link>; organisation-wide findings with cause, consequence and inherent and residual risk are on the <Link to="/cip" className="text-emerald-700 underline">capacity plan</Link>.</p></div>
         <div><p className="font-medium text-slate-900">Evidence register</p>
           <p>{linked ? `${linked} evidence item(s) linked to indicators (listed under Scores).` : 'No evidence was linked to indicators.'}</p></div>
       </CardContent>

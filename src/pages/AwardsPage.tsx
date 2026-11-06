@@ -6,7 +6,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs }
 import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
-  AWARD_STATUS_LABEL, ISSUE_SOURCES, ISSUE_TYPES, MEASURE_KINDS, MEASURE_LABEL, SOURCE_LABEL, type AwardStatus, type TrackRecord,
+  AWARD_STATUS_LABEL, ISSUE_SOURCES, ISSUE_TYPES, MEASURE_KINDS, MEASURE_LABEL, SOURCE_LABEL, STAGE_LABEL, type AwardStatus, type Stage, type TrackRecord,
 } from '../lib/awards'
 import { FUNDING_MODALITIES } from '../lib/data'
 import { MilestonesCard } from '../components/MilestonesCard'
@@ -200,7 +200,8 @@ function SharingTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) 
   )
 }
 
-type FunderOrg = { orgId: string; name: string; awards: Award[]; measures: Measure[]; ownAwardIssues: IssueRow[]; shared: { level: string; trackRecord: TrackRecord; issues: IssueRow[] } | null }
+type Rating = { module: string; year: number; level: string; percent: number; readiness: string | null } | null
+type FunderOrg = { orgId: string; name: string; awards: (Award & { stage: Stage; rating: Rating })[]; measures: Measure[]; ownAwardIssues: IssueRow[]; shared: { level: string; trackRecord: TrackRecord; issues: IssueRow[] } | null }
 
 function FunderView() {
   const [orgs, setOrgs] = useState<FunderOrg[] | null>(null)
@@ -217,7 +218,11 @@ function FunderView() {
           <CardContent className="space-y-3 text-sm">
             {o.awards.length > 0 && <div className="space-y-3"><p className="font-medium">Your awards</p>{o.awards.map((a) => (
               <div key={a.id} className="rounded-lg border border-slate-200 p-3">
-                <p>{a.title} · {AWARD_STATUS_LABEL[a.status]} · {o.ownAwardIssues.filter((i) => i.awardId === a.id && i.status === 'open').length} open issue(s) · {o.measures.filter((m) => m.awardId === a.id && m.status === 'active').length} active measure(s)</p>
+                <p className="flex flex-wrap items-center gap-2"><b>{a.title}</b>
+                  <span className="rounded bg-sky-100 px-1.5 text-xs font-semibold text-sky-800">{STAGE_LABEL[a.stage]}</span>
+                  {a.rating ? <span className="rounded bg-emerald-50 px-1.5 text-xs text-emerald-900">{STAGE_LABEL[a.rating.module as Stage]} {a.rating.year}: {a.rating.level}, {a.rating.percent}%{a.rating.readiness && ` · ${a.rating.readiness}`}</span>
+                    : <span className="text-xs text-slate-500">No completed grant-stage assessment yet</span>}</p>
+                <p>{AWARD_STATUS_LABEL[a.status]} · {o.ownAwardIssues.filter((i) => i.awardId === a.id && i.status === 'open').length} open issue(s) · {o.measures.filter((m) => m.awardId === a.id && m.status === 'active').length} active measure(s)</p>
                 <MilestonesCard awardId={a.id} asFunder />
               </div>))}</div>}
             {o.shared ? (
