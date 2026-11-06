@@ -112,6 +112,9 @@ input[type="range"]::-moz-range-thumb {
 @media print {
   .no-print { display: none !important; }
   body { background: white; }
+  /* An open factsheet (rendered into <body>) prints on its own. */
+  body:has(.factsheet-print) > *:not(.factsheet-print) { display: none !important; }
+  .factsheet-print { position: static !important; overflow: visible !important; }
 }
 
 /* Smooth line-clamp */

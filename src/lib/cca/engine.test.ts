@@ -1,7 +1,7 @@
 // Self-check — run directly with `node src/lib/cca/engine.test.ts`.
 import assert from 'node:assert/strict'
 import {
-  ADDED_LATER, availableReports, rollup, awardReadiness, cascade, dashboard, domainScore, effectiveNotAssessed, entryCost, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
+  ADDED_LATER, availableReports, rollup, weakestDomains, awardReadiness, cascade, dashboard, domainScore, effectiveNotAssessed, entryCost, growthLevel, improvementPlan, nextLevelGaps, percentOfMax, planReview,
   resolveVotes, swotSeed, voteSpread, type CcaModule, type Domain, type Responses,
 } from './engine.ts'
 
@@ -107,5 +107,7 @@ const ru = rollup([placeA, placeB, placeC])
 assert.deepEqual(ru.byRegion.map((g) => [g.region, g.places, g.areas.map((a) => a.average), g.average]), [['Kano', 2, [3.5, 2.5], 3], ['Lagos', 1, [3, 0], 3]])
 assert.deepEqual([ru.overall!.places, ru.overall!.areas.map((a) => a.average), ru.overall!.level], [3, [3.33, 2.5], 'Expanding'])
 assert.deepEqual(rollup([]), { byRegion: [], overall: null })
+// Factsheet: weakest domains across places, skipping domains a place did not assess.
+assert.deepEqual(weakestDomains([placeA.dashboard, placeB.dashboard, placeC.dashboard], 2).map((x) => [x.id, x.average, x.places]), [['B1', 2.5, 2], ['A2', 2.67, 3]])
 
 console.log('cca/engine.test.ts: all assertions passed')

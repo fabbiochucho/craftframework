@@ -289,3 +289,15 @@ export function rollup(places: PlaceResult[]): { byRegion: RollupGroup[]; overal
   const regions = [...new Set(places.map((p) => p.region))].sort()
   return { byRegion: regions.map((r) => combine(r, places.filter((p) => p.region === r))), overall: combine('', places) }
 }
+
+/** For a factsheet: the domains with the lowest average score across places (assessed places only), weakest first. */
+export function weakestDomains(dashboards: Dashboard[], n = 5): { id: string; name: string; average: number; places: number }[] {
+  const acc = new Map<string, { name: string; sum: number; count: number }>()
+  for (const d of dashboards) for (const a of d.areas) for (const dom of a.domains) {
+    if (!dom.assessed) continue
+    const x = acc.get(dom.id) ?? { name: dom.name, sum: 0, count: 0 }
+    x.sum += dom.score; x.count++; acc.set(dom.id, x)
+  }
+  return [...acc].map(([id, x]) => ({ id, name: x.name, average: round2(x.sum / x.count), places: x.count }))
+    .sort((p, q) => p.average - q.average || p.name.localeCompare(q.name)).slice(0, n)
+}
