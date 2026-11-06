@@ -8,7 +8,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs }
 import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
-  availableReports, awardReadiness, cascade, rollup, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
+  availableReports, awardReadiness, cascade, planReview, previousAssessment, reassessmentsDue, rollup, unexplainedMisses, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
   type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
@@ -19,7 +19,7 @@ import { documentsForDomain, STATUS_META } from '../lib/dataroom'
 
 type Assessment = {
   id: string; orgId: string; module: string; year: number; awardRef: string; region: string; district: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
-  responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
+  responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; planReviewNotes: Record<string, string>; votes: Record<string, number[]>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
 }
 
 async function api<T>(path: string, init?: { method: string; body?: unknown }): Promise<T> {
@@ -133,6 +133,7 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
           )}
         </CardContent>
       </Card>
+      <ReassessmentDue mod={mod} items={items} />
       {gov && <ByPlace mod={mod} items={items} />}
       {mod.id === 'pre_award' && <QuickScreenCard orgId={orgId} awards={awards} />}
     </div>
@@ -188,12 +189,56 @@ function RollupTable({ mod, groups }: { mod: CcaModule; groups: ReturnType<typeo
   )
 }
 
+/** Banner when a module and place were last assessed a year or more ago and no new assessment has started. */
+function ReassessmentDue({ mod, items }: { mod: CcaModule; items: Assessment[] }) {
+  const due = reassessmentsDue(items, new Date().toISOString().slice(0, 10))
+  if (!due.length) return null
+  return (
+    <Card className="border-amber-300 lg:col-span-2">
+      <CardContent className="space-y-1 py-4 text-sm text-amber-900">
+        <p className="font-semibold">Reassessment due</p>
+        {due.map(({ last, dueOn }) => <p key={last.id}>{mod.name}{placeLabel(last) && ` · ${placeLabel(last)}`}: last completed for {last.year}; due since {dueOn}. Start the {last.year + 1} assessment. You will review progress on the {last.year} improvement plan as part of it.</p>)}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Last year's improvement plan against this assessment's scores; every missed target needs an explanation to complete. */
+function LastYearPlan({ a, mod, history, current, notes, setNotes, locked, onSave }: {
+  a: Assessment; mod: CcaModule; history: Assessment[]; current: ReturnType<typeof dashboard>
+  notes: Record<string, string>; setNotes: (n: Record<string, string>) => void; locked: boolean; onSave: () => void
+}) {
+  const prev = previousAssessment(history, a)
+  if (!prev) return null
+  const rows = improvementPlan(mod, prev.responses, prev.plan, skips(mod, prev)).rows
+  const review = planReview(rows, current)
+  const names = new Map(mod.areas.flatMap((x) => x.domains.map((dd) => [dd.id, dd.name] as const)))
+  const open = unexplainedMisses(review, notes)
+  return (
+    <Card className="mb-4">
+      <CardHeader><CardTitle>Progress on the {prev.year} improvement plan</CardTitle>
+        <p className="text-sm text-slate-500">{review.filter((r) => r.met).length} of {review.length} targets reached. Explain each target not reached before completing this assessment.</p></CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        {review.map((r) => (
+          <div key={r.domainId} className="grid gap-2 sm:grid-cols-[1fr_10rem_2fr] sm:items-center">
+            <span>{names.get(r.domainId) ?? r.domainId}</span>
+            <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', r.met ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800')}>{r.met ? 'Reached' : 'Not reached'}: {r.reached} of {r.envisioned}</span>
+            {!r.met && <Input aria-label={`Why the target for ${names.get(r.domainId)} was not reached`} placeholder="Why it was not reached" value={notes[r.domainId] ?? ''} disabled={locked} onChange={(e) => setNotes({ ...notes, [r.domainId]: e.target.value })} />}
+          </div>
+        ))}
+        {!locked && <div className="flex items-center gap-3"><Button size="sm" variant="outline" onClick={onSave}>Save</Button>{open.length > 0 && <span className="text-xs text-amber-700">{open.length} still to explain.</span>}</div>}
+      </CardContent>
+    </Card>
+  )
+}
+
 function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
   const currentOrgName = useWorkspace().currentOrg?.name ?? ''
   const [responses, setResponses] = useState<Responses>(a.responses)
   const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => skips(mod, a))
   const [votes, setVotes] = useState<Record<string, number[]>>(a.votes)
   const [plan, setPlan] = useState<PlanEntry[]>(a.plan)
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>(a.planReviewNotes ?? {})
   const [swot, setSwot] = useState<Swot>(() => {
     const seed = swotSeed(dashboard(mod, a.responses, skips(mod, a)))
     return { strengths: a.swot.strengths ?? seed.strengths, weaknesses: a.swot.weaknesses ?? seed.weaknesses, opportunities: a.swot.opportunities ?? [], threats: a.swot.threats ?? [] }
@@ -210,7 +255,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
   const canSkip = !isAwardModule(mod.id)
 
   const save = async (extra: Record<string, unknown> = {}) => {
-    try { await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, plan, swot, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } }); setMessage('Saved.'); onChanged() } catch (e) { setMessage((e as Error).message) }
+    try { await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, plan, swot, planReviewNotes: reviewNotes, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } }); setMessage('Saved.'); onChanged() } catch (e) { setMessage((e as Error).message) }
   }
   const complete = async () => {
     await save()
@@ -299,6 +344,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
 
       {tab === 'dashboard' && <DashboardView d={d} mod={mod} responses={responses} />}
 
+      {tab === 'plan' && <LastYearPlan a={a} mod={mod} history={history} current={d} notes={reviewNotes} setNotes={setReviewNotes} locked={locked} onSave={() => void save()} />}
       {tab === 'plan' && <PlanView mod={mod} responses={responses} notAssessed={notAssessed} plan={plan} setPlan={setPlan} locked={locked} onSave={() => void save()} />}
 
       {tab === 'swot' && (
