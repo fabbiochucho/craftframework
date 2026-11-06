@@ -2,13 +2,14 @@
 // plan, capture the SWOT debrief, and read the yearly, mid-term and five-year reports. Scoring rules live in
 // src/lib/cca/engine.ts; the server stores only the responses.
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from '@tanstack/react-router'
 import { Line, LineChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs } from '../components/ui'
 import { useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
-  availableReports, awardReadiness, cascade, resolveConsensus, planReview, previousAssessment, reassessmentsDue, rollup, unexplainedMisses, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed,
+  availableReports, awardReadiness, cascade, rollup, weakestDomains, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed, resolveConsensus, planReview, previousAssessment, reassessmentsDue, unexplainedMisses,
   type CcaModule, type CostLines, type NotAssessed, type PlanEntry, type Responses, type Score, type Swot,
 } from '../lib/cca/engine'
 import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
@@ -162,29 +163,72 @@ function ByPlace({ mod, items }: { mod: CcaModule; items: Assessment[] }) {
             </tr>
           ))}</tbody>
         </table>
-        <RollupTable mod={mod} groups={groups} />
+        <RollupTable mod={mod} groups={groups} places={rows.map(({ place, a, d }) => ({ place, region: a.region || 'No region named', year: a.year, d }))} />
       </CardContent>
     </Card>
   )
 }
 
 /** Roll-up of the places above: per region (state) and for the whole body; areas count equally, places count equally. */
-function RollupTable({ mod, groups }: { mod: CcaModule; groups: ReturnType<typeof rollup>['byRegion'] }) {
+type PlaceRow = { place: string; region: string; year: number; d: ReturnType<typeof dashboard> }
+
+function RollupTable({ mod, groups, places }: { mod: CcaModule; groups: ReturnType<typeof rollup>['byRegion']; places: PlaceRow[] }) {
+  const [sheet, setSheet] = useState<string | null>(null)
   if (!groups.length) return null
+  const open = groups.find((g) => g.region === sheet)
   return (
     <div className="mt-4">
       <p className="text-sm font-medium text-slate-800">Roll-up</p>
       <p className="text-xs text-slate-500">Each area is the average of the places that assessed it; every place counts equally.</p>
       <table className="mt-1 w-full text-sm">
-        <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Region</th><th>Places</th>{mod.areas.map((x) => <th key={x.id} className="px-1">{x.name}</th>)}<th>Overall</th></tr></thead>
+        <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Region</th><th>Places</th>{mod.areas.map((x) => <th key={x.id} className="px-1">{x.name}</th>)}<th>Overall</th><th><span className="sr-only">Factsheet</span></th></tr></thead>
         <tbody>{groups.map((g) => (
           <tr key={g.region} className={cn('border-t border-slate-100', g.region === 'All places' && 'border-t-2 border-slate-300 font-semibold')}>
             <td className="py-1.5">{g.region}</td><td>{g.places}</td>
             {g.areas.map((x) => <td key={x.id} className="px-1 tabular-nums">{x.level === 'Not assessed' ? '–' : `${x.percent}%`}</td>)}
             <td><span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[g.level])}>{fmt(g)} {g.level}</span></td>
+            <td><Button size="sm" variant="ghost" onClick={() => setSheet(g.region)}>Factsheet</Button></td>
           </tr>
         ))}</tbody>
       </table>
+      {open && createPortal(
+        <Factsheet mod={mod} group={open} places={open.region === 'All places' ? places : places.filter((p) => p.region === open.region)} onClose={() => setSheet(null)} />,
+        document.body,
+      )}
+    </div>
+  )
+}
+
+/** A one-page, printable factsheet for a region (or all places): results by area, weakest domains and each place. */
+function Factsheet({ mod, group, places, onClose }: { mod: CcaModule; group: ReturnType<typeof rollup>['byRegion'][number]; places: PlaceRow[]; onClose: () => void }) {
+  const weak = weakestDomains(places.map((p) => p.d))
+  const years = [...new Set(places.map((p) => p.year))].sort()
+  return (
+    <div className="factsheet-print fixed inset-0 z-50 overflow-y-auto bg-white p-6 text-sm text-slate-800">
+      <div className="mx-auto max-w-3xl space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-slate-500">CRAFT Capacity Assessment factsheet</p>
+            <h2 className="font-display text-2xl font-bold text-emerald-900">{mod.name}: {group.region}</h2>
+            <p className="text-slate-600">{group.places} place(s) · assessment year(s) {years.join(', ')} · printed {new Date().toLocaleDateString()}</p>
+          </div>
+          <div className="flex gap-2 print:hidden"><Button size="sm" variant="outline" onClick={() => window.print()}>Print / Save as PDF</Button><Button size="sm" variant="ghost" onClick={onClose}>Close</Button></div>
+        </div>
+        <p className="text-base">Overall: <span className={cn('rounded px-2 py-0.5 font-semibold', LEVEL_STYLE[group.level])}>{group.level}</span> ({fmt(group)} of 4)</p>
+        <table className="w-full">
+          <thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Capacity area</th><th>% of maximum</th><th>Growth level</th></tr></thead>
+          <tbody>{group.areas.map((x) => (
+            <tr key={x.id} className="border-t border-slate-100"><td className="py-1">{x.name}</td><td>{x.level === 'Not assessed' ? '–' : `${x.percent}%`}</td><td>{x.level}</td></tr>
+          ))}</tbody>
+        </table>
+        {weak.length > 0 && <div><p className="font-semibold">Weakest domains across places</p>
+          <ol className="list-decimal pl-5">{weak.map((w) => <li key={w.id}>{w.name}: average {w.average.toFixed(2)} of 4 ({w.places} place{w.places === 1 ? '' : 's'})</li>)}</ol></div>}
+        <div><p className="font-semibold">Places</p>
+          <table className="w-full"><tbody>{places.map((p) => (
+            <tr key={p.place} className="border-t border-slate-100"><td className="py-1">{p.place || 'Whole body'}</td><td>{p.year}</td><td>{fmt(p.d)}</td><td>{p.d.level}</td></tr>
+          ))}</tbody></table></div>
+        <p className="text-xs text-slate-500">Each area is the average of the places that assessed it; every place counts equally. Scores count only evidence that was seen.</p>
+      </div>
     </div>
   )
 }
