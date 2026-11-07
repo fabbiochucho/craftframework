@@ -89,6 +89,12 @@ const ic = buildInternalCheck([notes, stale, fresh], '2026-10-18')
 assert.equal(ic.duties[0].status, 'needed', 'needed duties first')
 assert.deepEqual(ic.recheckDue.map((e) => e.id), ['NG-labour-1'], 'older than 12 months is due; exactly 12 months is not')
 assert.deepEqual(ic.pending, [{ jurisdiction: 'NG', count: 3 }])
+import { resolveDuty } from './craftDuties.ts'
+const live = buildInternalCheck(LAW_REGISTER, '2026-11-07', [], resolveDuty).duties
+assert.equal(live.filter((d) => d.status === 'needed').length, 0, 'nothing is needed while CRAFT targets Nigeria only')
+assert.ok(live.filter((d) => d.jurisdiction === 'Nigeria').every((d) => d.status === 'done' || d.status === 'n/a'), 'Nigeria duties are done')
+assert.equal(resolveDuty('KE', 'registration', 'Register with the ODPC').status, 'watch', 'a country CRAFT does not target is not triggered')
+assert.equal(resolveDuty('KE', 'breach-notice', 'x').status, 'done', 'the breach procedure covers every jurisdiction')
 console.log('laws (internal check): ok')
 
 // Final review: partial approval is visible; the CSV explains unreviewed and partly reviewed jurisdictions
