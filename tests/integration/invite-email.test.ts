@@ -11,14 +11,16 @@ const member = {
 const m = buildWelcomeEmailHtml(member)
 const mt = buildWelcomeEmail(member).body
 assert.equal(m.subject, 'Ines Inviter invited you to CRAFT: Organization Assessor')
+// Every exact link in the output (href values and bare URLs), compared whole, never as a substring.
+const links = (out: string) => new Set(out.match(/https?:\/\/[^\s"<>]+/g) ?? [])
 for (const out of [m.html, mt]) {
   assert.ok(out.includes('Ines Inviter') && out.includes('ines@acme.example'), 'who invited them')
   assert.ok(out.includes('Acme Cooperative'), 'which organisation')
   assert.ok(out.includes('Looking forward to working together'), 'their note')
-  assert.ok(out.includes('https://craft.example/accept/tok123'), 'the real accept link')
+  assert.ok(links(out).has('https://craft.example/accept/tok123'), 'the real accept link')
   assert.ok(out.includes('Assessment wizard'), 'features for the role')
   for (const p of INVITE_PITCH) assert.ok(out.includes(p.title), `pitch: ${p.title}`)
-  assert.ok(out.includes('https://craft.example/demo') && out.includes('https://craft.example/methodology') && out.includes('https://craft.example/pre-assessment'), 'explore links')
+  for (const path of ['demo', 'methodology', 'pre-assessment']) assert.ok(links(out).has(`https://craft.example/${path}`), `explore link: ${path}`)
   assert.ok(out.includes('nothing happens unless you accept'), 'safe to ignore')
 }
 
