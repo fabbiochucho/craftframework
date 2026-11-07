@@ -232,6 +232,7 @@ HOW TO GET THE MOST FROM IT
 
 WHAT YOU RECEIVE
 - An overall picture of your capacity, with clear results in plain words for each area.
+- A printable assessment report laid out like an NHOCAT+ assessment sheet: organisation details, each capacity area with Capacity Scores 1 to 4, domain scores and evidence sighted, ready to sign and share.
 - A Capacity Improvement Plan that turns every gap into practical, time-bound actions.
 - Independent assessment: your independent assessor reviews your assessment and records independent scores. You compare the two side by side to agree where you stand. They cannot change your answers, and you control their access.
 - The ability to reassess each year and track your progress over time.
