@@ -7,6 +7,7 @@ import { NetworkCcaCard } from '../components/NetworkCcaCard'
 import { ExchangeLog } from '../components/NetworkExchange'
 import { ProgrammeScorecards } from '../components/ProgrammeScorecards'
 import { useAuthCtx } from '../lib/context'
+import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
 import { canSeePreview, getFramework } from '../lib/frameworks'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
 import { NETWORK_TEMPLATES, TEMPLATE_LABEL, buildStructure, type NetworkTemplate, type StructureSpec } from '../lib/networkTemplates'
@@ -215,6 +216,7 @@ function NodeTools({ networkId, node, onDone }: { networkId: string; node: TreeN
   const [org, setOrg] = useState('')
   const [msg, setMsg] = useState('')
   const [rename, setRename] = useState(node.name)
+  const { currentUser } = useAuthCtx()
   const run = async (path: string, json: unknown, ok: string, method = 'POST') => {
     setMsg('')
     try { await api(`/api/networks/${networkId}/${path}`, { method, json }); setMsg(ok); onDone() } catch (e) { setMsg((e as Error).message) }
@@ -240,9 +242,32 @@ function NodeTools({ networkId, node, onDone }: { networkId: string; node: TreeN
       <div className="space-y-2">
         <p className="text-sm font-medium text-slate-800">Invite an organisation</p>
         <Input label="CRAFT organisation ID or contact email" value={org} onChange={(e) => setOrg(e.target.value)} />
-        <p className="text-xs text-slate-500">The organisation must already use CRAFT. It joins only if it accepts, and chooses what you see.</p>
+        <p className="text-xs text-slate-500">For an organisation already on CRAFT. It joins only if it accepts, and chooses what you see. Not on CRAFT yet? Use the invitation below.</p>
         <Button size="sm" disabled={org.trim().length < 2} onClick={() => void run('invitations', { nodeId: node.id, org }, 'Invitation sent')}>Invite</Button>
       </div>
+      {currentUser && (
+        <div className="lg:col-span-3">
+          <InviteOrganizationCard
+            title={`Invite an organisation not on CRAFT to ${node.name}`}
+            blurb="It gets its own workspace, then accepts the network invitation and chooses what it shares."
+            purpose={`Invites you to join ${node.name} on a CRAFT network. You choose what to share before joining.`}
+            inviterName={currentUser.email}
+            inviterEmail={currentUser.email}
+            onSend={async (v) => {
+              try {
+                await api(`/api/networks/${networkId}/invitations`, { method: 'POST', json: {
+                  nodeId: node.id, org: v.email, orgName: v.orgName, message: v.message || undefined,
+                  orgArchetype: v.orgArchetype || undefined, orgSector: v.orgSector || undefined, orgCountry: v.orgCountry || undefined,
+                } })
+                onDone()
+                return { ok: true }
+              } catch (e) {
+                return { ok: false, error: (e as Error).message }
+              }
+            }}
+          />
+        </div>
+      )}
       <div className="flex flex-wrap items-end gap-2 lg:col-span-3">
         <Input label="Rename this level" value={rename} onChange={(e) => setRename(e.target.value)} />
         <Button size="sm" variant="outline" disabled={rename.trim().length < 2 || rename.trim() === node.name} onClick={() => void run(`nodes/${node.id}`, { name: rename }, 'Renamed', 'PATCH')}>Rename</Button>

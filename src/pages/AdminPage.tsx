@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 import { useNavigate } from '@tanstack/react-router'
-import { Shield, Building2, Globe2, ShieldAlert, Sliders, Lock, Network, FolderPlus, Plus, UserCheck, Users, Trash2, Save, X, Archive, RotateCcw, Pencil } from 'lucide-react'
+import { Shield, Building2, Globe2, ShieldAlert, Sliders, Lock, Network, FolderPlus, Plus, UserCheck, Users, Trash2, Save, X, Archive, RotateCcw, Pencil, Send } from 'lucide-react'
 import { useAuthCtx, useWorkspace, useScoresCtx, useAuditCtx } from '../lib/context'
 import {
   computeOrgScore, computeDomainScore, getAccreditation, getImplementationEvidence,
@@ -15,6 +15,7 @@ import {
   Card, CardContent, CardHeader, CardTitle, Badge, Stat, Tabs,
   Table, Thead, Tbody, Th, Td, Input, Button, Toast, Select,
 } from '../components/ui'
+import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
 import * as api from '../lib/api'
 import type { UserDirectoryRow } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -88,6 +89,9 @@ export function AdminPage() {
   const [duTitle, setDuTitle] = useState('')
   const [duOrgId, setDuOrgId] = useState('')
   const [duRole, setDuRole] = useState<ViewLevel>('assessor')
+  // Email an invitation (the person joins when they accept) instead of assigning directly.
+  const [duInvite, setDuInvite] = useState(true)
+  const [duPortfolioId, setDuPortfolioId] = useState('')
 
   // Inline institution editing (rename / re-key profile fields, or remove).
   const [editOrgId, setEditOrgId] = useState<string | null>(null)
@@ -133,6 +137,28 @@ export function AdminPage() {
       return
     }
     const orgName = duOrgId ? orgNameFor(duOrgId) : ''
+    if (duInvite) {
+      if (!duOrgId) {
+        setToast('⚠️ Choose the organisation they will join.')
+        return
+      }
+      if (duRole === 'portfolio' && !duPortfolioId) {
+        setToast('⚠️ Choose the portfolio in scope.')
+        return
+      }
+      const inv = await api.createInvitation({
+        email, inviteeName: duName.trim() || undefined, orgId: duOrgId, role: duRole, send: true,
+        portfolioId: duRole === 'portfolio' ? duPortfolioId : undefined,
+        scopeLabel: duRole === 'portfolio' ? (portfolios.find(p => p.id === duPortfolioId)?.name ?? 'Assigned portfolio') : orgName,
+      })
+      if (inv) {
+        setToast(`✉️ Invitation sent to ${email} as ${getViewLevel(duRole).label} on ${orgName}. They join when they accept.`)
+        setDuEmail(''); setDuName(''); setDuTitle(''); setDuOrgId(''); setDuRole('assessor'); setDuPortfolioId('')
+      } else {
+        setToast('⚠️ Could not send the invitation. Please try again.')
+      }
+      return
+    }
     const row = await api.upsertUser({
       email,
       name: duName.trim(),
@@ -466,8 +492,21 @@ export function AdminPage() {
                   options={ASSIGNABLE_VIEW_LEVELS.map(v => ({ value: v.id, label: v.label }))}
                 />
               </div>
+              {duRole === 'portfolio' && (
+                <Select
+                  label="Portfolio in scope"
+                  placeholder={portfolios.length ? 'Select portfolio' : 'Create a portfolio first'}
+                  value={duPortfolioId}
+                  onChange={setDuPortfolioId}
+                  options={portfolios.map(p => ({ value: p.id, label: p.name }))}
+                />
+              )}
               <p className="text-xs text-slate-500">{getViewLevel(duRole).description}</p>
-              <Button onClick={assignUser}><Plus className="h-4 w-4" /> Assign / Update</Button>
+              <label className="flex items-start gap-2 text-sm text-slate-700">
+                <input type="checkbox" className="mt-0.5 h-4 w-4 accent-emerald-600" checked={duInvite} onChange={e => setDuInvite(e.target.checked)} />
+                <span>Email an invitation. They create an account (or sign in) and join when they accept. Untick to assign an existing account directly.</span>
+              </label>
+              <Button onClick={assignUser}>{duInvite ? <><Send className="h-4 w-4" /> Send invitation</> : <><Plus className="h-4 w-4" /> Assign / Update</>}</Button>
             </CardContent>
           </Card>
 
@@ -571,6 +610,23 @@ export function AdminPage() {
               records read as platform oversight with no named reviewer.
             </p>
           </div>
+
+          {currentUser && (
+            <InviteOrganizationCard
+              title="Invite an organisation by email"
+              blurb="For an organisation not on CRAFT yet. It gets its own secure workspace; you get read-only access it can revoke."
+              purpose="Gives the CRAFT platform team read-only access to your results, to support your onboarding. You can revoke it at any time."
+              inviterName={currentUser.email}
+              inviterEmail={currentUser.email}
+              onSend={async (v) => {
+                const out = await api.inviteOrganizationByEmail({
+                  email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined,
+                  orgArchetype: v.orgArchetype || undefined, orgSector: v.orgSector || undefined, orgCountry: v.orgCountry || undefined,
+                })
+                return out.ok ? { ok: true } : { ok: false, error: out.error }
+              }}
+            />
+          )}
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>

@@ -6,6 +6,8 @@ import { trackEvent } from '../lib/analytics'
 import { METHODOLOGIES } from '../lib/methodologies'
 import { INDEX_SCOPE_NAMES, scopeText, TYPE_LABEL, type EngagementScope, type EngagementType } from '../lib/engagements'
 import { SPECIALISM_INDEX, SPECIALISMS } from '../lib/specialisms'
+import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import { useAuthCtx } from '../lib/context'
 
 // Validator system PR 2: engagements. Every permission is enforced by
 // /api/engagements; this page only reflects what the server allows.
@@ -100,6 +102,7 @@ export function EngagementsPage() {
 
 // Create: pick the side you act for, then the counterpart from the directory.
 function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) {
+  const { currentUser } = useAuthCtx()
   const params = typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search)
   const funderFirms = me.firms.filter((f) => f.kind === 'funding_partner')
   const validatorFirms = me.firms.filter((f) => f.kind === 'validator_firm')
@@ -194,6 +197,34 @@ function CreateEngagement({ me, onCreated }: { me: Me; onCreated: () => void }) 
           </div>
           <div><Button type="submit" disabled={!chosen.trim()}>Send</Button></div>
         </form>
+        {side !== 'organization' && currentUser && (
+          // Outside the form: the wizard's own buttons must never submit it.
+          <InviteOrganizationCard
+            title="Organisation not on CRAFT yet? Invite it by email"
+            blurb="The engagement above is proposed as soon as the organisation creates its workspace. It still decides whether to consent."
+            purpose={type === 'funder_review'
+              ? 'Proposes a funder review. Once your workspace is set up you decide whether to consent.'
+              : 'Proposes an independent validation. Once your workspace is set up you decide whether to consent.'}
+            inviterName={currentUser.email}
+            inviterEmail={currentUser.email}
+            onSend={async (v) => {
+              const lv = levels.split(',').map((x) => Number(x.trim())).filter(Boolean)
+              try {
+                await api('/api/engagements', { method: 'POST', json: {
+                  side, type, accessDays: Number(days) || 90, requiresRereview: rereview,
+                  scope: { ...(lv.length ? { kind: 'levels', levels: lv } : { kind: 'whole' }), ...(indices.length ? { indices } : {}) },
+                  ...(side === 'funder' ? { funderFirmId: actFirm || funderFirms[0]?.id } : { validatorFirmId: actFirm || undefined }),
+                  inviteEmail: v.email, inviteOrgName: v.orgName, inviteName: v.inviteeName || undefined, inviteMessage: v.message || undefined,
+                  inviteOrgArchetype: v.orgArchetype || undefined, inviteOrgSector: v.orgSector || undefined, inviteOrgCountry: v.orgCountry || undefined,
+                } })
+                void trackEvent({ event: 'engagement_created' })
+                return { ok: true }
+              } catch (err: any) {
+                return { ok: false, error: err.message }
+              }
+            }}
+          />
+        )}
         <Status msg={msg} />
       </CardContent>
     </Card>

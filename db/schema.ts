@@ -383,11 +383,29 @@ export const invitations = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     respondedAt: timestamp('responded_at', { withTimezone: true }),
+    // 'member' = join an existing organisation (org_id) with `role`;
+    // 'organization' = create your own workspace, then apply the link below.
+    kind: text('kind').notNull().default('member'),
+    // member: the organisation the invitee joins (null on legacy rows = the inviter's own tenant).
+    orgId: text('org_id'),
+    // organization: the institution name the inviter typed (the invitee may change it).
+    orgName: text('org_name'),
+    // organization, from a validator / funder: the engagement proposed once the workspace exists.
+    engagement: jsonb('engagement').$type<Record<string, unknown>>(),
+    // organization, from a network coordinator: the level the organisation is invited to join.
+    networkNodeId: text('network_node_id'),
+    // The organisation the invitation was accepted into.
+    acceptedOrgId: text('accepted_org_id'),
+    // organization: the type chosen in the invitation wizard (archetype, sector, ISO country code).
+    orgArchetype: text('org_archetype'),
+    orgSector: text('org_sector'),
+    orgCountry: text('org_country'),
   },
   (t) => [
     unique('invitations_token_unique').on(t.token),
     index('invitations_email_idx').on(t.email),
     index('invitations_inviter_idx').on(t.inviter),
+    index('invitations_network_node_idx').on(t.networkNodeId),
   ],
 )
 
