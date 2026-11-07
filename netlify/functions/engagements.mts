@@ -341,7 +341,7 @@ const inviteSchema = z.object({
   inviteEmail: emailSchema,
   inviteOrgName: z.string().trim().min(2, 'Enter the organisation name').max(200).refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v), 'Invalid organisation name'),
   inviteName: z.string().trim().max(120).refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v)).optional(),
-  inviteMessage: z.string().trim().max(1000).optional(),
+  inviteMessage: z.string().trim().max(4000).optional(),
   inviteOrgArchetype: z.string().trim().max(40).optional(),
   inviteOrgSector: z.string().trim().max(80).optional(),
   inviteOrgCountry: z.string().trim().max(8).optional(),

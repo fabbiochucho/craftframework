@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Scale } from 'lucide-react'
+import { Printer, Scale } from 'lucide-react'
 import { Card } from './ui'
-import { useEntityProfileCtx } from '../lib/context'
+import { useEntityProfileCtx, useScoresCtx, useWorkspace } from '../lib/context'
+import { buildNhocatReportHtml } from '../lib/nhocatReport'
 import { lawsFor } from '../lib/laws/register'
 import { applyApprovals } from '../lib/laws/jurisdictionReport'
 import { useLawApprovals } from '../lib/laws/useLawApprovals'
@@ -52,13 +53,34 @@ const LEVEL_STYLE: Record<string, string> = {
 /** Results read across to the eight NHOCAT domains and the four-level maturity scale. */
 export function NhocatReading({ scores }: { scores: Record<string, number> }) {
   const rows = byNhocatDomain(scores)
+  const { currentOrg } = useWorkspace()
+  const { entityProfile } = useEntityProfileCtx()
+  const { assessorScores } = useScoresCtx()
+  const printReport = () => {
+    const orgId = currentOrg?.id ?? ''
+    const html = buildNhocatReportHtml({
+      orgName: currentOrg?.name || 'Organisation',
+      orgEmail: currentOrg?.email || '',
+      orgType: [entityProfile.archetype, entityProfile.sector].filter(Boolean).join(' · '),
+      scores, independent: assessorScores[orgId] ?? {},
+    })
+    const w = window.open('', '_blank')
+    if (!w) return
+    w.document.open(); w.document.write(html); w.document.close()
+    w.focus(); setTimeout(() => w.print(), 300)
+  }
   if (rows.every((r) => r.score == null)) return null
   return (
     <Card className="p-4">
-      <h2 className="text-sm font-semibold text-slate-900">Read across to NHOCAT domains</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-900">Read across to NHOCAT domains</h2>
+        <button type="button" onClick={printReport} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">
+          <Printer className="h-3.5 w-3.5" /> Print NHOCAT-style report
+        </button>
+      </div>
       <p className="mt-1 text-xs text-slate-500">
         The same answers, grouped under the eight domains of Nigeria's National Harmonised Organisational Capacity Assessment Tool and shown on a four-level scale
-        (Latent, Emerging, Established, Advanced). This is a read-across, not an NHOCAT assessment.
+        (Latent, Emerging, Established, Advanced). CRAFT adopts the NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations.
       </p>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full text-sm">

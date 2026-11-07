@@ -3,6 +3,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responses } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
+import { isIndependentAssessorOf } from '../lib/independent-assessor.js'
 import { logger, monitored } from '../lib/logger.js'
 
 // /api/responses — per-organization assessment scores. The canonical store for
@@ -68,13 +69,21 @@ const handleRequest = async (req: Request) => {
     //         notes?, evidenceUrl?, evidenceName?, updatedBy? }
     if (req.method === 'POST') {
       const body = await req.json()
-      const { orgId, questionId, updatedBy } = body
+      const { orgId, questionId } = body
       if (!orgId || !questionId) {
         return Response.json({ error: 'orgId and questionId required' }, { status: 400 })
       }
-      if (!(await canAccessOrg(caller, orgId))) return forbidden()
       const has = (k: string) => body[k] !== undefined && body[k] !== null
       const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : null)
+      if (!(await canAccessOrg(caller, orgId))) {
+        // An independent assessor (read-only grant) may record only the independent score, as themselves.
+        if (!(await isIndependentAssessorOf(caller, orgId))) return forbidden()
+        if (!has('assessorScore') || ['score', 'negotiatedScore', 'notes', 'evidenceUrl', 'evidenceName'].some(has)) {
+          return Response.json({ error: 'An independent assessor can record only the independent score' }, { status: 403 })
+        }
+        body.updatedBy = caller.email
+      }
+      const { updatedBy } = body
 
       const set: Record<string, unknown> = { updatedBy: updatedBy ?? null, updatedAt: new Date() }
       if (has('score')) set.score = Number(body.score) || 0

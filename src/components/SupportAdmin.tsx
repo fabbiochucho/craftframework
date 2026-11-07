@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Award, Building, FolderOpen, Handshake, LifeBuoy, Search, Trash } from 'lucide-react'
+import { Award, Building, FolderOpen, Handshake, LifeBuoy, Search, Send, Trash } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from './ui'
 import { BadgeChip } from './AmbassadorBadges'
 import type { Badge as AmbassadorBadge } from '../lib/ambassadors'
-import { deleteOrganization, fetchOrganizations } from '../lib/api'
+import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, sendInvitation, type Invitation } from '../lib/api'
+import { InviteOrganizationWizard } from './InviteOrganizationWizard'
+import { useAuthCtx } from '../lib/context'
 
 // Super Admin tools: support an organisation directly (open its Evidence registry, answer its evidence
 // requests) and see referrals / ambassadors across the platform.
@@ -204,6 +206,130 @@ export function AllOrganisations() {
           </ul>
         )}
         {shown.length > 200 && <p className="text-xs text-slate-500">Showing the first 200. Search to narrow down.</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
+const ONBOARDING_NOTE = `Thank you for accepting to work with us in this important organisational capacity strengthening process.
+
+We are pleased to introduce you to CRAFT, the Capacity Readiness & Fiduciary Assurance Toolkit, which has been set up so your organisation can carry out its own capacity assessment, with an independent assessor alongside you.
+
+GETTING STARTED
+Click "Accept" in this email, create your account with this email address and choose your own password (you can change it at any time). Your organisation's own secure workspace is created when you accept. Only your team, and the people you choose, can see it.
+
+THE ASSESSMENT
+You will use the CRAFT Organisational & Network Capacity Index. CRAFT adopts the NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations. The Index works in a similar way to the National Harmonised Organisational Capacity Assessment Tool (NHOCAT+), its Seven Domains and Statements of Excellence, and your results are also shown against the NHOCAT domains and its four-level scale:
+- 44 indicators in 11 capacity areas: governance and leadership; legal standing and accountability; strategy and programme management; financial management; people and human resources; procurement, assets and administration; monitoring, evaluation and learning; service delivery and technical capacity; resource mobilisation and sustainability; partnerships, networking and exchange; and community voice, safeguarding and advocacy.
+- Each indicator has six written level statements, from 0 (not in place) to 5 (fully in place and working). Like Statements of Excellence, they describe exactly what each level looks like, so you choose the one that matches your organisation today.
+- Each indicator lists the evidence that supports it (for example minutes, policies, audited accounts or reports), explains why it matters, and suggests a first step to improve.
+
+HOW TO GET THE MOST FROM IT
+- Answer honestly against the statement that matches what is in place and working now, not what is planned.
+- Upload your supporting documents to your Evidence registry as you go. A score is only as strong as the evidence behind it.
+- Work as a team: you can invite colleagues (for example finance, programmes and M&E staff) to help.
+- Save as you go and come back at any time.
+
+WHAT YOU RECEIVE
+- An overall picture of your capacity, with clear results in plain words for each area.
+- A printable assessment report laid out like an NHOCAT+ assessment sheet: organisation details, each capacity area with Capacity Scores 1 to 4, domain scores and evidence sighted, ready to sign and share.
+- A Capacity Improvement Plan that turns every gap into practical, time-bound actions.
+- Independent assessment: your independent assessor reviews your assessment and records independent scores. You compare the two side by side to agree where you stand. They cannot change your answers, and you control their access.
+- The ability to reassess each year and track your progress over time.
+
+Should you require any clarification or technical assistance at any point, please reply to this email or reach out to us directly.
+
+Thank you once again for your cooperation and commitment.`
+
+/** Super Admin: invite organisations in an independent assessor's name (drafts or send now). */
+export function InviteForAssessor() {
+  const [assessor, setAssessor] = useState('')
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(assessor.trim())
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Handshake className="h-4 w-4 text-emerald-600" /> Invite organisations for an independent assessor</CardTitle>
+        <p className="text-sm text-slate-500">
+          Invite organisations in the assessor's name: the email says the assessor invited them and replies go to the assessor. When an
+          organisation accepts, it gets its own workspace and names the assessor as its independent assessor, who can then score it
+          independently (compared on Trust Delta) but never change its answers. Save as drafts and send when you are ready.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Input label="Independent assessor's email" placeholder="assessor@example.com" value={assessor} onChange={(e) => setAssessor(e.target.value)} />
+        {valid ? (
+          <InviteOrganizationWizard
+            key={assessor.trim().toLowerCase()}
+            purpose={`Names ${assessor.trim()} as your organisation's independent assessor: they can see your assessment and record independent scores alongside yours. They cannot change your answers, and you can revoke this at any time.`}
+            inviterName={assessor.trim()}
+            inviterEmail={assessor.trim()}
+            allowDraft
+            defaultMessage={ONBOARDING_NOTE}
+            onSend={async (v) => {
+              const out = await inviteOrganizationByEmail({
+                email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined,
+                orgArchetype: v.orgArchetype || undefined, orgSector: v.orgSector || undefined, orgCountry: v.orgCountry || undefined,
+                send: v.send, onBehalfOf: assessor.trim().toLowerCase(), grantRole: 'independent_assessor',
+              })
+              return out.ok ? { ok: true } : { ok: false, error: out.error }
+            }}
+          />
+        ) : <p className="text-xs text-slate-500">Enter the assessor's email to start.</p>}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Invitations saved as drafts, with Send and Send all. Super Admin sees all; others see their own. */
+export function DraftInvitations({ all = false }: { all?: boolean }) {
+  const [rows, setRows] = useState<Invitation[] | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const { currentUser } = useAuthCtx()
+  const me = currentUser?.email ?? ''
+  useEffect(() => {
+    if (!all && !me) return
+    void (all ? fetchAllInvitations() : fetchInvitations(me)).then((r) => setRows(r.filter((x) => x.status === 'pending' && !x.sentAt)), () => setRows([]))
+  }, [all, me])
+  if (!rows || !rows.length) return null
+  const sendOne = async (inv: Invitation) => {
+    const out = await sendInvitation(inv.id)
+    if (out.ok) setRows((prev) => (prev ?? []).filter((x) => x.id !== inv.id))
+    return out
+  }
+  const sendAll = async () => {
+    setBusy('all'); setMsg(null)
+    let ok = 0
+    const failed: string[] = []
+    for (const inv of rows) {
+      const out = await sendOne(inv)
+      if (out.ok) ok += 1
+      else failed.push(`${inv.orgName || inv.email}: ${out.error}`)
+    }
+    setBusy(null)
+    setMsg(failed.length ? { ok: false, text: `Sent ${ok}. Not sent: ${failed.join('; ')}` } : { ok: true, text: `Sent ${ok} invitation${ok === 1 ? '' : 's'}.` })
+  }
+  return (
+    <Card className="border-amber-200">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Send className="h-4 w-4 text-amber-600" /> Invitations waiting to be sent ({rows.length})</CardTitle>
+        <p className="text-sm text-slate-500">Drafts are not emailed until you send them. Each invitation is valid for 14 days from sending.</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Button size="sm" disabled={!!busy} onClick={() => void sendAll()}><Send className="h-4 w-4" /> {busy === 'all' ? 'Sending…' : `Send all ${rows.length}`}</Button>
+        {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-sm text-emerald-700' : 'text-sm text-rose-700'}>{msg.text}</p>}
+        <ul className="divide-y divide-slate-100">
+          {rows.map((inv) => (
+            <li key={inv.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+              <span className="font-medium text-slate-900">{inv.orgName || inv.email}</span>
+              <span className="text-xs text-slate-500">{inv.email} · from {inv.inviter}{inv.link === 'independent_assessor' ? ' (independent assessor)' : inv.link ? ` · ${inv.link}` : ''}</span>
+              <Button size="sm" variant="outline" className="ml-auto" disabled={!!busy}
+                onClick={async () => { setBusy(inv.id); setMsg(null); const out = await sendOne(inv); setBusy(null); setMsg(out.ok ? { ok: true, text: `Sent to ${inv.email}.` } : { ok: false, text: out.error }) }}>
+                {busy === inv.id ? 'Sending…' : 'Send'}
+              </Button>
+            </li>
+          ))}
+        </ul>
       </CardContent>
     </Card>
   )

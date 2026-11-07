@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions'
 import { and, desc, eq, gt } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { invitations } from '../../db/schema.js'
+import { invitations, users } from '../../db/schema.js'
 import { resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import { clientIp, overLimit } from '../lib/public-rate-limit.js'
@@ -17,7 +17,7 @@ import { parseOrgType } from '../../src/lib/orgType.js'
 const NAME_CTRL = /[\u0000-\u001f\u007f-\u009f]/
 const NOTE_CTRL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f]/
 export const inviteeNameSchema = z.string().trim().max(120).refine((v) => !NAME_CTRL.test(v), 'inviteeName must not contain control characters')
-export const inviteMessageSchema = z.string().trim().max(1000).refine((v) => !NOTE_CTRL.test(v), 'message must not contain control characters')
+export const inviteMessageSchema = z.string().trim().max(4000).refine((v) => !NOTE_CTRL.test(v), 'message must not contain control characters')
 const orgNameSchema = z.string().trim().min(2, 'Enter the organisation name').max(200).refine((v) => !NAME_CTRL.test(v), 'The organisation name must not contain control characters')
 const createSchema = z.object({
   kind: z.enum(['member', 'organization']).optional(),
@@ -34,8 +34,13 @@ const createSchema = z.object({
   orgArchetype: z.string().trim().max(40).nullish(),
   orgSector: z.string().trim().max(80).nullish(),
   orgCountry: z.string().trim().max(8).nullish(),
-  // Send the email now (the client used to call /api/send-invite separately).
+  // Send the email now (the client used to call /api/send-invite separately). Organisation invitations
+  // default to sending; send: false holds them as drafts to send later.
   send: z.boolean().optional(),
+  // Super Admin: invite in someone else's name (they become the inviter; replies go to them).
+  onBehalfOf: z.string().trim().toLowerCase().email().max(320).nullish(),
+  // organization: 'independent_assessor' names the inviter the organisation's independent assessor.
+  grantRole: z.enum(['independent_assessor']).nullish(),
 })
 const acceptSchema = z.object({ token: z.string().min(8).max(100), orgName: z.string().trim().max(200).optional() })
 
@@ -124,7 +129,11 @@ const handleRequest = async (req: Request) => {
           kind: r.kind,
           orgId: r.orgId ?? undefined,
           orgName: r.orgName ?? undefined,
-          link: r.engagement ? 'engagement' : r.networkNodeId ? 'network' : r.portfolioId ? 'portfolio' : undefined,
+          link: r.engagement ? 'engagement' : r.networkNodeId ? 'network' : r.portfolioId ? 'portfolio' : r.grantRole ? r.grantRole : undefined,
+          sentAt: r.sentAt ?? undefined,
+          sentBy: r.sentBy ?? undefined,
+          createdBy: r.createdBy ?? undefined,
+          message: r.message ?? undefined,
           acceptedOrgId: r.acceptedOrgId ?? undefined,
           createdAt: r.createdAt,
           status: r.status === 'pending' && r.expiresAt && new Date(r.expiresAt).getTime() < now ? 'expired' : r.status,
@@ -149,13 +158,27 @@ const handleRequest = async (req: Request) => {
         if (orgType === 'invalid') return bad('Choose the organisation type from the list')
         // Portfolio managers link the new organisation to their portfolio; otherwise only an
         // administrator (who then gets read-only access the organisation can revoke) may invite.
+        // In someone else's name: Super Admin only. The person becomes the inviter (independent
+        // assessors are given the independent assessor role so they can score once organisations accept).
+        let onBehalfOf: { email: string; name: string } | null = null
+        if (d.onBehalfOf && d.onBehalfOf !== caller.email) {
+          if (caller.role !== 'super_admin') return forbidden()
+          const [person] = await db.select().from(users).where(eq(users.email, d.onBehalfOf))
+          onBehalfOf = { email: d.onBehalfOf, name: person?.name || d.onBehalfOf }
+          if (d.grantRole === 'independent_assessor' && !person) {
+            await db.insert(users).values({ id: `usr_${crypto.randomUUID()}`, email: d.onBehalfOf, role: 'independent', scopeLabel: 'Independent assessor', status: 'invited' })
+              .onConflictDoNothing()
+          }
+        }
+        const inviterEmail = onBehalfOf?.email ?? caller.email
         if (d.portfolioId) {
-          if (!(await portfolioManagedBy(d.portfolioId, caller.email))) return forbidden()
-        } else if (!['admin', 'super_admin', 'portfolio'].includes(caller.role)) {
+          if (!(await portfolioManagedBy(d.portfolioId, inviterEmail))) return forbidden()
+        } else if (!onBehalfOf && !d.grantRole && !['admin', 'super_admin', 'portfolio'].includes(caller.role)) {
           return forbidden()
         }
         const { invitation, email } = await inviteOrganization(caller, {
           email: d.email, orgName: d.orgName, inviteeName: d.inviteeName, message: d.message, portfolioId: d.portfolioId ?? null, orgType,
+          send: d.send !== false, onBehalfOf, grantRole: d.grantRole ?? null,
         })
         return Response.json({ ...invitation, email: email.body }, { status: 201 })
       }
