@@ -8,6 +8,7 @@ import { ExchangeLog } from '../components/NetworkExchange'
 import { ProgrammeScorecards } from '../components/ProgrammeScorecards'
 import { useAuthCtx } from '../lib/context'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import { MyAmbassadorStrip, PersonBadges, usePeopleBadges } from '../components/AmbassadorBadges'
 import { canSeePreview, getFramework } from '../lib/frameworks'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
 import { NETWORK_TEMPLATES, TEMPLATE_LABEL, buildStructure, type NetworkTemplate, type StructureSpec } from '../lib/networkTemplates'
@@ -101,6 +102,7 @@ export function NetworksPage() {
 
   return (
     <div className="space-y-6">
+      <MyAmbassadorStrip />
       <div>
         <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900"><Network className="h-6 w-6 text-emerald-700" aria-hidden /> Networks</h1>
         <p className="mt-1 max-w-3xl text-slate-600">
@@ -345,6 +347,8 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const load = useCallback(() => { void api<Detail>(`/api/networks/${networkId}`).then(setD, (e) => setError(e.message)) }, [networkId])
   useEffect(load, [load])
+  // Ambassador badges for the people who set up and coordinate this network (hooks before any early return).
+  const badges = usePeopleBadges(d ? [d.network.setUpBy, ...d.admins.map((a) => a.email)] : [])
   if (error) return <p className="text-sm text-rose-700">{error}</p>
   if (!d) return <p className="text-slate-500">Loading…</p>
 
@@ -373,7 +377,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
         <h1 className="mt-1 flex flex-wrap items-center gap-2 text-2xl font-bold text-slate-900">{d.network.name}
           {d.network.verified && <span className="inline-flex items-center gap-1 text-sm font-medium text-emerald-700"><BadgeCheck className="h-4 w-4" aria-hidden /> Verified by CRAFT</span>}
           {d.network.status === 'archived' && <Badge className="bg-rose-100 text-rose-800">Archived</Badge>}</h1>
-        <p className="text-xs text-slate-500">{d.network.kind === 'cohort' ? 'Grantee cohort' : 'Network'} set up by {d.network.setUpBy}</p>
+        <p className="text-xs text-slate-500">{d.network.kind === 'cohort' ? 'Grantee cohort' : 'Network'} set up by {d.network.setUpBy}<PersonBadges email={d.network.setUpBy} badges={badges} /></p>
         {d.network.canModerate && <Moderation id={d.network.id} verified={d.network.verified} archived={d.network.status === 'archived'} onDone={load} />}
         {d.network.description && <p className="mt-1 max-w-3xl text-slate-600">{d.network.description}</p>}
       </div>
@@ -417,7 +421,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
           <CardHeader><CardTitle>Coordinators</CardTitle></CardHeader>
           <CardContent>
             <ul className="divide-y divide-slate-100">
-              {d.admins.map((a) => <li key={a.nodeId + a.email} className="py-2 text-sm"><span className="text-slate-900">{a.email}</span> <span className="text-slate-500">· {a.role} · {nodeName(a.nodeId)}</span></li>)}
+              {d.admins.map((a) => <li key={a.nodeId + a.email} className="py-2 text-sm"><span className="text-slate-900">{a.email}</span> <span className="text-slate-500">· {a.role} · {nodeName(a.nodeId)}</span><PersonBadges email={a.email} badges={badges} /></li>)}
             </ul>
           </CardContent>
         </Card>

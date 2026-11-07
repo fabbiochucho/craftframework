@@ -50,6 +50,7 @@ import { Route as OpenSourceRouteImport } from './routes/open-source'
 import { Route as PanelRouteImport } from './routes/panel'
 import { Route as PreAssessmentRouteImport } from './routes/pre-assessment'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ReferralsRouteImport } from './routes/referrals'
 import { Route as RegulatoryComplianceRouteImport } from './routes/regulatory-compliance'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RiskRouteImport } from './routes/risk'
@@ -319,6 +320,11 @@ const PreAssessmentRoute = PreAssessmentRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReferralsRoute = ReferralsRouteImport.update({
+  id: '/referrals',
+  path: '/referrals',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegulatoryComplianceRoute = RegulatoryComplianceRouteImport.update({
@@ -721,6 +727,7 @@ export interface FileRoutesByFullPath {
   '/panel': typeof PanelRoute
   '/pre-assessment': typeof PreAssessmentRoute
   '/privacy': typeof PrivacyRoute
+  '/referrals': typeof ReferralsRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
   '/risk': typeof RiskRoute
@@ -829,6 +836,7 @@ export interface FileRoutesByTo {
   '/panel': typeof PanelRoute
   '/pre-assessment': typeof PreAssessmentRoute
   '/privacy': typeof PrivacyRoute
+  '/referrals': typeof ReferralsRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
   '/risk': typeof RiskRoute
@@ -938,6 +946,7 @@ export interface FileRoutesById {
   '/panel': typeof PanelRoute
   '/pre-assessment': typeof PreAssessmentRoute
   '/privacy': typeof PrivacyRoute
+  '/referrals': typeof ReferralsRoute
   '/regulatory-compliance': typeof RegulatoryComplianceRoute
   '/reports': typeof ReportsRoute
   '/risk': typeof RiskRoute
@@ -1048,6 +1057,7 @@ export interface FileRouteTypes {
     | '/panel'
     | '/pre-assessment'
     | '/privacy'
+    | '/referrals'
     | '/regulatory-compliance'
     | '/reports'
     | '/risk'
@@ -1156,6 +1166,7 @@ export interface FileRouteTypes {
     | '/panel'
     | '/pre-assessment'
     | '/privacy'
+    | '/referrals'
     | '/regulatory-compliance'
     | '/reports'
     | '/risk'
@@ -1264,6 +1275,7 @@ export interface FileRouteTypes {
     | '/panel'
     | '/pre-assessment'
     | '/privacy'
+    | '/referrals'
     | '/regulatory-compliance'
     | '/reports'
     | '/risk'
@@ -1373,6 +1385,7 @@ export interface RootRouteChildren {
   PanelRoute: typeof PanelRoute
   PreAssessmentRoute: typeof PreAssessmentRoute
   PrivacyRoute: typeof PrivacyRoute
+  ReferralsRoute: typeof ReferralsRoute
   RegulatoryComplianceRoute: typeof RegulatoryComplianceRoute
   ReportsRoute: typeof ReportsRoute
   RiskRoute: typeof RiskRoute
@@ -1727,6 +1740,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referrals': {
+      id: '/referrals'
+      path: '/referrals'
+      fullPath: '/referrals'
+      preLoaderRoute: typeof ReferralsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/regulatory-compliance': {
@@ -2229,6 +2249,7 @@ const rootRouteChildren: RootRouteChildren = {
   PanelRoute: PanelRoute,
   PreAssessmentRoute: PreAssessmentRoute,
   PrivacyRoute: PrivacyRoute,
+  ReferralsRoute: ReferralsRoute,
   RegulatoryComplianceRoute: RegulatoryComplianceRoute,
   ReportsRoute: ReportsRoute,
   RiskRoute: RiskRoute,
@@ -2322,7 +2343,6 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
 
 import type { getRouter } from './router.tsx'
 import type { createStart } from '@tanstack/react-start'
