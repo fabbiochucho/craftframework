@@ -1,18 +1,16 @@
 import type { Config } from '@netlify/functions'
 import { createHash } from 'node:crypto'
-import { getStore } from '@netlify/blobs'
-import { and, eq, inArray, isNull, ne, or } from 'drizzle-orm'
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
-  accessGrants, auditLogs, engagementDeclarations, engagementMembers, evidenceRegistry, firms, organizations, validationEvidenceLinks, wsOrgMembers, validationDebriefs, validationEngagements,
+  accessGrants, auditLogs, engagementDeclarations, engagementMembers, evidenceRegistry, firms, organizations, validationEvidenceLinks, validationDebriefs, validationEngagements,
   validationCipActions, validationQualifications, validationReviews, validationScores, validations, validatorProfiles,
   type EngagementMemberRow, type ValidationEngagementRow, type ValidationReviewRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { grantAllows } from '../lib/access-policy.js'
-import { fieldLookupHashes } from '../lib/crypto.js'
-import { decodeEvidence } from '../lib/evidence-storage.js'
+import { evidenceOptions, evidenceSha256 } from '../lib/evidence-options.js'
 import { HttpError, requireOrgAccess } from '../lib/orgAccess.js'
 import { reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
 import { logger, monitored } from '../lib/logger.js'
@@ -484,13 +482,6 @@ const checksOf = (scoreRows: Array<{ indicatorId: string; result: string; checks
 const sufficiencyOf = (scoreRows: Array<{ indicatorId: string; sufficiency: string }>, ids: Set<string>): Record<string, Sufficiency> =>
   Object.fromEntries(scoreRows.filter((s) => ids.has(s.indicatorId)).map((s) => [s.indicatorId, s.sufficiency as Sufficiency]))
 
-/** SHA-256 of the stored evidence file, or null when it cannot be read. Only the hash is kept. */
-async function evidenceSha256(filePath: string): Promise<string | null> {
-  try {
-    const data = await getStore('evidence').get(filePath, { type: 'arrayBuffer' })
-    return data ? createHash('sha256').update(Buffer.from(decodeEvidence(data))).digest('hex') : null
-  } catch { return null }
-}
 
 /** The evidence linked to an engagement's indicators, with the registry's current state (read-only metadata, no contents). */
 async function linkedEvidence(engagementId: string) {
@@ -507,17 +498,6 @@ async function linkedEvidence(engagementId: string) {
 }
 
 /** Evidence the caller may link: items held by workspace organisations where they are an assessor or above. */
-async function evidenceOptions(email: string, superAdmin: boolean) {
-  const hashes = fieldLookupHashes(email)
-  const memberOf = hashes.length ? or(inArray(wsOrgMembers.userIdHash, hashes), eq(wsOrgMembers.userId, email))! : eq(wsOrgMembers.userId, email)
-  const orgIds = superAdmin ? null : (await db.select({ orgId: wsOrgMembers.orgId }).from(wsOrgMembers)
-    .where(and(memberOf, inArray(wsOrgMembers.role, ['owner', 'admin', 'assessor'])))).map((m) => m.orgId)
-  if (orgIds && !orgIds.length) return []
-  const items = await db.select().from(evidenceRegistry)
-    .where(and(isNull(evidenceRegistry.archivedAt), ne(evidenceRegistry.status, 'rejected'), orgIds ? inArray(evidenceRegistry.orgId, orgIds) : undefined))
-    .limit(500)
-  return items.map((x) => ({ id: x.id, name: x.documentName, documentType: x.documentType, status: x.status, expiryDate: x.expiryDate, mimeType: x.mimeType, sizeKb: x.fileSizeKb }))
-}
 
 type SnapshotInput = {
   profile: ModuleProfile

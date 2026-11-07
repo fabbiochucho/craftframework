@@ -35,6 +35,15 @@ A funding partner cannot create an independent validation (API and database both
      organisation; options at `GET .../evidence-options`). Validators with an active grant see name, type,
      status, expiry and SHA-256 read-only (each view is audit-logged); no file contents are exposed. The snapshot
      stores references only (id, name, type, SHA-256).
+   - **Evidence requests** (`/api/evidence-requests`): while an engagement is active, the reviewing side (the lead
+     validator, a named and approved team member, the validator firm's owner, or a funding partner's member) asks
+     the organisation for a document with a due date and optional indicator. Organisation staff link items from
+     their evidence registry (same permission rule as above) and mark it submitted; the reviewer accepts or asks
+     for more (with a note). Status: open, submitted, more_needed, accepted, cancelled. **The reviewer can open the
+     files the organisation submitted to that request, and only those**, only while the engagement is active;
+     each view is audit-logged ("opened evidence"). Emails go out at each step; the daily `validation-reminders`
+     job reminds the organisation about overdue requests every 3 days (at most 5 times) and tells the requester
+     once. Every step is in the audit log (category "Evidence request").
    - **Paper-compliance cap**: a negotiated score above 2 on an indicator whose evidence the validator marked
      `insufficient` stands at 2 (`paperCompliancePenalty`). The cap shows in the Trust Delta, the debrief and the
      snapshot (`paperCap`), and counts towards the outcome and rung.

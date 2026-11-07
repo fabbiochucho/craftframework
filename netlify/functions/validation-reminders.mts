@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { logger, monitored } from '../lib/logger.js'
 import { sweepEngagements } from '../lib/engagement-access.js'
 import { runLifecycleMaintenance, sendDueReminders } from '../lib/validation-lifecycle.js'
+import { sendEvidenceRequestReminders } from '../lib/evidence-requests.js'
 
 // ============================================================================
 // Validator system PR 5 — daily reminders (spec: "Emails to organisation and validator 30 and 7 days
@@ -15,6 +16,9 @@ const handleRequest = async () => {
   // Checkpoints and the status history first (so the reminders see the right points), then the emails.
   const maintenance = await runLifecycleMaintenance()
   const result = await sendDueReminders()
+  // Overdue evidence requests (engagement evidence requests): reminders to the organisation.
+  const evidence = await sendEvidenceRequestReminders()
+  logger.info('validation-reminders', `evidence requests: checked ${evidence.checked}, reminded ${evidence.sent}, failed ${evidence.failed}`)
   logger.info('validation-reminders', `checked ${result.checked}, sent ${result.sent}, failed ${result.failed}, not configured ${result.notConfigured}; checkpoints synced ${maintenance.checkpoints}, status moves ${maintenance.statusMoves}, debrief notices ${maintenance.debriefNotices}`)
   return new Response(JSON.stringify({ ...result, ...maintenance }), { status: result.failed ? 502 : 200, headers: { 'content-type': 'application/json' } })
 }
