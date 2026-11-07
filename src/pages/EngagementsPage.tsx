@@ -7,6 +7,7 @@ import { METHODOLOGIES } from '../lib/methodologies'
 import { INDEX_SCOPE_NAMES, scopeText, TYPE_LABEL, type EngagementScope, type EngagementType } from '../lib/engagements'
 import { SPECIALISM_INDEX, SPECIALISMS } from '../lib/specialisms'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import { MyAmbassadorStrip } from '../components/AmbassadorBadges'
 import { EvidenceRequests, EvidenceWaiting } from '../components/EvidenceRequests'
 import { useAuthCtx } from '../lib/context'
 
@@ -74,6 +75,7 @@ export function EngagementsPage() {
   useEffect(() => { void load(); void api<Me>('/api/directory/me').then(setMe, () => {}) }, [])
   return (
     <div className="space-y-6">
+      <MyAmbassadorStrip />
       <div>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500"><Handshake className="h-4 w-4 text-emerald-600" /> Independent validation</p>
         <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">Engagements</h1>

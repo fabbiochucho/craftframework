@@ -11,8 +11,10 @@ import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized, type
 import { evidenceOptions, evidenceSha256 } from '../lib/evidence-options.js'
 import { decodeEvidence } from '../lib/evidence-storage.js'
 import {
-  audit, MAX_REQUESTS_PER_ENGAGEMENT, OPEN_STATUSES, sideOf, tellOrganisation, tellRequester,
+  audit, engagementLink, isSupport, MAX_REQUESTS_PER_ENGAGEMENT, OPEN_STATUSES, sideOf, tellOrganisation, tellRequester,
 } from '../lib/evidence-requests.js'
+import { tellSupportAction, wsOrgIdsForLegacyOrg } from '../lib/support.js'
+import { orgContactsFor } from '../lib/validation-lifecycle.js'
 import { HttpError, requireOrgAccess } from '../lib/orgAccess.js'
 import { logger, monitored } from '../lib/logger.js'
 
@@ -103,6 +105,14 @@ const handleRequest = async (req: Request) => {
     if (id === 'options' && req.method === 'GET') {
       const e = await loadEngagement(url.searchParams.get('engagementId') ?? '')
       if (!e || (await sideOf(e, caller)) !== 'organization') return notFound()
+      if (isSupport(e, caller)) {
+        // Support mode: only the organisation's own documents (its people's workspace organisations).
+        const own = new Set(await wsOrgIdsForLegacyOrg(e.orgId))
+        const all = await evidenceOptions(caller.email, true)
+        const ids = new Set((await db.select({ id: evidenceRegistry.id, orgId: evidenceRegistry.orgId }).from(evidenceRegistry)
+          .where(inArray(evidenceRegistry.id, all.length ? all.map((o) => o.id) : [0]))).filter((x) => own.has(x.orgId)).map((x) => x.id))
+        return json({ options: all.filter((o) => ids.has(o.id)), support: true })
+      }
       return json({ options: await evidenceOptions(caller.email, caller.role === 'super_admin') })
     }
 
@@ -147,6 +157,7 @@ const handleRequest = async (req: Request) => {
       const [ev] = await db.select().from(evidenceRegistry)
         .where(and(eq(evidenceRegistry.id, p.data.evidenceId), isNull(evidenceRegistry.archivedAt), ne(evidenceRegistry.status, 'rejected')))
       if (!ev) return notFound()
+      if (isSupport(e, caller) && !(await wsOrgIdsForLegacyOrg(e.orgId)).includes(ev.orgId)) return notFound()
       // The evidence's own permissions apply: the caller must be an assessor or above in the workspace organisation holding it.
       try { await requireOrgAccess(caller, ev.orgId, 'assessor') } catch (err) {
         if (err instanceof HttpError) return err.status === 404 ? notFound() : forbidden()
@@ -156,7 +167,11 @@ const handleRequest = async (req: Request) => {
         id: `evri_${crypto.randomUUID()}`, requestId: r.id, evidenceId: ev.id, documentName: ev.documentName,
         sha256: await evidenceSha256(ev.filePath), linkedBy: caller.email,
       }).onConflictDoNothing().returning({ id: evidenceRequestItems.id })
-      if (inserted.length) await audit(caller.email, `linked evidence #${ev.id} (${ev.documentName})`, r.id, r.orgId)
+      if (inserted.length) {
+        const support = isSupport(e, caller)
+        await audit(caller.email, `${support ? 'CRAFT support: ' : ''}linked evidence #${ev.id} (${ev.documentName})`, r.id, r.orgId)
+        if (support) await tellSupportAction(await orgContactsFor(r.orgId), `Linked "${ev.documentName}" to the evidence request "${r.title}".`, engagementLink(r.engagementId), caller.email)
+      }
       return json((await view([r]))[0], inserted.length ? 201 : 200)
     }
     if (sub === 'items' && who && !act && req.method === 'DELETE') {
@@ -202,7 +217,9 @@ const handleRequest = async (req: Request) => {
       const [u] = await db.update(evidenceRequests).set({ status: 'submitted', submittedBy: caller.email, submittedAt: new Date(), submissionNote: p.data.note ?? '' })
         .where(and(eq(evidenceRequests.id, r.id), inArray(evidenceRequests.status, [...OPEN_STATUSES]))).returning()
       if (!u) return conflict('This request is not waiting for evidence')
-      await audit(caller.email, `submitted evidence (${items.length} document${items.length === 1 ? '' : 's'})`, r.id, r.orgId)
+      const support = isSupport(e, caller)
+      await audit(caller.email, `${support ? 'CRAFT support: ' : ''}submitted evidence (${items.length} document${items.length === 1 ? '' : 's'})`, r.id, r.orgId)
+      if (support) await tellSupportAction(await orgContactsFor(r.orgId), `Submitted the evidence request "${r.title}" for you (${items.length} document${items.length === 1 ? '' : 's'}).`, engagementLink(r.engagementId), caller.email)
       await tellRequester(u)
       return json((await view([u]))[0])
     }

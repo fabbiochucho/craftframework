@@ -1593,6 +1593,8 @@ export const evidenceRegistry = pgTable(
     expiryDate: date('expiry_date'),
     // 'pending_review' | 'approved' | 'rejected' | 'expired'
     status: text('status').notNull().default('pending_review'),
+    // Added by the CRAFT team (Super Admin support mode) on the organisation's behalf; shown as such.
+    addedBySupport: boolean('added_by_support').notNull().default(false),
     // Soft delete
     archivedAt: timestamp('archived_at', { withTimezone: true }),
   },

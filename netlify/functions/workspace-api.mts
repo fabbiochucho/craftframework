@@ -23,6 +23,8 @@ import {
 } from '../lib/workspace.js'
 import { decryptField, encryptField, fieldLookupHashes, isEncryptedField, pseudonymizeIdentifier } from '../lib/crypto.js'
 import { escapeHtml, renderReportPdf } from '../lib/reports.js'
+import { isSupportAction, tellSupportAction, wsOrgContacts } from '../lib/support.js'
+import { publicBaseUrl } from '../lib/public-validation.js'
 import { logger, monitored } from '../lib/logger.js'
 import { purgeExpiredRateLimits } from '../lib/public-rate-limit.js'
 import {
@@ -1890,12 +1892,18 @@ const routes: Route[] = [
     // Read the contents and check them against the name / declared kind. The text is not stored.
     const contentCheck = checkContent({ fileName: file.name, declaredKind, text: await extractText(bytes, file.type) })
     await getStore('evidence').set(key, encodeEvidence(bytes), { metadata: { mimeType: file.type } })
+    // Super Admin support mode: added on the organisation's behalf, labelled and the organisation told.
+    const support = await isSupportAction(caller, orgId)
     const [e] = await db.insert(evidenceRegistry).values({
       orgId, workspaceId: wsId, documentName: file.name.slice(0, 255), documentType, uploadedBy: caller.email, filePath: key,
       fileSizeKb: Math.ceil(file.size / 1024), mimeType: file.type, expiryDate: dateOrNull(form.get('expiryDate') || null, 'expiryDate'),
-      declaredKind, contentCheck: { ...contentCheck },
+      declaredKind, contentCheck: { ...contentCheck }, addedBySupport: support,
     }).returning()
-    await audit(c, orgId, wsId, 'evidence', e.id, 'create', { name: e.documentName, contentCheck: contentCheck.status })
+    await audit(c, orgId, wsId, 'evidence', e.id, 'create', { name: e.documentName, contentCheck: contentCheck.status, ...(support ? { support: true } : {}) })
+    if (support) {
+      await tellSupportAction(await wsOrgContacts(orgId), `Added the document "${e.documentName}" to your Evidence registry.`,
+        `${publicBaseUrl()}/app/workspaces/${wsId}/evidence/${e.id}`, caller.email)
+    }
     return json(e, 201)
   } },
   { method: 'GET', pattern: `${W}/evidence/document-kinds`, access: 'viewer', scope: 'workspace', handler: async () =>

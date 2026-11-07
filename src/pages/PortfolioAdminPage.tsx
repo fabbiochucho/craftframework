@@ -12,6 +12,7 @@ import {
 } from '../lib/data'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Select, Input, Button, Stat, Switch, Toast } from '../components/ui'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import { MyAmbassadorStrip } from '../components/AmbassadorBadges'
 import * as api from '../lib/api'
 import { cn } from '../lib/utils'
 
@@ -157,6 +158,7 @@ export function PortfolioAdminPage() {
 
   return (
     <div className="space-y-6">
+      <MyAmbassadorStrip />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500 text-white">

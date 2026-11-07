@@ -68,7 +68,7 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
       <ErrorLine error={error} /><State loading={list.loading} error={list.error} />
       <Table><Thead><tr><Th>File</Th><Th>Type</Th><Th>Uploaded</Th><Th>Expiry</Th><Th>Content check</Th><Th>Status</Th></tr></Thead>
         <Tbody>{list.data?.map(e => (
-          <tr key={e.id}><Td><Link className="text-emerald-700 underline" to="/app/workspaces/$workspaceId/evidence/$evidenceId" params={{ workspaceId, evidenceId: String(e.id) }}>{e.documentName}</Link></Td>
+          <tr key={e.id}><Td><Link className="text-emerald-700 underline" to="/app/workspaces/$workspaceId/evidence/$evidenceId" params={{ workspaceId, evidenceId: String(e.id) }}>{e.documentName}</Link>{e.addedBySupport && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">CRAFT support</span>}</Td>
             <Td>{e.documentType}</Td><Td>{new Date(e.uploadedAt).toLocaleDateString()}</Td><Td>{e.expiryDate ?? '—'}</Td><Td><ContentBadge check={e.contentCheck} /></Td><Td><StatusPill value={e.status} /></Td></tr>))}</Tbody></Table>
     </div>
   )
@@ -90,7 +90,7 @@ export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: s
     <div className="max-w-3xl space-y-4">
       <Header title={e.documentName} back={{ to: '/app/workspaces/$workspaceId/evidence', params: { workspaceId }, label: 'Registry' }} />
       <Card><CardContent className="space-y-1 text-sm">
-        <p>Type: {e.documentType} · {e.mimeType} · {e.fileSizeKb} KB</p><p>Uploaded by {e.uploadedBy} on {new Date(e.uploadedAt).toLocaleString()}</p>
+        <p>Type: {e.documentType} · {e.mimeType} · {e.fileSizeKb} KB</p><p>Uploaded by {e.uploadedBy} on {new Date(e.uploadedAt).toLocaleString()}{e.addedBySupport && <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">Added by CRAFT support</span>}</p>
         <p>Expiry: {e.expiryDate ?? '—'} {e.expiryState === 'expired' && <Badge className="bg-rose-100 text-rose-700">expired</Badge>}</p><p>Status: <StatusPill value={e.status} /></p>
         <a className="text-emerald-700 underline" href={`/api${wsPath(workspaceId, `/evidence/${evidenceId}/download`)}`}>Download</a>
       </CardContent></Card>

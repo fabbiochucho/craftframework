@@ -16,6 +16,7 @@ import {
   Table, Thead, Tbody, Th, Td, Input, Button, Toast, Select,
 } from '../components/ui'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import { ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
 import * as api from '../lib/api'
 import type { UserDirectoryRow } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -610,6 +611,9 @@ export function AdminPage() {
               records read as platform oversight with no named reviewer.
             </p>
           </div>
+
+          <SupportFinder />
+          <ReferralsOverview />
 
           {currentUser && (
             <InviteOrganizationCard

@@ -18,6 +18,9 @@ export const MAX_REQUESTS_PER_ENGAGEMENT = 100
 
 export const engagementLink = (engagementId: string) => `${publicBaseUrl()}/engagements/${encodeURIComponent(engagementId)}`
 
+/** True when the Super Admin is acting for an organisation that is not their own (support mode). */
+export const isSupport = (e: ValidationEngagementRow, caller: Caller) => caller.role === 'super_admin' && caller.orgId !== e.orgId
+
 /** 'organization' (staff who may write the organisation), 'reviewer' (validator team or funder), or null. */
 export async function sideOf(e: ValidationEngagementRow, caller: Caller): Promise<'organization' | 'reviewer' | null> {
   if (caller.orgId === e.orgId && (await canAccessOrg(caller, e.orgId, 'write'))) return 'organization'
@@ -27,6 +30,8 @@ export async function sideOf(e: ValidationEngagementRow, caller: Caller): Promis
   ))
   if (member) return 'reviewer'
   const firmIds = [e.validatorFirmId, e.funderFirmId].filter((x): x is string => !!x)
+  // Super Admin support mode: answers for the organisation (labelled, emailed and logged by the caller).
+  if (caller.role === 'super_admin' && !caller.readOnly) return 'organization'
   if (firmIds.length) {
     const rows = await db.select({ firmId: firmMembers.firmId, role: firmMembers.role }).from(firmMembers)
       .where(and(inArray(firmMembers.firmId, firmIds), eq(firmMembers.email, caller.email), eq(firmMembers.status, 'active')))
