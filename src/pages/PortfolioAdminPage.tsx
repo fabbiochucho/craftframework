@@ -11,6 +11,8 @@ import {
   getAccreditation, getImplementationEvidence, LENSES, lensQuestionCount,
 } from '../lib/data'
 import { Card, CardContent, CardHeader, CardTitle, Badge, Select, Input, Button, Stat, Switch, Toast } from '../components/ui'
+import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import * as api from '../lib/api'
 import { cn } from '../lib/utils'
 
 const LINE_COLORS = ['#10B981', '#F59E0B', '#0EA5E9', '#f43f5e', '#8b5cf6']
@@ -196,6 +198,25 @@ export function PortfolioAdminPage() {
         )}
       </div>
 
+      {/* Invite an organisation that is not on CRAFT yet: it joins the chosen portfolio on acceptance. */}
+      {currentUser && !currentUser.isDemo && portfolios.length > 0 && (
+        <InviteOrganizationCard
+          title="Invite an organisation by email"
+          blurb="It gets its own secure workspace, joins your portfolio and gives you read-only access it can revoke."
+          purpose="Gives the inviter read-only access to your results. You can revoke it at any time."
+          portfolios={portfolios.map(p => ({ id: p.id, name: p.name }))}
+          inviterName={currentUser.email}
+          inviterEmail={currentUser.email}
+          onSend={async (v) => {
+            const out = await api.inviteOrganizationByEmail({
+              email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined,
+              portfolioId: v.portfolioId || undefined, orgArchetype: v.orgArchetype || undefined, orgSector: v.orgSector || undefined, orgCountry: v.orgCountry || undefined,
+            })
+            return out.ok ? { ok: true } : { ok: false, error: out.error }
+          }}
+        />
+      )}
+
       {/* Build surface - register institutions and group them into portfolios */}
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -204,8 +225,8 @@ export function PortfolioAdminPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-slate-500">
-              Add an institution to your administration. You can register as many as you need, then group them into one or
-              more portfolios.
+              Add an institution record you administer yourself. To bring in an institution that runs its own workspace,
+              use <strong>Invite an organisation by email</strong> below: it is added to your portfolio when it accepts.
             </p>
             <Input label="Institution name" placeholder="National Public Health Agency" value={orgName} onChange={e => setOrgName(e.target.value)} />
             <div className="grid gap-3 sm:grid-cols-2">

@@ -59,7 +59,7 @@ describe('/api/invitations name and note', () => {
     assert.equal((await send({ invitationId: inv.id })).status, 200)
     const { html, to } = JSON.parse(String(mock.calls[0].init!.body))
     assert.equal(to, 'new@example.org')
-    assert.match(html, /Welcome, &lt;b&gt;Amina&lt;\/b&gt; O&#39;Neil/)
+    assert.match(html, /Hello &lt;b&gt;Amina&lt;\/b&gt; O&#39;Neil/)
     assert.match(html, /Join us &amp; &lt;script&gt;alert\(1\)&lt;\/script&gt;/)
     assert.ok(!html.includes('<script>') && !html.includes('<b>Amina'))
   })
@@ -71,7 +71,7 @@ describe('/api/invitations name and note', () => {
     assert.equal(row.message, null)
     await send({ invitationId: inv.id })
     const { html } = JSON.parse(String(mock.calls[0].init!.body))
-    assert.match(html, /Welcome, Colleague/)
+    assert.match(html, /Hello Colleague/)
     assert.ok(!html.includes('wrote:'))
   })
 
@@ -94,7 +94,7 @@ describe('/api/invitations name and note', () => {
     assert.equal(mock.calls.length, 0)
     await send({ invitationId: inv.id })
     const { html } = JSON.parse(String(mock.calls[0].init!.body))
-    assert.match(html, /Welcome, Real Name/)
+    assert.match(html, /Hello Real Name/)
     assert.match(html, /Real note/)
     assert.ok(!html.includes('Spoof'))
   })
@@ -107,23 +107,20 @@ describe('/api/invitations token routes', () => {
      VALUES ($1, $2, 'x@example.org', $3, 'assessor', 'Acme', $4, now() + $5::interval)`, [id, `tok-${id}`, INVITER, status, interval])
   const statusOf = async (id: string) => (await rows('SELECT status FROM invitations WHERE id = $1', [id]))[0].status
 
-  it('PATCH changes only a pending, unexpired invitation, only to accepted/revoked', async () => {
+  it('PATCH only declines (revoked) a pending, unexpired invitation; accepting needs a session', async () => {
     await seed('inv_p')
-    assert.equal((await tokenCall('PATCH', { token: 'tok-inv_p', status: 'pending' })).status, 400)
-    assert.equal((await tokenCall('PATCH', { token: 'tok-inv_p', status: 'anything' })).status, 400)
-    assert.equal((await tokenCall('PATCH', { token: 'tok-nope', status: 'accepted' })).status, 404)
+    for (const status of ['pending', 'anything', 'accepted']) assert.equal((await tokenCall('PATCH', { token: 'tok-inv_p', status })).status, 400, status)
+    assert.equal((await tokenCall('PATCH', { token: 'tok-nope', status: 'revoked' })).status, 404)
     assert.equal(await statusOf('inv_p'), 'pending')
-    const ok = await tokenCall('PATCH', { token: 'tok-inv_p', status: 'accepted' })
+    const ok = await tokenCall('PATCH', { token: 'tok-inv_p', status: 'revoked' })
     assert.equal(ok.status, 200)
-    assert.deepEqual(await ok.json(), { id: 'inv_p', status: 'accepted' })
-    // A second answer cannot flip it back, revoke it, or reopen it.
-    for (const status of ['revoked', 'accepted']) assert.equal((await tokenCall('PATCH', { token: 'tok-inv_p', status })).status, 404)
-    assert.equal(await statusOf('inv_p'), 'accepted')
+    assert.deepEqual(await ok.json(), { id: 'inv_p', status: 'revoked' })
+    // A second answer cannot reopen it.
+    assert.equal((await tokenCall('PATCH', { token: 'tok-inv_p', status: 'revoked' })).status, 404)
+    assert.equal(await statusOf('inv_p'), 'revoked')
 
-    await seed('inv_r', 'revoked')
     await seed('inv_e', 'pending', '-1 minute')
-    for (const id of ['inv_r', 'inv_e']) assert.equal((await tokenCall('PATCH', { token: `tok-${id}`, status: 'accepted' })).status, 404, id)
-    assert.equal(await statusOf('inv_r'), 'revoked')
+    assert.equal((await tokenCall('PATCH', { token: 'tok-inv_e', status: 'revoked' })).status, 404)
     assert.equal(await statusOf('inv_e'), 'pending')
   })
 

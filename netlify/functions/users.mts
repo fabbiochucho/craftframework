@@ -5,12 +5,22 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { dailyActive, users } from '../../db/schema.js'
 import type { UserRow } from '../../db/schema.js'
-import { isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
+import { canAccessOrg, filterAuthorizedOrgIds, isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 
 function isAdmin(role: string): boolean {
   return role === 'admin' || role === 'super_admin'
 }
+
+// An ordinary Administrator manages people only inside organisations they may write: they can
+// neither place someone (themselves included) into another tenant nor take a person away from one.
+// Only the platform Super Admin works across every organisation.
+async function mayManage(caller: Caller, orgId: string | null | undefined): Promise<boolean> {
+  if (caller.role === 'super_admin') return true
+  if (!orgId) return true
+  return canAccessOrg(caller, orgId, 'write')
+}
+const RANK: Record<string, number> = { assessor: 1, independent: 1, portfolio: 2, admin: 3 }
 
 // `role` is deliberately not enum-locked here — it's shared with the
 // specialized-ecosystem grant roles (cbn_examiner, frcn_auditor, etc.), so a
@@ -118,6 +128,13 @@ const handleRequest = async (req: Request) => {
         return Response.json(row ?? null)
       }
       if (!isAdmin(caller.role)) return forbidden()
+      if (caller.role !== 'super_admin') {
+        // An Administrator sees only the people of the organisations they administer.
+        const rows = await db.select().from(users).orderBy(asc(users.email))
+        const orgIds = [...new Set(rows.map((r) => r.orgId).filter((x): x is string => !!x))]
+        const allowed = new Set(await filterAuthorizedOrgIds(caller, orgIds, 'write'))
+        return Response.json(rows.filter((r) => r.orgId && allowed.has(r.orgId)))
+      }
       // No email → the full directory for the admin management screen. Union the
       // database rows (which carry each admin's role/org assignments) with every
       // registered Identity account, so a person who signed up but hasn't signed
@@ -183,8 +200,13 @@ const handleRequest = async (req: Request) => {
       if (!parsed.success) return Response.json({ error: 'Invalid request body', details: parsed.error.flatten() }, { status: 400 })
       const assign = parsed.data
 
-      const id: string = assign.id || `usr_${crypto.randomUUID()}`
       const role = clampRole(email, assign.role ?? 'assessor')
+      if (caller.role !== 'super_admin') {
+        const [current] = await db.select({ orgId: users.orgId }).from(users).where(eq(users.email, email)).limit(1)
+        if (!(await mayManage(caller, assign.orgId)) || !(await mayManage(caller, current?.orgId))) return forbidden()
+        if ((RANK[role] ?? 9) > (RANK[caller.role] ?? 0)) return forbidden()
+      }
+      const id: string = assign.id || `usr_${crypto.randomUUID()}`
       const status = assign.status ?? 'active'
 
       const [row] = await db
@@ -225,6 +247,11 @@ const handleRequest = async (req: Request) => {
       const email = url.searchParams.get('email')
       const id = url.searchParams.get('id')
       if (!email && !id) return Response.json({ error: 'email or id required' }, { status: 400 })
+      if (caller.role !== 'super_admin') {
+        const [target] = await db.select({ orgId: users.orgId }).from(users)
+          .where(email ? eq(users.email, email.trim().toLowerCase()) : eq(users.id, id!)).limit(1)
+        if (target && !(await mayManage(caller, target.orgId))) return forbidden()
+      }
       await db
         .delete(users)
         .where(email ? eq(users.email, email.trim().toLowerCase()) : eq(users.id, id!))

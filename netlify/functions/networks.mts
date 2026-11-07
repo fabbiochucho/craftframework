@@ -2,10 +2,12 @@ import type { Config } from '@netlify/functions'
 import { and, eq, gte, inArray, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { capacityActions, networkAdmins, networkMembers, networkNodes, networkRoundSubmissions, networkRounds, networks, organizations, responses } from '../../db/schema.js'
+import { capacityActions, invitations, networkAdmins, networkMembers, networkNodes, networkRoundSubmissions, networkRounds, networks, organizations, responses } from '../../db/schema.js'
 import { audit, coordinatorScope, isSuper, load } from '../lib/network-access.js'
 import { canAccessOrg, filterAuthorizedOrgIds, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
+import { inviteOrganization } from '../lib/invitations.js'
+import { parseOrgType } from '../../src/lib/orgType.js'
 import {
   NETWORK_LEVELS, SHARING, canNest, distinctAcceptedOrgs, everyoneNamed, memberView, subtree, validGeoCode, type NetworkLevel,
 } from '../../src/lib/networks.js'
@@ -59,7 +61,15 @@ const nodePatchSchema = z.object({ name: z.string().trim().min(2).max(160).optio
 const nodeSchema = z.object({ parentId: z.string().max(80), level, name: z.string().trim().min(2).max(160), geoCode: geo }).strict()
 const adminSchema = z.object({ nodeId: z.string().max(80), email: z.string().trim().toLowerCase().email().max(200), role: z.enum(['coordinator', 'viewer']).default('coordinator') }).strict()
 const adminDeleteSchema = z.object({ nodeId: z.string().max(80), email: z.string().trim().toLowerCase().email().max(200) }).strict()
-const inviteSchema = z.object({ nodeId: z.string().max(80), org: z.string().trim().min(2).max(200) }).strict()
+const inviteSchema = z.object({
+  nodeId: z.string().max(80), org: z.string().trim().min(2).max(200),
+  // Only for an organisation not on CRAFT yet: invited by email, it joins this level once it has a workspace.
+  orgName: z.string().trim().min(2).max(200).refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v)).optional(),
+  message: z.string().trim().max(1000).optional(),
+  orgArchetype: z.string().trim().max(40).optional(),
+  orgSector: z.string().trim().max(80).optional(),
+  orgCountry: z.string().trim().max(8).optional(),
+}).strict()
 const decideSchema = z.object({ action: z.enum(['accept', 'decline', 'leave', 'sharing']), sharing: z.enum(SHARING).optional() }).strict()
 
 const handleRequest = async (req: Request) => {
@@ -283,13 +293,27 @@ const handleRequest = async (req: Request) => {
       if (!p.success) return bad('Choose a level and an organisation')
       if (!coordScope.has(p.data.nodeId)) return forbidden()
       if (nodes.find((n) => n.id === p.data.nodeId)?.status === 'archived') return json({ error: 'This level is archived. Restore it first.' }, 409)
-      const recentInvites = members.filter((m) => m.invitedAt && Date.now() - new Date(m.invitedAt).getTime() < DAY).length
+      const nodeIds = nodes.map((n) => n.id)
+      const recentEmailInvites = nodeIds.length ? (await db.select({ id: invitations.id }).from(invitations)
+        .where(and(inArray(invitations.networkNodeId, nodeIds), gte(invitations.createdAt, new Date(Date.now() - DAY))))).length : 0
+      const recentInvites = members.filter((m) => m.invitedAt && Date.now() - new Date(m.invitedAt).getTime() < DAY).length + recentEmailInvites
       const cap = net.verified ? INVITES_PER_DAY.verified : INVITES_PER_DAY.unverified
       if (!isSuper(caller) && recentInvites >= cap) return json({ error: `This network can send up to ${cap} invitations a day${net.verified ? '' : ' until CRAFT verifies it'}` }, 429)
       const key = p.data.org
       const [org] = await db.select({ id: organizations.id, name: organizations.name }).from(organizations)
         .where(or(eq(organizations.id, key), eq(organizations.email, key.toLowerCase()))).limit(1)
-      if (!org) return json({ error: 'No CRAFT organisation has that ID or contact email. Ask them to register first.' }, 404)
+      if (!org) {
+        // Not on CRAFT yet: invite the contact by email. The level is joined (as an invitation the
+        // organisation still accepts) once it has created its workspace.
+        const email = key.toLowerCase()
+        if (!z.string().email().safeParse(email).success) return json({ error: 'No CRAFT organisation has that ID. To invite one that is not on CRAFT yet, enter its contact email and name.' }, 404)
+        if (!p.data.orgName) return json({ error: 'This organisation is not on CRAFT yet. Enter its name to invite it by email.', needsOrgName: true }, 404)
+        const orgType = parseOrgType({ archetype: p.data.orgArchetype, sector: p.data.orgSector, country: p.data.orgCountry })
+        if (orgType === 'invalid') return bad('Choose the organisation type from the list')
+        const { invitation, email: sent } = await inviteOrganization(caller, { email, orgName: p.data.orgName, message: p.data.message, networkNodeId: p.data.nodeId, orgType })
+        await audit(caller.email, `Invited ${p.data.orgName} to network by email`, p.data.nodeId)
+        return json({ ok: true, orgName: p.data.orgName, invitedByEmail: true, invitationId: invitation.id, email: sent.body }, 201)
+      }
       const existing = members.find((m) => m.nodeId === p.data.nodeId && m.orgId === org.id)
       if (existing && (existing.status === 'invited' || existing.status === 'accepted')) return json({ error: `${org.name} is already invited or a member here` }, 409)
       if (existing) {

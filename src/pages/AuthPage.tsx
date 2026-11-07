@@ -18,6 +18,7 @@ import { trackEvent } from '../lib/analytics'
 import { useIdentityRecovery } from '../components/IdentityBridge'
 import { useAuthCtx, useEntityProfileCtx } from '../lib/context'
 import { BRAND, VIEW_LEVELS, type ViewLevel } from '../lib/data'
+import { takeInvitePath } from '../lib/pendingInvite'
 import { safeNextPath } from '../lib/safeNext'
 import { readStartChoice, unconfiguredHome } from '../lib/startChoice'
 
@@ -54,8 +55,10 @@ export function AuthPage() {
   const { currentUser, authReady, onboardingComplete } = useAuthCtx()
   const { entityProfile, profileSaveStatus } = useEntityProfileCtx()
   const recovery = useIdentityRecovery()
-  const [mode, setMode] = useState<'login' | 'register' | 'recover'>('login')
-  const [email, setEmail] = useState('')
+  // An invitation link sends the invitee here with ?mode=register&email=... prefilled.
+  const initialParams = typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search)
+  const [mode, setMode] = useState<'login' | 'register' | 'recover'>(initialParams.get('mode') === 'register' ? 'register' : 'login')
+  const [email, setEmail] = useState(() => (initialParams.get('email') ?? '').trim().slice(0, 320))
   const [password, setPassword] = useState('')
   // Lets the visitor reveal the password they are typing by clicking the eye
   // icon (or the field's reveal control), toggling the input between masked and
@@ -132,7 +135,7 @@ export function AuthPage() {
       const configured = onboardingComplete && !!(entityProfile.archetype && entityProfile.country && entityProfile.sector)
       // `?next=` (e.g. the "finish setting up" email) returns the person to that page, but only a same-site
       // path is honoured, and someone who has finished onboarding is not sent back into it.
-      const next = safeNextPath(new URLSearchParams(window.location.search).get('next'))
+      const next = safeNextPath(new URLSearchParams(window.location.search).get('next')) ?? takeInvitePath()
       if (next && !(configured && next.split(/[?#]/)[0] === '/onboarding')) router.history.push(next)
       else navigate({ to: configured ? '/dashboard' : currentUser.role === 'super_admin' ? '/admin' : unconfiguredHome(readStartChoice()) })
     }

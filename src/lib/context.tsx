@@ -855,35 +855,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       setTeamMembers(prev => [member, ...prev])
       if (currentUser && !currentUser.isDemo) {
-        api.upsertUser({
-          id,
-          email: input.email,
-          name: input.name,
-          title: input.title,
-          orgId: currentUser.orgId,
-          role: input.role,
-          scopeId: input.scopeId ?? null,
-          scopeLabel: input.scopeLabel,
-          status: 'invited',
-        })
-        // Persist a tokenised invitation and dispatch the branded welcome email.
-        // The email is a real transactional send when a mail provider is
-        // configured server-side, and degrades gracefully otherwise. This closes
-        // the previous "welcome email is a template only" gap.
+        // The server checks that the inviter may add people to this organisation at this role,
+        // stores a tokenised invitation and emails the accept link. The person is assigned to the
+        // organisation only when they accept, signed in as the invited email.
         api.createInvitation({
           email: input.email,
-          inviter: currentUser.email,
-          inviterName: currentUser.email,
           inviteeName: input.name,
           message: message?.trim() || undefined,
           portfolioId: input.scopeId,
           role: input.role,
           scopeLabel: input.scopeLabel,
+          send: true,
         }).then(inv => {
           if (!inv) return
           setSentInvitations(prev => [inv, ...prev])
-          // The server renders subject/body from the stored invitation.
-          api.sendInviteEmail({ invitationId: inv.id })
         })
       }
       appendAudit(

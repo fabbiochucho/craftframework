@@ -3,17 +3,19 @@ import { and, eq, inArray, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
-  auditLogs, engagementDeclarations, engagementMembers, firmMembers, firms, organizations, orgDirectoryProfiles,
+  auditLogs, engagementDeclarations, engagementMembers, firmMembers, firms, organizations,
   validationEngagements, validatorProfiles, type EngagementMemberRow, type ValidationEngagementRow,
 } from '../../db/schema.js'
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { accessConflict, accreditationOf, reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
+import { createEngagement, createSchema, myFirms, type Firms } from '../lib/engagement-create.js'
+import { inviteOrganization } from '../lib/invitations.js'
+import { parseOrgType } from '../../src/lib/orgType.js'
+import type { Caller } from '../lib/auth.js'
 import { missingSpecialismMessage } from '../../src/lib/specialisms.js'
-import { isPrimaryFramework } from '../../src/lib/validationReview.js'
 import { logger, monitored } from '../lib/logger.js'
 import {
-  DEFAULT_ACCESS_DAYS, ENGAGEMENT_TYPES, engagementLabel, engagementStatusFrom, grantExpiry, INVITE_VALID_DAYS, MAX_ACCESS_DAYS,
-  mayCreateType, mayJoinTeam, parseScope, declarationFor, type EngagementScope, type EngagementType, type PartyStatus, type Side,
+  engagementLabel, engagementStatusFrom, grantExpiry, mayJoinTeam, declarationFor, type EngagementScope, type EngagementType, type PartyStatus, type Side,
 } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 
@@ -41,18 +43,6 @@ const audit = (actor: string, action: string, target: string, orgId: string) =>
   db.insert(auditLogs).values({ actor, action, target, category: 'Engagement', orgId })
 
 const emailSchema = z.string().trim().toLowerCase().email().max(200)
-const createSchema = z.object({
-  side: z.enum(['organization', 'validator', 'funder']),
-  type: z.enum(ENGAGEMENT_TYPES),
-  framework: z.string().trim().min(1).max(60).optional(),
-  scope: z.unknown().optional(),
-  accessDays: z.number().int().min(1).max(MAX_ACCESS_DAYS).optional(),
-  requiresRereview: z.boolean().optional(),
-  organizationProfileId: z.string().max(200).optional(),
-  validatorId: z.string().max(200).optional(),
-  validatorFirmId: z.string().max(200).optional(),
-  funderFirmId: z.string().max(200).optional(),
-})
 const respondSchema = z.object({ side: z.enum(['organization', 'validator', 'funder']), decision: z.enum(['accept', 'decline']), reason: z.string().trim().max(1000).optional() })
 const memberSchema = z.object({ email: emailSchema, role: z.enum(['lead', 'member']).optional() })
 const declarationSchema = z.object({
@@ -63,13 +53,6 @@ const declarationSchema = z.object({
 })
 const cancelSchema = z.object({ reason: z.string().trim().max(1000).optional() })
 
-type Firms = Map<string, { role: string; kind: string | null; name: string }>
-async function myFirms(email: string): Promise<Firms> {
-  const rows = await db.select({ id: firms.id, name: firms.name, kind: firms.kind, role: firmMembers.role }).from(firmMembers)
-    .innerJoin(firms, eq(firms.id, firmMembers.firmId))
-    .where(and(eq(firmMembers.email, email), eq(firmMembers.status, 'active')))
-  return new Map(rows.map((r) => [r.id, { role: r.role, kind: r.kind, name: r.name }]))
-}
 async function isActiveMemberOf(firmId: string, email: string): Promise<boolean> {
   const [r] = await db.select({ e: firmMembers.email }).from(firmMembers)
     .where(and(eq(firmMembers.firmId, firmId), eq(firmMembers.email, email), eq(firmMembers.status, 'active')))
@@ -352,90 +335,40 @@ async function addMember(e: ValidationEngagementRow, members: EngagementMemberRo
   return null
 }
 
-async function create(caller: { email: string; orgId: string; name: string }, firmMap: Firms, readBody: () => Promise<unknown>) {
-  const p = createSchema.safeParse(await readBody())
+// Organisation picked from the directory, or (validator / funder side) invited by email: the
+// engagement is then proposed when the organisation accepts and its workspace exists.
+const inviteSchema = z.object({
+  inviteEmail: emailSchema,
+  inviteOrgName: z.string().trim().min(2, 'Enter the organisation name').max(200).refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v), 'Invalid organisation name'),
+  inviteName: z.string().trim().max(120).refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v)).optional(),
+  inviteMessage: z.string().trim().max(1000).optional(),
+  inviteOrgArchetype: z.string().trim().max(40).optional(),
+  inviteOrgSector: z.string().trim().max(80).optional(),
+  inviteOrgCountry: z.string().trim().max(8).optional(),
+})
+async function create(caller: Caller, firmMap: Firms, readBody: () => Promise<unknown>) {
+  const raw = await readBody()
+  const p = createSchema.safeParse(raw)
   if (!p.success) return bad('Invalid engagement')
-  const d = p.data
-  if (!mayCreateType(d.side, d.type)) return json({ error: 'A funding partner can only create a funder review, never an independent validation' }, 403)
-  const scope = parseScope(d.scope)
-  if (!scope) return bad('Invalid scope')
-  // Indices are validated alongside the ladder (scope.indices), never as the engagement's framework, so the specialism check always applies.
-  if (d.framework && !isPrimaryFramework(d.framework)) return bad('Choose the ladder as the framework; add CRAFT indices to the scope')
-  const now = new Date()
-  const base = {
-    id: `eng_${crypto.randomUUID()}`, framework: d.framework ?? 'capital-readiness', scope, type: d.type, createdBy: caller.email, createdBySide: d.side,
-    requiresRereview: !!d.requiresRereview, accessDays: d.accessDays ?? DEFAULT_ACCESS_DAYS,
-    inviteExpiresAt: new Date(now.getTime() + INVITE_VALID_DAYS * 86_400_000),
+  const hasInvite = !!raw && typeof raw === 'object' && 'inviteEmail' in (raw as object)
+  if (!hasInvite) {
+    const out = await createEngagement(caller, firmMap, p.data)
+    return json(out.body, out.status)
   }
-  let orgId: string
-  let shape: Partial<typeof validationEngagements.$inferInsert>
-  const leads: Array<{ email: string; approved: boolean }> = []
-
-  const orgFromProfile = async () => {
-    if (!d.organizationProfileId) return null
-    const [o] = await db.select({ orgId: orgDirectoryProfiles.orgId }).from(orgDirectoryProfiles)
-      .where(and(eq(orgDirectoryProfiles.id, d.organizationProfileId), eq(orgDirectoryProfiles.listed, true)))
-    return o?.orgId ?? null
-  }
-
-  if (d.side === 'organization') {
-    orgId = caller.orgId
-    if (!(await canAccessOrg(caller as never, orgId, 'write'))) return forbidden()
-    const [org] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, orgId))
-    if (!org) return bad('Set up your organisation profile first')
-    if (d.type === 'independent_validation') {
-      if (d.validatorId) {
-        const [v] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.id, d.validatorId))
-        if (!v) return bad('Validator not found')
-        if (!mayJoinTeam(d.type, effectiveAccreditation(v))) return json({ error: 'Only a currently accredited validator can perform an independent validation' }, 403)
-        const missing = await specialismsMissing(v.email, scope)
-        if (missing.length) return json({ error: missingSpecialismMessage(missing) }, 403)
-        const tie = await accessConflict(orgId, v.email)
-        if (tie) return conflict(`${tie}, so they cannot validate it`)
-        shape = { validatorEmail: v.email, validatorStatus: 'pending', funderStatus: 'not_required' }
-        leads.push({ email: v.email, approved: true })
-      } else if (d.validatorFirmId) {
-        const [f] = await db.select({ id: firms.id }).from(firms).where(and(eq(firms.id, d.validatorFirmId), eq(firms.kind, 'validator_firm')))
-        if (!f) return bad('Validator firm not found')
-        shape = { validatorFirmId: f.id, validatorStatus: 'pending', funderStatus: 'not_required' }
-      } else return bad('Choose a validator or validator firm')
-    } else {
-      if (!d.funderFirmId) return bad('Choose a funding partner')
-      const [f] = await db.select({ id: firms.id }).from(firms).where(and(eq(firms.id, d.funderFirmId), eq(firms.kind, 'funding_partner')))
-      if (!f) return bad('Funding partner not found')
-      shape = { funderFirmId: f.id, funderStatus: 'pending', validatorStatus: 'not_required' }
-    }
-    Object.assign(shape, { orgStatus: 'accepted', orgConsentedBy: caller.email, orgConsentedAt: now })
-  } else if (d.side === 'funder') {
-    if (!d.funderFirmId || firmMap.get(d.funderFirmId)?.kind !== 'funding_partner') return forbidden()
-    const target = await orgFromProfile()
-    if (!target) return bad('Choose an organisation from the directory')
-    orgId = target
-    shape = { funderFirmId: d.funderFirmId, funderStatus: 'accepted', validatorStatus: 'not_required', orgStatus: 'pending' }
-  } else {
-    const [me] = await db.select().from(validatorProfiles).where(eq(validatorProfiles.email, caller.email))
-    if (!me) return bad('Create your validator profile first')
-    if (!mayJoinTeam(d.type, effectiveAccreditation(me))) return json({ error: 'Only a currently accredited validator can perform an independent validation' }, 403)
-    if (d.type === 'independent_validation') {
-      const missing = await specialismsMissing(caller.email, scope)
-      if (missing.length) return json({ error: missingSpecialismMessage(missing) }, 403)
-    }
-    if (d.validatorFirmId && firmMap.get(d.validatorFirmId)?.kind !== 'validator_firm') return forbidden()
-    const target = await orgFromProfile()
-    if (!target) return bad('Choose an organisation from the directory')
-    orgId = target
-    const tie = await accessConflict(orgId, caller.email)
-    if (tie) return conflict(`${tie}, so you cannot validate it`)
-    shape = { validatorFirmId: d.validatorFirmId ?? null, validatorEmail: d.validatorFirmId ? null : caller.email, validatorStatus: 'accepted', funderStatus: 'not_required', orgStatus: 'pending' }
-    leads.push({ email: caller.email, approved: false })
-  }
-
-  const [row] = await db.insert(validationEngagements).values({ ...base, orgId, ...shape } as typeof validationEngagements.$inferInsert).returning()
-  for (const l of leads) {
-    await db.insert(engagementMembers).values({ id: `em_${crypto.randomUUID()}`, engagementId: row.id, email: l.email, role: 'lead', status: 'named', orgApproved: l.approved, addedBy: caller.email })
-  }
-  await audit(caller.email, `created ${d.type.replace('_', ' ')} engagement (${d.side} side)`, row.id, orgId)
-  return json({ id: row.id }, 201)
+  if (p.data.side === 'organization') return bad('Invite an organisation by email as a validator or funding partner')
+  const inv = inviteSchema.safeParse(raw)
+  if (!inv.success) return bad(inv.error.issues[0]?.message ?? 'Enter the organisation contact email and name')
+  // Every check that does not need the organisation runs now, so an invitation is never sent for an
+  // engagement that could not be created. The rest (e.g. conflicts of interest) runs on acceptance.
+  const orgType = parseOrgType({ archetype: inv.data.inviteOrgArchetype, sector: inv.data.inviteOrgSector, country: inv.data.inviteOrgCountry })
+  if (orgType === 'invalid') return bad('Choose the organisation type from the list')
+  const check = await createEngagement(caller, firmMap, p.data, { dryRun: true })
+  if (check.status !== 200) return json(check.body, check.status)
+  const { organizationProfileId: _skip, ...engagement } = p.data
+  const { invitation, email } = await inviteOrganization(caller, {
+    email: inv.data.inviteEmail, orgName: inv.data.inviteOrgName, inviteeName: inv.data.inviteName, message: inv.data.inviteMessage, engagement, orgType,
+  })
+  return json({ invited: true, invitationId: invitation.id, email: email.body }, 201)
 }
 
 export const config: Config = { path: ['/api/engagements', '/api/engagements/*'] }

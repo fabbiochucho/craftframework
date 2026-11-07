@@ -1,12 +1,12 @@
 import type { Config } from '@netlify/functions'
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
   organizations, responses, capacityActions, complianceItems, auditLogs,
   accessGrants, users,
 } from '../../db/schema.js'
-import { canAccessOrg, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
+import { canAccessOrg, resolveCaller, forbidden, tenantOrgId, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 
 const orgFieldsSchema = z.object({
@@ -37,11 +37,17 @@ const handleRequest = async (req: Request) => {
       // scope is forced to the verified caller regardless of any supplied param.
       // Only the platform Super Admin may inspect another creator's institutions.
       const createdBy = caller.role === 'super_admin' ? new URL(req.url).searchParams.get('createdBy') : caller.email
+      // Plus (for the caller themselves) institutions that granted them active access, e.g. an
+      // organisation that accepted their portfolio invitation, so it shows by name in their book.
+      const granted = createdBy && createdBy === caller.email
+        ? (await db.select({ orgId: accessGrants.orgId }).from(accessGrants)
+            .where(and(eq(accessGrants.grantee, caller.email), eq(accessGrants.status, 'active')))).map((g) => g.orgId)
+        : []
       const rows = createdBy
         ? await db
             .select()
             .from(organizations)
-            .where(eq(organizations.createdBy, createdBy))
+            .where(granted.length ? or(eq(organizations.createdBy, createdBy), inArray(organizations.id, granted)) : eq(organizations.createdBy, createdBy))
             .orderBy(desc(organizations.createdAt))
         : await db.select().from(organizations).orderBy(desc(organizations.createdAt))
       return Response.json(rows)
@@ -56,6 +62,10 @@ const handleRequest = async (req: Request) => {
       // is open to any signed-in caller but is always stamped to them.
       const [existing] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.id, id)).limit(1)
       if (existing && !(await canAccessOrg(caller, id))) return forbidden()
+      // A self-registered tenant id is derived from its owner's email (self_<email>). Only that owner
+      // may create it; otherwise anyone could claim someone else's future workspace and, as its
+      // creator of record, hold write access to it.
+      if (!existing && id.startsWith('self_') && id !== tenantOrgId(caller.email) && caller.role !== 'super_admin') return forbidden()
       const [row] = await db
         .insert(organizations)
         .values({

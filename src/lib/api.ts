@@ -621,6 +621,16 @@ export interface Invitation {
   role: string
   scopeLabel: string
   message?: string
+  /** 'member' = join an existing organisation; 'organization' = bring an institution onto CRAFT. */
+  kind?: 'member' | 'organization'
+  orgId?: string
+  orgName?: string
+  /** organization: what accepting sets up, in plain words. */
+  purpose?: string
+  /** organization: what it links to. */
+  link?: 'portfolio' | 'engagement' | 'network'
+  inviteeName?: string
+  createdAt?: string
   status: 'pending' | 'accepted' | 'expired' | 'revoked'
 }
 
@@ -651,6 +661,10 @@ export async function createInvitation(input: {
   role?: string
   scopeLabel?: string
   message?: string
+  /** member: the organisation to join (default: the inviter's own). */
+  orgId?: string
+  /** Email it now (server-rendered). */
+  send?: boolean
 }): Promise<Invitation | null> {
   try {
     return (await jsonOrThrow(
@@ -666,7 +680,53 @@ export async function createInvitation(input: {
   }
 }
 
-export function updateInvitationStatus(token: string, status: 'accepted' | 'revoked'): void {
+/**
+ * Invite an organisation that is not on CRAFT yet (it gets its own workspace). With a portfolio the
+ * new organisation joins it and the inviter gets read-only access it can revoke. Emailed straight away.
+ */
+export async function inviteOrganizationByEmail(input: {
+  email: string
+  orgName: string
+  inviteeName?: string
+  message?: string
+  portfolioId?: string
+  orgArchetype?: string
+  orgSector?: string
+  orgCountry?: string
+}): Promise<{ ok: true; invitation: Invitation & { email?: { dispatched?: boolean } } } | { ok: false; error: string }> {
+  try {
+    const res = await fetch('/api/invitations', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'organization', ...input }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: String(body?.error ?? (res.status === 403 ? 'You cannot send this invitation' : `Request failed (${res.status})`)) }
+    return { ok: true, invitation: body }
+  } catch {
+    return { ok: false, error: 'Network error. Please try again.' }
+  }
+}
+
+export type AcceptOutcome = { ok: true; next: string; warning?: string } | { ok: false; status: number; error: string }
+
+/** Accept an invitation as the signed-in invitee (the session email must be the invited email). */
+export async function acceptInvitation(token: string, orgName?: string): Promise<AcceptOutcome> {
+  try {
+    const res = await fetch('/api/invitations/accept', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token, orgName }),
+    })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, status: res.status, error: String(body?.error ?? `Request failed (${res.status})`) }
+    return { ok: true, next: typeof body.next === 'string' ? body.next : '/dashboard', warning: body.warning }
+  } catch {
+    return { ok: false, status: 0, error: 'Network error. Please try again.' }
+  }
+}
+
+export function updateInvitationStatus(token: string, status: 'revoked'): void {
   void fetch('/api/invitations', {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
