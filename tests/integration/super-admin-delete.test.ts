@@ -86,6 +86,11 @@ describe('Super Admin deletes', () => {
     await rows(`INSERT INTO portfolio_orgs(portfolio_id,org_id) VALUES('pf1',$1)`, [ADA_ORG])
     await rows(`INSERT INTO legacy_workspace_state(org_id,key,value) VALUES($1,'capital:scores','{}')`, [ADA_ORG])
     await rows(`INSERT INTO users(id,email,org_id,role) VALUES('u1','staff@riverbend.example',$1,'assessor')`, [ADA_ORG])
+    // The Super Admin sees every institution, not only the ones it created.
+    await rows(`INSERT INTO organizations(id,name,created_by) VALUES('org_other','Self-registered NGO','someone@else.example')`)
+    const all = await call(orgsApi, SUPER, 'GET', 'organizations')
+    assert.deepEqual(all.body.map((o: any) => o.id).sort(), [ADA_ORG, 'org_other'].sort())
+    assert.equal((await call(orgsApi, SUPER, 'DELETE', 'organizations?id=org_other')).status, 200)
     assert.equal((await call(portfoliosApi, SUPER, 'DELETE', 'portfolios?id=pf1')).status, 200)
     assert.equal(await count('portfolios'), 0)
     assert.equal(await count('organizations'), 1, 'institutions in a portfolio are kept')
@@ -102,6 +107,22 @@ describe('Super Admin deletes', () => {
       { id: 'id-i', email: 'consultant@lfa.example', name: 'I' },
       { id: 'id-r', email: 'registered.only@x.example', name: 'R' },
     ]
+    // The consultant also holds other roles: validator, firm member, network coordinator, workspace
+    // member, an access grant, a named engagement seat and a pending invitation.
+    const C = 'consultant@lfa.example'
+    await rows(`INSERT INTO validator_profiles(id,email,name) VALUES('vp1',$1,'Consultant')`, [C])
+    await rows(`INSERT INTO validator_credentials(id,validator_id,body,membership_number) VALUES('vc1','vp1','ICAN','123')`)
+    await rows(`INSERT INTO firms(id,name,kind) VALUES('f1','LFA Partners','validator_firm')`)
+    await rows(`INSERT INTO firm_members(firm_id,email,role) VALUES('f1',$1,'owner')`, [C])
+    await rows(`INSERT INTO networks(id,name,created_by) VALUES('nw1','Net',$1)`, [SUPER])
+    await rows(`INSERT INTO network_nodes(id,network_id,level,name) VALUES('nn1','nw1','national','Nigeria')`)
+    await rows(`INSERT INTO network_admins(node_id,email,role,added_by) VALUES('nn1',$1,'coordinator',$2)`, [C, SUPER])
+    await rows(`INSERT INTO ws_organizations(id,name) VALUES(9,'WS')`)
+    await rows(`INSERT INTO ws_org_members(user_id,org_id,role) VALUES($1,9,'assessor')`, [C])
+    await rows(`INSERT INTO access_grants(id,org_id,grantee,status) VALUES('g1',$1,$2,'active')`, [ADA_ORG, C])
+    await rows(`INSERT INTO validation_engagements(id,org_id,type,created_by,created_by_side,invite_expires_at,funder_status,validator_email) VALUES('e1',$1,'independent_validation',$2,'organization',now()+interval '30 days','not_required',$3)`, [ADA_ORG, ADA, C])
+    await rows(`INSERT INTO engagement_members(id,engagement_id,email,role,status,added_by) VALUES('em1','e1',$1,'lead','named',$2)`, [C, ADA])
+    await rows(`INSERT INTO invitations(id,token,email,role,scope_label,status,expires_at) VALUES('iv1','tokiv1',$1,'assessor','x','pending',now()+interval '7 days')`, [C])
     assert.equal((await call(usersApi, ADA, 'DELETE', 'users?email=consultant@lfa.example&account=1')).status, 403, 'Super Admin only')
     assert.equal((await call(usersApi, SUPER, 'DELETE', `users?email=${SUPER}&account=1`)).status, 400, 'never the Super Admin')
     for (const email of ['assessor@riverbend.example', 'consultant@lfa.example', 'registered.only@x.example']) {
@@ -110,6 +131,11 @@ describe('Super Admin deletes', () => {
       assert.equal(r.body.accountDeleted, true, email)
     }
     assert.equal(await count('users'), 0)
+    for (const [t, w] of [['validator_profiles', `email='${C}'`], ['validator_credentials', 'true'], ['firm_members', `email='${C}'`], ['network_admins', `email='${C}'`],
+      ['ws_org_members', 'org_id=9'], ['access_grants', `grantee='${C}'`]] as const) assert.equal(await count(t, w), 0, `removed from ${t}`)
+    assert.equal((await rows(`SELECT status FROM engagement_members WHERE id='em1'`))[0].status, 'removed', 'engagement history kept, seat removed')
+    assert.equal((await rows(`SELECT status FROM invitations WHERE id='iv1'`))[0].status, 'revoked')
+    assert.equal(await count('firms'), 1, 'the firm itself stays')
     assert.deepEqual((globalThis as any).__craftTestIdentityUsers, [], 'sign-in accounts gone, so nobody comes back in the directory')
     const list = await call(usersApi, SUPER, 'GET', 'users')
     assert.deepEqual(list.body, [])

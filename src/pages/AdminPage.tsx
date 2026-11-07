@@ -16,7 +16,7 @@ import {
   Table, Thead, Tbody, Th, Td, Input, Button, Toast, Select,
 } from '../components/ui'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
-import { ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
+import { AllOrganisations, ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
 import * as api from '../lib/api'
 import type { UserDirectoryRow } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -191,7 +191,7 @@ export function AdminPage() {
   }
 
   async function removeUser(row: UserDirectoryRow) {
-    if (!window.confirm(`Delete ${row.email}? This removes their access and deletes their CRAFT sign-in account. Data in their organisation is kept. This cannot be undone.`)) return
+    if (!window.confirm(`Delete ${row.email}? This deletes their CRAFT sign-in account and removes them from every role: assessor, independent assessor, portfolio reviewer, administrator, validator, firm or funder team, network coordinator and workspace member. Their access grants and pending invitations end. Organisations' data and past records are kept. This cannot be undone.`)) return
     const out = await api.deleteUser(row.email, { account: true })
     if (!out.ok) {
       setToast(`⚠️ Could not delete ${row.email}: ${out.error}`)
@@ -618,6 +618,7 @@ export function AdminPage() {
           </div>
 
           <SupportFinder />
+          <AllOrganisations />
           <ReferralsOverview />
 
           {currentUser && (

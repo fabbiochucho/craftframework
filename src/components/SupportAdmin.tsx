@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Award, FolderOpen, Handshake, LifeBuoy, Search } from 'lucide-react'
+import { Award, Building, FolderOpen, Handshake, LifeBuoy, Search, Trash } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from './ui'
 import { BadgeChip } from './AmbassadorBadges'
 import type { Badge as AmbassadorBadge } from '../lib/ambassadors'
+import { deleteOrganization, fetchOrganizations } from '../lib/api'
 
 // Super Admin tools: support an organisation directly (open its Evidence registry, answer its evidence
 // requests) and see referrals / ambassadors across the platform.
@@ -136,6 +137,73 @@ export function ReferralsOverview() {
             ))}
           </ul>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+type OrgRow = { id: string; name: string; email: string; country: string; createdAt: string; status?: string }
+
+/**
+ * Super Admin: every institution on CRAFT (self-registered, invited or created by anyone), with
+ * search and permanent delete. The Admin portal's own list shows only institutions you created.
+ */
+export function AllOrganisations() {
+  const [rows, setRows] = useState<OrgRow[] | null>(null)
+  const [q, setQ] = useState('')
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [confirming, setConfirming] = useState<string | null>(null)
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { void fetchOrganizations().then((r) => setRows(r as unknown as OrgRow[]), () => setRows([])) }, [])
+  const shown = (rows ?? []).filter((o) => !q.trim() || `${o.name} ${o.email} ${o.id}`.toLowerCase().includes(q.trim().toLowerCase()))
+  const del = async (o: OrgRow) => {
+    setBusy(true); setMsg(null)
+    const out = await deleteOrganization(o.id)
+    setBusy(false)
+    if (!out.ok) { setMsg({ ok: false, text: `Could not delete ${o.name}: ${out.error}` }); return }
+    setRows((prev) => (prev ?? []).filter((x) => x.id !== o.id))
+    setConfirming(null); setTyped('')
+    setMsg({ ok: true, text: `${o.name} and all its data were permanently deleted.` })
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Building className="h-4 w-4 text-emerald-600" /> All organisations on CRAFT{rows ? ` (${rows.length})` : ''}</CardTitle>
+        <p className="text-sm text-slate-500">Every institution, including self-registered and invited ones. Deleting one permanently removes it with its assessments, plans, team assignments, access grants, portfolio and network memberships and engagements. It cannot be undone.</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Input label="Search by name, email or id" value={q} onChange={(e) => setQ(e.target.value)} />
+        {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-sm text-emerald-700' : 'text-sm text-rose-700'}>{msg.text}</p>}
+        {!rows ? <p className="text-sm text-slate-500">Loading…</p> : (
+          <ul className="max-h-[28rem] divide-y divide-slate-100 overflow-y-auto">
+            {shown.slice(0, 200).map((o) => (
+              <li key={o.id} className="space-y-2 py-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-slate-900">{o.name || '(no name)'}</span>
+                  {o.status === 'archived' && <Badge className="bg-slate-200 text-slate-600">Archived</Badge>}
+                  <span className="text-xs text-slate-500">{[o.email, o.country, o.id].filter(Boolean).join(' · ')}</span>
+                  {confirming !== o.id && (
+                    <Button size="sm" variant="outline" className="ml-auto border-rose-300 text-rose-700 hover:bg-rose-50"
+                      onClick={() => { setConfirming(o.id); setTyped(''); setMsg(null) }}><Trash className="h-3.5 w-3.5" /> Delete</Button>
+                  )}
+                </div>
+                {confirming === o.id && (
+                  <div className="space-y-2 rounded-md border border-rose-200 bg-rose-50/50 p-3">
+                    <Input label={`Type “${o.name}” to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} />
+                    <div className="flex gap-2">
+                      <Button size="sm" className="bg-rose-600 hover:bg-rose-700" disabled={busy || typed.trim().toLowerCase() !== (o.name || '').trim().toLowerCase()}
+                        onClick={() => void del(o)}>{busy ? 'Deleting…' : 'Delete permanently'}</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+            {!shown.length && <li className="py-2 text-sm text-slate-500">No organisation matches.</li>}
+          </ul>
+        )}
+        {shown.length > 200 && <p className="text-xs text-slate-500">Showing the first 200. Search to narrow down.</p>}
       </CardContent>
     </Card>
   )
