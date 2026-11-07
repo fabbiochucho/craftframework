@@ -213,13 +213,30 @@ export function AllOrganisations() {
 
 const ONBOARDING_NOTE = `Thank you for accepting to work with us in this important organisational capacity strengthening process.
 
-We are pleased to introduce you to CRAFT, which has been configured to enable you to administer your organisation's capacity assessment independently.
+We are pleased to introduce you to CRAFT, the Capacity Readiness & Fiduciary Assurance Toolkit, which has been set up so your organisation can carry out its own capacity assessment, with an independent assessor alongside you.
 
-Your organisation's profile will be created on the platform when you accept: click Accept, create your account with this email address and choose your own password. You can change it at any time after signing in.
+GETTING STARTED
+Click "Accept" in this email, create your account with this email address and choose your own password (you can change it at any time). Your organisation's own secure workspace is created when you accept. Only your team, and the people you choose, can see it.
 
-The CRAFT tool guides you through the assessment. We encourage you to review each statement carefully and give responses that accurately reflect your organisation's current capacity, systems, structures and practices.
+THE ASSESSMENT
+You will use the CRAFT Organisational & Network Capacity Index. It works in a similar way to the National Harmonised Organisational Capacity Assessment Tool (NHOCAT+) and its Statements of Excellence, and your results are also read across to the NHOCAT domains and its four-level scale:
+- 44 indicators in 11 capacity areas: governance and leadership; legal standing and accountability; strategy and programme management; financial management; people and human resources; procurement, assets and administration; monitoring, evaluation and learning; service delivery and technical capacity; resource mobilisation and sustainability; partnerships, networking and exchange; and community voice, safeguarding and advocacy.
+- Each indicator has six written level statements, from 0 (not in place) to 5 (fully in place and working). Like Statements of Excellence, they describe exactly what each level looks like, so you choose the one that matches your organisation today.
+- Each indicator lists the evidence that supports it (for example minutes, policies, audited accounts or reports), explains why it matters, and suggests a first step to improve.
 
-Should you require any clarification or technical assistance, please do not hesitate to reach out.
+HOW TO GET THE MOST FROM IT
+- Answer honestly against the statement that matches what is in place and working now, not what is planned.
+- Upload your supporting documents to your Evidence registry as you go. A score is only as strong as the evidence behind it.
+- Work as a team: you can invite colleagues (for example finance, programmes and M&E staff) to help.
+- Save as you go and come back at any time.
+
+WHAT YOU RECEIVE
+- An overall picture of your capacity, with clear results in plain words for each area.
+- A Capacity Improvement Plan that turns every gap into practical, time-bound actions.
+- Independent assessment: your independent assessor reviews your assessment and records independent scores. You compare the two side by side to agree where you stand. They cannot change your answers, and you control their access.
+- The ability to reassess each year and track your progress over time.
+
+Should you require any clarification or technical assistance at any point, please reply to this email or reach out to us directly.
 
 Thank you once again for your cooperation and commitment.`
 
