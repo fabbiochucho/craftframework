@@ -2,7 +2,10 @@ import type { Config } from '@netlify/functions'
 import { and, eq, gte, inArray, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { capacityActions, invitations, networkAdmins, networkMembers, networkNodes, networkRoundSubmissions, networkRounds, networks, organizations, responses } from '../../db/schema.js'
+import {
+  capacityActions, invitations, networkAdmins, networkExchanges, networkMembers, networkNodes, networkRoundPerspectives, networkRoundSubmissions, networkRounds,
+  networks, networkValueResponses, organizations, programmeScorecardEntries, programmeScorecards, responses,
+} from '../../db/schema.js'
 import { audit, coordinatorScope, isSuper, load } from '../lib/network-access.js'
 import { canAccessOrg, filterAuthorizedOrgIds, forbidden, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
@@ -22,9 +25,12 @@ import { bandFor, compositeScore, answeredIn } from '../../src/lib/foundationMod
 //                                         organisation: create a network (5 a day) from a template or a guided structure;
 //                                         the creator becomes coordinator of its top level
 //   POST   :id/moderate { archived?, verified? }   Super Admin: archive a misused network, mark a known one verified
+//   DELETE :id { confirmName }               delete the network and everything in it, for good. The Super Admin always;
+//                                         the person who set it up only while no organisation has joined (else archive)
 //   GET    :id/overview                  coordinators: profile (secretariat, members, use) and alerts
 //   GET    :id                            the tree; coordinators see members in their scope (named only if "full")
 //   POST   :id/nodes { parentId, level, name, geoCode }       coordinator of the parent level
+//   DELETE :id/nodes/:nodeId { confirmName }  Super Admin: delete a level and every level below it, for good
 //   PATCH  :id/nodes/:nodeId { name?, archived? }            coordinator of that level: rename, or archive/restore it
 //                                         with everything below it (the top level cannot be archived)
 //   POST   :id/admins { nodeId, email, role }                 coordinator of that level (or above)
@@ -53,6 +59,7 @@ const createSchema = z.object({
   }).strict().optional(),
 }).strict().refine((d) => !!d.root !== !!d.structure, 'Send either a top level (root) or a structure')
 const moderateSchema = z.object({ archived: z.boolean().optional(), verified: z.boolean().optional() }).strict()
+const deleteSchema = z.object({ confirmName: z.string().max(200) }).strict()
 /** New networks per person per day, and invitations per network per day (verified networks get more). */
 const CREATE_PER_DAY = 5
 const INVITES_PER_DAY = { unverified: 50, verified: 500 }
@@ -71,6 +78,39 @@ const inviteSchema = z.object({
   orgCountry: z.string().trim().max(8).optional(),
 }).strict()
 const decideSchema = z.object({ action: z.enum(['accept', 'decline', 'leave', 'sharing']), sharing: z.enum(SHARING).optional() }).strict()
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+/**
+ * Permanently remove network levels and everything attached to them: memberships, coordinators, rounds
+ * (with submissions, perspectives and value responses), exchanges, programme scorecards (and scorecard
+ * entries for these levels), and open email invitations to them. `wholeNetwork` also clears the
+ * network-wide rows. Organisations keep their own workspaces and data.
+ */
+async function removeLevels(tx: Tx, networkId: string, nodeIds: string[], wholeNetwork: boolean) {
+  if (!nodeIds.length) return
+  const rounds = wholeNetwork ? eq(networkRounds.networkId, networkId) : and(eq(networkRounds.networkId, networkId), inArray(networkRounds.nodeId, nodeIds))
+  const roundIds = (await tx.select({ id: networkRounds.id }).from(networkRounds).where(rounds)).map((r) => r.id)
+  if (roundIds.length) {
+    await tx.delete(networkRoundSubmissions).where(inArray(networkRoundSubmissions.roundId, roundIds))
+    await tx.delete(networkRoundPerspectives).where(inArray(networkRoundPerspectives.roundId, roundIds))
+    await tx.delete(networkValueResponses).where(inArray(networkValueResponses.roundId, roundIds))
+    await tx.delete(networkRounds).where(inArray(networkRounds.id, roundIds))
+  }
+  await tx.delete(networkExchanges).where(wholeNetwork ? eq(networkExchanges.networkId, networkId) : and(eq(networkExchanges.networkId, networkId), inArray(networkExchanges.nodeId, nodeIds)))
+  const cards = wholeNetwork ? eq(programmeScorecards.networkId, networkId) : and(eq(programmeScorecards.networkId, networkId), inArray(programmeScorecards.nodeId, nodeIds))
+  const cardIds = (await tx.select({ id: programmeScorecards.id }).from(programmeScorecards).where(cards)).map((c) => c.id)
+  if (cardIds.length) {
+    await tx.delete(programmeScorecardEntries).where(inArray(programmeScorecardEntries.scorecardId, cardIds))
+    await tx.delete(programmeScorecards).where(inArray(programmeScorecards.id, cardIds))
+  }
+  // Entries about these levels inside scorecards owned by a level that stays.
+  await tx.delete(programmeScorecardEntries).where(inArray(programmeScorecardEntries.nodeId, nodeIds))
+  await tx.delete(networkMembers).where(inArray(networkMembers.nodeId, nodeIds))
+  await tx.delete(networkAdmins).where(inArray(networkAdmins.nodeId, nodeIds))
+  await tx.update(invitations).set({ status: 'revoked', respondedAt: new Date() })
+    .where(and(inArray(invitations.networkNodeId, nodeIds), eq(invitations.status, 'pending')))
+  await tx.delete(networkNodes).where(inArray(networkNodes.id, nodeIds))
+}
 
 const handleRequest = async (req: Request) => {
   try {
@@ -170,6 +210,22 @@ const handleRequest = async (req: Request) => {
       await audit(caller.email, `Moderated network: ${JSON.stringify(p.data)}`, net.id)
       return json({ ok: true })
     }
+    if (req.method === 'DELETE' && sub.length === 1) {
+      const joined = members.filter((m) => m.status === 'accepted').length
+      const owner = net.createdBy.toLowerCase() === caller.email
+      if (!isSuper(caller) && !owner) return forbidden()
+      if (!isSuper(caller) && net.status === 'archived') return json({ error: 'This network has been archived by CRAFT and can no longer be changed' }, 409)
+      if (!isSuper(caller) && joined) return json({ error: `${joined} organisation${joined === 1 ? ' has' : 's have'} joined this network, so it cannot be deleted. Ask CRAFT to archive it instead.` }, 409)
+      const p = deleteSchema.safeParse(body)
+      if (!p.success || p.data.confirmName.trim().toLowerCase() !== net.name.trim().toLowerCase()) return bad('Type the network name exactly to confirm')
+      const nodeIds = nodes.map((n) => n.id)
+      await db.transaction(async (tx) => {
+        await removeLevels(tx, net.id, nodeIds, true)
+        await tx.delete(networks).where(eq(networks.id, net.id))
+      })
+      await audit(caller.email, `Deleted network "${net.name}" (${nodes.length} level${nodes.length === 1 ? '' : 's'}, ${joined} joined organisation${joined === 1 ? '' : 's'})`, net.id)
+      return json({ ok: true })
+    }
     // An archived network is read-only for everyone but the Super Admin.
     if (req.method !== 'GET' && net.status === 'archived' && !isSuper(caller)) return json({ error: 'This network has been archived by CRAFT and can no longer be changed' }, 409)
     const coordScope = coordinatorScope(caller, nodes, admins, 'coordinator')
@@ -185,7 +241,8 @@ const handleRequest = async (req: Request) => {
       // Per-level counts so the tree can show where members are, without naming "totals only" members
       const perNode = Object.fromEntries(nodes.map((n) => [n.id, members.filter((m) => m.nodeId === n.id && m.status === 'accepted').length]))
       return json({
-        network: { id: net.id, name: net.name, description: net.description, status: net.status, kind: net.kind, verified: net.verified, setUpBy: net.createdBy, canModerate: isSuper(caller) },
+        network: { id: net.id, name: net.name, description: net.description, status: net.status, kind: net.kind, verified: net.verified, setUpBy: net.createdBy, canModerate: isSuper(caller),
+          canDelete: isSuper(caller) || (net.createdBy.toLowerCase() === caller.email && net.status !== 'archived' && !members.some((m) => m.status === 'accepted')) },
         nodes: nodes.map((n) => ({ id: n.id, parentId: n.parentId, level: n.level, name: n.name, geoCode: n.geoCode, status: n.status, members: viewScope.has(n.id) ? perNode[n.id] : undefined })),
         coordinates: [...coordScope], views: [...viewScope],
         admins: admins.filter((a) => viewScope.has(a.nodeId)).map((a) => ({ nodeId: a.nodeId, email: a.email, role: a.role })),
@@ -255,6 +312,20 @@ const handleRequest = async (req: Request) => {
       await db.insert(networkNodes).values({ id, networkId: net.id, parentId: parent.id, level: p.data.level, name: p.data.name, geoCode: p.data.geoCode })
       await audit(caller.email, `Added network level ${p.data.name}`, id)
       return json({ id }, 201)
+    }
+
+    if (req.method === 'DELETE' && sub[1] === 'nodes' && sub.length === 3) {
+      if (!isSuper(caller)) return forbidden()
+      const node = nodes.find((n) => n.id === sub[2])
+      if (!node) return notFound()
+      if (node.parentId === null) return bad('The top level is the network itself. Delete the network instead.')
+      const p = deleteSchema.safeParse(body)
+      if (!p.success || p.data.confirmName.trim().toLowerCase() !== node.name.trim().toLowerCase()) return bad('Type the level name exactly to confirm')
+      const ids = [...subtree(nodes, node.id)]
+      const joined = members.filter((m) => ids.includes(m.nodeId) && m.status === 'accepted').length
+      await db.transaction(async (tx) => { await removeLevels(tx, net.id, ids, false) })
+      await audit(caller.email, `Deleted network level ${node.name} (${ids.length} level${ids.length === 1 ? '' : 's'}, ${joined} joined organisation${joined === 1 ? '' : 's'})`, node.id)
+      return json({ ok: true, deleted: ids.length })
     }
 
     if (req.method === 'PATCH' && sub[1] === 'nodes' && sub.length === 3) {

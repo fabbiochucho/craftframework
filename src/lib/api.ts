@@ -111,10 +111,20 @@ export async function updateOrganization(input: {
   }
 }
 
-export function deleteOrganization(id: string): void {
-  void fetch(`/api/organizations?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(err =>
-    console.warn('[api] deleteOrganization failed', err),
-  )
+async function deleteRequest(url: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(url, { method: 'DELETE' })
+    if (res.ok) return { ok: true }
+    const body = await res.json().catch(() => ({}))
+    return { ok: false, error: String(body?.error ?? (res.status === 403 ? 'You are not allowed to delete this.' : `Delete failed (${res.status}).`)) }
+  } catch {
+    return { ok: false, error: 'Network error. Nothing was deleted.' }
+  }
+}
+
+/** Permanently delete an institution and its data. Resolves with the server's answer. */
+export function deleteOrganization(id: string) {
+  return deleteRequest(`/api/organizations?id=${encodeURIComponent(id)}`)
 }
 
 function normalizeOrg(row: any): Organization {
@@ -207,10 +217,9 @@ export async function upsertUser(input: {
   }
 }
 
-export function deleteUser(email: string): void {
-  void fetch(`/api/users?email=${encodeURIComponent(email)}`, { method: 'DELETE' }).catch(err =>
-    console.warn('[api] deleteUser failed', err),
-  )
+/** Remove a person's directory entry; with `account` (Super Admin only) also delete their sign-in account. */
+export function deleteUser(email: string, opts: { account?: boolean } = {}) {
+  return deleteRequest(`/api/users?email=${encodeURIComponent(email)}${opts.account ? '&account=1' : ''}`)
 }
 
 // Record a sign-in in the user directory. Called by the IdentityBridge on every
@@ -539,10 +548,9 @@ export async function savePortfolio(input: {
   }
 }
 
-export function deletePortfolio(id: string): void {
-  void fetch(`/api/portfolios?id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch((err) =>
-    console.warn('[api] deletePortfolio failed', err),
-  )
+/** Delete a portfolio (the institutions in it are kept). Resolves with the server's answer. */
+export function deletePortfolio(id: string) {
+  return deleteRequest(`/api/portfolios?id=${encodeURIComponent(id)}`)
 }
 
 // PATCH a portfolio's name and/or soft-archive status without disturbing its

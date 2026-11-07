@@ -4,8 +4,9 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
   organizations, responses, capacityActions, complianceItems, auditLogs,
-  accessGrants, users,
+  accessGrants, networkMembers, users,
 } from '../../db/schema.js'
+import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import { canAccessOrg, resolveCaller, forbidden, tenantOrgId, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 
@@ -149,7 +150,11 @@ const handleRequest = async (req: Request) => {
       await db.delete(auditLogs).where(eq(auditLogs.orgId, id))
       await db.delete(accessGrants).where(eq(accessGrants.orgId, id))
       await db.delete(users).where(eq(users.orgId, id))
+      // Also the workspace state and network memberships kept under this institution's id.
+      await db.delete(legacyWorkspaceState).where(eq(legacyWorkspaceState.orgId, id))
+      await db.delete(networkMembers).where(eq(networkMembers.orgId, id))
       await db.delete(organizations).where(eq(organizations.id, id))
+      await db.insert(auditLogs).values({ actor: caller.email, action: 'Deleted institution', target: id, category: 'Config' })
       return Response.json({ ok: true })
     }
 

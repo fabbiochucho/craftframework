@@ -1,9 +1,13 @@
 import type { Config } from '@netlify/functions'
-import { asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, or, sql } from 'drizzle-orm'
 import { admin } from '@netlify/identity'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { dailyActive, users } from '../../db/schema.js'
+import {
+  accessGrants, auditLogs, dailyActive, engagementMembers, firmMembers, invitations, networkAdmins, panelRoster, users, validatorProfiles,
+  validatorSpecialisms, wsOrgMembers,
+} from '../../db/schema.js'
+import { fieldLookupHashes } from '../lib/crypto.js'
 import type { UserRow } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
@@ -21,6 +25,30 @@ async function mayManage(caller: Caller, orgId: string | null | undefined): Prom
   return canAccessOrg(caller, orgId, 'write')
 }
 const RANK: Record<string, number> = { assessor: 1, independent: 1, portfolio: 2, admin: 3 }
+
+/**
+ * Super Admin "delete person": remove them from every kind of role on CRAFT. Directory assignment
+ * (assessor, independent assessor, portfolio reviewer, administrator), validator profile and
+ * specialisms, validator-firm / funding-partner membership, network coordinator or viewer, review-panel
+ * roster, workspace memberships, access grants they hold, named seats on engagements (marked removed,
+ * so the engagement history stays) and pending invitations to them. Audit logs, finalised validations
+ * and other history are kept.
+ */
+async function removeFromEveryRole(email: string) {
+  const hashes = fieldLookupHashes(email)
+  await db.delete(users).where(eq(users.email, email))
+  await db.delete(validatorProfiles).where(eq(validatorProfiles.email, email)) // credentials cascade
+  await db.delete(validatorSpecialisms).where(eq(validatorSpecialisms.email, email))
+  await db.delete(firmMembers).where(eq(firmMembers.email, email))
+  await db.delete(networkAdmins).where(eq(networkAdmins.email, email))
+  await db.delete(panelRoster).where(eq(panelRoster.email, email))
+  await db.delete(wsOrgMembers).where(hashes.length ? or(inArray(wsOrgMembers.userIdHash, hashes), eq(wsOrgMembers.userId, email))! : eq(wsOrgMembers.userId, email))
+  await db.update(engagementMembers).set({ status: 'removed', grantId: null, grantedAt: null })
+    .where(and(eq(engagementMembers.email, email), eq(engagementMembers.status, 'named')))
+  await db.delete(accessGrants).where(eq(accessGrants.grantee, email))
+  await db.update(invitations).set({ status: 'revoked', respondedAt: new Date() })
+    .where(and(eq(invitations.email, email), eq(invitations.status, 'pending')))
+}
 
 // `role` is deliberately not enum-locked here — it's shared with the
 // specialized-ecosystem grant roles (cbn_examiner, frcn_auditor, etc.), so a
@@ -247,6 +275,27 @@ const handleRequest = async (req: Request) => {
       const email = url.searchParams.get('email')
       const id = url.searchParams.get('id')
       if (!email && !id) return Response.json({ error: 'email or id required' }, { status: 400 })
+      // ?account=1 (Super Admin only): also delete the person's sign-in account, so someone who only
+      // registered (no directory row) disappears for good instead of coming back from Identity.
+      const account = url.searchParams.get('account') === '1'
+      if (account) {
+        if (caller.role !== 'super_admin') return forbidden()
+        if (!email) return Response.json({ error: 'email required to delete an account' }, { status: 400 })
+        const target = email.trim().toLowerCase()
+        if (target === caller.email || isSuperAdmin(target)) return Response.json({ error: 'The Super Admin account cannot be deleted here' }, { status: 400 })
+        const identity = (await listIdentityUsers()).find((u) => u.email.trim().toLowerCase() === target)
+        if (identity) {
+          try {
+            await admin.deleteUser(identity.id)
+          } catch (err) {
+            logger.error('/api/users', 'identity delete failed', err)
+            return Response.json({ error: 'The sign-in account could not be deleted. Nothing was changed.' }, { status: 502 })
+          }
+        }
+        await removeFromEveryRole(target)
+        await db.insert(auditLogs).values({ actor: caller.email, action: 'Deleted person', target: `${target}${identity ? ' · sign-in account deleted' : ''} · removed from every role`, category: 'Auth' })
+        return Response.json({ ok: true, accountDeleted: !!identity })
+      }
       if (caller.role !== 'super_admin') {
         const [target] = await db.select({ orgId: users.orgId }).from(users)
           .where(email ? eq(users.email, email.trim().toLowerCase()) : eq(users.id, id!)).limit(1)

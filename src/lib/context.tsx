@@ -155,11 +155,11 @@ interface WorkspaceContextType {
   portfolios: Portfolio[]
   createOrganization: (input: CreateOrgInput) => Organization
   editOrganization: (id: string, patch: Partial<CreateOrgInput>) => void
-  deleteOrganization: (id: string) => void
+  deleteOrganization: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>
   archiveOrganization: (id: string) => void
   restoreOrganization: (id: string) => void
   createPortfolio: (input: CreatePortfolioInput) => Portfolio
-  deletePortfolio: (id: string) => void
+  deletePortfolio: (id: string) => Promise<{ ok: true } | { ok: false; error: string }>
   renamePortfolio: (id: string, name: string) => void
   archivePortfolio: (id: string) => void
   restorePortfolio: (id: string) => void
@@ -915,7 +915,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const member = teamMembers.find(m => m.id === id)
       setTeamMembers(prev => prev.filter(m => m.id !== id))
       if (member) {
-        if (currentUser && !currentUser.isDemo) api.deleteUser(member.email)
+        if (currentUser && !currentUser.isDemo) void api.deleteUser(member.email)
         appendAudit(currentUser?.email ?? 'system', 'Revoked access', member.email, 'Auth')
       }
     },
@@ -984,13 +984,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [appendAudit, currentUser],
   )
 
+  // Waits for the server: the institution leaves the list only once it is really deleted.
   const deleteOrganization = useCallback(
-    (id: string) => {
-      setOrganizations(prev => prev.filter(o => o.id !== id))
+    async (id: string): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (currentUser && !currentUser.isDemo) {
-        api.deleteOrganization(id)
+        const out = await api.deleteOrganization(id)
+        if (!out.ok) return out
         appendAudit(currentUser.email, 'Removed institution', id, 'Config')
       }
+      setOrganizations(prev => prev.filter(o => o.id !== id))
+      return { ok: true }
     },
     [appendAudit, currentUser],
   )
@@ -1056,13 +1059,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [appendAudit, currentUser, firm],
   )
 
+  // Waits for the server: the portfolio leaves the list only once it is really deleted.
   const deletePortfolio = useCallback(
-    (id: string) => {
-      setPortfolios(prev => prev.filter(p => p.id !== id))
+    async (id: string): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (currentUser && !currentUser.isDemo) {
-        api.deletePortfolio(id)
+        const out = await api.deletePortfolio(id)
+        if (!out.ok) return out
         appendAudit(currentUser.email, 'Removed portfolio', id, 'Config')
       }
+      setPortfolios(prev => prev.filter(p => p.id !== id))
+      return { ok: true }
     },
     [appendAudit, currentUser],
   )

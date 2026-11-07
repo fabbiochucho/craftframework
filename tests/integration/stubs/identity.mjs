@@ -14,6 +14,17 @@ export async function getUser() {
 
 // No operator token in tests: behaves like Identity admin being unavailable,
 // which callers (e.g. /api/users) already treat as "directory rows only".
+// A test may set globalThis.__craftTestIdentityUsers = [{ id, email, name }] to stand in for registered
+// accounts; listUsers then pages through them and deleteUser removes one.
 export const admin = {
-  async listUsers() { throw new Error('Identity admin is unavailable in tests') },
+  async listUsers({ page = 1, perPage = 200 } = {}) {
+    const list = globalThis.__craftTestIdentityUsers
+    if (!list) throw new Error('Identity admin is unavailable in tests')
+    return list.slice((page - 1) * perPage, page * perPage)
+  },
+  async deleteUser(id) {
+    const list = globalThis.__craftTestIdentityUsers
+    if (!list) throw new Error('Identity admin is unavailable in tests')
+    globalThis.__craftTestIdentityUsers = list.filter((u) => u.id !== id)
+  },
 }
