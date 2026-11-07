@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Award, Medal, Send } from 'lucide-react'
 import { Badge, Card, CardContent, CardHeader, CardTitle, ProgressBar } from '../components/ui'
 import { BadgeChip } from '../components/AmbassadorBadges'
+import { DraftInvitations } from '../components/SupportAdmin'
 import { AMBASSADOR_TIERS, STAGE_LABEL, TRACK_BLURB, TRACK_LABEL, type Badge as AmbassadorBadge, type BadgeTrack, type ReferralStage } from '../lib/ambassadors'
 
 type Referral = {
@@ -39,6 +40,7 @@ export function ReferralsPage() {
         </p>
       </div>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+      <DraftInvitations />
       {d && (
         <>
           <div className="grid gap-3 sm:grid-cols-4">

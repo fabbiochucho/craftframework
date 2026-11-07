@@ -72,7 +72,10 @@ const inviteSchema = z.object({
   nodeId: z.string().max(80), org: z.string().trim().min(2).max(200),
   // Only for an organisation not on CRAFT yet: invited by email, it joins this level once it has a workspace.
   orgName: z.string().trim().min(2).max(200).refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v)).optional(),
-  message: z.string().trim().max(1000).optional(),
+  message: z.string().trim().max(4000).optional(),
+  // false = hold as a draft (sent later from the invitation list).
+  send: z.boolean().optional(),
+  inviteeName: z.string().trim().max(120).refine((v) => !/[\u0000-\u001f\u007f-\u009f]/.test(v)).optional(),
   orgArchetype: z.string().trim().max(40).optional(),
   orgSector: z.string().trim().max(80).optional(),
   orgCountry: z.string().trim().max(8).optional(),
@@ -381,7 +384,7 @@ const handleRequest = async (req: Request) => {
         if (!p.data.orgName) return json({ error: 'This organisation is not on CRAFT yet. Enter its name to invite it by email.', needsOrgName: true }, 404)
         const orgType = parseOrgType({ archetype: p.data.orgArchetype, sector: p.data.orgSector, country: p.data.orgCountry })
         if (orgType === 'invalid') return bad('Choose the organisation type from the list')
-        const { invitation, email: sent } = await inviteOrganization(caller, { email, orgName: p.data.orgName, message: p.data.message, networkNodeId: p.data.nodeId, orgType })
+        const { invitation, email: sent } = await inviteOrganization(caller, { email, orgName: p.data.orgName, message: p.data.message, networkNodeId: p.data.nodeId, orgType, send: p.data.send, inviteeName: p.data.inviteeName })
         await audit(caller.email, `Invited ${p.data.orgName} to network by email`, p.data.nodeId)
         return json({ ok: true, orgName: p.data.orgName, invitedByEmail: true, invitationId: invitation.id, email: sent.body }, 201)
       }

@@ -5,6 +5,7 @@ import { db } from '../../db/index.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { encryptField, decryptField } from '../lib/crypto.js'
+import { INDEPENDENT_STATE_KEYS, isIndependentAssessorOf } from '../lib/independent-assessor.js'
 import { logger, monitored } from '../lib/logger.js'
 import { fairKeyReadable } from '../../src/lib/fairRisk.js'
 import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
@@ -55,7 +56,9 @@ const handleRequest = async (req: Request) => {
       const parsed = bodySchema.safeParse(JSON.parse(text))
       if (!parsed.success) return Response.json({ error: 'Invalid state' }, { status: 400 })
       const { orgId, key, value } = parsed.data
-      if (!(await canAccessOrg(caller, orgId, 'write'))) return forbidden()
+      // An independent assessor (read-only grant) may write only the independent answers.
+      const independentOnly = !(await canAccessOrg(caller, orgId, 'write'))
+      if (independentOnly && !(INDEPENDENT_STATE_KEYS.has(key) && (await isIndependentAssessorOf(caller, orgId)))) return forbidden()
       // Only the organisation itself writes its quantified-risk inputs and its consent.
       if (key.startsWith('fair:') && !isOwnOrg(caller, orgId)) return forbidden()
       const record = { orgId, key, value: encryptField(JSON.stringify(value)), updatedAt: new Date() }

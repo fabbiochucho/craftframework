@@ -32,6 +32,8 @@ export interface WelcomeEmailInput {
   expiresInDays?: number
   /** Public site base URL for the "explore first" links. */
   siteUrl?: string
+  /** Sent through CRAFT by someone else on the inviter's behalf. */
+  sentOnBehalf?: boolean
 }
 
 const DEFAULT_SITE = 'https://craftframework.becomechange.institute'
@@ -145,7 +147,7 @@ The ${BRAND.institute} Team
 "${BRAND.instituteMeaning}."
 
 ${divider}
-You received this because ${input.inviterName} entered your email address on ${BRAND.product}. If you were not expecting it, you can ignore this email: nothing happens unless you accept.
+You received this because ${input.inviterName} entered your email address on ${BRAND.product}${input.sentOnBehalf ? ` (sent through ${BRAND.product} on ${input.inviterName}'s behalf)` : ''}. If you were not expecting it, you can ignore this email: nothing happens unless you accept.
 ${BRAND.footer}`
   return { subject, body }
 }
@@ -170,7 +172,7 @@ export function buildWelcomeEmailHtml(input: WelcomeEmailInput): { subject: stri
     ? row('Invited by', input.inviterName, true) + row('Institution', input.orgName || '-') + (input.orgType ? row('Organisation type', input.orgType) : '') + row('What accepting does', input.purpose || 'Creates your own CRAFT workspace')
     : row('Invited by', input.inviterName, true) + row('Access level', level.label) + row('Scope', input.scopeLabel)
   const messageBlock = input.message?.trim()
-    ? `<tr><td style="padding:0 32px 8px"><div style="border-left:3px solid #34d399;background:#f0fdf4;padding:12px 16px;border-radius:8px;color:#334155;font-size:14px;font-style:italic">${inviter} wrote: “${esc(input.message.trim())}”</div></td></tr>`
+    ? `<tr><td style="padding:0 32px 8px"><div style="border-left:3px solid #34d399;background:#f0fdf4;padding:12px 16px;border-radius:8px;color:#334155;font-size:14px;font-style:italic">${inviter} wrote:<br>${esc(input.message.trim()).replace(/\n/g, '<br>')}</div></td></tr>`
     : ''
   const list = (items: Feature[], dot: string) => items.map((f) =>
     `<tr><td style="padding:6px 0;vertical-align:top;width:18px;color:${dot};font-size:14px">●</td><td style="padding:6px 0;font-size:14px;line-height:1.5;color:#334155"><strong style="color:#0f172a">${esc(f.title)}.</strong> ${esc(f.text)}</td></tr>`).join('')
@@ -216,7 +218,7 @@ export function buildWelcomeEmailHtml(input: WelcomeEmailInput): { subject: stri
         ${input.acceptUrl ? `<p style="margin:10px 0 0;font-size:11px;color:#94a3b8">If the button does not work, paste this link into your browser:<br><span style="color:#475569;word-break:break-all">${esc(input.acceptUrl)}</span></p>` : ''}
       </td></tr>
       <tr><td style="padding:20px 32px;border-top:1px solid #f1f5f9">
-        <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8">You received this because ${inviter} entered your email address on ${esc(BRAND.product)}. Not expecting it? Ignore this email: nothing happens unless you accept.<br>Questions? Write to <a href="mailto:${esc(BRAND.contactEmail)}" style="color:#059669">${esc(BRAND.contactEmail)}</a>.<br>“${esc(BRAND.instituteMeaning)}.” · ${esc(BRAND.footer)}</p>
+        <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8">You received this because ${inviter} entered your email address on ${esc(BRAND.product)}${input.sentOnBehalf ? ` (sent through ${esc(BRAND.product)} on ${inviter}&#39;s behalf)` : ''}. Not expecting it? Ignore this email: nothing happens unless you accept.<br>Questions? Write to <a href="mailto:${esc(BRAND.contactEmail)}" style="color:#059669">${esc(BRAND.contactEmail)}</a>.<br>“${esc(BRAND.instituteMeaning)}.” · ${esc(BRAND.footer)}</p>
       </td></tr>
     </table>
   </div>

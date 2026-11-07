@@ -23,6 +23,8 @@ export type InviteWizardValues = {
   orgSector: string
   orgCountry: string
   portfolioId: string
+  /** false = save as a draft to send later. */
+  send: boolean
 }
 
 export type InviteWizardProps = {
@@ -33,6 +35,10 @@ export type InviteWizardProps = {
   /** For the email preview. */
   inviterName: string
   inviterEmail: string
+  /** Offer "save as draft, send later" on the review step. */
+  allowDraft?: boolean
+  /** Prefill the personal note (e.g. an onboarding message). */
+  defaultMessage?: string
   /** Send the invitation. Resolve with an error message to stay on the review step. */
   onSend: (values: InviteWizardValues) => Promise<{ ok: true } | { ok: false; error: string }>
   onClose?: () => void
@@ -42,11 +48,11 @@ const ICONS: Record<Archetype, typeof Landmark> = { Public: Landmark, 'Civil Soc
 const STEPS = ['Type', 'Organisation', 'Purpose', 'Review'] as const
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inviterEmail, onSend, onClose }: InviteWizardProps) {
+export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inviterEmail, allowDraft, defaultMessage, onSend, onClose }: InviteWizardProps) {
   const [step, setStep] = useState(0)
   const [v, setV] = useState<InviteWizardValues>({
-    email: '', orgName: '', inviteeName: '', message: '', orgArchetype: '', orgSector: '', orgCountry: '',
-    portfolioId: portfolios?.length === 1 ? portfolios[0].id : '',
+    email: '', orgName: '', inviteeName: '', message: defaultMessage ?? '', orgArchetype: '', orgSector: '', orgCountry: '',
+    portfolioId: portfolios?.length === 1 ? portfolios[0].id : '', send: true,
   })
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -84,10 +90,12 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
     return (
       <div className="space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-5 text-center">
         <Check className="mx-auto h-8 w-8 text-emerald-600" />
-        <p className="font-semibold text-emerald-900">Invitation sent to {v.email.trim()}</p>
-        <p className="text-sm text-slate-600">{v.orgName.trim()} gets its own workspace when it accepts. The link is valid for 14 days.</p>
+        <p className="font-semibold text-emerald-900">{v.send ? `Invitation sent to ${v.email.trim()}` : `Draft saved for ${v.email.trim()}`}</p>
+        <p className="text-sm text-slate-600">{v.send
+          ? `${v.orgName.trim()} gets its own workspace when it accepts. The link is valid for 14 days.`
+          : 'Nothing has been sent yet. Send it from "Invitations waiting to be sent" when you are ready; the 14 days start then.'}</p>
         <div className="flex justify-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => { setV({ ...v, email: '', orgName: '', inviteeName: '', message: '' }); setStep(0); setSent(false) }}>Invite another</Button>
+          <Button size="sm" variant="outline" onClick={() => { setV({ ...v, email: '', orgName: '', inviteeName: '', message: defaultMessage ?? '' }); setStep(0); setSent(false) }}>Invite another</Button>
           {onClose && <Button size="sm" onClick={onClose}>Done</Button>}
         </div>
       </div>
@@ -157,7 +165,7 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
           </div>
           <div>
             <label htmlFor="invite-note" className="mb-1 block text-sm font-medium text-slate-700">Personal note (optional)</label>
-            <textarea id="invite-note" rows={3} maxLength={1000} value={v.message} onChange={(e) => set({ message: e.target.value })}
+            <textarea id="invite-note" rows={allowDraft ? 10 : 3} maxLength={4000} value={v.message} onChange={(e) => set({ message: e.target.value })}
               placeholder="Why you are inviting them, in a sentence or two."
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
           </div>
@@ -173,6 +181,13 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
           </div>
           <p className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-500"><Mail className="h-3.5 w-3.5" /> Email preview</p>
           <iframe title="Invitation email preview" srcDoc={preview} sandbox="" className="h-96 w-full rounded-lg border border-slate-200 bg-slate-900" />
+          {allowDraft && (
+            <fieldset className="flex flex-wrap gap-4 text-sm">
+              <legend className="sr-only">When to send</legend>
+              <label className="flex items-center gap-2"><input type="radio" name="when" checked={v.send} onChange={() => set({ send: true })} className="accent-emerald-600" /> Send now</label>
+              <label className="flex items-center gap-2"><input type="radio" name="when" checked={!v.send} onChange={() => set({ send: false })} className="accent-emerald-600" /> Save as draft, send later</label>
+            </fieldset>
+          )}
           {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700" role="alert">{error}</p>}
         </div>
       )}
@@ -189,7 +204,7 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
           <Button size="sm" disabled={!canNext} onClick={() => setStep(step + 1)}>Next <ChevronRight className="h-4 w-4" /></Button>
         ) : (
           <Button size="sm" disabled={sending} onClick={send}>
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send invitation
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {v.send ? 'Send invitation' : 'Save draft'}
           </Button>
         )}
       </div>

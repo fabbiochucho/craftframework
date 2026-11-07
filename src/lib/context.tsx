@@ -1118,6 +1118,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
           })
         }
+        // An independent assessor's own scores for this organisation (the Trust Delta columns).
+        if (currentUser.role === 'independent') {
+          api.fetchResponseDetails(orgId).then(details => {
+            const asMap: Record<string, number> = {}
+            for (const [qId, d] of Object.entries(details)) if (d.assessorScore != null) asMap[qId] = d.assessorScore
+            if (Object.keys(asMap).length) setAssessorScores(prev => ({ ...prev, [orgId]: { ...asMap, ...(prev[orgId] || {}) } }))
+          })
+        }
         api.fetchCapacityStatuses(orgId).then(statuses => {
           if (Object.keys(statuses).length) setCipStatuses(prev => ({ ...statuses, ...prev }))
         })
@@ -1216,7 +1224,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const currentOrg: Organization | null = useMemo(() => {
     if (!currentUser) return null
     if (currentUser.isDemo) return organizations.find(o => o.id === currentUser.orgId) ?? null
-    if (isViewingClient && activeClientOrgId) {
+    // A reviewer views a client read-only; an independent assessor works in the organisation they
+    // chose (writing only their independent scores, which the server enforces).
+    if ((isViewingClient || currentUser.role === 'independent') && activeClientOrgId) {
       const client = organizations.find(o => o.id === activeClientOrgId)
       if (client) return client
     }

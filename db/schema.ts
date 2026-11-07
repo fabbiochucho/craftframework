@@ -400,6 +400,14 @@ export const invitations = pgTable(
     orgArchetype: text('org_archetype'),
     orgSector: text('org_sector'),
     orgCountry: text('org_country'),
+    // First time the email went out (null = a draft held until someone sends it); who sent it.
+    sentAt: timestamp('sent_at', { withTimezone: true }),
+    sentBy: text('sent_by'),
+    // Who created it, when that is not the inviter (the Super Admin inviting on someone's behalf).
+    createdBy: text('created_by'),
+    // organization: the access the organisation gives the inviter on acceptance. null = read-only
+    // access; 'independent_assessor' = read-only plus the inviter's own independent scores.
+    grantRole: text('grant_role'),
   },
   (t) => [
     unique('invitations_token_unique').on(t.token),

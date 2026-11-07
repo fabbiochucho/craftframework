@@ -23,6 +23,7 @@ import { getViewLevel, type ViewLevel } from '../../src/lib/data.js'
 import { countryNameOf, describeOrgType, type OrgType } from '../../src/lib/orgType.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
 import { encryptField } from './crypto.js'
+import { INDEPENDENT_ASSESSOR_ROLE } from './independent-assessor.js'
 
 export type InvitationRow = typeof invitations.$inferSelect
 export const MEMBER_INVITE_DAYS = 7
@@ -91,6 +92,9 @@ export async function invitationPurpose(inv: InvitationRow): Promise<string> {
       .innerJoin(networks, eq(networks.id, networkNodes.networkId)).where(eq(networkNodes.id, inv.networkNodeId))
     return `Invites you to join ${n ? `${n.network} (${n.node})` : 'a CRAFT network'}. You choose what to share before joining.`
   }
+  if (inv.grantRole === INDEPENDENT_ASSESSOR_ROLE) {
+    return `Names ${who} as your organisation's independent assessor: ${who} can see your assessment and record independent scores alongside yours, which you compare on the Trust Delta screen. ${who} cannot change your answers, and you can revoke this at any time.`
+  }
   if (inv.portfolioId) {
     const [p] = await db.select({ name: portfolios.name }).from(portfolios).where(eq(portfolios.id, inv.portfolioId))
     return `Adds you to the portfolio "${p?.name ?? 'portfolio'}" and gives ${who} read-only access to your results. You can revoke it at any time.`
@@ -123,6 +127,13 @@ const sendAudit = (actor: string, invitationId: string, outcome: string) => audi
  * The caller has already checked that `actor` may send this invitation.
  */
 export async function dispatchInvitationEmail(inv: InvitationRow, actor: string): Promise<Outcome> {
+  // A draft's validity starts when it is first sent.
+  const days = inv.kind === 'organization' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS
+  // (Only while the draft itself is still within its hold; an expired draft stays expired.)
+  if (!inv.sentAt && inv.status === 'pending' && inv.expiresAt && new Date(inv.expiresAt).getTime() > Date.now()) {
+    const [fresh] = await db.update(invitations).set({ expiresAt: new Date(Date.now() + days * DAY_MS) }).where(eq(invitations.id, inv.id)).returning()
+    inv = fresh ?? inv
+  }
   if (inv.status !== 'pending') {
     await sendAudit(actor, inv.id, `refused_${inv.status}`)
     return { status: 409, body: { error: `Invitation is ${inv.status}` } }
@@ -135,6 +146,8 @@ export async function dispatchInvitationEmail(inv: InvitationRow, actor: string)
     await sendAudit(actor, inv.id, 'rate_limited')
     return { status: 429, body: { error: `Too many invitation emails. Limit is ${SEND_LIMIT_PER_HOUR} per hour; try again later.` }, headers: { 'retry-after': '3600' } }
   }
+  // Someone chose to send it: from now on it is no longer a draft (the link may also be shared directly).
+  if (!inv.sentAt) await db.update(invitations).set({ sentAt: new Date(), sentBy: actor }).where(eq(invitations.id, inv.id))
   const apiKey = process.env.RESEND_API_KEY
   const from = process.env.INVITE_FROM_EMAIL
   // Never substitute Resend's development-only sender (same rule as reminder-email.ts).
@@ -167,6 +180,8 @@ export async function dispatchInvitationEmail(inv: InvitationRow, actor: string)
     purpose: kind === 'organization' ? await invitationPurpose(inv) : undefined,
     expiresInDays: kind === 'organization' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS,
     siteUrl: publicBaseUrl(),
+    // Sent by someone else (e.g. the CRAFT team) on the inviter's behalf.
+    sentOnBehalf: !!inv.inviter && actor !== inv.inviter,
   } as const
   // Replies reach the person who sent the invitation.
   const replyTo = inv.inviter && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.inviter) ? inv.inviter : undefined
@@ -196,7 +211,7 @@ export async function dispatchInvitationEmail(inv: InvitationRow, actor: string)
     await sendAudit(actor, inv.id, `provider_error_${res.status}`)
     return { status: 502, body: { dispatched: false, reason: 'provider_error' } }
   }
-  await sendAudit(actor, inv.id, 'sent')
+  await sendAudit(actor, inv.id, inv.inviter && actor !== inv.inviter ? `sent on behalf of ${inv.inviter}` : 'sent')
   return { status: 200, body: { dispatched: true } }
 }
 
@@ -205,16 +220,27 @@ export async function inviteOrganization(caller: Caller, input: {
   email: string; orgName: string; inviteeName?: string | null; message?: string | null
   portfolioId?: string | null; engagement?: Record<string, unknown> | null; networkNodeId?: string | null
   orgType?: OrgType | null
+  /** Hold as a draft (default: send now). */
+  send?: boolean
+  /** Super Admin: create it in someone else's name (they are the inviter; replies go to them). */
+  onBehalfOf?: { email: string; name: string } | null
+  /** Access the organisation gives the inviter on acceptance ('independent_assessor'); default read-only. */
+  grantRole?: string | null
 }): Promise<{ invitation: InvitationRow; email: Outcome }> {
+  const inviter = input.onBehalfOf ?? { email: caller.email, name: caller.name }
+  const send = input.send !== false
   const invitation = await insertInvitation({
-    kind: 'organization', email: input.email, orgName: input.orgName.trim(), inviter: caller.email, inviterName: caller.name,
+    kind: 'organization', email: input.email, orgName: input.orgName.trim(), inviter: inviter.email, inviterName: inviter.name,
+    createdBy: caller.email, grantRole: input.grantRole ?? null,
     inviteeName: input.inviteeName || null, message: input.message || null, role: 'admin', scopeLabel: input.orgName.trim(),
     portfolioId: input.portfolioId ?? null, engagement: input.engagement ?? null, networkNodeId: input.networkNodeId ?? null,
     orgArchetype: input.orgType?.archetype ?? null, orgSector: input.orgType?.sector ?? null, orgCountry: input.orgType?.country ?? null,
-    days: ORG_INVITE_DAYS,
+    // A draft is held (its 14 days start when it is sent); 90 days to decide.
+    days: send ? ORG_INVITE_DAYS : 90,
   })
-  const what = input.engagement ? 'engagement' : input.networkNodeId ? 'network' : input.portfolioId ? 'portfolio' : 'access'
-  await audit(caller.email, 'Invited organisation by email', `${invitation.id} · ${what}`)
+  const what = input.engagement ? 'engagement' : input.networkNodeId ? 'network' : input.portfolioId ? 'portfolio' : input.grantRole ?? 'access'
+  await audit(caller.email, `${send ? 'Invited' : 'Drafted invitation for'} organisation by email${input.onBehalfOf ? ` on behalf of ${inviter.email}` : ''}`, `${invitation.id} · ${what}`)
+  if (!send) return { invitation, email: { status: 200, body: { dispatched: false, reason: 'draft' } } }
   return { invitation, email: await dispatchInvitationEmail(invitation, caller.email) }
 }
 
@@ -249,7 +275,7 @@ async function tellInviter(inv: InvitationRow, caller: Caller, orgName: string) 
  */
 export async function acceptInvitation(caller: Caller, token: string, orgNameInput?: string): Promise<AcceptResult> {
   const [inv] = await db.select().from(invitations).where(eq(invitations.token, token))
-  if (!inv || inv.status !== 'pending' || !inv.expiresAt || new Date(inv.expiresAt).getTime() < Date.now()) return gone()
+  if (!inv || inv.status !== 'pending' || !inv.sentAt || !inv.expiresAt || new Date(inv.expiresAt).getTime() < Date.now()) return gone()
   if (inv.email.trim().toLowerCase() !== caller.email) {
     return { status: 403, body: { error: 'This invitation was sent to a different email address. Sign in with that address to accept it.' } }
   }
@@ -326,14 +352,16 @@ export async function acceptInvitation(caller: Caller, token: string, orgNameInp
     }
     body.next = '/networks'
   } else if (inv.inviter) {
-    // Portfolio, or a plain admin invitation: the inviter gets read-only access the organisation can revoke.
+    // Portfolio, a plain admin invitation or an independent assessor: the inviter gets read-only access
+    // the organisation can revoke (an independent assessor also records their own independent scores).
     const portfolio = inv.portfolioId ? await portfolioManagedBy(inv.portfolioId, inv.inviter) : null
+    const role = inv.grantRole === INDEPENDENT_ASSESSOR_ROLE ? INDEPENDENT_ASSESSOR_ROLE : null
     await db.insert(accessGrants).values({
       id: `grant_${crypto.randomUUID()}`, orgId, grantee: inv.inviter, grantedBy: caller.email, level: 'read', status: 'active',
-      portfolioId: portfolio?.id ?? null, respondedAt: new Date(),
+      role, portfolioId: portfolio?.id ?? null, respondedAt: new Date(),
     }).onConflictDoUpdate({
       target: [accessGrants.orgId, accessGrants.grantee],
-      set: { status: 'active', level: 'read', grantedBy: caller.email, portfolioId: portfolio?.id ?? null, respondedAt: new Date() },
+      set: { status: 'active', level: 'read', role, grantedBy: caller.email, portfolioId: portfolio?.id ?? null, respondedAt: new Date() },
     })
     if (portfolio) await db.insert(portfolioOrgs).values({ portfolioId: portfolio.id, orgId }).onConflictDoNothing()
   }

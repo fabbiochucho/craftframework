@@ -636,10 +636,36 @@ export interface Invitation {
   /** organization: what accepting sets up, in plain words. */
   purpose?: string
   /** organization: what it links to. */
-  link?: 'portfolio' | 'engagement' | 'network'
+  link?: 'portfolio' | 'engagement' | 'network' | 'independent_assessor'
   inviteeName?: string
   createdAt?: string
+  /** First sent (absent = a draft not sent yet). */
+  sentAt?: string
+  sentBy?: string
+  createdBy?: string
   status: 'pending' | 'accepted' | 'expired' | 'revoked'
+}
+
+/** Send (or resend) an invitation by id. The caller must be its inviter or the Super Admin. */
+export async function sendInvitation(invitationId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetch('/api/send-invite', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ invitationId }) })
+    const body = await res.json().catch(() => ({}))
+    if (!res.ok) return { ok: false, error: String(body?.error ?? `Send failed (${res.status})`) }
+    if (body?.dispatched === false && body?.reason) return { ok: false, error: body.reason === 'no_mail_provider_configured' ? 'Email is not configured on this server' : 'The email provider refused it' }
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'Network error. Nothing was sent.' }
+  }
+}
+
+/** All invitations (Super Admin) or those sent by `inviter`. */
+export async function fetchAllInvitations(): Promise<Invitation[]> {
+  try {
+    return (await jsonOrThrow(await fetch('/api/invitations'))) as Invitation[]
+  } catch {
+    return []
+  }
 }
 
 export async function fetchInvitationByToken(token: string): Promise<Invitation | null> {
@@ -701,6 +727,12 @@ export async function inviteOrganizationByEmail(input: {
   orgArchetype?: string
   orgSector?: string
   orgCountry?: string
+  /** false = save as a draft to send later. */
+  send?: boolean
+  /** Super Admin: in this person's name. */
+  onBehalfOf?: string
+  /** 'independent_assessor' names the inviter the organisation's independent assessor. */
+  grantRole?: 'independent_assessor'
 }): Promise<{ ok: true; invitation: Invitation & { email?: { dispatched?: boolean } } } | { ok: false; error: string }> {
   try {
     const res = await fetch('/api/invitations', {

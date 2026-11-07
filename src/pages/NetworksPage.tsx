@@ -9,6 +9,7 @@ import { ProgrammeScorecards } from '../components/ProgrammeScorecards'
 import { useAuthCtx } from '../lib/context'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
 import { MyAmbassadorStrip, PersonBadges, usePeopleBadges } from '../components/AmbassadorBadges'
+import { BulkInviteCsv } from '../components/BulkInviteCsv'
 import { canSeePreview, getFramework } from '../lib/frameworks'
 import { LEVEL_LABEL, NETWORK_LEVELS, SHARING_LABEL, ancestry, canNest, type NetworkLevel, type NetworkNode, type Sharing } from '../lib/networks'
 import { NETWORK_TEMPLATES, TEMPLATE_LABEL, buildStructure, type NetworkTemplate, type StructureSpec } from '../lib/networkTemplates'
@@ -246,6 +247,17 @@ function NodeTools({ networkId, node, onDone, superAdmin = false }: { networkId:
         <Input label="CRAFT organisation ID or contact email" value={org} onChange={(e) => setOrg(e.target.value)} />
         <p className="text-xs text-slate-500">For an organisation already on CRAFT. It joins only if it accepts, and chooses what you see. Not on CRAFT yet? Use the invitation below.</p>
         <Button size="sm" disabled={org.trim().length < 2} onClick={() => void run('invitations', { nodeId: node.id, org }, 'Invitation sent')}>Invite</Button>
+      </div>
+      <div className="lg:col-span-3">
+        <BulkInviteCsv onDone={onDone} submit={async (r, send) => {
+          try {
+            await api(`/api/networks/${networkId}/invitations`, { method: 'POST', json: {
+              nodeId: node.id, org: r.email, orgName: r.orgName, send, inviteeName: r.contact || undefined,
+              orgArchetype: r.orgArchetype || undefined, orgSector: r.orgSector || undefined, orgCountry: r.orgCountry || undefined,
+            } })
+            return { ok: true }
+          } catch (e) { return { ok: false, error: (e as Error).message } }
+        }} />
       </div>
       {currentUser && (
         <div className="lg:col-span-3">

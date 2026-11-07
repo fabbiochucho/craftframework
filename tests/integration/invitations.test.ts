@@ -79,7 +79,7 @@ describe('/api/invitations name and note', () => {
     const base = { email: 'a@example.org' }
     for (const bad of [
       { inviteeName: 'x'.repeat(121) }, { inviteeName: 'Line\nBreak' }, { inviteeName: 'Tab\there' }, { inviteeName: 'nul\u0000' },
-      { inviteeName: 42 }, { message: 'y'.repeat(1001) }, { message: 'bell\u0007' }, { message: 'esc\u001b[31m' }, { message: { a: 1 } },
+      { inviteeName: 42 }, { message: 'y'.repeat(4001) }, { message: 'bell\u0007' }, { message: 'esc\u001b[31m' }, { message: { a: 1 } },
     ]) assert.equal((await create({ ...base, ...bad })).status, 400, JSON.stringify(bad).slice(0, 40))
     assert.equal((await rows('SELECT count(*)::int AS n FROM invitations'))[0].n, 0)
     // Limits are inclusive; ordinary line breaks in the note are fine.

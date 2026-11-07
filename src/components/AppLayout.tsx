@@ -271,17 +271,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Client switcher - Administrators, Portfolio Reviewers & the Super
             Admin can open any institution they administer or hold access to,
             read-only. */}
-        {(currentUser.role === 'portfolio' || currentUser.role === 'admin' || currentUser.role === 'super_admin') && !currentUser.isDemo && organizations.length > 0 && (
+        {(currentUser.role === 'portfolio' || currentUser.role === 'admin' || currentUser.role === 'super_admin' || currentUser.role === 'independent') && !currentUser.isDemo && organizations.length > 0 && (
           <div className="border-b border-slate-700/60 px-4 py-3">
             <label className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-400/80">
-              <Eye className="h-3 w-3" /> Viewing
+              <Eye className="h-3 w-3" /> {currentUser.role === 'independent' ? 'Assessing' : 'Viewing'}
             </label>
             <select
               value={activeClientOrgId ?? ''}
               onChange={e => setActiveClient(e.target.value || null)}
               className="w-full rounded-md border border-slate-600 bg-slate-800/70 px-2 py-1.5 text-xs text-white focus:border-emerald-400 focus:outline-none"
             >
-              <option value="">My workspace</option>
+              <option value="">{currentUser.role === 'independent' ? 'Choose an organisation' : 'My workspace'}</option>
               {organizations.filter(o => o.status !== 'archived').map(o => (
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
