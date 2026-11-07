@@ -9,13 +9,14 @@ import { PHASE2_EXTRA_LAWS } from './data/phase2Extra.ts'
 import { applyPatches } from './data/phase2Tightened.ts'
 import { CONTINENTAL_LAWS } from './data/continental.ts'
 import { TECH_LAWS } from './data/tech.ts'
+import { TECH_AFRICA_LAWS } from './data/techAfrica.ts'
 import { HELD_BACK_FIXES, HELD_BACK_FIXES_CHECKED, SOURCE_FIXES, SOURCE_FIXES_CHECKED } from './data/sourceFixes.ts'
 import type { LawEntry } from './types.ts'
 
 export const LAW_DATA_VERSION = 'CRAFT-LAW 1.4 (2026-10-21)'
 /** Every batch's entries. Phase 2 batches are appended here as their data files land. */
 export const LAW_REGISTER: LawEntry[] = applyPatches(applyPatches(
-  applyPatches([...PHASE1_LAWS, ...PHASE1_EXTRA_LAWS, ...NORTH_LAWS, ...WEST_LAWS, ...CENTRAL_LAWS, ...EAST_LAWS, ...SOUTHERN_LAWS, ...PHASE2_EXTRA_LAWS, ...CONTINENTAL_LAWS, ...TECH_LAWS]),
+  applyPatches([...PHASE1_LAWS, ...PHASE1_EXTRA_LAWS, ...NORTH_LAWS, ...WEST_LAWS, ...CENTRAL_LAWS, ...EAST_LAWS, ...SOUTHERN_LAWS, ...PHASE2_EXTRA_LAWS, ...CONTINENTAL_LAWS, ...TECH_LAWS, ...TECH_AFRICA_LAWS]),
   SOURCE_FIXES, SOURCE_FIXES_CHECKED,
 ), HELD_BACK_FIXES, HELD_BACK_FIXES_CHECKED)
 
