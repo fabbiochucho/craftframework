@@ -6,7 +6,7 @@
 // CRAFT scores each indicator 0-5 against six level statements. For the four "Capacity Score" columns the
 // report shows CRAFT's level 1, 2, 3 and 5 statements, and converts the 0-5 score to 1-4
 // (0-1 → 1, 2 → 2, 3 → 3, 4-5 → 4); the chosen column is highlighted. The report states that CRAFT
-// adopts the official NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations.
+// adopts the NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations.
 import { CRAFT_ONC, byNhocatDomain } from './indices/craftOnc'
 import { esc } from './inviteEmail'
 import { BRAND } from './data'
@@ -115,7 +115,7 @@ export function buildNhocatReportHtml(input: NhocatReportInput): string {
 <h1>ORGANISATIONAL CAPACITY ASSESSMENT TOOL — NHOCAT+ METHODOLOGY</h1>
 ${header}
 ${areas}
-<p class="note">Produced by ${esc(BRAND.product)}, which adopts the official NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations. Results from the ${esc(CRAFT_ONC.title)} are arranged by the NHOCAT domains. Each CRAFT indicator is scored 0-5 against six level statements (similar to Statements of Excellence); the four Capacity Score columns show the level 1, 2, 3 and 5 statements and the highlighted column is the organisation's score converted to 1-4.${hasIndep ? ' Independent scores are the independent assessor’s.' : ''} "Evidence Sighted" is for the assessor to complete.</p>
+<p class="note">Produced by ${esc(BRAND.product)}, which adopts the NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations. Results from the ${esc(CRAFT_ONC.title)} are arranged by the NHOCAT domains. Each CRAFT indicator is scored 0-5 against six level statements (similar to Statements of Excellence); the four Capacity Score columns show the level 1, 2, 3 and 5 statements and the highlighted column is the organisation's score converted to 1-4.${hasIndep ? ' Independent scores are the independent assessor’s.' : ''} "Evidence Sighted" is for the assessor to complete.</p>
 <table class="sign"><tr><td>Organisation lead: ____________________________</td><td>Assessor: ____________________________</td><td>Date: ________________</td></tr></table>
 </body></html>`
 }
