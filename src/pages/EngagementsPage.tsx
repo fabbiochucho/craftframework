@@ -7,6 +7,7 @@ import { METHODOLOGIES } from '../lib/methodologies'
 import { INDEX_SCOPE_NAMES, scopeText, TYPE_LABEL, type EngagementScope, type EngagementType } from '../lib/engagements'
 import { SPECIALISM_INDEX, SPECIALISMS } from '../lib/specialisms'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import { EvidenceRequests, EvidenceWaiting } from '../components/EvidenceRequests'
 import { useAuthCtx } from '../lib/context'
 
 // Validator system PR 2: engagements. Every permission is enforced by
@@ -79,6 +80,7 @@ export function EngagementsPage() {
         <p className="mt-1 text-sm text-slate-500">An engagement lets a named validator team review an organisation's results. Nothing opens until the organisation consents and each named member signs the independence declaration; access is read-only and time-limited.</p>
       </div>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+      <EvidenceWaiting />
       {me && <CreateEngagement me={me} onCreated={load} />}
       {items && !items.length && <p className="text-sm text-slate-500">You are not part of any engagement yet.</p>}
       <ul className="grid gap-3 md:grid-cols-2">
@@ -271,6 +273,8 @@ export function EngagementDetailPage({ id }: { id: string }) {
       )}
       {e.can.respondAs.map((side) => <RespondCard key={side} side={side} onDecide={(decision, reason) => act(() => post('/respond', { side, decision, reason }), decision === 'accept' ? 'Accepted' : 'Declined')} />)}
       <Status msg={msg} />
+
+      {['active', 'expired', 'finalised', 'cancelled'].includes(e.status) && <EvidenceRequests engagementId={e.id} />}
 
       {e.declaration.mine && !e.declaration.signed && ['proposed', 'active'].includes(e.status) && (
         <DeclarationCard d={e.declaration} onSign={(body) => act(() => post('/declaration', body), 'Declaration signed')} />

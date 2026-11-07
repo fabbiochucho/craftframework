@@ -735,6 +735,55 @@ export const validationEvidenceLinks = pgTable(
   (t) => [unique('validation_evidence_links_uq').on(t.engagementId, t.indicatorId, t.evidenceId), index('validation_evidence_links_engagement_idx').on(t.engagementId)],
 )
 
+// --- engagement evidence requests ---------------------------------------------
+// Inside an active engagement, the reviewing side (validator team or funder) asks the organisation for a
+// specific piece of evidence by a due date. The organisation links items from its evidence registry and
+// marks the request submitted; the reviewer accepts it or asks for more. Overdue requests get reminders.
+// 'open' | 'submitted' | 'accepted' | 'more_needed' | 'cancelled'
+export const evidenceRequests = pgTable(
+  'evidence_requests',
+  {
+    id: text('id').primaryKey(),
+    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    orgId: text('org_id').notNull(),
+    title: text('title').notNull(),
+    // Optional ladder indicator / question code the evidence supports.
+    indicatorId: text('indicator_id'),
+    note: text('note').notNull().default(''),
+    dueOn: date('due_on').notNull(),
+    status: text('status').notNull().default('open'),
+    requestedBy: text('requested_by').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    submittedBy: text('submitted_by'),
+    submittedAt: timestamp('submitted_at', { withTimezone: true }),
+    submissionNote: text('submission_note').notNull().default(''),
+    reviewedBy: text('reviewed_by'),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    reviewNote: text('review_note').notNull().default(''),
+    // Overdue reminders: last sent and how many (capped).
+    remindedAt: timestamp('reminded_at', { withTimezone: true }),
+    reminderCount: integer('reminder_count').notNull().default(0),
+  },
+  (t) => [index('evidence_requests_engagement_idx').on(t.engagementId), index('evidence_requests_org_status_idx').on(t.orgId, t.status)],
+)
+
+// Evidence-registry items the organisation linked to a request. A reference only (with the SHA-256 at the
+// time of linking); the file stays in the evidence store.
+export const evidenceRequestItems = pgTable(
+  'evidence_request_items',
+  {
+    id: text('id').primaryKey(),
+    requestId: text('request_id').notNull().references(() => evidenceRequests.id, { onDelete: 'cascade' }),
+    evidenceId: integer('evidence_id').notNull().references(() => evidenceRegistry.id, { onDelete: 'cascade' }),
+    documentName: text('document_name').notNull(),
+    sha256: text('sha256'),
+    linkedBy: text('linked_by').notNull(),
+    linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('evidence_request_items_uq').on(t.requestId, t.evidenceId), index('evidence_request_items_request_idx').on(t.requestId)],
+)
+export type EvidenceRequestRow = typeof evidenceRequests.$inferSelect
+
 // --- validations (lifecycle) --------------------------------------------------
 // Validator system PR 5. The issued validation that a finalised review produces:
 // its validity, follow-up schedule and stored status decisions. 'Follow-up
