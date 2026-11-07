@@ -34,10 +34,7 @@ export const LAW_AREAS: Record<LawArea, string> = {
   forex: 'Foreign exchange', licensing: 'Investment and sector licensing',
   ai: 'Artificial intelligence', cyber: 'Cybersecurity and cybercrime', etransactions: 'Electronic transactions and signatures', online: 'Telecoms, online platforms and online safety',
 }
-/** Tech areas are rolled out jurisdiction by jurisdiction; TECH_ROLLOUT lists those already covered. */
 export const TECH_AREAS: LawArea[] = ['ai', 'cyber', 'etransactions', 'online']
-export const TECH_ROLLOUT: string[] = ['NG', 'EU', 'UK', 'US']
-export const CORE_AREAS = (Object.keys(LAW_AREAS) as LawArea[]).filter((a) => !TECH_AREAS.includes(a))
 
 const OTHER: Record<string, string> = { EU: 'European Union', UK: 'United Kingdom', US: 'United States' }
 /** Continental instruments that apply in the African countries that ratify them; not a country, so not in LAW_JURISDICTIONS. */
