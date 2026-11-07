@@ -80,7 +80,7 @@ export function NhocatReading({ scores }: { scores: Record<string, number> }) {
       </div>
       <p className="mt-1 text-xs text-slate-500">
         The same answers, grouped under the eight domains of Nigeria's National Harmonised Organisational Capacity Assessment Tool and shown on a four-level scale
-        (Latent, Emerging, Established, Advanced). This is a read-across, not an NHOCAT assessment.
+        (Latent, Emerging, Established, Advanced). CRAFT adopts the official NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations.
       </p>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full text-sm">

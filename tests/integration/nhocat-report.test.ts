@@ -1,4 +1,4 @@
-// The NHOCAT read-across report: NHOCAT+ sheet fields, one table per capacity area with four capacity
+// The NHOCAT+ methodology report: NHOCAT+ sheet fields, one table per capacity area with four capacity
 // score columns, the organisation's column highlighted, evidence rows, and everything escaped.
 // Set NHOCAT_REPORT_OUT=<file> to save the sample HTML for a visual check.
 import assert from 'node:assert/strict'
@@ -7,7 +7,7 @@ import { describe, it } from 'node:test'
 import { buildNhocatReportHtml, toCapacityScore } from '../../src/lib/nhocatReport.ts'
 import { CRAFT_ONC } from '../../src/lib/indices/craftOnc.ts'
 
-describe('NHOCAT read-across report', () => {
+describe('NHOCAT+ methodology report', () => {
   it('prints the NHOCAT+ sheet fields and capacity area tables', () => {
     const scores = Object.fromEntries(CRAFT_ONC.indicators.map((i, n) => [i.id, n % 6]))
     const html = buildNhocatReportHtml({
@@ -23,7 +23,7 @@ describe('NHOCAT read-across report', () => {
     assert.match(html, /Evidence 1\.1/)
     assert.match(html, /class="soe on"/, 'the chosen statement is highlighted')
     assert.match(html, /Independent: 4/)
-    assert.match(html, /not the official NHOCAT\+ instrument/)
+    assert.match(html, /adopts the official NHOCAT\+ tool methodology and other frameworks to assess and strengthen organisations/)
   })
 
   it('converts CRAFT 0-5 to the four-point capacity score and escapes input', () => {

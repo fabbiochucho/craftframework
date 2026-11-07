@@ -5,8 +5,8 @@
 //
 // CRAFT scores each indicator 0-5 against six level statements. For the four "Capacity Score" columns the
 // report shows CRAFT's level 1, 2, 3 and 5 statements, and converts the 0-5 score to 1-4
-// (0-1 → 1, 2 → 2, 3 → 3, 4-5 → 4); the chosen column is highlighted. It is a read-across from CRAFT's own
-// indicators, not the official NHOCAT+ instrument, and the report says so.
+// (0-1 → 1, 2 → 2, 3 → 3, 4-5 → 4); the chosen column is highlighted. The report states that CRAFT
+// adopts the official NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations.
 import { CRAFT_ONC, byNhocatDomain } from './indices/craftOnc'
 import { esc } from './inviteEmail'
 import { BRAND } from './data'
@@ -94,7 +94,7 @@ export function buildNhocatReportHtml(input: NhocatReportInput): string {
   }).join('')
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>${esc(input.orgName)} — Organisational Capacity Assessment (NHOCAT read-across)</title>
+<title>${esc(input.orgName)} — Organisational Capacity Assessment (NHOCAT+ methodology)</title>
 <style>
   @page{size:A4 landscape;margin:8mm}
   body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;margin:16px;font-size:9.5px}
@@ -112,10 +112,10 @@ export function buildNhocatReportHtml(input: NhocatReportInput): string {
   .sign td{border:none;padding-top:22px}
   @media print{h2{page-break-after:avoid} tr{page-break-inside:avoid}}
 </style></head><body>
-<h1>ORGANISATIONAL CAPACITY ASSESSMENT TOOL — NHOCAT READ-ACROSS</h1>
+<h1>ORGANISATIONAL CAPACITY ASSESSMENT TOOL — NHOCAT+ METHODOLOGY</h1>
 ${header}
 ${areas}
-<p class="note">Produced by ${esc(BRAND.product)} from the ${esc(CRAFT_ONC.title)}, arranged by the NHOCAT domains. Each CRAFT indicator is scored 0-5 against six level statements (similar to Statements of Excellence); the four Capacity Score columns show the level 1, 2, 3 and 5 statements and the highlighted column is the organisation's score converted to 1-4.${hasIndep ? ' Independent scores are the independent assessor’s.' : ''} This is a read-across from ${esc(BRAND.product)}, not the official NHOCAT+ instrument. "Evidence Sighted" is for the assessor to complete.</p>
+<p class="note">Produced by ${esc(BRAND.product)}, which adopts the official NHOCAT+ tool methodology and other frameworks to assess and strengthen organisations. Results from the ${esc(CRAFT_ONC.title)} are arranged by the NHOCAT domains. Each CRAFT indicator is scored 0-5 against six level statements (similar to Statements of Excellence); the four Capacity Score columns show the level 1, 2, 3 and 5 statements and the highlighted column is the organisation's score converted to 1-4.${hasIndep ? ' Independent scores are the independent assessor’s.' : ''} "Evidence Sighted" is for the assessor to complete.</p>
 <table class="sign"><tr><td>Organisation lead: ____________________________</td><td>Assessor: ____________________________</td><td>Date: ________________</td></tr></table>
 </body></html>`
 }
