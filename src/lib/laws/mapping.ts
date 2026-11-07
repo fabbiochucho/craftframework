@@ -7,6 +7,10 @@ import type { LawArea, LawEntry } from './types.ts'
 const RULES: Record<LawArea, { core?: string[]; ladder?: string[]; prefix?: string[]; esg?: boolean }> = {
   company: { core: ['Legal & Regulatory', 'Governance & Leadership'], ladder: ['Legal Structure & Registration'] },
   data: { core: ['Digital Systems & Cyber'] },
+  ai: { core: ['Digital Systems & Cyber', 'Data Governance & Information Management'] },
+  cyber: { core: ['Digital Systems & Cyber', 'Business Continuity & Resilience'] },
+  etransactions: { core: ['Digital Systems & Cyber'] },
+  online: { core: ['Digital Systems & Cyber', 'Data Governance & Information Management'] },
   integrity: { core: ['Ethics & Anti-Fraud', 'Risk & Internal Controls'], prefix: ['CRAFT-FCR-'] },
   procurement: { core: ['Procurement & Supply Chain'] },
   governance: { core: ['Governance & Leadership', 'Audit & Assurance'], ladder: ['Core Governance & Leadership', 'Transparent Governance & Reporting'] },

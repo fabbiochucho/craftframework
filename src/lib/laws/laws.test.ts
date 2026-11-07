@@ -1,6 +1,6 @@
 // Self-check: `node src/lib/laws/laws.test.ts`
 import assert from 'node:assert/strict'
-import { CONTINENTAL_JURISDICTIONS, jurisdictionName, LAW_AREAS, LAW_JURISDICTIONS, type LawEntry } from './types.ts'
+import { CONTINENTAL_JURISDICTIONS, CORE_AREAS, jurisdictionName, LAW_AREAS, LAW_JURISDICTIONS, TECH_AREAS, TECH_ROLLOUT, type LawEntry } from './types.ts'
 import { registerProblems } from './validate.ts'
 import { LAW_REGISTER, lawsFor } from './register.ts'
 
@@ -12,7 +12,8 @@ const ok: LawEntry = {
 const today = '2026-10-18'
 assert.equal(LAW_JURISDICTIONS.length, 57)
 assert.ok(LAW_JURISDICTIONS.includes('UK') && LAW_JURISDICTIONS.includes('CV'))
-assert.equal(Object.keys(LAW_AREAS).length, 16)
+assert.equal(Object.keys(LAW_AREAS).length, 20)
+assert.equal(CORE_AREAS.length, 16)
 for (const a of ['tax', 'competition', 'consumer', 'sanctions', 'forex', 'licensing']) assert.ok(a in LAW_AREAS, `area ${a}`)
 assert.equal(LAW_AREAS.governance, 'Corporate governance codes and regulations')
 assert.equal(LAW_AREAS.sustainability, 'Environment, climate and sustainability')
@@ -48,7 +49,7 @@ console.log('laws (mapping): ok')
 
 import { PHASE1_LAWS } from './data/phase1.ts'
 const PHASE1 = ['NG', 'KE', 'ZA', 'MA', 'EG', 'SN', 'MU', 'CV', 'US', 'UK', 'EU']
-for (const j of PHASE1) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `phase 1: ${j} has an entry for ${a}`)
+for (const j of PHASE1) for (const a of CORE_AREAS) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `phase 1: ${j} has an entry for ${a}`)
 assert.ok(PHASE1_LAWS.every((e) => e.review === 'pending'), 'new entries start pending')
 assert.ok(PHASE1_LAWS.filter((e) => e.area === 'data' && !e.noLaw).every((e) => e.craftNotes?.length), 'every data protection law says what it means for CRAFT')
 console.log('laws (phase 1 completeness): ok')
@@ -103,7 +104,10 @@ assert.ok(csvRows.some((r) => r[0] === 'Nigeria' && r[2] === 'Nigeria Data Prote
 console.log('laws (final review fixes): ok')
 
 // Every jurisdiction in the register covers all areas, and phase 2 entries start pending
-for (const j of new Set(LAW_REGISTER.map((e) => e.jurisdiction).filter((j) => !CONTINENTAL_JURISDICTIONS.includes(j)))) for (const a of Object.keys(LAW_AREAS)) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `${j} has an entry for ${a}`)
+for (const j of new Set(LAW_REGISTER.map((e) => e.jurisdiction).filter((j) => !CONTINENTAL_JURISDICTIONS.includes(j)))) for (const a of CORE_AREAS) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `${j} has an entry for ${a}`)
+// Tech areas: complete for every jurisdiction rolled out so far (and the AU), pending review
+for (const j of [...TECH_ROLLOUT, 'AU']) for (const a of TECH_AREAS) assert.ok(LAW_REGISTER.some((e) => e.jurisdiction === j && e.area === a), `tech: ${j} has an entry for ${a}`)
+assert.ok(LAW_REGISTER.filter((e) => TECH_AREAS.includes(e.area)).every((e) => e.review === 'pending'), 'tech entries start pending')
 assert.ok(LAW_REGISTER.filter((e) => !PHASE1.includes(e.jurisdiction)).every((e) => e.review === 'pending'), 'phase 2 entries start pending')
 console.log('laws (all jurisdictions complete): ok')
 

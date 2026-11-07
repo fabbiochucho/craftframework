@@ -1,8 +1,9 @@
-// The laws register: the laws in sixteen areas that apply in each jurisdiction CRAFT serves.
+// The laws register: the laws in sixteen core areas and four tech areas that apply in each jurisdiction CRAFT serves.
 // Information to support readiness, not legal advice. Spec: craft-internal/docs/superpowers/specs/2026-10-18-laws-register-design.md
 import { AFRICA_COUNTRIES } from '../africa-countries.ts'
 
 export type LawArea = 'company' | 'data' | 'integrity' | 'procurement' | 'governance' | 'labour' | 'eia' | 'sustainability' | 'financial' | 'capital' | 'tax' | 'competition' | 'consumer' | 'sanctions' | 'forex' | 'licensing'
+  | 'ai' | 'cyber' | 'etransactions' | 'online'
 export type SourceKind = 'official' | 'secondary'
 export type ReviewStatus = 'pending' | 'approved'
 export type CraftDuty = 'registration' | 'cross-border' | 'local-representative' | 'breach-notice' | 'wording' | 'other'
@@ -31,7 +32,12 @@ export const LAW_AREAS: Record<LawArea, string> = {
   capital: 'Capital markets and securities',
   tax: 'Tax', competition: 'Competition', consumer: 'Consumer protection', sanctions: 'Sanctions and export controls',
   forex: 'Foreign exchange', licensing: 'Investment and sector licensing',
+  ai: 'Artificial intelligence', cyber: 'Cybersecurity and cybercrime', etransactions: 'Electronic transactions and signatures', online: 'Telecoms, online platforms and online safety',
 }
+/** Tech areas are rolled out jurisdiction by jurisdiction; TECH_ROLLOUT lists those already covered. */
+export const TECH_AREAS: LawArea[] = ['ai', 'cyber', 'etransactions', 'online']
+export const TECH_ROLLOUT: string[] = ['NG', 'EU', 'UK', 'US']
+export const CORE_AREAS = (Object.keys(LAW_AREAS) as LawArea[]).filter((a) => !TECH_AREAS.includes(a))
 
 const OTHER: Record<string, string> = { EU: 'European Union', UK: 'United Kingdom', US: 'United States' }
 /** Continental instruments that apply in the African countries that ratify them; not a country, so not in LAW_JURISDICTIONS. */
