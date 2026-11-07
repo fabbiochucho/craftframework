@@ -78,7 +78,7 @@ describe('independent assessor on-behalf invitations', () => {
     const email = mails()[0]
     assert.equal(email.to, COORD)
     assert.equal(email.reply_to, MARTIN, 'replies go to the assessor')
-    assert.match(email.subject, new RegExp(MARTIN.replace(/[.]/g, '\\.')))
+    assert.ok(email.subject.includes(MARTIN), email.subject)
     assert.match(email.html, /behalf/)
     assert.match(email.html, /Thank you for accepting to work with us/)
     assert.match(email.html, /independent assessor/i)
