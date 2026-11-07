@@ -200,7 +200,7 @@ import { CONTINENTAL_LAWS, RATIFICATIONS, ratificationStatus } from './data/cont
 // are replaced with sources that load; each fixed entry records the date it was checked.
 {
   const { LAW_DATA_VERSION } = await import('./register.ts')
-  assert.equal(LAW_DATA_VERSION, 'CRAFT-LAW 1.4 (2026-10-21)')
+  assert.equal(LAW_DATA_VERSION, 'CRAFT-LAW 1.5 (2026-11-07)')
   const src = (id: string) => LAW_REGISTER.find((e) => e.id === id)!.source
   const dead = ['lawlibrary.org.za', 'fscmauritius.org', 'ctaf.gov.tn', 'finances.gov.tn', 'cil.bf', 'ghalii.org', 'assemblee-nationale.mg', 'dataprotection.gov.zm']
   for (const e of LAW_REGISTER) assert.ok(!dead.some((h) => e.source.url.includes(h)), `${e.id} still cites an unreachable source: ${e.source.url}`)
