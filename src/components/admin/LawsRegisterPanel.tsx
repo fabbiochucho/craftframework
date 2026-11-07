@@ -4,14 +4,16 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Table, Tbody, Td, Th,
 import { setLawApproval } from '../../lib/api'
 import { useLawApprovals } from '../../lib/laws/useLawApprovals'
 import { buildInternalCheck } from '../../lib/laws/internalCheck'
+import { resolveDuty } from '../../lib/laws/craftDuties'
 import { LAW_DATA_VERSION, LAW_REGISTER } from '../../lib/laws/register'
 import { jurisdictionName } from '../../lib/laws/types'
 
-const STATUS_STYLE = { needed: 'bg-rose-100 text-rose-800', done: 'bg-emerald-100 text-emerald-800', 'n/a': 'bg-slate-100 text-slate-700' } as const
+const STATUS_STYLE = { needed: 'bg-rose-100 text-rose-800', watch: 'bg-amber-100 text-amber-800', done: 'bg-emerald-100 text-emerald-800', 'n/a': 'bg-slate-100 text-slate-700' } as const
+const STATUS_LABEL = { needed: 'needed', watch: 'not triggered', done: 'done', 'n/a': 'n/a' } as const
 
 export function LawsRegisterPanel() {
   const { records, approved, reload } = useLawApprovals()
-  const check = useMemo(() => buildInternalCheck(LAW_REGISTER, new Date().toISOString().slice(0, 10), approved), [approved.join()])
+  const check = useMemo(() => buildInternalCheck(LAW_REGISTER, new Date().toISOString().slice(0, 10), approved, resolveDuty), [approved.join()])
   const none = <p className="text-sm text-slate-500">None</p>
   const jurisdictions = useMemo(() => {
     const counts = new Map<string, number>()
@@ -55,8 +57,8 @@ export function LawsRegisterPanel() {
         <CardContent>{check.duties.length === 0 ? none : (
           <Table><Thead><tr><Th>Jurisdiction</Th><Th>Law</Th><Th>Duty</Th><Th>Note</Th><Th>Status</Th></tr></Thead>
             <Tbody>{check.duties.map((d, i) => (
-              <tr key={i}><Td>{d.jurisdiction}</Td><Td>{d.law}</Td><Td>{d.duty}</Td><Td>{d.note}</Td>
-                <Td><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[d.status]}`}>{d.status}</span></Td></tr>
+              <tr key={i}><Td>{d.jurisdiction}</Td><Td>{d.law}</Td><Td>{d.duty}</Td><Td>{d.note}{d.evidence && <p className="mt-1 text-xs text-slate-500">{d.evidence}</p>}</Td>
+                <Td><span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLE[d.status]}`}>{STATUS_LABEL[d.status]}</span></Td></tr>
             ))}</Tbody></Table>
         )}</CardContent>
       </Card>
