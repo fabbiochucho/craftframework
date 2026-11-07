@@ -32,7 +32,7 @@ type Membership = { id: string; status: string; sharing: Sharing; orgId: string;
 type Home = { canCreate: boolean; isSuperAdmin: boolean; networks: Array<{ id: string; name: string; description: string; status: string; kind: string; verified: boolean; setUpBy: string; coordinating: boolean }>; memberships: Membership[] }
 type TreeNode = NetworkNode & { members?: number }
 type Detail = {
-  network: { id: string; name: string; description: string; status: string; kind: string; verified: boolean; setUpBy: string; canModerate: boolean }
+  network: { id: string; name: string; description: string; status: string; kind: string; verified: boolean; setUpBy: string; canModerate: boolean; canDelete?: boolean }
   nodes: TreeNode[]; coordinates: string[]; views: string[]
   admins: Array<{ nodeId: string; email: string; role: string }>
   members: null | { counts: { invited: number; accepted: number; declined: number }; named: Array<{ memberId: string; nodeId: string; orgId: string; name: string }>; totalsOnly: number }
@@ -212,7 +212,7 @@ function GuidedStructure({ spec, onChange }: { spec: StructureSpec; onChange: (s
   )
 }
 
-function NodeTools({ networkId, node, onDone }: { networkId: string; node: TreeNode; onDone: () => void }) {
+function NodeTools({ networkId, node, onDone, superAdmin = false }: { networkId: string; node: TreeNode; onDone: () => void; superAdmin?: boolean }) {
   const [child, setChild] = useState({ level: (levelOptions(node.level)[0]?.value ?? 'local') as NetworkLevel, name: '', geoCode: '' })
   const [admin, setAdmin] = useState({ email: '', role: 'coordinator' })
   const [org, setOrg] = useState('')
@@ -275,9 +275,65 @@ function NodeTools({ networkId, node, onDone }: { networkId: string; node: TreeN
         <Button size="sm" variant="outline" disabled={rename.trim().length < 2 || rename.trim() === node.name} onClick={() => void run(`nodes/${node.id}`, { name: rename }, 'Renamed', 'PATCH')}>Rename</Button>
         {node.parentId && <Button size="sm" variant="outline" onClick={() => void run(`nodes/${node.id}`, { archived: node.status !== 'archived' }, node.status === 'archived' ? 'Restored' : 'Archived', 'PATCH')}>
           {node.status === 'archived' ? 'Restore level' : 'Archive level (and those below)'}</Button>}
+        {superAdmin && node.parentId && <DeleteLevel networkId={networkId} node={node} onDone={onDone} />}
       </div>
       {node.parentId && <p className="text-xs text-slate-500 lg:col-span-3">Archiving keeps past rounds and scorecards; the level just stops taking new members, levels, rounds or scorecard entries.</p>}
       {msg && <p className="text-sm text-slate-700 lg:col-span-3">{msg}</p>}
+    </div>
+  )
+}
+
+// Super Admin: delete a level and every level below it for good (typed confirmation).
+function DeleteLevel({ networkId, node, onDone }: { networkId: string; node: TreeNode; onDone: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (!open) return <Button size="sm" variant="outline" className="border-rose-300 text-rose-700 hover:bg-rose-50" onClick={() => setOpen(true)}>Delete level</Button>
+  const del = async () => {
+    setBusy(true); setMsg('')
+    try { await api(`/api/networks/${networkId}/nodes/${node.id}`, { method: 'DELETE', json: { confirmName: typed } }); onDone() }
+    catch (e) { setMsg((e as Error).message); setBusy(false) }
+  }
+  return (
+    <div className="w-full space-y-2 rounded-md border border-rose-200 bg-rose-50/50 p-3 text-sm">
+      <p className="font-semibold text-rose-800">Delete “{node.name}” and every level below it?</p>
+      <p className="text-xs text-slate-600">Removes these levels with their memberships, coordinators, rounds, exchanges and scorecards, and cancels their open invitations. It cannot be undone. Organisations keep their own workspaces and data.</p>
+      <Input label="Type the level name to confirm" value={typed} onChange={(e) => setTyped(e.target.value)} />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" className="bg-rose-600 hover:bg-rose-700" disabled={busy || typed.trim().toLowerCase() !== node.name.trim().toLowerCase()} onClick={() => void del()}>{busy ? 'Deleting…' : 'Delete level'}</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setOpen(false); setTyped(''); setMsg('') }}>Cancel</Button>
+      </div>
+      {msg && <p role="alert" className="text-rose-700">{msg}</p>}
+    </div>
+  )
+}
+
+// Delete a network for good (typed confirmation). The Super Admin always; the person who set it up only
+// while no organisation has joined (the server decides and says so in network.canDelete).
+function DeleteNetwork({ id, name }: { id: string; name: string }) {
+  const [open, setOpen] = useState(false)
+  const [typed, setTyped] = useState('')
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  if (!open) return <Button size="sm" variant="outline" className="border-rose-300 text-rose-700 hover:bg-rose-50" onClick={() => setOpen(true)}>Delete network</Button>
+  const del = async () => {
+    setBusy(true); setMsg('')
+    try {
+      await api(`/api/networks/${id}`, { method: 'DELETE', json: { confirmName: typed } })
+      window.location.assign('/networks')
+    } catch (e) { setMsg((e as Error).message); setBusy(false) }
+  }
+  return (
+    <div className="mt-2 space-y-2 rounded-md border border-rose-200 bg-rose-50/50 p-3 text-sm">
+      <p className="font-semibold text-rose-800">Delete “{name}” for good?</p>
+      <p className="text-xs text-slate-600">This removes every level, coordinator, membership, round, exchange and scorecard in this network, and cancels its open invitations. It cannot be undone. Organisations keep their own workspaces and data.</p>
+      <Input label={`Type the network name to confirm`} value={typed} onChange={(e) => setTyped(e.target.value)} />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" className="bg-rose-600 hover:bg-rose-700" disabled={busy || typed.trim().toLowerCase() !== name.trim().toLowerCase()} onClick={() => void del()}>{busy ? 'Deleting…' : 'Delete network'}</Button>
+        <Button size="sm" variant="ghost" onClick={() => { setOpen(false); setTyped(''); setMsg('') }}>Cancel</Button>
+      </div>
+      {msg && <p role="alert" className="text-rose-700">{msg}</p>}
     </div>
   )
 }
@@ -362,9 +418,9 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
         {n.geoCode && <span className="font-mono text-xs text-slate-500">{n.geoCode}</span>}
         {n.status === 'archived' && <Badge className="bg-slate-200 text-slate-700">Archived</Badge>}
         {n.members !== undefined && <span className="text-xs text-slate-600">{n.members} member{n.members === 1 ? '' : 's'}</span>}
-        {coord.has(n.id) && <Button size="sm" variant="outline" onClick={() => setOpen(open === n.id ? null : n.id)}>{open === n.id ? 'Close' : 'Manage'}</Button>}
+        {(coord.has(n.id) || d.network.canModerate) && <Button size="sm" variant="outline" onClick={() => setOpen(open === n.id ? null : n.id)}>{open === n.id ? 'Close' : 'Manage'}</Button>}
       </div>
-      {open === n.id && <div style={{ paddingLeft: depth * 20 }}><NodeTools networkId={d.network.id} node={n} onDone={load} /></div>}
+      {open === n.id && <div style={{ paddingLeft: depth * 20 }}><NodeTools networkId={d.network.id} node={n} onDone={load} superAdmin={d.network.canModerate} /></div>}
       {children(n.id).length > 0 && <ul className="space-y-1">{children(n.id).map((c) => renderNode(c, depth + 1))}</ul>}
     </li>
   )
@@ -379,6 +435,7 @@ export function NetworkDetailPage({ networkId }: { networkId: string }) {
           {d.network.status === 'archived' && <Badge className="bg-rose-100 text-rose-800">Archived</Badge>}</h1>
         <p className="text-xs text-slate-500">{d.network.kind === 'cohort' ? 'Grantee cohort' : 'Network'} set up by {d.network.setUpBy}<PersonBadges email={d.network.setUpBy} badges={badges} /></p>
         {d.network.canModerate && <Moderation id={d.network.id} verified={d.network.verified} archived={d.network.status === 'archived'} onDone={load} />}
+        {d.network.canDelete && <DeleteNetwork id={d.network.id} name={d.network.name} />}
         {d.network.description && <p className="mt-1 max-w-3xl text-slate-600">{d.network.description}</p>}
       </div>
       {(d.coordinates.length > 0 || d.views.length > 0) && <NetworkOverview id={d.network.id} />}

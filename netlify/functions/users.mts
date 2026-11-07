@@ -3,7 +3,7 @@ import { asc, eq, sql } from 'drizzle-orm'
 import { admin } from '@netlify/identity'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { dailyActive, users } from '../../db/schema.js'
+import { auditLogs, dailyActive, users } from '../../db/schema.js'
 import type { UserRow } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
@@ -247,6 +247,27 @@ const handleRequest = async (req: Request) => {
       const email = url.searchParams.get('email')
       const id = url.searchParams.get('id')
       if (!email && !id) return Response.json({ error: 'email or id required' }, { status: 400 })
+      // ?account=1 (Super Admin only): also delete the person's sign-in account, so someone who only
+      // registered (no directory row) disappears for good instead of coming back from Identity.
+      const account = url.searchParams.get('account') === '1'
+      if (account) {
+        if (caller.role !== 'super_admin') return forbidden()
+        if (!email) return Response.json({ error: 'email required to delete an account' }, { status: 400 })
+        const target = email.trim().toLowerCase()
+        if (target === caller.email || isSuperAdmin(target)) return Response.json({ error: 'The Super Admin account cannot be deleted here' }, { status: 400 })
+        const identity = (await listIdentityUsers()).find((u) => u.email.trim().toLowerCase() === target)
+        if (identity) {
+          try {
+            await admin.deleteUser(identity.id)
+          } catch (err) {
+            logger.error('/api/users', 'identity delete failed', err)
+            return Response.json({ error: 'The sign-in account could not be deleted. Nothing was changed.' }, { status: 502 })
+          }
+        }
+        await db.delete(users).where(eq(users.email, target))
+        await db.insert(auditLogs).values({ actor: caller.email, action: 'Deleted person', target: `${target}${identity ? ' · sign-in account deleted' : ''}`, category: 'Auth' })
+        return Response.json({ ok: true, accountDeleted: !!identity })
+      }
       if (caller.role !== 'super_admin') {
         const [target] = await db.select({ orgId: users.orgId }).from(users)
           .where(email ? eq(users.email, email.trim().toLowerCase()) : eq(users.id, id!)).limit(1)

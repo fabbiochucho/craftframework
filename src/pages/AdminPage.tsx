@@ -190,10 +190,15 @@ export function AdminPage() {
     if (updated) setDirectory(prev => prev.map(u => (u.id === updated.id ? updated : u)))
   }
 
-  function removeUser(row: UserDirectoryRow) {
-    api.deleteUser(row.email)
-    setDirectory(prev => prev.filter(u => u.id !== row.id))
-    setToast(`Access revoked for ${row.email}.`)
+  async function removeUser(row: UserDirectoryRow) {
+    if (!window.confirm(`Delete ${row.email}? This removes their access and deletes their CRAFT sign-in account. Data in their organisation is kept. This cannot be undone.`)) return
+    const out = await api.deleteUser(row.email, { account: true })
+    if (!out.ok) {
+      setToast(`⚠️ Could not delete ${row.email}: ${out.error}`)
+      return
+    }
+    setDirectory(prev => prev.filter(u => u.email.toLowerCase() !== row.email.toLowerCase()))
+    setToast(`🗑️ ${row.email} deleted.`)
   }
 
   function startEditOrg(id: string) {
@@ -213,8 +218,8 @@ export function AdminPage() {
   function removeOrg(id: string) {
     const o = organizations.find(x => x.id === id)
     if (!window.confirm(`Permanently delete “${o?.name ?? id}” and ALL of its assessment data, evidence, team members and portfolio memberships? This cannot be undone. To keep the record, archive it instead.`)) return
-    deleteOrganization(id)
-    setToast('🗑️ Institution and all its data permanently deleted.')
+    void deleteOrganization(id).then(out =>
+      setToast(out.ok ? '🗑️ Institution and all its data permanently deleted.' : `⚠️ Could not delete the institution: ${out.error}`))
   }
 
   function toggleArchiveOrg(id: string) {
@@ -254,8 +259,8 @@ export function AdminPage() {
   function removePf(id: string) {
     const p = portfolios.find(x => x.id === id)
     if (!window.confirm(`Delete portfolio “${p?.name ?? id}”? The institutions inside it are kept — only the grouping is removed.`)) return
-    deletePortfolio(id)
-    setToast('🗑️ Portfolio deleted.')
+    void deletePortfolio(id).then(out =>
+      setToast(out.ok ? '🗑️ Portfolio deleted.' : `⚠️ Could not delete the portfolio: ${out.error}`))
   }
 
   const aggregate = useMemo(() => {
