@@ -23,7 +23,7 @@ describe('NHOCAT+ methodology report', () => {
     assert.match(html, /Evidence 1\.1/)
     assert.match(html, /class="soe on"/, 'the chosen statement is highlighted')
     assert.match(html, /Independent: 4/)
-    assert.match(html, /adopts the official NHOCAT\+ tool methodology and other frameworks to assess and strengthen organisations/)
+    assert.match(html, /adopts the NHOCAT\+ tool methodology and other frameworks to assess and strengthen organisations/)
   })
 
   it('converts CRAFT 0-5 to the four-point capacity score and escapes input', () => {
