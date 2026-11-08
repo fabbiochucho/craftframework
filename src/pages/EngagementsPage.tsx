@@ -8,7 +8,7 @@ import { INDEX_SCOPE_NAMES, scopeText, TYPE_LABEL, type EngagementScope, type En
 import { SPECIALISM_INDEX, SPECIALISMS } from '../lib/specialisms'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
 import { MyAmbassadorStrip } from '../components/AmbassadorBadges'
-import { EvidenceRequests, EvidenceWaiting } from '../components/EvidenceRequests'
+import { AssessorEvidence, EvidenceRequests, EvidenceWaiting } from '../components/EvidenceRequests'
 import { useAuthCtx } from '../lib/context'
 
 // Validator system PR 2: engagements. Every permission is enforced by
@@ -83,6 +83,7 @@ export function EngagementsPage() {
       </div>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
       <EvidenceWaiting />
+      <AssessorEvidence />
       {me && <CreateEngagement me={me} onCreated={load} />}
       {items && !items.length && <p className="text-sm text-slate-500">You are not part of any engagement yet.</p>}
       <ul className="grid gap-3 md:grid-cols-2">

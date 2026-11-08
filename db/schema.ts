@@ -760,7 +760,8 @@ export const evidenceRequests = pgTable(
   'evidence_requests',
   {
     id: text('id').primaryKey(),
-    engagementId: text('engagement_id').notNull().references(() => validationEngagements.id, { onDelete: 'cascade' }),
+    // Null for a request from the organisation's independent assessor (no engagement; see independent-assessor.ts).
+    engagementId: text('engagement_id').references(() => validationEngagements.id, { onDelete: 'cascade' }),
     orgId: text('org_id').notNull(),
     title: text('title').notNull(),
     // Optional ladder indicator / question code the evidence supports.
