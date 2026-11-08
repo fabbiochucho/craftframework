@@ -159,6 +159,37 @@ function deskReview(rows: DeskRow[], archetypes: Archetype[], sectors: string[])
   }))
 }
 
+// Healthcare documents for every country. Regulators differ by country, so each names the kind of body and
+// gives examples; the organisation's own national regulator is what counts.
+const HEALTH_PRIVATE = { applicableArchetypes: ['Private'] as Archetype[], applicableSectors: ['Healthtech'] }
+const HEALTH_CIVIL = { applicableArchetypes: ['Civil Society'] as Archetype[], applicableSectors: ['NGO', 'Research Institute'], applicableSubsectors: ['Health', 'Health & Clinical'] }
+function healthcare(): ComplianceRequirement[] {
+  const rows: Array<[string, DataRoomCategory, string, string, Priority, 'both' | 'private' | 'civil', string[]?]> = [
+    ['HC-FACILITY', 'Sector Regulatory', 'Health Facility Registration / Operating Licence',
+      'Current registration or licence for each facility, laboratory or clinic from the health facility regulator or health ministry (for example HEFAMAA in Lagos State, the Health Facilities Regulatory Agency in Ghana, the Kenya Medical Practitioners and Dentists Council).',
+      'Critical', 'both', ['Telemedicine', 'Diagnostics & Devices']],
+    ['HC-PAYER', 'Financial', 'Health Insurance & Payer Accreditation and Payment Terms',
+      'Accreditation with the national health insurance scheme or with insurers and HMOs, and the signed payment terms with each payer (for example NHIA in Nigeria, the Social Health Authority in Kenya, the NHIS in Ghana, medical schemes in South Africa).',
+      'High', 'both'],
+    ['HC-RECEIVABLES', 'Financial', 'Aged Receivables & Claims Status by Payer',
+      'What each payer owes and for how long: insurance and HMO claims submitted, paid, queried and denied, government and donor reimbursements outstanding, and the average days from service to payment.',
+      'High', 'both'],
+    ['HC-CLINICAL', 'Sector Regulatory', 'Clinical Evidence & Ethics Approvals',
+      'Evidence for each clinical or health-outcome claim, and approval from a recognised research ethics committee for any study involving people (for example the National Health Research Ethics Committee in Nigeria).',
+      'High', 'both'],
+    ['HC-PRACTITIONERS', 'HR & Data Compliance', 'Professional Licences of Clinical Staff',
+      'Current practising licences for doctors, nurses, pharmacists, laboratory scientists and other clinical staff from their professional councils, with renewal dates.',
+      'High', 'both'],
+    ['HC-DATA', 'HR & Data Compliance', 'Patient Data Protection Safeguards',
+      'How health and patient data is protected under the national data protection law: consent forms, access controls, a data protection impact assessment and any registration with the data protection authority.',
+      'High', 'both'],
+  ]
+  return rows.flatMap(([id, category, documentName, description, priority, who, subsectors]) => [
+    ...(who !== 'civil' ? [{ id: `${id}-PS`, category, documentName, description, priority, ...HEALTH_PRIVATE, applicableCountries: ['ALL'], ...(subsectors ? { applicableSubsectors: subsectors } : {}) }] : []),
+    ...(who !== 'private' ? [{ id: `${id}-CS`, category, documentName, description, priority, ...HEALTH_CIVIL, applicableCountries: ['ALL'] }] : []),
+  ])
+}
+
 // ----------------------------------------------------------------------------
 // The master compliance matrix - the single source of truth the engine filters.
 // ----------------------------------------------------------------------------
@@ -236,7 +267,7 @@ export const MASTER_COMPLIANCE_MATRIX: ComplianceRequirement[] = [
   },
   {
     id: 'PS-SEC-HEALTH', category: 'Sector Regulatory', documentName: 'Medical / Drug Regulatory Approval & Clinical Trial Ethics',
-    description: 'Approval from the national medicines authority and ethics clearance for any trials.',
+    description: 'Approval from the national medicines and medical-device regulator for each product (for example NAFDAC in Nigeria, SAHPRA in South Africa, the Pharmacy and Poisons Board in Kenya, the Food and Drugs Authority in Ghana) and ethics clearance for any trials.',
     priority: 'Critical', applicableArchetypes: ['Private'], applicableCountries: ['ALL'], applicableSectors: ['Healthtech'],
   },
   {
@@ -253,6 +284,21 @@ export const MASTER_COMPLIANCE_MATRIX: ComplianceRequirement[] = [
     id: 'PS-SEC-ENERGY', category: 'Sector Regulatory', documentName: 'Energy Regulator Generation Licence & EIA',
     description: 'Generation / distribution licence and an approved Environmental Impact Assessment.',
     priority: 'High', applicableArchetypes: ['Private'], applicableCountries: ['ALL'], applicableSectors: ['Renewable Energy'],
+  },
+
+  // --- Healthcare (any country): health providers, health technology and health research ---
+  ...healthcare(),
+
+  // --- Investment readiness (any country) ---
+  {
+    id: 'INV-MODEL', category: 'Financial', documentName: 'Financial Model, Funding Ask & Use of Funds',
+    description: 'A driver-based model with base and downside cases, the amount sought worked out from it, use of funds by category and the dated milestones it reaches.',
+    priority: 'Moderate', applicableArchetypes: ['Civil Society', 'Private'], applicableCountries: ['ALL'], applicableSectors: ['ALL'],
+  },
+  {
+    id: 'INV-RISKS', category: 'Corporate & Legal', documentName: 'Known Risks & Mitigations Register',
+    description: 'Every known weakness or open issue with a factual answer and what is being done about it, shared with financiers upfront.',
+    priority: 'Moderate', applicableArchetypes: ['Civil Society', 'Private'], applicableCountries: ['ALL'], applicableSectors: ['ALL'],
   },
 
   // --- Private · subsector-specific regulatory (only when the subsector is set) ---

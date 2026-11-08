@@ -33,3 +33,16 @@ assert.ok(csv.some((l) => l.includes('"Says ""none"""') && l.includes('Does not 
 
 assert.deepEqual([countryCode('Nigeria'), countryCode('KE'), countryCode('Atlantis')], ['NG', 'KE', ''])
 console.log('dataroom.test.ts: all assertions passed')
+
+// Healthcare documents apply in every country, to health providers, health technology and health research only.
+import { LADDER_INDICATORS } from './capitalReadiness.ts'
+const hcIds = (r: ReturnType<typeof generateChecklist>) => r.map((x) => x.id)
+for (const c of ['NG', 'KE', 'SN', 'ZA', 'CV']) {
+  assert.ok(hcIds(generateChecklist('Civil Society', c, 'NGO', 'Health')).includes('HC-PAYER-CS'), `health NGO in ${c}`)
+  assert.ok(hcIds(generateChecklist('Private', c, 'Healthtech', 'Diagnostics & Devices')).includes('HC-FACILITY-PS'), `diagnostics firm in ${c}`)
+}
+assert.ok(!hcIds(generateChecklist('Civil Society', 'NG', 'NGO', 'Education')).some((i) => i.startsWith('HC-')), 'not for an education NGO')
+assert.ok(!hcIds(generateChecklist('Private', 'NG', 'Healthtech', 'Health Insurance / HMO')).includes('HC-FACILITY-PS'), 'an insurer has no facility licence')
+assert.ok(hcIds(generateChecklist('Private', 'GH', 'Fintech', '')).includes('INV-MODEL'), 'investment readiness for any sector')
+assert.deepEqual(['CRL-3D', 'CRL-5D', 'CRL-5E'].map((id) => LADDER_INDICATORS.find((q) => q.id === id)?.level), [3, 5, 5])
+console.log('dataroom.test.ts: healthcare and investment readiness passed')
