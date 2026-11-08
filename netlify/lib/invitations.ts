@@ -225,6 +225,8 @@ export async function dispatchInvitationEmail(inv: InvitationRow, actor: string)
   const emailId = String(((await res.json().catch(() => null)) as { id?: unknown } | null)?.id ?? '') || null
   await db.update(invitations).set({ emailId, deliveryStatus: 'sent', deliveryAt: new Date() }).where(eq(invitations.id, inv.id))
   await sendAudit(actor, inv.id, inv.inviter && actor !== inv.inviter ? `sent on behalf of ${inv.inviter}` : 'sent')
+  // Sent in someone else's name (e.g. by the CRAFT team for an assessor): tell them it went out.
+  if (inv.inviter && actor !== inv.inviter) await tellInviterSent(inv, subject)
   return { status: 200, body: { dispatched: true } }
 }
 
@@ -268,6 +270,22 @@ async function inviterOrgId(inviter: string): Promise<string> {
 }
 
 /** Best-effort note to the inviter that their invitation was accepted. */
+/** Best-effort note to the person an invitation was sent on behalf of: who it went to and with which subject. */
+async function tellInviterSent(inv: InvitationRow, subject: string) {
+  if (!inv.inviter || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.inviter)) return
+  const who = inv.kind === 'organization' ? inv.orgName || inv.email : inv.kind === 'funder' ? `${inv.scopeLabel} (funding partner)` : inv.scopeLabel || inv.email
+  const recipient = inv.inviteeName ? `${inv.inviteeName} <${inv.email}>` : inv.email
+  try {
+    await sendReminderEmail({
+      to: inv.inviter,
+      subject: `CRAFT: an invitation was sent in your name to ${who}`,
+      text: `Dear ${inv.inviterName || 'Colleague'},\n\nAn invitation was sent in your name through CRAFT.\n\nTo: ${recipient}\nOrganisation: ${who}\nSubject: ${subject}\nSent: ${new Date().toUTCString()}\n\nReplies to it come to you at this address. The invitation is valid for ${inv.kind === 'member' ? MEMBER_INVITE_DAYS : ORG_INVITE_DAYS} days. When it is accepted you will get another email.\n\nYou can follow it under Invitations: ${publicBaseUrl()}/invitations`,
+    }, `invite-sent-notice-${inv.id}-${inv.deliveryAt ? new Date(inv.deliveryAt).getTime() : Date.now()}`, 'invitation_sent_notice')
+  } catch (err) {
+    logger.error('invitations', 'sent notice failed', err)
+  }
+}
+
 async function tellInviter(inv: InvitationRow, caller: Caller, orgName: string) {
   if (!inv.inviter) return
   const what = inv.kind === 'organization' ? `${orgName} is now on CRAFT` : `${caller.email} joined ${orgName}`

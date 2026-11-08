@@ -123,4 +123,22 @@ describe('/api/send-invite', () => {
     const direct = buildWelcomeEmailHtml({ name: evil, email: 'a@b.c', role: 'assessor', scopeLabel: evil, inviterName: evil, inviterEmail: 'x', message: evil })
     assert.ok(!direct.html.includes('<script>'))
   })
+
+  it('sent on behalf of someone: they are told it went out (to whom, subject); their own send tells no one', async () => {
+    await invite('inv_n')
+    await rows(`UPDATE invitations SET kind = 'organization', org_name = 'NyNETHA', invitee_name = 'Coordinator', subject = 'GIZ Supported OCA Tool Administration' WHERE id = 'inv_n'`)
+    assert.equal((await send(SUPER, { invitationId: 'inv_n' })).status, 200)
+    const bodies = mock.calls.map((c) => JSON.parse(String(c.init!.body)))
+    assert.equal(bodies.length, 2)
+    assert.equal(bodies[0].to, 'invitee@example.org')
+    const notice = bodies[1]
+    assert.equal(notice.to, INVITER)
+    assert.match(notice.subject, /sent in your name to NyNETHA/)
+    assert.match(notice.text, /To: Coordinator <invitee@example.org>/)
+    assert.match(notice.text, /Subject: GIZ Supported OCA Tool Administration/)
+    mock.calls.length = 0
+    await invite('inv_own')
+    assert.equal((await send(INVITER, { invitationId: 'inv_own' })).status, 200)
+    assert.equal(mock.calls.length, 1, 'no notice when you send your own')
+  })
 })
