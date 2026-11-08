@@ -121,6 +121,34 @@ async function overHourlyLimit(email: string, now = Date.now()): Promise<boolean
 
 const sendAudit = (actor: string, invitationId: string, outcome: string) => audit(actor, 'Invite email send', `${invitationId} · ${outcome}`)
 
+/** The email exactly as it will be sent: subject, HTML, text and reply-to. Shared by sending and the draft preview. */
+export async function renderInvitationEmail(inv: InvitationRow, actor: string) {
+  const kind = inv.kind === 'organization' ? 'organization' : 'member'
+  const input = {
+    name: inv.inviteeName ?? '',
+    email: inv.email,
+    role: inv.role as ViewLevel,
+    scopeLabel: inv.scopeLabel,
+    inviterName: inv.inviterName || inv.inviter || 'A CRAFT administrator',
+    inviterEmail: inv.inviter ?? '',
+    message: inv.message ?? undefined,
+    acceptUrl: acceptLink(inv.token),
+    kind,
+    orgName: inv.orgName ?? undefined,
+    orgType: describeOrgType({ archetype: inv.orgArchetype, sector: inv.orgSector, country: inv.orgCountry }) || undefined,
+    purpose: kind === 'organization' ? await invitationPurpose(inv) : undefined,
+    expiresInDays: kind === 'organization' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS,
+    siteUrl: publicBaseUrl(),
+    // Sent by someone else (e.g. the CRAFT team) on the inviter's behalf.
+    sentOnBehalf: !!inv.inviter && actor !== inv.inviter,
+  } as const
+  // Replies reach the person who sent the invitation.
+  const replyTo = inv.inviter && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.inviter) ? inv.inviter : undefined
+  const { subject, html } = buildWelcomeEmailHtml(input)
+  const { body: text } = buildWelcomeEmail(input)
+  return { subject, html, text, replyTo, to: inv.email }
+}
+
 /**
  * Send (or resend) the invitation email. The recipient is always the stored invitation email and the
  * content is rendered here from the stored record. Capped per sender per hour and per invitation.
@@ -164,29 +192,7 @@ export async function dispatchInvitationEmail(inv: InvitationRow, actor: string)
     await sendAudit(actor, inv.id, 'invitation_cap')
     return { status: 429, body: { error: `This invitation has already been sent ${SEND_LIMIT_PER_INVITATION} times.` } }
   }
-  const kind = inv.kind === 'organization' ? 'organization' : 'member'
-  const input = {
-    name: inv.inviteeName ?? '',
-    email: inv.email,
-    role: inv.role as ViewLevel,
-    scopeLabel: inv.scopeLabel,
-    inviterName: inv.inviterName || inv.inviter || 'A CRAFT administrator',
-    inviterEmail: inv.inviter ?? '',
-    message: inv.message ?? undefined,
-    acceptUrl: acceptLink(inv.token),
-    kind,
-    orgName: inv.orgName ?? undefined,
-    orgType: describeOrgType({ archetype: inv.orgArchetype, sector: inv.orgSector, country: inv.orgCountry }) || undefined,
-    purpose: kind === 'organization' ? await invitationPurpose(inv) : undefined,
-    expiresInDays: kind === 'organization' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS,
-    siteUrl: publicBaseUrl(),
-    // Sent by someone else (e.g. the CRAFT team) on the inviter's behalf.
-    sentOnBehalf: !!inv.inviter && actor !== inv.inviter,
-  } as const
-  // Replies reach the person who sent the invitation.
-  const replyTo = inv.inviter && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.inviter) ? inv.inviter : undefined
-  const { subject, html } = buildWelcomeEmailHtml(input)
-  const { body: text } = buildWelcomeEmail(input)
+  const { subject, html, text, replyTo } = await renderInvitationEmail(inv, actor)
   let res: Response
   try {
     res = await fetch('https://api.resend.com/emails', {
@@ -211,6 +217,9 @@ export async function dispatchInvitationEmail(inv: InvitationRow, actor: string)
     await sendAudit(actor, inv.id, `provider_error_${res.status}`)
     return { status: 502, body: { dispatched: false, reason: 'provider_error' } }
   }
+  // Resend's message id lets its webhook (/api/resend-webhook) report delivery against this invitation.
+  const emailId = String(((await res.json().catch(() => null)) as { id?: unknown } | null)?.id ?? '') || null
+  await db.update(invitations).set({ emailId, deliveryStatus: 'sent', deliveryAt: new Date() }).where(eq(invitations.id, inv.id))
   await sendAudit(actor, inv.id, inv.inviter && actor !== inv.inviter ? `sent on behalf of ${inv.inviter}` : 'sent')
   return { status: 200, body: { dispatched: true } }
 }
