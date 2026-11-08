@@ -10,6 +10,7 @@ import {
 import { canAccessOrg, forbidden, mfaRequired, resolveCaller, unauthorized, type Caller } from '../lib/auth.js'
 import { evidenceOptions, evidenceSha256 } from '../lib/evidence-options.js'
 import { decodeEvidence } from '../lib/evidence-storage.js'
+import { watermarkedPdf } from '../lib/evidence-watermark.js'
 import {
   assessorSideOf, audit, isSupport, MAX_REQUESTS_PER_ENGAGEMENT, OPEN_STATUSES, requestIsLive, requestLink, sideOf, tellOrganisation, tellRequester,
 } from '../lib/evidence-requests.js'
@@ -38,7 +39,9 @@ import { logger, monitored } from '../lib/logger.js'
 //   POST   /:id/submit                       organisation: { note? } (needs at least one item)
 //   POST   /:id/review                       reviewer: { decision: 'accept' | 'more', note? } (a note is required for 'more')
 //   POST   /:id/cancel                       reviewer: withdraw an open request
-//   GET    /:id/items/:evidenceId/download   reviewer: the submitted file (audit-logged)
+//   GET    /:id/items/:evidenceId/download   reviewer in an engagement: the submitted file (audit-logged)
+//   GET    /:id/items/:evidenceId/view       reviewer: view-only PDF stamped with the viewer and time (audit-logged);
+//                                            the only way an independent assessor sees a file: never the original
 //
 // The reviewer can open ONLY files the organisation linked to one of its requests, only while the
 // engagement is active. No other evidence is exposed.
@@ -209,8 +212,9 @@ const handleRequest = async (req: Request) => {
       if (gone.length) await audit(caller.email, `removed evidence #${evidenceId}`, r.id, r.orgId)
       return json((await view([r]))[0])
     }
-    if (sub === 'items' && who && act === 'download' && req.method === 'GET') {
+    if (sub === 'items' && who && (act === 'download' || act === 'view') && req.method === 'GET') {
       if (side !== 'reviewer') return forbidden()
+      if (act === 'download' && !r.engagementId) return json({ error: 'Evidence for an independent assessment can be viewed on CRAFT, not downloaded' }, 403)
       if (!active) return conflict(inactive)
       if (!['submitted', 'accepted', 'more_needed'].includes(r.status)) return notFound()
       const evidenceId = Number(who)
@@ -221,6 +225,13 @@ const handleRequest = async (req: Request) => {
       if (!ev) return json({ error: 'The organisation has removed this document from its registry' }, 410)
       const data = await getStore('evidence').get(ev.filePath, { type: 'arrayBuffer' })
       if (!data) return notFound()
+      if (act === 'view') {
+        const out = await watermarkedPdf(decodeEvidence(data), caller.email)
+        await audit(caller.email, `viewed evidence #${ev.id} (${ev.documentName})${out.ok ? '' : ' - could not be shown'}`, r.id, r.orgId)
+        const headers = { 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' }
+        if (!out.ok) return new Response(out.reason, { status: 415, headers: { ...headers, 'content-type': 'text/plain; charset=utf-8' } })
+        return new Response(Buffer.from(out.pdf), { headers: { ...headers, 'content-type': 'application/pdf', 'content-disposition': 'inline; filename="view-only.pdf"' } })
+      }
       await audit(caller.email, `opened evidence #${ev.id} (${ev.documentName})`, r.id, r.orgId)
       const safeName = ev.documentName.replace(/[^\w.\- ]+/g, '_').slice(0, 150) || 'evidence'
       return new Response(decodeEvidence(data), {

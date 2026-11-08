@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, Clock, Download, FileText, Inbox, Paperclip, RefreshCw, Send, Upload, X } from 'lucide-react'
+import { CheckCircle2, Clock, Download, Eye, FileText, Inbox, Paperclip, RefreshCw, Send, Upload, X } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
 
 // Evidence requests inside an engagement (/api/evidence-requests). The reviewing side asks for a document
@@ -154,11 +154,17 @@ function RequestRow({ r, side, active, options, onRefreshOptions, act }: {
           {r.items.map((i) => (
             <li key={i.evidenceId} className="flex flex-wrap items-center gap-2 text-sm">
               <Paperclip className="h-3.5 w-3.5 text-slate-400" /> {i.name}
-              {side === 'reviewer' && r.status !== 'open' && (
+              {side === 'reviewer' && r.status !== 'open' && (r.engagementId ? (
                 <a className="inline-flex items-center gap-1 text-emerald-700 underline" href={`${base}/items/${i.evidenceId}/download`}>
                   <Download className="h-3.5 w-3.5" /> Open
                 </a>
-              )}
+              ) : (
+                // Independent assessors view a watermarked copy in the browser; the original is never downloaded.
+                <a className="inline-flex items-center gap-1 text-emerald-700 underline" target="_blank" rel="noopener noreferrer"
+                  href={`${base}/items/${i.evidenceId}/view#toolbar=0`} title="Opens a view-only copy stamped with your name and the time">
+                  <Eye className="h-3.5 w-3.5" /> View
+                </a>
+              ))}
               {side === 'organization' && waitingOnOrg && active && (
                 <button type="button" aria-label={`Remove ${i.name}`} className="text-slate-400 hover:text-rose-600"
                   onClick={() => void act(() => call(`${base}/items/${i.evidenceId}`, { method: 'DELETE' }), 'Removed')}><X className="h-3.5 w-3.5" /></button>
@@ -273,7 +279,7 @@ export function AssessorEvidence() {
         <CardTitle className="flex items-center gap-2"><Inbox className="h-4 w-4 text-emerald-600" /> Evidence for your independent assessment</CardTitle>
         <p className="text-sm text-slate-500">
           Documents an independent assessor asked for. The organisation uploads them to its Evidence registry, links them here and submits;
-          the assessor can open only what is submitted to a request, and every view is logged.
+          the assessor can view only what is submitted to a request, on CRAFT and stamped with their name and the time; they cannot download it, and every view is logged.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

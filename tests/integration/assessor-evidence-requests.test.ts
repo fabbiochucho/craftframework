@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, describe, it } from 'node:test'
 import { getStore } from '@netlify/blobs'
+import { PDFDocument } from 'pdf-lib'
 import { installFetchMock, rows, truncateAll } from './harness.ts'
 import { encodeEvidence } from '../../netlify/lib/evidence-storage.ts'
 import { sendEvidenceRequestReminders } from '../../netlify/lib/evidence-requests.ts'
@@ -14,7 +15,8 @@ const SUPER = 'fabbiochucho@gmail.com'
 const MARTIN = 'martinmaryconsult@gmail.com' // independent assessor of org_a only
 const ALICE = 'alice@org-a.example' // organisation A admin
 const BOB = 'bob@org-b.example' // organisation B admin, not assessed by Martin
-const BYTES = Buffer.from('%PDF-1.4 board minutes')
+const src = await PDFDocument.create(); src.addPage([400, 600])
+const BYTES = Buffer.from(await src.save())
 
 async function req(email: string | null, method: string, path: string, body?: unknown) {
   ;(globalThis as any).__craftTestIdentity = email ? { email } : null
@@ -24,7 +26,7 @@ async function req(email: string | null, method: string, path: string, body?: un
   const buf = Buffer.from(await res.arrayBuffer())
   let json: any = null
   try { json = JSON.parse(buf.toString('utf8')) } catch { /* not json */ }
-  return { status: res.status, body: json, text: buf.toString('utf8'), bytes: buf }
+  return { status: res.status, body: json, text: buf.toString('utf8'), bytes: buf, headers: res.headers }
 }
 const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
 const ask = (email: string, extra: object = {}) => req(email, 'POST', '', { orgId: 'org_a', title: 'Board minutes 2025', dueOn: inDays(14), ...extra })
@@ -94,19 +96,32 @@ describe('evidence requests from an independent assessor', () => {
 
     assert.equal((await req(MARTIN, 'POST', `/${r.id}/items`, { evidenceId: evA })).status, 403, 'the assessor cannot link')
     assert.equal((await req(ALICE, 'POST', `/${r.id}/items`, { evidenceId: evA })).status, 201)
-    assert.equal((await req(MARTIN, 'GET', `/${r.id}/items/${evA}/download`)).status, 404, 'nothing to open before submission')
+    assert.equal((await req(MARTIN, 'GET', `/${r.id}/items/${evA}/view`)).status, 404, 'nothing to view before submission')
     assert.equal((await req(ALICE, 'POST', `/${r.id}/submit`, { note: 'Signed copy' })).status, 200)
     assert.ok(mails().some((m) => m.to.includes(MARTIN) && /submitted evidence/.test(m.subject)))
     assert.equal((await req(MARTIN, 'GET', '?assessor=1')).body.requests[0].side, 'reviewer')
-    const file = await req(MARTIN, 'GET', `/${r.id}/items/${evA}/download`)
-    assert.equal(file.status, 200)
-    assert.deepEqual(file.bytes, BYTES)
-    assert.equal((await req(BOB, 'GET', `/${r.id}/items/${evA}/download`)).status, 404)
+    const dl = await req(MARTIN, 'GET', `/${r.id}/items/${evA}/download`)
+    assert.equal(dl.status, 403, 'an independent assessor never downloads the original')
+    const seen = await req(MARTIN, 'GET', `/${r.id}/items/${evA}/view`)
+    assert.equal(seen.status, 200)
+    assert.match(seen.headers.get('content-type') ?? '', /application\/pdf/)
+    assert.match(seen.headers.get('content-disposition') ?? '', /^inline/)
+    assert.notDeepEqual(seen.bytes, BYTES, 'a stamped copy, not the original')
+    assert.equal((await PDFDocument.load(seen.bytes)).getPageCount(), 1)
+    const [viewed] = await rows(`SELECT actor FROM audit_logs WHERE target=$1 AND action LIKE 'viewed evidence%'`, [r.id])
+    assert.equal(viewed.actor, MARTIN)
+    assert.equal((await req(BOB, 'GET', `/${r.id}/items/${evA}/view`)).status, 404)
+    assert.equal((await req(ALICE, 'GET', `/${r.id}/items/${evA}/view`)).status, 403, 'the organisation has its own registry')
+    // A Word file cannot be viewed: the assessor is told to ask for a PDF.
+    await getStore('evidence').set('k/minutes', encodeEvidence(Uint8Array.from(Buffer.from('PK\x03\x04 word', 'latin1')).buffer as ArrayBuffer))
+    const word = await req(MARTIN, 'GET', `/${r.id}/items/${evA}/view`)
+    assert.equal(word.status, 415)
+    assert.match(word.text, /PDF/)
     assert.equal((await req(ALICE, 'POST', `/${r.id}/review`, { decision: 'accept' })).status, 403)
     assert.equal((await req(MARTIN, 'POST', `/${r.id}/review`, { decision: 'accept', note: 'Thank you' })).status, 200)
-    const seen = await req(SUPER, 'GET', `?assessor=1&for=${MARTIN}`)
-    assert.equal(seen.body.requests[0].status, 'accepted')
-    assert.equal(seen.body.requests[0].side, 'observer')
+    const forSuper = await req(SUPER, 'GET', `?assessor=1&for=${MARTIN}`)
+    assert.equal(forSuper.body.requests[0].status, 'accepted')
+    assert.equal(forSuper.body.requests[0].side, 'observer')
   })
 
   it('stops when the assessor grant is revoked, including reminders', async () => {
