@@ -4,7 +4,7 @@ import { Award, Building, FolderOpen, Handshake, LifeBuoy, Search, Send, Trash }
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from './ui'
 import { BadgeChip } from './AmbassadorBadges'
 import type { Badge as AmbassadorBadge } from '../lib/ambassadors'
-import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, previewInvitation, revokeInvitation, sendInvitation, setInvitationSubject, type Invitation } from '../lib/api'
+import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, previewInvitation, revokeInvitation, sendInvitation, setInvitationEmail, setInvitationSubject, type Invitation } from '../lib/api'
 import { InviteOrganizationWizard } from './InviteOrganizationWizard'
 import { InviteFunderCard } from './InviteFunder'
 import { useAuthCtx } from '../lib/context'
@@ -391,6 +391,17 @@ export function SentInvitations({ all = false }: { all?: boolean }) {
   const load = () => void (all ? fetchAllInvitations() : fetchInvitations(me)).then((r) => setRows(r.filter((x) => x.sentAt && x.kind !== 'member')), () => setRows([]))
   useEffect(() => { if (all || me) load() }, [all, me])
   if (!rows || !rows.length) return null
+  const [fixing, setFixing] = useState<{ id: string; email: string } | null>(null)
+  const fixAndResend = async () => {
+    if (!fixing) return
+    setMsg(null)
+    const fixed = await setInvitationEmail(fixing.id, fixing.email)
+    if (!fixed.ok) { setMsg({ ok: false, text: fixed.error }); return }
+    const sent = await sendInvitation(fixing.id)
+    setMsg(sent.ok ? { ok: true, text: `Sent again to ${fixing.email}. The old link no longer works.` } : { ok: false, text: `Email corrected, but not sent: ${sent.error}` })
+    setFixing(null)
+    load()
+  }
   const withdraw = async (inv: Invitation) => {
     if (!window.confirm(`Withdraw the invitation to ${inv.orgName || inv.email}? Its link will stop working.`)) return
     const out = await revokeInvitation(inv.id)
@@ -415,7 +426,17 @@ export function SentInvitations({ all = false }: { all?: boolean }) {
                 <span className="text-xs text-slate-500">{inv.email} · from {inv.inviter} · sent {when(inv.sentAt)}</span>
                 <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${d.cls}`}>{d.label}</span>
                 <span className="text-xs text-slate-400">{when(inv.status === 'pending' ? inv.deliveryAt : inv.respondedAt)}</span>
-                {inv.status === 'pending' && <Button size="sm" variant="outline" className="ml-auto" onClick={() => void withdraw(inv)}>Withdraw</Button>}
+                {inv.status === 'pending' && (inv.deliveryStatus === 'bounced' || inv.deliveryStatus === 'complained') && (
+                  <Button size="sm" className="ml-auto" onClick={() => setFixing({ id: inv.id, email: inv.email })}>Fix email &amp; resend</Button>
+                )}
+                {inv.status === 'pending' && <Button size="sm" variant="outline" className={inv.deliveryStatus === 'bounced' || inv.deliveryStatus === 'complained' ? '' : 'ml-auto'} onClick={() => void withdraw(inv)}>Withdraw</Button>}
+                {fixing?.id === inv.id && (
+                  <form className="flex w-full flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); void fixAndResend() }}>
+                    <Input label="Correct email address" type="email" value={fixing.email} onChange={(e) => setFixing({ id: inv.id, email: e.target.value })} />
+                    <Button size="sm" type="submit" disabled={fixing.email.trim().toLowerCase() === inv.email}>Save &amp; resend</Button>
+                    <Button size="sm" type="button" variant="outline" onClick={() => setFixing(null)}>Cancel</Button>
+                  </form>
+                )}
               </li>
             )
           })}

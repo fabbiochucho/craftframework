@@ -141,4 +141,25 @@ describe('/api/send-invite', () => {
     assert.equal((await send(INVITER, { invitationId: 'inv_own' })).status, 200)
     assert.equal(mock.calls.length, 1, 'no notice when you send your own')
   })
+
+  it('a bounced invitation can get a corrected email and be resent; the old link stops working', async () => {
+    await invite('inv_b')
+    const invitations = (await import(new URL('../../netlify/functions/invitations.mts', import.meta.url).href)).default
+    const patch = async (email: string, body: unknown) => {
+      ;(globalThis as any).__craftTestIdentity = { email }
+      return invitations(new Request('http://localhost/api/invitations', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
+    }
+    assert.equal((await send(INVITER, { invitationId: 'inv_b' })).status, 200)
+    assert.equal((await patch(INVITER, { id: 'inv_b', email: 'fixed@example.org' })).status, 409, 'not while it is delivered or just sent')
+    await rows(`UPDATE invitations SET delivery_status = 'bounced' WHERE id = 'inv_b'`)
+    assert.equal((await patch(OTHER, { id: 'inv_b', email: 'fixed@example.org' })).status, 403)
+    assert.equal((await patch(INVITER, { id: 'inv_b', email: 'not-an-email' })).status, 400)
+    assert.equal((await patch(INVITER, { id: 'inv_b', email: 'Fixed@Example.org' })).status, 200)
+    const [row] = await rows(`SELECT email, token, delivery_status FROM invitations WHERE id = 'inv_b'`)
+    assert.deepEqual([row.email, row.delivery_status], ['fixed@example.org', null])
+    assert.notEqual(row.token, 'tok-inv_b', 'the old link stops working')
+    mock.calls.length = 0
+    assert.equal((await send(INVITER, { invitationId: 'inv_b' })).status, 200)
+    assert.equal(JSON.parse(String(mock.calls[0].init!.body)).to, 'fixed@example.org')
+  })
 })

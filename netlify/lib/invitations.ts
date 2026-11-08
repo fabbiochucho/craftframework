@@ -35,6 +35,21 @@ const DAY_MS = 86_400_000
 export const acceptLink = (token: string) => `${publicBaseUrl()}/accept/${token}`
 const newToken = () => crypto.randomUUID().replace(/-/g, '')
 
+/**
+ * Correct the recipient of a draft, or of a sent invitation whose email bounced or was marked as spam.
+ * A sent one gets a new link (the old one stops working) and a fresh validity period; the caller resends it.
+ */
+export async function correctInvitationEmail(inv: InvitationRow, email: string): Promise<InvitationRow | 'not_correctable'> {
+  const fixable = !inv.sentAt || inv.deliveryStatus === 'bounced' || inv.deliveryStatus === 'complained'
+  if (inv.status !== 'pending' || !fixable) return 'not_correctable'
+  const days = inv.kind !== 'member' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS
+  const [row] = await db.update(invitations).set({
+    email,
+    ...(inv.sentAt ? { token: newToken(), emailId: null, deliveryStatus: null, deliveryAt: null, expiresAt: new Date(Date.now() + days * DAY_MS) } : {}),
+  }).where(and(eq(invitations.id, inv.id), eq(invitations.status, 'pending'))).returning()
+  return row ?? 'not_correctable'
+}
+
 export async function audit(actor: string, action: string, target: string, orgId?: string | null, category = 'Auth') {
   try {
     await db.insert(auditLogs).values({ actor, action, target, category, orgId: orgId ?? null })
