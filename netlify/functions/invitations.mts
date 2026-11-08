@@ -8,7 +8,7 @@ import { logger, monitored } from '../lib/logger.js'
 import { clientIp, overLimit } from '../lib/public-rate-limit.js'
 import {
   acceptInvitation, audit, dispatchInvitationEmail, insertInvitation, invitationPurpose, inviteOrganization, MEMBER_INVITE_DAYS,
-  memberInviteProblem, portfolioManagedBy, renderInvitationEmail, funderFirmFor, inviteFunder,
+  memberInviteProblem, portfolioManagedBy, renderInvitationEmail, correctInvitationEmail, funderFirmFor, inviteFunder,
 } from '../lib/invitations.js'
 import { parseOrgType } from '../../src/lib/orgType.js'
 
@@ -236,6 +236,22 @@ const handleRequest = async (req: Request) => {
     if (req.method === 'PATCH') {
       if (await overLimit(`invitation-token:${clientIp(req)}`, TOKEN_LIMIT_PER_MINUTE)) return tooMany()
       const body = await req.json().catch(() => ({}))
+      // { id, email }: correct the recipient of a draft, or of a sent invitation that bounced (then resend it).
+      if (body.id && !body.token && body.email !== undefined && body.status === undefined) {
+        const caller = await resolveCaller()
+        if (!caller) return unauthorized()
+        const mfaBlock = await mfaRequired(req, caller)
+        if (mfaBlock) return mfaBlock
+        const email = z.string().trim().toLowerCase().email().max(320).safeParse(body.email)
+        if (!email.success) return bad('Enter a valid email address')
+        const [inv] = await db.select().from(invitations).where(eq(invitations.id, String(body.id)))
+        if (!inv) return Response.json({ error: 'Not found' }, { status: 404 })
+        if (caller.readOnly || (caller.role !== 'super_admin' && caller.email !== inv.inviter && caller.email !== inv.createdBy)) return forbidden()
+        const out = await correctInvitationEmail(inv, email.data)
+        if (out === 'not_correctable') return Response.json({ error: 'Only a draft, or a sent invitation that bounced, can have its email changed' }, { status: 409 })
+        await audit(caller.email, 'Corrected invitation email', `${inv.id} · ${inv.email} → ${email.data}`)
+        return Response.json({ id: out.id, email: out.email })
+      }
       // { id, subject }: the inviter, whoever created it, or the Super Admin edits a draft's subject line.
       if (body.id && !body.token && body.subject !== undefined && body.status === undefined) {
         const caller = await resolveCaller()

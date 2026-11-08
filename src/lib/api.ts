@@ -668,6 +668,13 @@ export async function inviteFunderByEmail(input: { email: string; funderName: st
   }
 }
 
+/** Correct the email of a draft, or of a sent invitation that bounced (it then needs sending again). */
+export async function setInvitationEmail(id: string, email: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch('/api/invitations', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, email }) })
+  const body = await res.json().catch(() => ({}))
+  return res.ok ? { ok: true } : { ok: false, error: String(body?.error ?? `Request failed (${res.status})`) }
+}
+
 /** Change an unsent draft's subject line ('' = the standard subject). */
 export async function setInvitationSubject(id: string, subject: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const res = await fetch('/api/invitations', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, subject }) })
