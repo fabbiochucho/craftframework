@@ -13,8 +13,9 @@ const CHECK_STYLE: Record<string, [string, string]> = {
   unreadable: ['bg-yellow-100 text-yellow-800', 'check manually'],
   not_checked: ['bg-slate-100 text-slate-600', 'type not recognised'],
 }
-function ContentBadge({ check }: { check?: { status: string; source?: string } | null }) {
+function ContentBadge({ check }: { check?: { status: string; source?: string; passwordProtected?: boolean } | null }) {
   if (!check) return <span className="text-slate-400">—</span>
+  if (check.passwordProtected) return <Badge className="bg-amber-100 text-amber-900">Password-protected</Badge>
   const [cls, label] = CHECK_STYLE[check.status] ?? CHECK_STYLE.not_checked
   return <Badge className={cls}>{label}{check.source === 'browser-ocr' ? ' (OCR)' : ''}</Badge>
 }
@@ -34,13 +35,15 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
   const kinds = useApi<{ id: string; label: string }[]>(wsPath(workspaceId, '/evidence/document-kinds'))
   const input = useRef<HTMLInputElement>(null)
   const [ocrNote, setOcrNote] = useState('')
+  const [locked, setLocked] = useState('')
   const { run, error } = useAction(list.reload)
   const upload = (file: File) => {
     const form = new FormData()
     form.set('file', file); form.set('documentType', docType); if (expiry) form.set('expiryDate', expiry); if (kind) form.set('documentKind', kind)
     return run(async () => {
       const e = await api(wsPath(workspaceId, '/evidence/upload'), { method: 'POST', form })
-      if (e.contentCheck?.status === 'unreadable' && canOcr(file.type)) { await list.reload(); await readScan(workspaceId, e.id, file, setOcrNote) }
+      setLocked(e.contentCheck?.passwordProtected ? e.documentName : '')
+      if (e.contentCheck?.status === 'unreadable' && !e.contentCheck?.passwordProtected && canOcr(file.type)) { await list.reload(); await readScan(workspaceId, e.id, file, setOcrNote) }
     })
   }
   const expired = list.data?.filter(e => e.expiryState === 'expired') ?? []
@@ -65,6 +68,13 @@ export function EvidencePage({ workspaceId }: { workspaceId: string }) {
         <div className="w-44"><Select placeholder="Any status" value={flt.status} onChange={status => setFlt({ ...flt, status })} options={opt(['pending_review', 'approved', 'rejected', 'expired'])} /></div>
       </div>
       {ocrNote && <p role="status" className="text-sm text-slate-600">{ocrNote}</p>}
+      {locked && (
+        <p role="alert" className="rounded bg-amber-100 p-3 text-sm text-amber-900">
+          <strong>"{locked}" is password-protected.</strong> It has been saved, but CRAFT cannot check what it contains, and reviewers and your
+          independent assessor cannot view it. Please upload a copy without a password (or export it as an unprotected PDF), then archive this one.
+          We have also sent you this by email.
+        </p>
+      )}
       <ErrorLine error={error} /><State loading={list.loading} error={list.error} />
       <Table><Thead><tr><Th>File</Th><Th>Type</Th><Th>Uploaded</Th><Th>Expiry</Th><Th>Content check</Th><Th>Status</Th></tr></Thead>
         <Tbody>{list.data?.map(e => (
@@ -108,10 +118,11 @@ export function EvidenceDetailPage({ workspaceId, evidenceId }: { workspaceId: s
         {e.contentCheck?.matched?.length > 0 && <p className="text-slate-600">Found: {e.contentCheck.matched.join(', ')}</p>}
         {e.contentCheck?.warnings?.map((w: string) => <p key={w} role="alert" className="text-rose-700">{w}</p>)}
         {e.contentCheck?.source === 'browser-ocr' && <p className="text-slate-600">Text was read from the scan by OCR in the uploader's browser.</p>}
+        {e.contentCheck?.passwordProtected && <p role="alert" className="text-amber-900">This file is password-protected: CRAFT cannot check it, and reviewers and your independent assessor cannot view it. Upload a copy without a password, then archive this one.</p>}
         {ocrNote && <p role="status" className="text-slate-600">{ocrNote}</p>}
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => run(() => api(wsPath(workspaceId, `/evidence/${evidenceId}/content-check`), { method: 'POST', body: {} }))}>Re-check contents</Button>
-          {e.contentCheck?.status === 'unreadable' && canOcr(e.mimeType) && <Button variant="outline" size="sm" onClick={() => run(async () => {
+          {e.contentCheck?.status === 'unreadable' && !e.contentCheck?.passwordProtected && canOcr(e.mimeType) && <Button variant="outline" size="sm" onClick={() => run(async () => {
             const res = await fetch(`/api${wsPath(workspaceId, `/evidence/${evidenceId}/download`)}`, { credentials: 'same-origin' })
             if (!res.ok) throw new Error('Could not download the file')
             await readScan(workspaceId, evidenceId, new Blob([await res.blob()], { type: e.mimeType }), setOcrNote)

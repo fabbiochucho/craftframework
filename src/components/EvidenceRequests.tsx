@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { CheckCircle2, Clock, Download, Eye, FileText, Inbox, Paperclip, RefreshCw, Send, Upload, X } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
+import { EvidenceViewer } from './EvidenceViewer'
 
 // Evidence requests inside an engagement (/api/evidence-requests). The reviewing side asks for a document
 // by a due date; the organisation links items from its Evidence registry and submits; the reviewer opens
@@ -12,9 +13,80 @@ export type EvidenceRequest = {
   status: 'open' | 'submitted' | 'accepted' | 'more_needed' | 'cancelled'; overdue: boolean
   requestedBy: string; createdAt: string; submittedBy: string | null; submittedAt: string | null; submissionNote: string
   reviewedBy: string | null; reviewedAt: string | null; reviewNote: string
-  items: Array<{ evidenceId: number; name: string; sha256: string | null; linkedBy: string; linkedAt: string }>
+  items: EvidenceItem[]
+}
+type DownloadAccess = 'allowed' | 'view_only' | 'requested' | 'declined'
+type EvidenceItem = {
+  evidenceId: number; name: string; sha256: string | null; linkedBy: string; linkedAt: string
+  downloadAccess: DownloadAccess; downloadReason: string; downloadRequestedBy: string | null; downloadDecidedBy: string | null
 }
 type Option = { id: number; name: string; documentType: string; status: string }
+
+const ACCESS: Record<DownloadAccess, { label: string; cls: string }> = {
+  allowed: { label: 'Download allowed', cls: 'bg-emerald-50 text-emerald-800' },
+  view_only: { label: 'View only', cls: 'bg-slate-100 text-slate-700' },
+  requested: { label: 'Download asked', cls: 'bg-amber-100 text-amber-900' },
+  declined: { label: 'View only (download declined)', cls: 'bg-slate-100 text-slate-700' },
+}
+
+/** One linked document: view (always, watermarked), download when allowed, ask / allow / decline, remove. */
+function ItemRow({ i, base, side, active, canRemove, submitted, onView, act }: {
+  i: EvidenceItem; base: string; side: 'organization' | 'reviewer' | 'observer'; active: boolean; canRemove: boolean; submitted: boolean
+  onView: () => void; act: (fn: () => Promise<unknown>, ok: string) => Promise<void>
+}) {
+  const [asking, setAsking] = useState(false)
+  const [reason, setReason] = useState('')
+  const url = `${base}/items/${i.evidenceId}`
+  const link = 'inline-flex items-center gap-1 text-emerald-700 underline'
+  return (
+    <li className="space-y-1 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Paperclip className="h-3.5 w-3.5 text-slate-400" /> {i.name}
+        <Badge className={ACCESS[i.downloadAccess].cls}>{ACCESS[i.downloadAccess].label}</Badge>
+        {side === 'reviewer' && submitted && (
+          <>
+            <button type="button" className={link} title="View a copy stamped with your name and the time" onClick={onView}><Eye className="h-3.5 w-3.5" /> View</button>
+            {i.downloadAccess === 'allowed'
+              ? <a className={link} href={`${url}/download`}><Download className="h-3.5 w-3.5" /> Download</a>
+              : active && (i.downloadAccess === 'view_only' || i.downloadAccess === 'declined') && !asking
+                && <button type="button" className="text-xs text-slate-600 underline" onClick={() => setAsking(true)}>Ask to download</button>}
+          </>
+        )}
+        {side === 'organization' && active && i.downloadAccess !== 'requested' && (
+          <button type="button" className="text-xs text-slate-600 underline"
+            onClick={() => void act(() => call(`${url}/download-access`, { method: 'POST', json: { allow: i.downloadAccess !== 'allowed' } }),
+              i.downloadAccess === 'allowed' ? 'Now view only' : 'Download allowed')}>
+            {i.downloadAccess === 'allowed' ? 'Make view only' : 'Allow download'}
+          </button>
+        )}
+        {side === 'organization' && canRemove && active && (
+          <button type="button" aria-label={`Remove ${i.name}`} className="text-slate-400 hover:text-rose-600"
+            onClick={() => void act(() => call(url, { method: 'DELETE' }), 'Removed')}><X className="h-3.5 w-3.5" /></button>
+        )}
+      </div>
+      {i.downloadAccess === 'requested' && (
+        <div className="ml-5 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+          <p><strong>{i.downloadRequestedBy}</strong> asked to download the original: {i.downloadReason}</p>
+          {side === 'organization' && active && (
+            <div className="mt-1 flex gap-2">
+              <Button size="sm" onClick={() => void act(() => call(`${url}/download-access`, { method: 'POST', json: { allow: true } }), 'Download allowed. They have been told.')}>Allow</Button>
+              <Button size="sm" variant="outline" onClick={() => void act(() => call(`${url}/download-access`, { method: 'POST', json: { allow: false } }), 'Declined. They can still view it.')}>Decline</Button>
+            </div>
+          )}
+          {side === 'reviewer' && <p className="mt-1">Waiting for the organisation. You can view it meanwhile.</p>}
+        </div>
+      )}
+      {asking && (
+        <div className="ml-5 flex flex-wrap items-end gap-2">
+          <div className="min-w-[16rem] flex-1"><Input label="Why do you need the original file?" value={reason} onChange={(e) => setReason(e.target.value)} /></div>
+          <Button size="sm" disabled={reason.trim().length < 10}
+            onClick={() => void act(() => call(`${url}/download-request`, { method: 'POST', json: { reason } }).then(() => { setAsking(false); setReason('') }), 'Asked. The organisation has been told.')}>Send</Button>
+          <Button size="sm" variant="ghost" onClick={() => setAsking(false)}>Cancel</Button>
+        </div>
+      )}
+    </li>
+  )
+}
 
 async function call<T = any>(path: string, init?: { method?: string; json?: unknown }): Promise<T> {
   const res = await fetch(path, {
@@ -130,12 +202,16 @@ function RequestRow({ r, side, active, options, onRefreshOptions, act }: {
 }) {
   const [pick, setPick] = useState('')
   const [note, setNote] = useState('')
+  const [viewing, setViewing] = useState<{ url: string; name: string } | null>(null)
+  // Engagement reviewers have always downloaded; an independent assessor views only unless the organisation allows it.
+  const [allowDl, setAllowDl] = useState(!!r.engagementId)
   const base = `/api/evidence-requests/${encodeURIComponent(r.id)}`
   const waitingOnOrg = r.status === 'open' || r.status === 'more_needed'
   const linked = new Set(r.items.map((i) => i.evidenceId))
   const choices = options.filter((o) => !linked.has(o.id))
   return (
     <li className={`rounded-xl border p-4 ${r.overdue ? 'border-rose-200 bg-rose-50/30' : 'border-slate-200'}`}>
+      {viewing && <EvidenceViewer url={viewing.url} name={viewing.name} onClose={() => setViewing(null)} />}
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold text-slate-900">{r.title}</p>
         <Badge className={STATUS[r.status].cls}>{STATUS[r.status].label}</Badge>
@@ -152,24 +228,8 @@ function RequestRow({ r, side, active, options, onRefreshOptions, act }: {
       {r.items.length > 0 && (
         <ul className="mt-3 space-y-1">
           {r.items.map((i) => (
-            <li key={i.evidenceId} className="flex flex-wrap items-center gap-2 text-sm">
-              <Paperclip className="h-3.5 w-3.5 text-slate-400" /> {i.name}
-              {side === 'reviewer' && r.status !== 'open' && (r.engagementId ? (
-                <a className="inline-flex items-center gap-1 text-emerald-700 underline" href={`${base}/items/${i.evidenceId}/download`}>
-                  <Download className="h-3.5 w-3.5" /> Open
-                </a>
-              ) : (
-                // Independent assessors view a watermarked copy in the browser; the original is never downloaded.
-                <a className="inline-flex items-center gap-1 text-emerald-700 underline" target="_blank" rel="noopener noreferrer"
-                  href={`${base}/items/${i.evidenceId}/view#toolbar=0`} title="Opens a view-only copy stamped with your name and the time">
-                  <Eye className="h-3.5 w-3.5" /> View
-                </a>
-              ))}
-              {side === 'organization' && waitingOnOrg && active && (
-                <button type="button" aria-label={`Remove ${i.name}`} className="text-slate-400 hover:text-rose-600"
-                  onClick={() => void act(() => call(`${base}/items/${i.evidenceId}`, { method: 'DELETE' }), 'Removed')}><X className="h-3.5 w-3.5" /></button>
-              )}
-            </li>
+            <ItemRow key={i.evidenceId} i={i} base={base} side={side} active={active} canRemove={waitingOnOrg}
+              submitted={r.status !== 'open'} onView={() => setViewing({ url: `${base}/items/${i.evidenceId}/view`, name: i.name })} act={act} />
           ))}
         </ul>
       )}
@@ -181,8 +241,11 @@ function RequestRow({ r, side, active, options, onRefreshOptions, act }: {
               <Select label="Link a document from your Evidence registry" placeholder={choices.length ? 'Choose a document' : 'No documents yet: upload one first'}
                 value={pick} onChange={setPick} options={choices.map((o) => ({ value: String(o.id), label: o.name }))} />
             </div>
+            <label className="flex items-center gap-2 pb-2 text-sm text-slate-700" title="Otherwise the reviewer can only view a copy stamped with their name, and can ask you for permission">
+              <input type="checkbox" className="h-4 w-4 accent-emerald-600" checked={allowDl} onChange={(e) => setAllowDl(e.target.checked)} /> Allow download
+            </label>
             <Button size="sm" variant="outline" disabled={!pick}
-              onClick={() => void act(() => call(`${base}/items`, { method: 'POST', json: { evidenceId: Number(pick) } }).then(() => setPick('')), 'Linked')}>
+              onClick={() => void act(() => call(`${base}/items`, { method: 'POST', json: { evidenceId: Number(pick), allowDownload: allowDl } }).then(() => setPick('')), allowDl ? 'Linked: download allowed' : 'Linked: view only')}>
               <Paperclip className="h-4 w-4" /> Link
             </Button>
           </div>

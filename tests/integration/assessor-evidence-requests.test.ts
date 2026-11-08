@@ -124,6 +124,55 @@ describe('evidence requests from an independent assessor', () => {
     assert.equal(forSuper.body.requests[0].side, 'observer')
   })
 
+  it('download needs the organisation to allow it: ask with a reason, allow, withdraw, decline', async () => {
+    const r = (await ask(MARTIN)).body
+    assert.equal((await req(ALICE, 'POST', `/${r.id}/items`, { evidenceId: evA })).status, 201)
+    assert.equal((await req(ALICE, 'POST', `/${r.id}/submit`, {})).status, 200)
+    const item = async () => (await req(MARTIN, 'GET', '?assessor=1')).body.requests[0].items[0]
+    assert.equal((await item()).downloadAccess, 'view_only', 'assessor requests are view only by default')
+    const dl = () => req(MARTIN, 'GET', `/${r.id}/items/${evA}/download`)
+    assert.equal((await dl()).status, 403)
+
+    // Only the reviewer asks, with a reason; only the organisation decides.
+    assert.equal((await req(ALICE, 'POST', `/${r.id}/items/${evA}/download-request`, { reason: 'I need the original file' })).status, 403)
+    assert.equal((await req(MARTIN, 'POST', `/${r.id}/items/${evA}/download-request`, { reason: 'short' })).status, 400)
+    assert.equal((await req(MARTIN, 'POST', `/${r.id}/items/${evA}/download-access`, { allow: true })).status, 403, 'the assessor cannot allow themselves')
+    const asked = await req(MARTIN, 'POST', `/${r.id}/items/${evA}/download-request`, { reason: 'Need to check the signatures at full resolution' })
+    assert.equal(asked.status, 200, asked.text)
+    assert.equal((await item()).downloadAccess, 'requested')
+    const toOrg = mails().find((m) => /permission asked to download/.test(m.subject))
+    assert.ok(toOrg && toOrg.to.includes(ALICE) && toOrg.reply_to === MARTIN && /signatures at full resolution/.test(toOrg.text))
+    assert.equal((await req(MARTIN, 'POST', `/${r.id}/items/${evA}/download-request`, { reason: 'Need to check the signatures again' })).status, 409, 'asked once')
+    assert.equal((await dl()).status, 403, 'still waiting')
+
+    // The organisation allows: the original downloads, and the assessor is told.
+    assert.equal((await req(ALICE, 'POST', `/${r.id}/items/${evA}/download-access`, { allow: true })).status, 200)
+    assert.ok(mails().some((m) => m.to.includes(MARTIN) && /allowed you to download/.test(m.subject)))
+    const file = await dl()
+    assert.equal(file.status, 200)
+    assert.deepEqual(file.bytes, BYTES, 'the original file')
+
+    // The organisation withdraws it; then declines a new request.
+    assert.equal((await req(ALICE, 'POST', `/${r.id}/items/${evA}/download-access`, { allow: false })).status, 200)
+    assert.equal((await item()).downloadAccess, 'view_only')
+    assert.equal((await dl()).status, 403)
+    await req(MARTIN, 'POST', `/${r.id}/items/${evA}/download-request`, { reason: 'Need it again for the final report' })
+    assert.equal((await req(ALICE, 'POST', `/${r.id}/items/${evA}/download-access`, { allow: false })).status, 200)
+    assert.equal((await item()).downloadAccess, 'declined')
+    assert.ok(mails().some((m) => m.to.includes(MARTIN) && /declined downloading/.test(m.subject)))
+    assert.equal((await dl()).status, 403)
+    assert.equal((await req(MARTIN, 'GET', `/${r.id}/items/${evA}/view`)).status, 200, 'viewing still works')
+    const log = (await rows(`SELECT action FROM audit_logs WHERE target=$1 ORDER BY id`, [r.id])).map((x: any) => x.action).join('\n')
+    for (const w of ['view only', 'asked to download', 'allowed downloading', 'opened evidence', 'made view only', 'declined the download request']) assert.match(log, new RegExp(w))
+  })
+
+  it('the organisation can allow download when linking', async () => {
+    const r = (await ask(MARTIN)).body
+    await req(ALICE, 'POST', `/${r.id}/items`, { evidenceId: evA, allowDownload: true })
+    await req(ALICE, 'POST', `/${r.id}/submit`, {})
+    assert.equal((await req(MARTIN, 'GET', `/${r.id}/items/${evA}/download`)).status, 200)
+  })
+
   it('stops when the assessor grant is revoked, including reminders', async () => {
     const r = (await ask(MARTIN, { dueOn: inDays(0) })).body
     await rows(`UPDATE evidence_requests SET due_on = current_date - 2 WHERE id=$1`, [r.id])

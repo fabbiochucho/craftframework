@@ -6,6 +6,8 @@ import { isRating, ratingProblem, RESPONSE_STANCES, RISK_CATEGORIES } from '../.
 import { createHash } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
 import { decodeEvidence, encodeEvidence } from '../lib/evidence-storage.js'
+import { isPasswordProtected } from '../lib/evidence-watermark.js'
+import { notify } from '../lib/validation-lifecycle.js'
 import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, or, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
@@ -1891,15 +1893,30 @@ const routes: Route[] = [
     const bytes = await file.arrayBuffer()
     // Read the contents and check them against the name / declared kind. The text is not stored.
     const contentCheck = checkContent({ fileName: file.name, declaredKind, text: await extractText(bytes, file.type) })
+    // A password-protected file is kept, but flagged: CRAFT cannot read it and reviewers cannot view it.
+    const passwordProtected = isPasswordProtected(bytes)
     await getStore('evidence').set(key, encodeEvidence(bytes), { metadata: { mimeType: file.type } })
     // Super Admin support mode: added on the organisation's behalf, labelled and the organisation told.
     const support = await isSupportAction(caller, orgId)
     const [e] = await db.insert(evidenceRegistry).values({
       orgId, workspaceId: wsId, documentName: file.name.slice(0, 255), documentType, uploadedBy: caller.email, filePath: key,
       fileSizeKb: Math.ceil(file.size / 1024), mimeType: file.type, expiryDate: dateOrNull(form.get('expiryDate') || null, 'expiryDate'),
-      declaredKind, contentCheck: { ...contentCheck }, addedBySupport: support,
+      declaredKind, contentCheck: { ...contentCheck, ...(passwordProtected ? { passwordProtected: true } : {}) }, addedBySupport: support,
     }).returning()
-    await audit(c, orgId, wsId, 'evidence', e.id, 'create', { name: e.documentName, contentCheck: contentCheck.status, ...(support ? { support: true } : {}) })
+    await audit(c, orgId, wsId, 'evidence', e.id, 'create', { name: e.documentName, contentCheck: contentCheck.status, ...(passwordProtected ? { passwordProtected: true } : {}), ...(support ? { support: true } : {}) })
+    if (passwordProtected) {
+      // Tell whoever can fix it: the uploader, or the organisation when CRAFT support uploaded on its behalf.
+      const to = support ? await wsOrgContacts(orgId) : [caller.email]
+      await notify(to, `CRAFT: "${e.documentName}" is password-protected`,
+        `The document "${e.documentName}" was added to the Evidence registry, but it is password-protected.
+
+`
+        + `CRAFT cannot check what it contains, and reviewers and your independent assessor cannot view it. Please upload a copy without a password `
+        + `(for example, save it again with the password removed, or export it as a PDF without protection), then archive this one.
+
+`
+        + `${publicBaseUrl()}/app/workspaces/${wsId}/evidence/${e.id}`)
+    }
     if (support) {
       await tellSupportAction(await wsOrgContacts(orgId), `Added the document "${e.documentName}" to your Evidence registry.`,
         `${publicBaseUrl()}/app/workspaces/${wsId}/evidence/${e.id}`, caller.email)
@@ -1916,9 +1933,11 @@ const routes: Route[] = [
     const ocrText = c.body.ocrText !== undefined ? str(c.body.ocrText, 'ocrText', 400_000, false) : ''
     const data = await getStore('evidence').get(e.filePath, { type: 'arrayBuffer' })
     if (!data) throw new HttpError(404, 'File not found')
-    let contentCheck = checkContent({ fileName: e.documentName, declaredKind, text: await extractText(decodeEvidence(data), e.mimeType) })
+    const bytes = decodeEvidence(data)
+    let contentCheck = checkContent({ fileName: e.documentName, declaredKind, text: await extractText(bytes, e.mimeType) })
     if (contentCheck.status === 'unreadable' && ocrText.trim()) contentCheck = checkContent({ fileName: e.documentName, declaredKind, text: ocrText, source: 'browser-ocr' })
-    const [u] = await db.update(evidenceRegistry).set({ declaredKind, contentCheck: { ...contentCheck } }).where(eq(evidenceRegistry.id, e.id)).returning()
+    const locked = isPasswordProtected(bytes) ? { passwordProtected: true } : {}
+    const [u] = await db.update(evidenceRegistry).set({ declaredKind, contentCheck: { ...contentCheck, ...locked } }).where(eq(evidenceRegistry.id, e.id)).returning()
     await audit(c, orgId, wsId, 'evidence', e.id, 'update', { contentCheck: contentCheck.status, source: contentCheck.source, declaredKind })
     return json(u)
   } },

@@ -57,6 +57,7 @@ const lifecycleAdminHandler = (await import(new URL('../../netlify/functions/adm
 const qualityHandler = (await import(new URL('../../netlify/functions/validator-quality.mts', import.meta.url).href)).default
 const engagementsHandler = (await import(new URL('../../netlify/functions/engagements.mts', import.meta.url).href)).default
 const reviewsHandler = (await import(new URL('../../netlify/functions/validation-reviews.mts', import.meta.url).href)).default
+const evidenceRequestsHandler = (await import(new URL('../../netlify/functions/evidence-requests.mts', import.meta.url).href)).default
 
 // Test-only: runs a real engagement -> review -> finalise flow through the real handlers so the
 // browser test can open the public verification page of a validation that exists. Returns its ID.
@@ -143,6 +144,31 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ token, prefsToken }))
       return
     }
+    if (url.pathname === '/__test/seed-assessor-evidence' && req.method === 'POST') {
+      // An independent assessor of the signed-in organisation, and a request the organisation has answered with a
+      // two-page PDF: a wide landscape page and an A4 page (for the zoom / pan viewer).
+      const assessor = url.searchParams.get('assessor') ?? 'e2e-assessor@craft.example'
+      const org = 'self_owner_acme_example'
+      const { PDFDocument, StandardFonts } = await import('pdf-lib')
+      const { getStore } = await import('@netlify/blobs')
+      const { encodeEvidence } = await import('../../netlify/lib/evidence-storage.ts')
+      const doc = await PDFDocument.create()
+      const font = await doc.embedFont(StandardFonts.Helvetica)
+      doc.addPage([1600, 600]).drawText('Budget 2025 by quarter (wide sheet)', { x: 40, y: 540, size: 18, font })
+      doc.addPage([595, 842]).drawText('Board minutes, signed', { x: 40, y: 780, size: 14, font })
+      const bytes = await doc.save()
+      await getStore('evidence').set('e2e/assessor-evidence', encodeEvidence(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer))
+      await rows(`INSERT INTO organizations(id,name,country) VALUES($1,'E2E Institution','Kenya') ON CONFLICT (id) DO NOTHING`, [org])
+      await rows(`INSERT INTO access_grants(id,org_id,grantee,role,level,status) VALUES('e2e-assessor-grant',$1,$2,'independent_assessor','read','active') ON CONFLICT DO NOTHING`, [org, assessor])
+      await rows(`INSERT INTO ws_organizations(id,name) VALUES(901,'E2E WS') ON CONFLICT (id) DO NOTHING`)
+      const [ev] = await rows(`INSERT INTO evidence_registry(org_id,workspace_id,document_name,document_type,uploaded_by,file_path,file_size_kb,mime_type)
+        VALUES(901,901,'Budget and minutes.pdf','evidence','owner@acme.example','e2e/assessor-evidence',2,'application/pdf') RETURNING id`)
+      await rows(`INSERT INTO evidence_requests(id,engagement_id,org_id,title,due_on,status,requested_by,submitted_by,submitted_at)
+        VALUES('evr_e2e',NULL,$1,'Budget and board minutes',current_date + 14,'submitted',$2,'owner@acme.example',now())`, [org, assessor])
+      await rows(`INSERT INTO evidence_request_items(id,request_id,evidence_id,document_name,linked_by) VALUES('evri_e2e','evr_e2e',$1,'Budget and minutes.pdf','owner@acme.example')`, [ev.id])
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ requestId: 'evr_e2e', evidenceId: ev.id }))
+      return
+    }
     if (url.pathname === '/__test/ready') {
       res.writeHead(200).end('ok')
       return
@@ -169,6 +195,7 @@ const server = http.createServer(async (req, res) => {
           : url.pathname === '/api/validator-quality' || url.pathname.startsWith('/api/validator-quality/') ? qualityHandler
           : url.pathname === '/api/engagements' || url.pathname.startsWith('/api/engagements/') ? engagementsHandler
           : url.pathname === '/api/validation-reviews' || url.pathname.startsWith('/api/validation-reviews/') ? reviewsHandler
+          : url.pathname === '/api/evidence-requests' || url.pathname.startsWith('/api/evidence-requests/') ? evidenceRequestsHandler
             : (legacyHandlers.get(url.pathname) ?? handler)
     const response: Response = await als.run(identityFromCookie(req.headers.cookie), () => routeHandler(request))
     const out: Record<string, string> = {}
