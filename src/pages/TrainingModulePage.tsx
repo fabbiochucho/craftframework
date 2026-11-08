@@ -237,7 +237,7 @@ function Classify({ m, n, ex, reload }: { m: ModuleView; n: number; ex: any; rel
 
 function RungCalculator({ m, n, ex, reload }: { m: ModuleView; n: number; ex: any; reload: () => void }) {
   const inds = LADDER_INDICATORS.filter((i) => i.level <= 4)
-  const [scores, setScores] = useState<Record<string, number>>(ex.start)
+  const [scores, setScores] = useState<Record<string, number>>(() => ({ ...Object.fromEntries(inds.map((i) => [i.id, 0])), ...ex.start }))
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const rung = currentRung(scores)
   return (

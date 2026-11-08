@@ -146,6 +146,20 @@ export const LADDER_INDICATORS: LadderIndicator[] = [
     ladderRelevance: 'Financial resilience is what prevents a single bad quarter from undoing every rung climbed so far.',
   },
   {
+    id: 'CRL-3D', level: 3, domain: 'Receivables & Payment Cycle',
+    question: 'Does the institution know how long it waits between delivering a service and being paid, and plan its cash around it?',
+    soe: {
+      0: 'The time between delivering a service and receiving payment is not known.', 1: 'Payment delays are felt but not measured.',
+      2: 'Amounts owed are listed, but not by payer or by age.',
+      3: 'Receivables are aged by payer (for example donors, government, insurers or customers) and the average days to payment is known.',
+      4: 'The cash-flow forecast uses each payer\'s actual payment time, and working capital to cover the gap is planned.',
+      5: 'Days to payment are tracked over time and have been shortened, for example through faster claims, reporting or invoicing.',
+    },
+    evidence: 'Aged receivables by payer, claims or reimbursement records, payment terms in contracts and grant agreements, cash-flow forecast.',
+    recommendation: 'List what each payer owes you and how long they usually take to pay; then forecast cash on those real delays, not on when the work is done.',
+    ladderRelevance: 'Growth that is paid for late consumes cash. Reimbursement, claims and grant tranches often arrive months after delivery, and financiers ask how that gap is funded.',
+  },
+  {
     id: 'CRL-3B', level: 3, domain: 'Operational & Crisis Continuity',
     question: 'Is there a documented plan for maintaining operations through a disruption?',
     soe: {
@@ -229,7 +243,7 @@ export const LADDER_INDICATORS: LadderIndicator[] = [
       4: 'The case has been tested or validated against real performance data.',
       5: 'The investment case has been independently reviewed (e.g. by an advisor or prior investor).',
     },
-    evidence: 'Business/investment case document, financial model, revenue data.',
+    evidence: 'Business/investment case document, financial model, revenue data, market size worked out from the number of reachable buyers or payers and realistic contract values, with sources.',
     recommendation: 'Put the revenue model on one page with your actual historical numbers, not projections alone - credibility beats ambition at this stage.',
     ladderRelevance: 'This is the first rung where the question shifts from "is this institution sound" to "would I put capital into it".',
   },
@@ -260,6 +274,48 @@ export const LADDER_INDICATORS: LadderIndicator[] = [
     evidence: 'Sample term sheet or financing agreement, legal opinion, prior financing closing documents.',
     recommendation: 'Have a lawyer review your standard financing terms before you are mid-negotiation with a real investor.',
     ladderRelevance: 'Weak investor protections are a common reason term sheets stall even when the underlying institution is strong.',
+  },
+  {
+    id: 'CRL-5D', level: 5, domain: 'Funding Ask, Use of Funds & Milestones',
+    question: 'Is the amount of capital sought worked out from the plan, with what it funds and the milestones it reaches?',
+    soe: {
+      0: 'No defined funding ask.', 1: 'An amount is named but not worked out from the plan.',
+      2: 'The amount is linked to a budget, but use of funds is not broken down.',
+      3: 'The amount comes from the financial plan, with use of funds by category and three to five dated, measurable milestones.',
+      4: 'Runway is shown under base and downside cases, with a buffer for delays the institution does not control (for example regulatory approvals or late payments).',
+      5: 'Funded milestones have been met in a previous round and reported against.',
+    },
+    evidence: 'Financial model, use-of-funds table, milestone plan, runway analysis.',
+    recommendation: 'Work the ask out from the milestones it must reach plus a buffer, not from what peers raised; show each milestone with a date and a number.',
+    ladderRelevance: 'Financiers test whether the ask, the milestones, the forecast and the evidence agree. A figure that is not derived from the plan is the first thing they challenge.',
+  },
+  {
+    id: 'CRL-5E', level: 5, domain: 'Diligence Readiness & Disclosure',
+    question: 'Is the institution ready for a financier\'s due diligence before it starts raising?',
+    soe: {
+      0: 'No preparation for due diligence.', 1: 'Documents would be gathered only when asked.',
+      2: 'Some documents are organised, but figures differ between the presentation, the model and the accounts.',
+      3: 'A data room is mostly complete and the figures in the presentation, model and accounts agree.',
+      4: 'Known weaknesses are written down with factual answers and disclosed upfront; references are ready to speak.',
+      5: 'Diligence has been completed with a financier without material surprises.',
+    },
+    evidence: 'Data room index, reconciled presentation and model, known-risks register, reference list.',
+    recommendation: 'Review the institution as a sceptical financier would before the first meeting, and disclose every known gap before anyone finds it.',
+    ladderRelevance: 'Diligence is where financings stall; a surprise the financier finds before it is disclosed often ends the conversation.',
+  },
+  {
+    id: 'CRL-5F', level: 5, domain: 'Unit Economics & Revenue Quality',
+    question: 'Does each unit of service or sale earn more than it costs, and how dependable is the revenue behind the plan?',
+    soe: {
+      0: 'Costs and income per unit are not known.', 1: 'An overall margin is known, but not per unit or per revenue line.',
+      2: 'Margin per unit is calculated, but acquisition and onboarding costs are left out, or revenue is not split by type.',
+      3: 'Fully loaded cost and margin per unit are known by revenue line, and revenue is split into contracted, recurring, one-off, pilot and grant.',
+      4: 'Dependence on the largest customers, payers or funders is measured, retention is tracked by cohort, and pilots are tracked to signed contracts.',
+      5: 'Revenue quality has improved over at least two years: less concentration, more contracted or recurring income, and margins that hold as volume grows.',
+    },
+    evidence: 'Unit economics by revenue line, revenue by customer, payer or funder, retention by cohort, pilot-to-contract list.',
+    recommendation: 'Pick the unit that matches how you are paid (per client, site, contract or member) and show its full cost, including sales and onboarding, before quoting any blended ratio.',
+    ladderRelevance: 'Two institutions with the same income can be worth very different amounts: financiers value income that is contracted, diversified and profitable per unit, and discount pilots and one-off grants.',
   },
 
   // --- Level 6: Scale & Institutionalization ---------------------------------

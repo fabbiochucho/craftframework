@@ -69,7 +69,7 @@ async function submitAndMarkCases(email = LEARNER, percent = 85) {
   }
 }
 const capstoneBody = async () => {
-  const scores = Object.fromEntries((await rows("SELECT id FROM (VALUES ('CRL-1A'),('CRL-1B'),('CRL-1C'),('CRL-2A'),('CRL-2B'),('CRL-2C'),('CRL-3A'),('CRL-3B'),('CRL-3C'),('CRL-4A'),('CRL-4B'),('CRL-4C')) v(id)")).map((r: any) => [r.id, { score: 3, note: 'Evidence reviewed' }]))
+  const scores = Object.fromEntries((await rows("SELECT id FROM (VALUES ('CRL-1A'),('CRL-1B'),('CRL-1C'),('CRL-2A'),('CRL-2B'),('CRL-2C'),('CRL-3A'),('CRL-3B'),('CRL-3C'),('CRL-3D'),('CRL-4A'),('CRL-4B'),('CRL-4C')) v(id)")).map((r: any) => [r.id, { score: 3, note: 'Evidence reviewed' }]))
   return {
     declaration: 'I declare no conflicts; the funder engaged me and that is disclosed.', scores, debrief: 'Firm, factual and courteous response to the pushback.',
     outcome: 'validated_with_qualifications', ratedRung: 2, qualifications: 'CRL-3A: reserves at 1 month; retest at follow-up', followUp: 'Milestone follow-up on reserves and impact data',
@@ -173,7 +173,7 @@ describe('validator training and accreditation', () => {
     await makeValidator()
     assert.deepEqual((await call(LEARNER, 'GET', 'directory/me', undefined, directory)).body.validator.badges.map((b: any) => b.key), ['clear-conscience'])
     // Rung calculator challenge: rung must be exactly 3; the server computes it.
-    const hi = Object.fromEntries(['1A', '1B', '1C', '2A', '2B', '2C', '3A', '3B', '3C', '4A', '4B', '4C'].map((k) => [`CRL-${k}`, 4]))
+    const hi = Object.fromEntries(['1A', '1B', '1C', '2A', '2B', '2C', '3A', '3B', '3C', '3D', '4A', '4B', '4C'].map((k) => [`CRL-${k}`, 4]))
     assert.equal((await t(LEARNER, 'POST', 'modules/m2/try/0', { scores: hi })).body.done, false)
     assert.equal((await t(LEARNER, 'POST', 'modules/m2/try/0', { scores: { ...hi, 'CRL-4A': 0, 'CRL-4B': 0, 'CRL-4C': 0 } })).body.done, true)
   })
