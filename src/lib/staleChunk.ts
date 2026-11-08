@@ -4,6 +4,11 @@
 const KEY = 'craft:stale-chunk-reload'
 const GUARD_MS = 60_000
 
+// Set once this tab has decided to reload. Errors raised in between are consequences of the old code (for
+// example the router reading a module Vite resolved as empty after we cancelled its error), so monitoring drops them.
+let reloading = false
+export const isReloadingForStaleChunk = () => reloading
+
 export function isStaleChunkError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : typeof err === 'string' ? err : ''
   return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS/i.test(msg)
@@ -24,6 +29,7 @@ export function reloadForStaleChunk(
   } catch {
     return false
   }
+  reloading = true
   reload()
   return true
 }

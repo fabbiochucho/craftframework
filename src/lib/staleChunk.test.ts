@@ -1,7 +1,8 @@
 // Self-check — run directly with `node src/lib/staleChunk.test.ts`.
 import assert from 'node:assert/strict'
-import { isStaleChunkError, reloadForStaleChunk } from './staleChunk.ts'
+import { isReloadingForStaleChunk, isStaleChunkError, reloadForStaleChunk } from './staleChunk.ts'
 
+assert.equal(isReloadingForStaleChunk(), false, 'not reloading until a stale chunk is seen')
 const stale = new TypeError('Failed to fetch dynamically imported module: https://craftframework.becomechange.institute/assets/x.js')
 assert.ok(isStaleChunkError(stale))
 assert.ok(isStaleChunkError(new TypeError('error loading dynamically imported module: /assets/y.js')), 'Firefox wording')
@@ -20,4 +21,5 @@ assert.equal(reloads, 2)
 assert.equal(reloadForStaleChunk(stale, undefined, reload), false, 'no storage: never reload (no guard)')
 const throwing = { getItem: () => { throw new Error('blocked') }, setItem: () => {} }
 assert.equal(reloadForStaleChunk(stale, throwing, reload), false, 'blocked storage: never reload')
+assert.equal(isReloadingForStaleChunk(), true, 'once it reloads, monitoring drops the errors that follow')
 console.log('staleChunk ok')

@@ -5,6 +5,7 @@
 // With no DSN (local dev, tests, builds without the variable) nothing is imported or sent. The SDK is loaded
 // with a dynamic import after the first paint so it never competes with the app's first render.
 import buildInfo from './build-info.json'
+import { isReloadingForStaleChunk } from './staleChunk'
 import { IGNORE_ERRORS, NO_DATA_COLLECTION, isExpectedError, isSensitivePath, parameterizePath, scrubBreadcrumb, scrubEvent } from './errorScrub'
 
 const DSN = import.meta.env.VITE_SENTRY_DSN as string | undefined
@@ -40,7 +41,7 @@ function load(): Promise<Sentry | null> {
           Sentry.browserTracingIntegration({ instrumentPageLoad: true, instrumentNavigation: true, enableInp: false, enableLongTask: false, enableLongAnimationFrame: false, beforeStartSpan: options => ({ ...options, name: parameterizePath(options.name) }) }),
         ],
         beforeBreadcrumb: crumb => scrubBreadcrumb(crumb, { sensitiveRoute: sensitiveRoute() }),
-        beforeSend: (event, hint) => (isExpectedError(hint?.originalException) ? null : scrubEvent(event, { sensitiveRoute: sensitiveRoute() })),
+        beforeSend: (event, hint) => (isExpectedError(hint?.originalException) || isReloadingForStaleChunk() ? null : scrubEvent(event, { sensitiveRoute: sensitiveRoute() })),
         beforeSendTransaction: event => scrubEvent(event, { sensitiveRoute: sensitiveRoute() }),
       })
       return Sentry
