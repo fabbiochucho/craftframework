@@ -204,6 +204,20 @@ const handleRequest = async (req: Request) => {
     if (req.method === 'PATCH') {
       if (await overLimit(`invitation-token:${clientIp(req)}`, TOKEN_LIMIT_PER_MINUTE)) return tooMany()
       const body = await req.json().catch(() => ({}))
+      // { id, status: 'revoked' }: the inviter, whoever created it, or the Super Admin withdraws a pending invitation.
+      if (body.id && !body.token) {
+        const caller = await resolveCaller()
+        if (!caller) return unauthorized()
+        const mfaBlock = await mfaRequired(req, caller)
+        if (mfaBlock) return mfaBlock
+        if (body.status !== 'revoked') return bad('status must be revoked')
+        const [inv] = await db.select().from(invitations).where(eq(invitations.id, String(body.id)))
+        if (!inv || inv.status !== 'pending') return Response.json({ error: 'Invitation not found or no longer pending' }, { status: 404 })
+        if (caller.readOnly || (caller.role !== 'super_admin' && caller.email !== inv.inviter && caller.email !== inv.createdBy)) return forbidden()
+        await db.update(invitations).set({ status: 'revoked', respondedAt: new Date() }).where(and(eq(invitations.id, inv.id), eq(invitations.status, 'pending')))
+        await audit(caller.email, 'Revoked invitation', `${inv.id} · ${inv.email}`)
+        return Response.json({ id: inv.id, status: 'revoked' })
+      }
       const token = String(body.token ?? '')
       const status = String(body.status ?? '')
       if (!token || !status) return bad('token and status required')

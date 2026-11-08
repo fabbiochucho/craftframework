@@ -191,4 +191,14 @@ describe('invitations by email', () => {
     const own = await call(orgsApi, NEWCO, 'POST', 'organizations', { id: NEWCO_ORG, name: 'NewCo' })
     assert.equal(own.status, 201, own.text)
   })
+
+  it('the inviter or the Super Admin can revoke a pending invitation; others cannot, and it can no longer be accepted', async () => {
+    const inv = await invite(ADMIN_A, { kind: 'organization', email: NEWCO, orgName: 'NewCo', send: false })
+    assert.equal(inv.status, 201, inv.text)
+    const revoke = (email: string) => call(invitations, email, 'PATCH', 'invitations', { id: inv.body.id, status: 'revoked' })
+    assert.equal((await revoke(ADMIN_B)).status, 403, 'not their invitation')
+    assert.equal((await revoke(ADMIN_A)).status, 200)
+    assert.equal((await revoke(SUPER)).status, 404, 'no longer pending')
+    assert.notEqual((await accept(NEWCO, await tokenOf(inv.body.id))).status, 200)
+  })
 })
