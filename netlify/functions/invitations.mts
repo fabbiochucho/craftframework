@@ -181,7 +181,7 @@ const handleRequest = async (req: Request) => {
         }
         const firm = await funderFirmFor(caller, onBehalfOf?.email ?? caller.email, d.funderName)
         if (firm === 'forbidden') return Response.json({ error: `${d.funderName} is already on CRAFT. Ask one of its staff to invite colleagues.` }, { status: 403 })
-        const { invitation, email } = await inviteFunder(caller, { email: d.email, inviteeName: d.inviteeName, message: d.message, firm, send: d.send, onBehalfOf })
+        const { invitation, email } = await inviteFunder(caller, { email: d.email, inviteeName: d.inviteeName, message: d.message, subject: d.subject, firm, send: d.send, onBehalfOf })
         return Response.json({ ...invitation, email: email.body }, { status: 201 })
       }
       if (d.kind === 'organization') {
@@ -210,7 +210,7 @@ const handleRequest = async (req: Request) => {
         }
         const { invitation, email } = await inviteOrganization(caller, {
           email: d.email, orgName: d.orgName, inviteeName: d.inviteeName, message: d.message, portfolioId: d.portfolioId ?? null, orgType,
-          send: d.send !== false, onBehalfOf, grantRole: d.grantRole ?? null,
+          send: d.send !== false, onBehalfOf, grantRole: d.grantRole ?? null, subject: d.subject,
         })
         return Response.json({ ...invitation, email: email.body }, { status: 201 })
       }

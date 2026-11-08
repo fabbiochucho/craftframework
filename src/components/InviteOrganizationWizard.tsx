@@ -19,6 +19,8 @@ export type InviteWizardValues = {
   orgName: string
   inviteeName: string
   message: string
+  /** Subject line; empty = the standard one. */
+  subject: string
   orgArchetype: Archetype | ''
   orgSector: string
   orgCountry: string
@@ -51,7 +53,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inviterEmail, allowDraft, defaultMessage, onSend, onClose }: InviteWizardProps) {
   const [step, setStep] = useState(0)
   const [v, setV] = useState<InviteWizardValues>({
-    email: '', orgName: '', inviteeName: '', message: defaultMessage ?? '', orgArchetype: '', orgSector: '', orgCountry: '',
+    email: '', orgName: '', inviteeName: '', message: defaultMessage ?? '', subject: '', orgArchetype: '', orgSector: '', orgCountry: '',
     portfolioId: portfolios?.length === 1 ? portfolios[0].id : '', send: true,
   })
   const [sending, setSending] = useState(false)
@@ -72,7 +74,7 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
 
   const preview = useMemo(() => buildWelcomeEmailHtml({
     name: v.inviteeName.trim(), email: v.email.trim() || 'contact@example.org', role: 'admin', scopeLabel: v.orgName,
-    inviterName, inviterEmail, message: v.message.trim() || undefined, kind: 'organization', orgName: v.orgName.trim(),
+    inviterName, inviterEmail, message: v.message.trim() || undefined, subject: v.subject.trim() || undefined, kind: 'organization', orgName: v.orgName.trim(),
     orgType: typeLabel || undefined, purpose: fullPurpose, expiresInDays: 14,
     siteUrl: typeof window === 'undefined' ? undefined : window.location.origin,
   }).html, [v, inviterName, inviterEmail, typeLabel, fullPurpose])
@@ -80,7 +82,7 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
   async function send() {
     setSending(true)
     setError(null)
-    const out = await onSend({ ...v, email: v.email.trim().toLowerCase(), orgName: v.orgName.trim(), inviteeName: v.inviteeName.trim(), message: v.message.trim() })
+    const out = await onSend({ ...v, email: v.email.trim().toLowerCase(), orgName: v.orgName.trim(), inviteeName: v.inviteeName.trim(), message: v.message.trim(), subject: v.subject.trim() })
     setSending(false)
     if (out.ok) setSent(true)
     else setError(out.error)
@@ -95,7 +97,7 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
           ? `${v.orgName.trim()} gets its own workspace when it accepts. The link is valid for 14 days.`
           : 'Nothing has been sent yet. Send it from "Invitations waiting to be sent" when you are ready; the 14 days start then.'}</p>
         <div className="flex justify-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => { setV({ ...v, email: '', orgName: '', inviteeName: '', message: defaultMessage ?? '' }); setStep(0); setSent(false) }}>Invite another</Button>
+          <Button size="sm" variant="outline" onClick={() => { setV({ ...v, email: '', orgName: '', inviteeName: '', message: defaultMessage ?? '', subject: '' }); setStep(0); setSent(false) }}>Invite another</Button>
           {onClose && <Button size="sm" onClick={onClose}>Done</Button>}
         </div>
       </div>
@@ -162,6 +164,12 @@ export function InviteOrganizationWizard({ purpose, portfolios, inviterName, inv
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">What accepting does</p>
             <p className="mt-1">{fullPurpose}</p>
+          </div>
+          <div>
+            <label htmlFor="invite-subject" className="mb-1 block text-sm font-medium text-slate-700">Email subject (optional)</label>
+            <input id="invite-subject" maxLength={200} value={v.subject} onChange={(e) => set({ subject: e.target.value })}
+              placeholder="Leave empty for the standard subject"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500" />
           </div>
           <div>
             <label htmlFor="invite-note" className="mb-1 block text-sm font-medium text-slate-700">Personal note (optional)</label>

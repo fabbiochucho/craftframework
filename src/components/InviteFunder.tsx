@@ -11,6 +11,7 @@ export function InviteFunderCard({ onBehalfOf, onDone }: { onBehalfOf?: string; 
   const [funder, setFunder] = useState('')
   const [people, setPeople] = useState([{ name: '', email: '' }])
   const [message, setMessage] = useState('')
+  const [subject, setSubject] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const filled = people.filter((p) => p.email.trim())
@@ -20,7 +21,7 @@ export function InviteFunderCard({ onBehalfOf, onDone }: { onBehalfOf?: string; 
     setBusy(true); setMsg(null)
     const failed: string[] = []
     for (const p of filled) {
-      const out = await inviteFunderByEmail({ email: p.email.trim().toLowerCase(), funderName: funder.trim(), inviteeName: p.name.trim() || undefined, message: message.trim() || undefined, send: false, onBehalfOf })
+      const out = await inviteFunderByEmail({ email: p.email.trim().toLowerCase(), funderName: funder.trim(), inviteeName: p.name.trim() || undefined, message: message.trim() || undefined, subject: subject.trim() || undefined, send: false, onBehalfOf })
       if (!out.ok) failed.push(`${p.email}: ${out.error}`)
     }
     setBusy(false)
@@ -48,6 +49,7 @@ export function InviteFunderCard({ onBehalfOf, onDone }: { onBehalfOf?: string; 
           </div>
         ))}
         <Button size="sm" variant="outline" onClick={() => setPeople((ps) => [...ps, { name: '', email: '' }])}><Plus className="h-4 w-4" /> Add another person</Button>
+        <Input label="Email subject (optional)" placeholder="Leave empty for the standard subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} />
         <label className="block text-sm">
           <span className="font-medium text-slate-700">Message (optional)</span>
           <textarea className="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm" rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />

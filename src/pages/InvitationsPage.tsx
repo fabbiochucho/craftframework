@@ -36,7 +36,7 @@ export function InvitationsPage() {
               defaultMessage={ONBOARDING_NOTE}
               onSend={async (v) => {
                 const out = await inviteOrganizationByEmail({
-                  email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined,
+                  email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined, subject: v.subject || undefined,
                   orgArchetype: v.orgArchetype || undefined, orgSector: v.orgSector || undefined, orgCountry: v.orgCountry || undefined,
                   send: v.send, grantRole: 'independent_assessor',
                 })
