@@ -119,10 +119,10 @@ export async function contactsFor(v: Pick<ValidationRow, 'orgId' | 'engagementId
 }
 
 /** Fire-and-forget notice. A mail failure never fails the action that caused it. Returns what the provider did. */
-export async function notify(to: string[], subject: string, text: string): Promise<'accepted' | 'failed' | 'not_configured' | 'skipped'> {
+export async function notify(to: string[], subject: string, text: string, replyTo?: string): Promise<'accepted' | 'failed' | 'not_configured' | 'skipped'> {
   if (!to.length) return 'skipped'
   try {
-    const result = await sendReminderEmail({ to, subject, text }, undefined, 'validation_notice')
+    const result = await sendReminderEmail({ to, subject, text, ...(replyTo ? { reply_to: replyTo } : {}) }, undefined, 'validation_notice')
     if (result === 'not_configured') logger.warn('validation-lifecycle', 'email not configured; notice not sent')
     return result
   } catch (err) {

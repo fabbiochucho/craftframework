@@ -16,8 +16,20 @@ export const INDEPENDENT_STATE_KEYS = new Set(['craft:assessor-statements'])
 
 /** True when `caller` holds an active independent-assessor grant on `orgId`. */
 export async function isIndependentAssessorOf(caller: Caller, orgId: string): Promise<boolean> {
-  if (!orgId || caller.readOnly) return false
+  return !caller.readOnly && hasAssessorGrant(caller.email, orgId)
+}
+
+/** True when `email` holds an active independent-assessor grant on `orgId`. */
+export async function hasAssessorGrant(email: string, orgId: string): Promise<boolean> {
+  if (!orgId || !email) return false
   const [g] = await db.select().from(accessGrants)
-    .where(and(eq(accessGrants.orgId, orgId), eq(accessGrants.grantee, caller.email), eq(accessGrants.role, INDEPENDENT_ASSESSOR_ROLE)))
+    .where(and(eq(accessGrants.orgId, orgId), eq(accessGrants.grantee, email.toLowerCase()), eq(accessGrants.role, INDEPENDENT_ASSESSOR_ROLE)))
   return !!g && grantAllows(g, 'read')
+}
+
+/** Organisations where `email` holds an active independent-assessor grant. */
+export async function assessedOrgIds(email: string): Promise<string[]> {
+  const rows = await db.select().from(accessGrants)
+    .where(and(eq(accessGrants.grantee, email.toLowerCase()), eq(accessGrants.role, INDEPENDENT_ASSESSOR_ROLE)))
+  return [...new Set(rows.filter((g) => grantAllows(g, 'read')).map((g) => g.orgId))]
 }
