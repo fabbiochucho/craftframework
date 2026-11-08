@@ -42,6 +42,7 @@ export function AcceptInvitePage() {
   const signedIn = authReady && !!currentUser && !currentUser.isDemo
   const sameEmail = signedIn && !!invite && currentUser!.email.trim().toLowerCase() === invite.email.trim().toLowerCase()
   const isOrg = invite?.kind === 'organization'
+  const isFunder = invite?.kind === 'funder'
 
   function goToAuth(mode: 'register' | 'login') {
     if (!invite) return
@@ -128,13 +129,13 @@ export function AcceptInvitePage() {
                   ) : (
                     <>
                       <strong>{invite.inviterName || invite.inviter || 'An administrator'}</strong> invited you to join{' '}
-                      <strong>{invite.scopeLabel || 'their organisation'}</strong> on {BRAND.product}.
+                      <strong>{invite.scopeLabel || 'their organisation'}</strong> on {BRAND.product}{isFunder ? ' as a funding partner' : ''}.
                     </>
                   )}
                 </p>
                 <div className="space-y-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
                   <p className="flex items-center justify-between gap-3"><span>Invited email</span><strong className="break-all">{invite.email}</strong></p>
-                  {isOrg ? (
+                  {isOrg || isFunder ? (
                     invite.purpose && <p className="pt-1 text-slate-700">{invite.purpose}</p>
                   ) : (
                     <p className="flex items-center justify-between">

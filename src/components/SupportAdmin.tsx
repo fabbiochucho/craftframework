@@ -6,6 +6,7 @@ import { BadgeChip } from './AmbassadorBadges'
 import type { Badge as AmbassadorBadge } from '../lib/ambassadors'
 import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, previewInvitation, revokeInvitation, sendInvitation, type Invitation } from '../lib/api'
 import { InviteOrganizationWizard } from './InviteOrganizationWizard'
+import { InviteFunderCard } from './InviteFunder'
 import { useAuthCtx } from '../lib/context'
 
 // Super Admin tools: support an organisation directly (open its Evidence registry, answer its evidence
@@ -211,7 +212,7 @@ export function AllOrganisations() {
   )
 }
 
-const ONBOARDING_NOTE = `Thank you for accepting to work with us in this important organisational capacity strengthening process.
+export const ONBOARDING_NOTE = `Thank you for accepting to work with us in this important organisational capacity strengthening process.
 
 We are pleased to introduce you to CRAFT, the Capacity Readiness & Fiduciary Assurance Toolkit, which has been set up so your organisation can carry out its own capacity assessment, with an independent assessor alongside you.
 
@@ -277,6 +278,18 @@ export function InviteForAssessor() {
         ) : <p className="text-xs text-slate-500">Enter the assessor's email to start.</p>}
       </CardContent>
     </Card>
+  )
+}
+
+/** Super Admin: invite a funder's staff in an assessor's name (the assessor is the inviter; replies go to them). */
+export function InviteFunderForAssessor() {
+  const [assessor, setAssessor] = useState('')
+  const email = assessor.trim().toLowerCase()
+  return (
+    <div className="space-y-2">
+      <Input label="Invite funders in this person's name (leave empty for your own)" placeholder="assessor@example.com" value={assessor} onChange={(e) => setAssessor(e.target.value)} />
+      <InviteFunderCard key={email} onBehalfOf={/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined} />
+    </div>
   )
 }
 

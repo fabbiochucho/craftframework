@@ -20,8 +20,8 @@ export interface WelcomeEmailInput {
   message?: string
   /** The tokenised accept link (/accept/<token>). Omitted only in the Settings preview. */
   acceptUrl?: string
-  /** 'organization' = bring your institution onto CRAFT in its own workspace. Default 'member'. */
-  kind?: 'member' | 'organization'
+  /** 'organization' = bring your institution onto CRAFT in its own workspace; 'funder' = join a funding partner's shared account. Default 'member'. */
+  kind?: 'member' | 'organization' | 'funder'
   /** organization: the institution name the inviter typed. */
   orgName?: string
   /** organization: the type the inviter chose, e.g. "Civil Society · NGO · Nigeria". */
@@ -43,6 +43,13 @@ type Feature = { title: string; text: string }
 
 /** What the invitee will be able to do, by invitation type. */
 export function inviteFeatures(input: Pick<WelcomeEmailInput, 'kind' | 'role'>): Feature[] {
+  if (input.kind === 'funder') {
+    return [
+      { title: 'One shared funder account', text: 'You and your colleagues work from the same funding-partner account, each with your own sign-in.' },
+      { title: 'Funder reviews, with consent', text: 'Organisations choose to share their results with you through a funder review. Nothing is shared without their consent.' },
+      { title: 'Evidence-backed results', text: 'See capacity results, improvement plans and independent scores for the organisations that share them.' },
+    ]
+  }
   if (input.kind === 'organization') {
     return [
       { title: 'Readiness assessment', text: 'Diagnose your institution across 5 tiers and 20 domains on a 0–5 maturity scale, backed by evidence.' },
@@ -103,8 +110,10 @@ function inviterLine(input: WelcomeEmailInput): string {
 export function buildWelcomeEmail(input: WelcomeEmailInput): { subject: string; body: string } {
   const level = getViewLevel(input.role)
   const org = isOrgInvite(input)
+  const funder = input.kind === 'funder'
   const subject = org
     ? `${input.inviterName} invited ${input.orgName || 'your institution'} to ${BRAND.product}`
+    : funder ? `${input.inviterName} invited you to join ${input.scopeLabel || 'your organisation'} on ${BRAND.product} as a funding partner`
     : `${input.inviterName} invited you to ${BRAND.product}: ${level.label}`
   const divider = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
   const days = input.expiresInDays ?? 7
@@ -124,7 +133,8 @@ ${divider}
 Invited by: ${inviterLine(input)}
 ${org ? `Institution: ${input.orgName || '-'}${input.orgType ? `
 Organisation type: ${input.orgType}` : ''}
-What accepting does: ${input.purpose || "Creates your institution's own CRAFT workspace"}` : `Role: ${level.label}
+What accepting does: ${input.purpose || "Creates your institution's own CRAFT workspace"}` : funder ? `Funding partner: ${input.scopeLabel}
+What accepting does: ${input.purpose ?? ''}` : `Role: ${level.label}
 Scope: ${input.scopeLabel}`}
 ${divider}
 
@@ -165,11 +175,13 @@ export function buildWelcomeEmailHtml(input: WelcomeEmailInput): { subject: stri
     ? ` <span style="color:#64748b;font-weight:400">(${esc(input.inviterEmail)})</span>` : ''
   const intro = org
     ? `<strong>${inviter}</strong>${inviterEmail} has invited <strong>${esc(input.orgName || 'your institution')}</strong> to ${esc(BRAND.product)}. Accepting creates your institution's own secure workspace: you keep full ownership of your data and decide who sees it.`
+    : input.kind === 'funder' ? `<strong>${inviter}</strong>${inviterEmail} has invited you to join <strong>${esc(input.scopeLabel || 'your organisation')}</strong> on ${esc(BRAND.product)} as a funding partner.`
     : `<strong>${inviter}</strong>${inviterEmail} has invited you to join <strong>${esc(input.scopeLabel || 'their organisation')}</strong> on ${esc(BRAND.product)} as <strong>${esc(level.label)}</strong>.`
   const row = (label: string, value: string, first = false) =>
     `<tr><td style="padding:10px 16px;font-size:13px;color:#64748b;vertical-align:top${first ? '' : ';border-top:1px solid #e2e8f0'}">${label}</td><td style="padding:10px 16px;font-size:13px;font-weight:600;color:#0f172a;text-align:right${first ? '' : ';border-top:1px solid #e2e8f0'}">${esc(value)}</td></tr>`
   const details = org
     ? row('Invited by', input.inviterName, true) + row('Institution', input.orgName || '-') + (input.orgType ? row('Organisation type', input.orgType) : '') + row('What accepting does', input.purpose || 'Creates your own CRAFT workspace')
+    : input.kind === 'funder' ? row('Invited by', input.inviterName, true) + row('Funding partner', input.scopeLabel) + row('What accepting does', input.purpose ?? '')
     : row('Invited by', input.inviterName, true) + row('Access level', level.label) + row('Scope', input.scopeLabel)
   const messageBlock = input.message?.trim()
     ? `<tr><td style="padding:0 32px 8px"><div style="border-left:3px solid #34d399;background:#f0fdf4;padding:12px 16px;border-radius:8px;color:#334155;font-size:14px;font-style:italic">${inviter} wrote:<br>${esc(input.message.trim()).replace(/\n/g, '<br>')}</div></td></tr>`

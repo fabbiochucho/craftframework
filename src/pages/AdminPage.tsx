@@ -17,7 +17,7 @@ import {
 } from '../components/ui'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
 import { TeamModerators } from '../components/TeamModerators'
-import { AllOrganisations, DraftInvitations, InviteForAssessor, SentInvitations, ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
+import { AllOrganisations, DraftInvitations, InviteForAssessor, InviteFunderForAssessor, SentInvitations, ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
 import * as api from '../lib/api'
 import type { UserDirectoryRow } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -621,6 +621,7 @@ export function AdminPage() {
 
           <DraftInvitations all />
           <InviteForAssessor />
+          <InviteFunderForAssessor />
           <SentInvitations all />
           <SupportFinder />
           <AllOrganisations />
