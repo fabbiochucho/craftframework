@@ -60,9 +60,15 @@ export async function watermarkedPdf(input: ArrayBuffer | Uint8Array, viewer: st
 
 // --- Word / Excel → text -------------------------------------------------------------------------
 const MAX_CHARS = 300_000
-const decode = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
-  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&amp;/g, '&')
-const strip = (xml: string) => decode(xml.replace(/<[^>]+>/g, ''))
+const ENTITIES: Record<string, string> = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' }
+/** XML entities in one pass (so "&amp;lt;" stays "&lt;"). The result goes into a PDF, never into HTML. */
+const decode = (s: string) => s.replace(/&(#x[0-9a-f]+|#\d+|lt|gt|quot|apos|amp);/gi, (m, e: string) => {
+  if (e[0] !== '#') return ENTITIES[e.toLowerCase()] ?? m
+  const n = e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1))
+  return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : ''
+})
+/** The text between the tags: split at tags and decode only the text, so decoded text is never re-parsed. */
+const strip = (xml: string) => xml.split(/<[^>]*>/).map(decode).join('')
 const tidy = (text: string) => text.split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).filter((l, i, a) => l || (i > 0 && a[i - 1])).join('\n').trim()
 
 /** The text and tables of a .docx or .xlsx, or null when the ZIP is neither. */

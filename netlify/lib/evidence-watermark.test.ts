@@ -20,6 +20,8 @@ const docXml = '<w:document><w:body><w:p><w:r><w:t>Board minutes</w:t></w:r></w:
   + '<w:tbl><w:tr><w:tc><w:p><w:r><w:t>Item</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Decision &amp; owner</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
   + '<w:p><w:r><w:t>Signed ₦ chair</w:t></w:r></w:p></w:body></w:document>'
 assert.equal(docxText(docXml), 'Board minutes\nItem | Decision & owner\nSigned ₦ chair')
+// Entities decode once ("&amp;lt;" stays the text "&lt;"); hex and decimal character references.
+assert.equal(docxText('<w:p><w:t>a &amp;lt;b&amp;gt; &#x20AC;5 &#8358;</w:t></w:p>'), 'a &lt;b&gt; €5 ₦')
 const docx = zip({ '[Content_Types].xml': '<Types/>', 'word/document.xml': docXml })
 assert.equal(officeText(docx)?.kind, 'Word')
 const wordPdf = await pages(await watermarkedPdf(docx, 'a@b.c'))
