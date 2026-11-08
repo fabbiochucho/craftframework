@@ -16,6 +16,14 @@ async function isFirmMember(email: string, firmId: string): Promise<boolean> {
   return !!row
 }
 
+/** Active moderators (owners) of a firm other than `except`. A team must always keep one. */
+async function otherOwners(firmId: string, except: string): Promise<number> {
+  const rows = await db.select({ email: firmMembers.email }).from(firmMembers)
+    .where(and(eq(firmMembers.firmId, firmId), eq(firmMembers.role, 'owner'), eq(firmMembers.status, 'active')))
+  return rows.filter((r) => r.email !== except).length
+}
+const LAST_OWNER = 'A team must keep at least one moderator. Make someone else moderator first.'
+
 async function isFirmOwner(email: string, firmId: string): Promise<boolean> {
   const [row] = await db
     .select({ role: firmMembers.role })
@@ -90,6 +98,16 @@ const handleRequest = async (req: Request) => {
           })),
         )
       }
+      // ?all=1 (Super Admin): every team (validator firms, funding partners, consulting firms) with its members.
+      if (params.get('all') === '1') {
+        if (caller.role !== 'super_admin') return forbidden()
+        const firmRows = await db.select().from(firms)
+        const memberRows = await db.select().from(firmMembers)
+        return Response.json(firmRows.map((f) => ({
+          id: f.id, name: f.name, kind: f.kind,
+          members: memberRows.filter((m) => m.firmId === f.id).map((m) => ({ email: m.email, role: m.role, status: m.status })),
+        })))
+      }
       if (firmId) {
         if (!(await isFirmMember(caller.email, firmId)) && caller.role !== 'super_admin') return forbidden()
         const members = await db.select().from(firmMembers).where(eq(firmMembers.firmId, firmId))
@@ -155,8 +173,13 @@ const handleRequest = async (req: Request) => {
         return Response.json({ ok: true })
       }
       if (!(await isFirmOwner(caller.email, firmId)) && caller.role !== 'super_admin') return forbidden()
-      const role = body.role ?? 'consultant'
-      let status = body.status ?? 'active'
+      // Keep an existing seat's role unless one is given; 'owner' = the team's moderator.
+      const role = body.role ?? seat?.role ?? 'consultant'
+      if (role !== 'owner' && role !== 'consultant') return Response.json({ error: 'role must be owner or consultant' }, { status: 400 })
+      let status = body.status ?? seat?.status ?? 'active'
+      if (seat?.role === 'owner' && seat.status === 'active' && (role !== 'owner' || status !== 'active') && !(await otherOwners(firmId, email))) {
+        return Response.json({ error: LAST_OWNER }, { status: 409 })
+      }
       if (firm?.kind && email !== caller.email && status === 'active' && seat?.status !== 'active') status = 'invited'
       await db
         .insert(firmMembers)
@@ -176,6 +199,10 @@ const handleRequest = async (req: Request) => {
       const target = email.trim().toLowerCase()
       const selfLeaving = target === caller.email
       if (!selfLeaving && !(await isFirmOwner(caller.email, firmId)) && caller.role !== 'super_admin') return forbidden()
+      const [leaving] = await db.select().from(firmMembers).where(and(eq(firmMembers.firmId, firmId), eq(firmMembers.email, target))).limit(1)
+      if (leaving?.role === 'owner' && leaving.status === 'active' && !(await otherOwners(firmId, target))) {
+        return Response.json({ error: LAST_OWNER }, { status: 409 })
+      }
       await db
         .delete(firmMembers)
         .where(and(eq(firmMembers.firmId, firmId), eq(firmMembers.email, email.trim().toLowerCase())))

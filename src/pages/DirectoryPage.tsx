@@ -288,9 +288,10 @@ function FirmForm({ firm, reload }: { firm?: FirmProfile & { role: string }; rel
             <ul className="mt-1 space-y-1 text-sm">
               {seats.map((s) => (
                 <li key={s.email} className="flex flex-wrap items-center gap-2">
-                  {s.email} <Badge variant="outline" className="text-slate-500">{s.role}</Badge>
+                  {s.email} <Badge variant="outline" className="text-slate-500">{s.role === 'owner' ? 'moderator' : 'member'}</Badge>
                   {s.status !== 'active' && <Badge className="bg-amber-100 text-amber-800">{s.status}</Badge>}
                   {owner && s.role !== 'owner' && <Button size="sm" variant="ghost" onClick={() => void act(() => api(`/api/firms?firmId=${encodeURIComponent(firm.id)}&email=${encodeURIComponent(s.email)}`, { method: 'DELETE' }), 'Removed')}>Remove</Button>}
+                  {owner && s.status === 'active' && <Button size="sm" variant="ghost" onClick={() => void act(() => api('/api/firms', { method: 'PUT', json: { firmId: firm.id, email: s.email, role: s.role === 'owner' ? 'consultant' : 'owner' } }), s.role === 'owner' ? 'No longer a moderator' : 'Now a moderator')}>{s.role === 'owner' ? 'Remove as moderator' : 'Make moderator'}</Button>}
                 </li>
               ))}
             </ul>

@@ -12,6 +12,18 @@ import type { UserRow } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 
+const LAST_ADMIN = 'An organisation must keep at least one Administrator (its moderator). Make someone else Administrator first.'
+
+/** True when `email` is the only active Administrator of their organisation and the change would end that. */
+async function losesLastAdmin(email: string, next: { orgId: string | null; role: string; status: string } | null): Promise<boolean> {
+  const [cur] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+  if (!cur?.orgId || cur.role !== 'admin' || cur.status !== 'active') return false
+  if (next && next.orgId === cur.orgId && next.role === 'admin' && next.status === 'active') return false
+  const admins = await db.select({ email: users.email }).from(users)
+    .where(and(eq(users.orgId, cur.orgId), eq(users.role, 'admin'), eq(users.status, 'active')))
+  return admins.every((a) => a.email === email)
+}
+
 function isAdmin(role: string): boolean {
   return role === 'admin' || role === 'super_admin'
 }
@@ -236,6 +248,11 @@ const handleRequest = async (req: Request) => {
       }
       const id: string = assign.id || `usr_${crypto.randomUUID()}`
       const status = assign.status ?? 'active'
+      // An organisation must keep one moderator (an active Administrator): someone else is made
+      // Administrator first. The Super Admin is the safety net and may override.
+      if (caller.role !== 'super_admin' && (await losesLastAdmin(email, { orgId: assign.orgId ?? null, role, status }))) {
+        return Response.json({ error: LAST_ADMIN }, { status: 409 })
+      }
 
       const [row] = await db
         .insert(users)
@@ -300,6 +317,9 @@ const handleRequest = async (req: Request) => {
         const [target] = await db.select({ orgId: users.orgId }).from(users)
           .where(email ? eq(users.email, email.trim().toLowerCase()) : eq(users.id, id!)).limit(1)
         if (target && !(await mayManage(caller, target.orgId))) return forbidden()
+        const [row] = await db.select({ email: users.email }).from(users)
+          .where(email ? eq(users.email, email.trim().toLowerCase()) : eq(users.id, id!)).limit(1)
+        if (row && (await losesLastAdmin(row.email, null))) return Response.json({ error: LAST_ADMIN }, { status: 409 })
       }
       await db
         .delete(users)
