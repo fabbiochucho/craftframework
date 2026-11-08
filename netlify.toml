@@ -1,6 +1,11 @@
 [build]
   command = "npm run build"
   publish = "dist/client"
+
+# Node 24 for the build and functions (unpdf 2 needs it); matches package.json engines and CI.
+[build.environment]
+  NODE_VERSION = "24"
+
 [dev]
   command = "npm run dev"
   targetPort = 3000
