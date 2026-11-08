@@ -75,7 +75,8 @@ export function isExpectedError(err: unknown): boolean {
 /** Message patterns that are connectivity / browser noise rather than CRAFT bugs. */
 export const IGNORE_ERRORS: Array<string | RegExp> = [
   /^ResizeObserver loop/,
-  /^(Failed to fetch|NetworkError when attempting to fetch resource|Load failed|Network request failed)$/,
+  // Sentry appends the host in brackets, e.g. "NetworkError when attempting to fetch resource. (example.net)".
+  /^(Failed to fetch|NetworkError when attempting to fetch resource|Load failed|Network request failed)\.?( \([^)]*\))?$/,
   /^(AbortError|The operation was aborted|The user aborted a request)/,
   'Non-Error promise rejection captured',
 ]
