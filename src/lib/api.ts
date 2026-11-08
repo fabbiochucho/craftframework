@@ -668,6 +668,13 @@ export async function inviteFunderByEmail(input: { email: string; funderName: st
   }
 }
 
+/** Change an unsent draft's subject line ('' = the standard subject). */
+export async function setInvitationSubject(id: string, subject: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch('/api/invitations', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, subject }) })
+  const body = await res.json().catch(() => ({}))
+  return res.ok ? { ok: true } : { ok: false, error: String(body?.error ?? `Request failed (${res.status})`) }
+}
+
 /** Withdraw a pending invitation (inviter, creator or Super Admin); its link stops working. */
 export async function revokeInvitation(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const res = await fetch('/api/invitations', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, status: 'revoked' }) })

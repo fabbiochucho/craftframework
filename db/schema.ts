@@ -407,6 +407,8 @@ export const invitations = pgTable(
     emailId: text('email_id'),
     // kind 'funder': the funding-partner firm the invitee joins when they accept.
     firmId: text('firm_id'),
+    // Optional subject line written by the inviter; null = the standard subject.
+    subject: text('subject'),
     deliveryStatus: text('delivery_status'),
     deliveryAt: timestamp('delivery_at', { withTimezone: true }),
     // Who created it, when that is not the inviter (the Super Admin inviting on someone's behalf).

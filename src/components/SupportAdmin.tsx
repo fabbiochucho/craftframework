@@ -4,7 +4,7 @@ import { Award, Building, FolderOpen, Handshake, LifeBuoy, Search, Send, Trash }
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from './ui'
 import { BadgeChip } from './AmbassadorBadges'
 import type { Badge as AmbassadorBadge } from '../lib/ambassadors'
-import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, previewInvitation, revokeInvitation, sendInvitation, type Invitation } from '../lib/api'
+import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, previewInvitation, revokeInvitation, sendInvitation, setInvitationSubject, type Invitation } from '../lib/api'
 import { InviteOrganizationWizard } from './InviteOrganizationWizard'
 import { InviteFunderCard } from './InviteFunder'
 import { useAuthCtx } from '../lib/context'
@@ -347,13 +347,25 @@ export function DraftInvitations({ all = false }: { all?: boolean }) {
 /** The invitation email exactly as it will be sent, in a sandboxed frame. */
 function InvitationPreview({ id }: { id: string }) {
   const [p, setP] = useState<Awaited<ReturnType<typeof previewInvitation>> | null>(null)
-  useEffect(() => { void previewInvitation(id).then(setP) }, [id])
+  const [subject, setSubject] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const reload = () => void previewInvitation(id).then(setP)
+  useEffect(reload, [id])
   if (!p) return <p className="mt-2 text-xs text-slate-500">Loading preview…</p>
   if ('error' in p) return <p role="alert" className="mt-2 text-xs text-rose-700">{p.error}</p>
   return (
     <div className="mt-2 space-y-1 rounded border border-slate-200 p-2">
       <p className="text-xs text-slate-600"><strong>To:</strong> {p.to} · <strong>Replies go to:</strong> {p.replyTo ?? 'the CRAFT sender address'}</p>
-      <p className="text-xs text-slate-600"><strong>Subject:</strong> {p.subject}</p>
+      {subject === null ? (
+        <p className="text-xs text-slate-600"><strong>Subject:</strong> {p.subject} <button type="button" className="ml-1 text-emerald-700 underline" onClick={() => setSubject(p.subject)}>Edit</button></p>
+      ) : (
+        <form className="flex flex-wrap items-end gap-2" onSubmit={async (e) => { e.preventDefault(); const out = await setInvitationSubject(id, subject); if (out.ok) { setSubject(null); setErr(null); reload() } else setErr(out.error) }}>
+          <Input label="Subject (leave empty for the standard one)" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Button size="sm" type="submit">Save subject</Button>
+          <Button size="sm" type="button" variant="outline" onClick={() => setSubject(null)}>Cancel</Button>
+        </form>
+      )}
+      {err && <p role="alert" className="text-xs text-rose-700">{err}</p>}
       <iframe title="Invitation email preview" sandbox="" srcDoc={p.html} className="h-[28rem] w-full rounded border border-slate-100 bg-white" />
     </div>
   )
