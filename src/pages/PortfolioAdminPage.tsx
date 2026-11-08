@@ -1,3 +1,5 @@
+import { InviteFunderCard } from '../components/InviteFunder'
+import { DraftInvitations, SentInvitations } from '../components/SupportAdmin'
 import { useMemo, useState } from 'react'
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -218,6 +220,11 @@ export function PortfolioAdminPage() {
           }}
         />
       )}
+
+      {/* Funders (e.g. GIZ): one shared account, an invitation per person; organisations consent per funder review. */}
+      {currentUser && !currentUser.isDemo && <InviteFunderCard />}
+      {currentUser && !currentUser.isDemo && <DraftInvitations />}
+      {currentUser && !currentUser.isDemo && <SentInvitations />}
 
       {/* Build surface - register institutions and group them into portfolios */}
       <div className="grid gap-6 lg:grid-cols-2">

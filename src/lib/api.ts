@@ -630,7 +630,7 @@ export interface Invitation {
   scopeLabel: string
   message?: string
   /** 'member' = join an existing organisation; 'organization' = bring an institution onto CRAFT. */
-  kind?: 'member' | 'organization'
+  kind?: 'member' | 'organization' | 'funder'
   orgId?: string
   orgName?: string
   /** organization: what accepting sets up, in plain words. */
@@ -655,6 +655,17 @@ export async function previewInvitation(id: string): Promise<{ subject: string; 
   const res = await fetch(`/api/invitations?preview=${encodeURIComponent(id)}`, { cache: 'no-store' })
   const body = await res.json().catch(() => ({}))
   return res.ok ? body : { error: String(body?.error ?? `Request failed (${res.status})`) }
+}
+
+/** Invite a funding partner's staff member into the funder's one shared account (e.g. GIZ). Draft unless `send`. */
+export async function inviteFunderByEmail(input: { email: string; funderName: string; inviteeName?: string; message?: string; send?: boolean; onBehalfOf?: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = await fetch('/api/invitations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'funder', ...input }) })
+    const body = await res.json().catch(() => ({}))
+    return res.ok ? { ok: true } : { ok: false, error: String(body?.error ?? `Request failed (${res.status})`) }
+  } catch {
+    return { ok: false, error: 'Network error. Please try again.' }
+  }
 }
 
 /** Withdraw a pending invitation (inviter, creator or Super Admin); its link stops working. */
