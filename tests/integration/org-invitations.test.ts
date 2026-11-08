@@ -211,4 +211,16 @@ describe('invitations by email', () => {
     assert.equal(own.body.to, NEWCO)
     assert.equal((await preview(ADMIN_B)).status, 403)
   })
+
+  it("a draft's subject line can be changed by its creator before it is sent", async () => {
+    const inv = await invite(ADMIN_A, { kind: 'organization', email: NEWCO, orgName: 'NewCo', send: false })
+    const setSubject = (email: string, subject: string) => call(invitations, email, 'PATCH', 'invitations', { id: inv.body.id, subject })
+    assert.equal((await setSubject(ADMIN_B, 'x')).status, 403)
+    assert.equal((await setSubject(ADMIN_A, 'GIZ Supported OCA Tool Administration')).status, 200)
+    const p = await call(invitations, ADMIN_A, 'GET', `invitations?preview=${inv.body.id}`)
+    assert.equal(p.body.subject, 'GIZ Supported OCA Tool Administration')
+    assert.match(p.body.html, /<title>GIZ Supported OCA Tool Administration<\/title>/)
+    assert.equal((await setSubject(ADMIN_A, '')).status, 200)
+    assert.match((await call(invitations, ADMIN_A, 'GET', `invitations?preview=${inv.body.id}`)).body.subject, /NewCo/, 'empty restores the standard subject')
+  })
 })

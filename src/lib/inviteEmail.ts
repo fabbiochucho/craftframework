@@ -22,6 +22,8 @@ export interface WelcomeEmailInput {
   acceptUrl?: string
   /** 'organization' = bring your institution onto CRAFT in its own workspace; 'funder' = join a funding partner's shared account. Default 'member'. */
   kind?: 'member' | 'organization' | 'funder'
+  /** A subject line the inviter wrote; replaces the standard one. */
+  subject?: string
   /** organization: the institution name the inviter typed. */
   orgName?: string
   /** organization: the type the inviter chose, e.g. "Civil Society · NGO · Nigeria". */
@@ -111,10 +113,10 @@ export function buildWelcomeEmail(input: WelcomeEmailInput): { subject: string; 
   const level = getViewLevel(input.role)
   const org = isOrgInvite(input)
   const funder = input.kind === 'funder'
-  const subject = org
+  const subject = input.subject?.trim() || (org
     ? `${input.inviterName} invited ${input.orgName || 'your institution'} to ${BRAND.product}`
     : funder ? `${input.inviterName} invited you to join ${input.scopeLabel || 'your organisation'} on ${BRAND.product} as a funding partner`
-    : `${input.inviterName} invited you to ${BRAND.product}: ${level.label}`
+    : `${input.inviterName} invited you to ${BRAND.product}: ${level.label}`)
   const divider = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
   const days = input.expiresInDays ?? 7
   const messageBlock = input.message?.trim() ? `\nA note from ${input.inviterName}:\n"${input.message.trim()}"\n` : ''

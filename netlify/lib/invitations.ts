@@ -144,6 +144,7 @@ export async function renderInvitationEmail(inv: InvitationRow, actor: string) {
     siteUrl: publicBaseUrl(),
     // Sent by someone else (e.g. the CRAFT team) on the inviter's behalf.
     sentOnBehalf: !!inv.inviter && actor !== inv.inviter,
+    subject: inv.subject ?? undefined,
   } as const
   // Replies reach the person who sent the invitation.
   const replyTo = inv.inviter && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inv.inviter) ? inv.inviter : undefined

@@ -39,6 +39,8 @@ const createSchema = z.object({
   // Send the email now (the client used to call /api/send-invite separately). Organisation invitations
   // default to sending; send: false holds them as drafts to send later.
   send: z.boolean().optional(),
+  // A subject line written by the inviter (null = the standard subject).
+  subject: z.string().trim().max(200).refine((v) => !NAME_CTRL.test(v), 'The subject must not contain control characters').nullish(),
   // Super Admin: invite in someone else's name (they become the inviter; replies go to them).
   onBehalfOf: z.string().trim().toLowerCase().email().max(320).nullish(),
   // organization: 'independent_assessor' names the inviter the organisation's independent assessor.
@@ -234,6 +236,21 @@ const handleRequest = async (req: Request) => {
     if (req.method === 'PATCH') {
       if (await overLimit(`invitation-token:${clientIp(req)}`, TOKEN_LIMIT_PER_MINUTE)) return tooMany()
       const body = await req.json().catch(() => ({}))
+      // { id, subject }: the inviter, whoever created it, or the Super Admin edits a draft's subject line.
+      if (body.id && !body.token && body.subject !== undefined && body.status === undefined) {
+        const caller = await resolveCaller()
+        if (!caller) return unauthorized()
+        const mfaBlock = await mfaRequired(req, caller)
+        if (mfaBlock) return mfaBlock
+        const subject = typeof body.subject === 'string' ? body.subject.trim().slice(0, 200) : ''
+        if (NAME_CTRL.test(subject)) return bad('The subject must not contain control characters')
+        const [inv] = await db.select().from(invitations).where(eq(invitations.id, String(body.id)))
+        if (!inv || inv.status !== 'pending' || inv.sentAt) return Response.json({ error: 'Only an unsent draft can be edited' }, { status: 409 })
+        if (caller.readOnly || (caller.role !== 'super_admin' && caller.email !== inv.inviter && caller.email !== inv.createdBy)) return forbidden()
+        await db.update(invitations).set({ subject: subject || null }).where(eq(invitations.id, inv.id))
+        await audit(caller.email, 'Edited invitation subject', `${inv.id} · ${subject || '(standard)'}`)
+        return Response.json({ id: inv.id, subject: subject || null })
+      }
       // { id, status: 'revoked' }: the inviter, whoever created it, or the Super Admin withdraws a pending invitation.
       if (body.id && !body.token) {
         const caller = await resolveCaller()
