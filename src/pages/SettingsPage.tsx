@@ -41,7 +41,7 @@ export function SettingsPage() {
   const { portfolios } = useWorkspace()
   const { activeLenses, setLensActive, mandatoryLenses } = useLensCtx()
   const { entityProfile, setEntityProfile } = useEntityProfileCtx()
-  const { accessGrants, revokeAccess, firm, createFirmEntity, addFirmSeat, removeFirmSeat } = useAccessCtx()
+  const { accessGrants, revokeAccess, firm, createFirmEntity, addFirmSeat, removeFirmSeat, setFirmModerator } = useAccessCtx()
   const [tab, setTab] = useState('profile')
   const [toast, setToast] = useState<string | null>(null)
   // Firm seat + new-firm form state (Phase 5).
@@ -556,8 +556,14 @@ export function SettingsPage() {
                         <div key={m.email} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-100 p-3">
                           <div>
                             <p className="text-sm font-semibold text-slate-800">{m.email}</p>
-                            <p className="text-xs capitalize text-slate-500">{m.role}</p>
+                            <p className="text-xs text-slate-500">{m.role === 'owner' ? 'Moderator' : 'Member'}</p>
                           </div>
+                          {firm.members.some(x => x.email === currentUser?.email && x.role === 'owner') && m.status === 'active' && (
+                            <Button size="sm" variant="ghost" onClick={async () => {
+                              const err = await setFirmModerator(m.email, m.role !== 'owner')
+                              setToast(err ?? (m.role === 'owner' ? `${m.email} is no longer a moderator.` : `${m.email} is now a moderator.`))
+                            }}>{m.role === 'owner' ? 'Remove as moderator' : 'Make moderator'}</Button>
+                          )}
                           {m.role !== 'owner' && (
                             <button
                               onClick={() => { removeFirmSeat(m.email); setToast(`Removed ${m.email} from the firm.`) }}

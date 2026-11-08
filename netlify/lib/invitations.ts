@@ -250,6 +250,7 @@ export async function inviteOrganization(caller: Caller, input: {
   email: string; orgName: string; inviteeName?: string | null; message?: string | null
   portfolioId?: string | null; engagement?: Record<string, unknown> | null; networkNodeId?: string | null
   orgType?: OrgType | null
+  subject?: string | null
   /** Hold as a draft (default: send now). */
   send?: boolean
   /** Super Admin: create it in someone else's name (they are the inviter; replies go to them). */
@@ -261,7 +262,7 @@ export async function inviteOrganization(caller: Caller, input: {
   const send = input.send !== false
   const invitation = await insertInvitation({
     kind: 'organization', email: input.email, orgName: input.orgName.trim(), inviter: inviter.email, inviterName: inviter.name,
-    createdBy: caller.email, grantRole: input.grantRole ?? null,
+    createdBy: caller.email, grantRole: input.grantRole ?? null, subject: input.subject || null,
     inviteeName: input.inviteeName || null, message: input.message || null, role: 'admin', scopeLabel: input.orgName.trim(),
     portfolioId: input.portfolioId ?? null, engagement: input.engagement ?? null, networkNodeId: input.networkNodeId ?? null,
     orgArchetype: input.orgType?.archetype ?? null, orgSector: input.orgType?.sector ?? null, orgCountry: input.orgType?.country ?? null,
@@ -447,7 +448,7 @@ export async function funderFirmFor(caller: Caller, inviterEmail: string, name: 
 
 /** Create a funder invitation (draft unless `send`). */
 export async function inviteFunder(caller: Caller, input: {
-  email: string; inviteeName?: string | null; message?: string | null; firm: { id: string; name: string }
+  email: string; inviteeName?: string | null; message?: string | null; subject?: string | null; firm: { id: string; name: string }
   send?: boolean; onBehalfOf?: { email: string; name: string } | null
 }): Promise<{ invitation: InvitationRow; email: Outcome }> {
   const inviter = input.onBehalfOf ?? { email: caller.email, name: caller.name }
@@ -455,7 +456,7 @@ export async function inviteFunder(caller: Caller, input: {
   const invitation = await insertInvitation({
     kind: 'funder', email: input.email, inviter: inviter.email, inviterName: inviter.name, createdBy: caller.email,
     inviteeName: input.inviteeName || null, message: input.message || null, role: 'portfolio', scopeLabel: input.firm.name,
-    firmId: input.firm.id, days: send ? ORG_INVITE_DAYS : 90,
+    firmId: input.firm.id, subject: input.subject || null, days: send ? ORG_INVITE_DAYS : 90,
   })
   await audit(caller.email, `${send ? 'Invited' : 'Drafted invitation for'} funder staff${input.onBehalfOf ? ` on behalf of ${inviter.email}` : ''}`, `${invitation.id} · ${input.firm.name}`)
   if (!send) return { invitation, email: { status: 200, body: { dispatched: false, reason: 'draft' } } }

@@ -202,6 +202,8 @@ interface AccessContextType {
   createFirmEntity: (name: string) => void
   addFirmSeat: (email: string, role?: 'owner' | 'consultant') => void
   removeFirmSeat: (email: string) => void
+  /** Make a member the firm's moderator (owner) or not; resolves with an error message if refused. */
+  setFirmModerator: (email: string, moderator: boolean) => Promise<string | null>
 }
 
 interface CIPContextType {
@@ -1212,6 +1214,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [appendAudit, currentUser, firm],
   )
 
+  const setFirmModerator = useCallback(
+    async (email: string, moderator: boolean): Promise<string | null> => {
+      if (!firm || !currentUser || currentUser.isDemo) return 'Not available'
+      const role = moderator ? 'owner' : 'consultant'
+      const out = await api.setFirmSeatRole(firm.id, email, role)
+      if (!out.ok) return out.error
+      setFirm(prev => (prev ? { ...prev, members: prev.members.map(m => (m.email === email ? { ...m, role } : m)) } : prev))
+      appendAudit(currentUser.email, moderator ? 'Made firm moderator' : 'Removed firm moderator', email, 'Auth')
+      return null
+    },
+    [appendAudit, currentUser, firm],
+  )
+
   // Resolve the current organization. Demo sessions map onto a sample tenant;
   // live sessions synthesize a workspace scoped to the signed-in institution.
   // When a reviewer has drilled into a client, resolve to that client's org so
@@ -1282,9 +1297,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const accessValue = useMemo<AccessContextType>(
     () => ({
       accessGrants, grantAccess, revokeAccess, sentInvitations,
-      firm, createFirmEntity, addFirmSeat, removeFirmSeat,
+      firm, createFirmEntity, addFirmSeat, removeFirmSeat, setFirmModerator,
     }),
-    [accessGrants, grantAccess, revokeAccess, sentInvitations, firm, createFirmEntity, addFirmSeat, removeFirmSeat],
+    [accessGrants, grantAccess, revokeAccess, sentInvitations, firm, createFirmEntity, addFirmSeat, removeFirmSeat, setFirmModerator],
   )
 
   const cipValue = useMemo<CIPContextType>(

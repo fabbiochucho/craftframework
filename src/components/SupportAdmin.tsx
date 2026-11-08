@@ -268,7 +268,7 @@ export function InviteForAssessor() {
             defaultMessage={ONBOARDING_NOTE}
             onSend={async (v) => {
               const out = await inviteOrganizationByEmail({
-                email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined,
+                email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined, subject: v.subject || undefined,
                 orgArchetype: v.orgArchetype || undefined, orgSector: v.orgSector || undefined, orgCountry: v.orgCountry || undefined,
                 send: v.send, onBehalfOf: assessor.trim().toLowerCase(), grantRole: 'independent_assessor',
               })

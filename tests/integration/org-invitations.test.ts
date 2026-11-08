@@ -223,4 +223,10 @@ describe('invitations by email', () => {
     assert.equal((await setSubject(ADMIN_A, '')).status, 200)
     assert.match((await call(invitations, ADMIN_A, 'GET', `invitations?preview=${inv.body.id}`)).body.subject, /NewCo/, 'empty restores the standard subject')
   })
+
+  it('a subject line can be given when the invitation is created', async () => {
+    const inv = await invite(ADMIN_A, { kind: 'organization', email: NEWCO, orgName: 'NewCo', subject: 'Join our OCA', send: false })
+    assert.equal(inv.status, 201, inv.text)
+    assert.equal((await call(invitations, ADMIN_A, 'GET', `invitations?preview=${inv.body.id}`)).body.subject, 'Join our OCA')
+  })
 })

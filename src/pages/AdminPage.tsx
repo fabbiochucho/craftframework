@@ -636,7 +636,7 @@ export function AdminPage() {
               inviterEmail={currentUser.email}
               onSend={async (v) => {
                 const out = await api.inviteOrganizationByEmail({
-                  email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined,
+                  email: v.email, orgName: v.orgName, inviteeName: v.inviteeName || undefined, message: v.message || undefined, subject: v.subject || undefined,
                   orgArchetype: v.orgArchetype || undefined, orgSector: v.orgSector || undefined, orgCountry: v.orgCountry || undefined,
                 })
                 return out.ok ? { ok: true } : { ok: false, error: out.error }

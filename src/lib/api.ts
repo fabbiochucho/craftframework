@@ -658,7 +658,7 @@ export async function previewInvitation(id: string): Promise<{ subject: string; 
 }
 
 /** Invite a funding partner's staff member into the funder's one shared account (e.g. GIZ). Draft unless `send`. */
-export async function inviteFunderByEmail(input: { email: string; funderName: string; inviteeName?: string; message?: string; send?: boolean; onBehalfOf?: string }): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function inviteFunderByEmail(input: { email: string; funderName: string; inviteeName?: string; message?: string; subject?: string; send?: boolean; onBehalfOf?: string }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const res = await fetch('/api/invitations', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'funder', ...input }) })
     const body = await res.json().catch(() => ({}))
@@ -766,6 +766,8 @@ export async function inviteOrganizationByEmail(input: {
   orgName: string
   inviteeName?: string
   message?: string
+  /** Subject line; omitted = the standard one. */
+  subject?: string
   portfolioId?: string
   orgArchetype?: string
   orgSector?: string
@@ -878,6 +880,13 @@ export function saveFirmMember(input: {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
   }).catch((err) => console.warn('[api] saveFirmMember failed', err))
+}
+
+/** Make a firm member its moderator (owner) or not. The server keeps at least one moderator. */
+export async function setFirmSeatRole(firmId: string, email: string, role: 'owner' | 'consultant'): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch('/api/firms', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firmId, email, role }) })
+  const body = await res.json().catch(() => ({}))
+  return res.ok ? { ok: true } : { ok: false, error: String(body?.error ?? `Request failed (${res.status})`) }
 }
 
 export function deleteFirmMember(firmId: string, email: string): void {
