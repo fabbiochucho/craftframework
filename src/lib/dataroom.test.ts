@@ -44,5 +44,5 @@ for (const c of ['NG', 'KE', 'SN', 'ZA', 'CV']) {
 assert.ok(!hcIds(generateChecklist('Civil Society', 'NG', 'NGO', 'Education')).some((i) => i.startsWith('HC-')), 'not for an education NGO')
 assert.ok(!hcIds(generateChecklist('Private', 'NG', 'Healthtech', 'Health Insurance / HMO')).includes('HC-FACILITY-PS'), 'an insurer has no facility licence')
 assert.ok(hcIds(generateChecklist('Private', 'GH', 'Fintech', '')).includes('INV-MODEL'), 'investment readiness for any sector')
-assert.deepEqual(['CRL-3D', 'CRL-5D', 'CRL-5E'].map((id) => LADDER_INDICATORS.find((q) => q.id === id)?.level), [3, 5, 5])
+assert.deepEqual(['CRL-3D', 'CRL-5D', 'CRL-5E', 'CRL-5F'].map((id) => LADDER_INDICATORS.find((q) => q.id === id)?.level), [3, 5, 5, 5])
 console.log('dataroom.test.ts: healthcare and investment readiness passed')

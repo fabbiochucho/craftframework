@@ -243,7 +243,7 @@ export const LADDER_INDICATORS: LadderIndicator[] = [
       4: 'The case has been tested or validated against real performance data.',
       5: 'The investment case has been independently reviewed (e.g. by an advisor or prior investor).',
     },
-    evidence: 'Business/investment case document, financial model, revenue data.',
+    evidence: 'Business/investment case document, financial model, revenue data, market size worked out from the number of reachable buyers or payers and realistic contract values, with sources.',
     recommendation: 'Put the revenue model on one page with your actual historical numbers, not projections alone - credibility beats ambition at this stage.',
     ladderRelevance: 'This is the first rung where the question shifts from "is this institution sound" to "would I put capital into it".',
   },
@@ -302,6 +302,20 @@ export const LADDER_INDICATORS: LadderIndicator[] = [
     evidence: 'Data room index, reconciled presentation and model, known-risks register, reference list.',
     recommendation: 'Review the institution as a sceptical financier would before the first meeting, and disclose every known gap before anyone finds it.',
     ladderRelevance: 'Diligence is where financings stall; a surprise the financier finds before it is disclosed often ends the conversation.',
+  },
+  {
+    id: 'CRL-5F', level: 5, domain: 'Unit Economics & Revenue Quality',
+    question: 'Does each unit of service or sale earn more than it costs, and how dependable is the revenue behind the plan?',
+    soe: {
+      0: 'Costs and income per unit are not known.', 1: 'An overall margin is known, but not per unit or per revenue line.',
+      2: 'Margin per unit is calculated, but acquisition and onboarding costs are left out, or revenue is not split by type.',
+      3: 'Fully loaded cost and margin per unit are known by revenue line, and revenue is split into contracted, recurring, one-off, pilot and grant.',
+      4: 'Dependence on the largest customers, payers or funders is measured, retention is tracked by cohort, and pilots are tracked to signed contracts.',
+      5: 'Revenue quality has improved over at least two years: less concentration, more contracted or recurring income, and margins that hold as volume grows.',
+    },
+    evidence: 'Unit economics by revenue line, revenue by customer, payer or funder, retention by cohort, pilot-to-contract list.',
+    recommendation: 'Pick the unit that matches how you are paid (per client, site, contract or member) and show its full cost, including sales and onboarding, before quoting any blended ratio.',
+    ladderRelevance: 'Two institutions with the same income can be worth very different amounts: financiers value income that is contracted, diversified and profitable per unit, and discount pilots and one-off grants.',
   },
 
   // --- Level 6: Scale & Institutionalization ---------------------------------

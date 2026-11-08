@@ -73,6 +73,7 @@ export const LADDER_DOMAIN_REFS = table({
   'Investor Protections & Regulatory Certainty': 'ifc-cgdf:SHAREHOLDERS nccg-2018:SHAREHOLDERS',
   'Funding Ask, Use of Funds & Milestones': 'bsc:FINANCIAL gfa:TOOL',
   'Diligence Readiness & Disclosure': 'ifc-cgdf:DISCLOSURE coso-erm:PF',
+  'Unit Economics & Revenue Quality': 'bsc:FINANCIAL gfa:TOOL',
   'Institutional Depth & Systems': 'mck-7s:SYSTEMS star-model:PROCESSES',
   'Data & Controls Maturity': 'coso-ic:IC iso-27001:MS',
   'Replicability & Partnerships': 'mck-ohi:EXTERNAL',
