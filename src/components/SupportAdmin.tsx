@@ -4,7 +4,7 @@ import { Award, Building, FolderOpen, Handshake, LifeBuoy, Search, Send, Trash }
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from './ui'
 import { BadgeChip } from './AmbassadorBadges'
 import type { Badge as AmbassadorBadge } from '../lib/ambassadors'
-import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, sendInvitation, type Invitation } from '../lib/api'
+import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, previewInvitation, revokeInvitation, sendInvitation, type Invitation } from '../lib/api'
 import { InviteOrganizationWizard } from './InviteOrganizationWizard'
 import { useAuthCtx } from '../lib/context'
 
@@ -280,11 +280,13 @@ export function InviteForAssessor() {
   )
 }
 
-/** Invitations saved as drafts, with Send and Send all. Super Admin sees all; others see their own. */
+/** Invitations saved as drafts. Each is reviewed (the email exactly as it will be sent) before it can be sent. Super Admin sees all; others see their own. */
 export function DraftInvitations({ all = false }: { all?: boolean }) {
   const [rows, setRows] = useState<Invitation[] | null>(null)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+  const [reviewed, setReviewed] = useState<string[]>([])
   const { currentUser } = useAuthCtx()
   const me = currentUser?.email ?? ''
   useEffect(() => {
@@ -292,43 +294,106 @@ export function DraftInvitations({ all = false }: { all?: boolean }) {
     void (all ? fetchAllInvitations() : fetchInvitations(me)).then((r) => setRows(r.filter((x) => x.status === 'pending' && !x.sentAt)), () => setRows([]))
   }, [all, me])
   if (!rows || !rows.length) return null
-  const sendOne = async (inv: Invitation) => {
-    const out = await sendInvitation(inv.id)
-    if (out.ok) setRows((prev) => (prev ?? []).filter((x) => x.id !== inv.id))
-    return out
-  }
-  const sendAll = async () => {
-    setBusy('all'); setMsg(null)
-    let ok = 0
-    const failed: string[] = []
-    for (const inv of rows) {
-      const out = await sendOne(inv)
-      if (out.ok) ok += 1
-      else failed.push(`${inv.orgName || inv.email}: ${out.error}`)
-    }
+  const act = async (inv: Invitation, what: 'send' | 'delete') => {
+    if (what === 'delete' && !window.confirm(`Delete the draft for ${inv.orgName || inv.email}? It will not be sent.`)) return
+    setBusy(inv.id); setMsg(null)
+    const out = what === 'send' ? await sendInvitation(inv.id) : await revokeInvitation(inv.id)
     setBusy(null)
-    setMsg(failed.length ? { ok: false, text: `Sent ${ok}. Not sent: ${failed.join('; ')}` } : { ok: true, text: `Sent ${ok} invitation${ok === 1 ? '' : 's'}.` })
+    if (out.ok) { setRows((prev) => (prev ?? []).filter((x) => x.id !== inv.id)); setOpen(null) }
+    setMsg(out.ok ? { ok: true, text: what === 'send' ? `Sent to ${inv.email}.` : 'Draft deleted.' } : { ok: false, text: out.error })
   }
   return (
     <Card className="border-amber-200">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Send className="h-4 w-4 text-amber-600" /> Invitations waiting to be sent ({rows.length})</CardTitle>
-        <p className="text-sm text-slate-500">Drafts are not emailed until you send them. Each invitation is valid for 14 days from sending.</p>
+        <p className="text-sm text-slate-500">Drafts are not emailed until you send them. Open <strong>Review</strong> to see each email exactly as the recipient will get it; it can be sent once reviewed. Each invitation is valid for 14 days from sending.</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Button size="sm" disabled={!!busy} onClick={() => void sendAll()}><Send className="h-4 w-4" /> {busy === 'all' ? 'Sending…' : `Send all ${rows.length}`}</Button>
         {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-sm text-emerald-700' : 'text-sm text-rose-700'}>{msg.text}</p>}
         <ul className="divide-y divide-slate-100">
           {rows.map((inv) => (
-            <li key={inv.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
-              <span className="font-medium text-slate-900">{inv.orgName || inv.email}</span>
-              <span className="text-xs text-slate-500">{inv.email} · from {inv.inviter}{inv.link === 'independent_assessor' ? ' (independent assessor)' : inv.link ? ` · ${inv.link}` : ''}</span>
-              <Button size="sm" variant="outline" className="ml-auto" disabled={!!busy}
-                onClick={async () => { setBusy(inv.id); setMsg(null); const out = await sendOne(inv); setBusy(null); setMsg(out.ok ? { ok: true, text: `Sent to ${inv.email}.` } : { ok: false, text: out.error }) }}>
-                {busy === inv.id ? 'Sending…' : 'Send'}
-              </Button>
+            <li key={inv.id} className="py-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-slate-900">{inv.orgName || inv.email}</span>
+                <span className="text-xs text-slate-500">{inv.email} · from {inv.inviter}{inv.link === 'independent_assessor' ? ' (independent assessor)' : inv.link ? ` · ${inv.link}` : ''}</span>
+                <span className="ml-auto flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => { setOpen(open === inv.id ? null : inv.id); setReviewed((r) => (r.includes(inv.id) ? r : [...r, inv.id])) }}>{open === inv.id ? 'Close' : 'Review'}</Button>
+                  <Button size="sm" disabled={!!busy || !reviewed.includes(inv.id)} title={reviewed.includes(inv.id) ? undefined : 'Review the email first'} onClick={() => void act(inv, 'send')}>{busy === inv.id ? 'Working…' : 'Send'}</Button>
+                  <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void act(inv, 'delete')}>Delete</Button>
+                </span>
+              </div>
+              {open === inv.id && <InvitationPreview id={inv.id} />}
             </li>
           ))}
+        </ul>
+      </CardContent>
+    </Card>
+  )
+}
+
+/** The invitation email exactly as it will be sent, in a sandboxed frame. */
+function InvitationPreview({ id }: { id: string }) {
+  const [p, setP] = useState<Awaited<ReturnType<typeof previewInvitation>> | null>(null)
+  useEffect(() => { void previewInvitation(id).then(setP) }, [id])
+  if (!p) return <p className="mt-2 text-xs text-slate-500">Loading preview…</p>
+  if ('error' in p) return <p role="alert" className="mt-2 text-xs text-rose-700">{p.error}</p>
+  return (
+    <div className="mt-2 space-y-1 rounded border border-slate-200 p-2">
+      <p className="text-xs text-slate-600"><strong>To:</strong> {p.to} · <strong>Replies go to:</strong> {p.replyTo ?? 'the CRAFT sender address'}</p>
+      <p className="text-xs text-slate-600"><strong>Subject:</strong> {p.subject}</p>
+      <iframe title="Invitation email preview" sandbox="" srcDoc={p.html} className="h-[28rem] w-full rounded border border-slate-100 bg-white" />
+    </div>
+  )
+}
+
+const DELIVERY: Record<string, { label: string; cls: string }> = {
+  accepted: { label: 'Accepted', cls: 'bg-emerald-100 text-emerald-800' },
+  revoked: { label: 'Withdrawn or declined', cls: 'bg-slate-100 text-slate-600' },
+  expired: { label: 'Expired', cls: 'bg-slate-100 text-slate-600' },
+  delivered: { label: 'Delivered', cls: 'bg-sky-100 text-sky-800' },
+  sent: { label: 'Sent', cls: 'bg-slate-100 text-slate-700' },
+  delayed: { label: 'Delivery delayed', cls: 'bg-amber-100 text-amber-800' },
+  bounced: { label: 'Bounced: check the address', cls: 'bg-rose-100 text-rose-800' },
+  complained: { label: 'Marked as spam', cls: 'bg-rose-100 text-rose-800' },
+}
+
+/** Sent invitations with delivery (from Resend) and acceptance; a pending one can be withdrawn. Opens are not tracked. */
+export function SentInvitations({ all = false }: { all?: boolean }) {
+  const [rows, setRows] = useState<Invitation[] | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const { currentUser } = useAuthCtx()
+  const me = currentUser?.email ?? ''
+  const load = () => void (all ? fetchAllInvitations() : fetchInvitations(me)).then((r) => setRows(r.filter((x) => x.sentAt && x.kind !== 'member')), () => setRows([]))
+  useEffect(() => { if (all || me) load() }, [all, me])
+  if (!rows || !rows.length) return null
+  const withdraw = async (inv: Invitation) => {
+    if (!window.confirm(`Withdraw the invitation to ${inv.orgName || inv.email}? Its link will stop working.`)) return
+    const out = await revokeInvitation(inv.id)
+    setMsg(out.ok ? { ok: true, text: 'Invitation withdrawn.' } : { ok: false, text: out.error })
+    if (out.ok) load()
+  }
+  const when = (d?: string) => (d ? new Date(d).toLocaleString() : '')
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Send className="h-4 w-4 text-emerald-600" /> Sent invitations ({rows.length})</CardTitle>
+        <p className="text-sm text-slate-500">Delivery is reported by our email provider. Opens are not tracked. Every event is also in the audit log.</p>
+      </CardHeader>
+      <CardContent>
+        {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-sm text-emerald-700' : 'text-sm text-rose-700'}>{msg.text}</p>}
+        <ul className="divide-y divide-slate-100">
+          {rows.map((inv) => {
+            const d = DELIVERY[inv.status === 'pending' ? inv.deliveryStatus ?? 'sent' : inv.status] ?? DELIVERY.sent
+            return (
+              <li key={inv.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                <span className="font-medium text-slate-900">{inv.orgName || inv.email}</span>
+                <span className="text-xs text-slate-500">{inv.email} · from {inv.inviter} · sent {when(inv.sentAt)}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${d.cls}`}>{d.label}</span>
+                <span className="text-xs text-slate-400">{when(inv.status === 'pending' ? inv.deliveryAt : inv.respondedAt)}</span>
+                {inv.status === 'pending' && <Button size="sm" variant="outline" className="ml-auto" onClick={() => void withdraw(inv)}>Withdraw</Button>}
+              </li>
+            )
+          })}
         </ul>
       </CardContent>
     </Card>

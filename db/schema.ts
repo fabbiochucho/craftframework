@@ -403,6 +403,10 @@ export const invitations = pgTable(
     // First time the email went out (null = a draft held until someone sends it); who sent it.
     sentAt: timestamp('sent_at', { withTimezone: true }),
     sentBy: text('sent_by'),
+    // Resend message id and the latest delivery status its webhook reported (no open tracking).
+    emailId: text('email_id'),
+    deliveryStatus: text('delivery_status'),
+    deliveryAt: timestamp('delivery_at', { withTimezone: true }),
     // Who created it, when that is not the inviter (the Super Admin inviting on someone's behalf).
     createdBy: text('created_by'),
     // organization: the access the organisation gives the inviter on acceptance. null = read-only

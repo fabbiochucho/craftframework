@@ -201,4 +201,14 @@ describe('invitations by email', () => {
     assert.equal((await revoke(SUPER)).status, 404, 'no longer pending')
     assert.notEqual((await accept(NEWCO, await tokenOf(inv.body.id))).status, 200)
   })
+
+  it('a draft can be previewed exactly as it will be sent, by its creator only', async () => {
+    const inv = await invite(ADMIN_A, { kind: 'organization', email: NEWCO, orgName: 'NewCo', send: false })
+    const preview = (email: string) => call(invitations, email, 'GET', `invitations?preview=${inv.body.id}`)
+    const own = await preview(ADMIN_A)
+    assert.equal(own.status, 200, own.text)
+    assert.match(own.body.subject, /NewCo/)
+    assert.equal(own.body.to, NEWCO)
+    assert.equal((await preview(ADMIN_B)).status, 403)
+  })
 })

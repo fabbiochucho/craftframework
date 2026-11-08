@@ -8,7 +8,7 @@ import { logger, monitored } from '../lib/logger.js'
 import { clientIp, overLimit } from '../lib/public-rate-limit.js'
 import {
   acceptInvitation, audit, dispatchInvitationEmail, insertInvitation, invitationPurpose, inviteOrganization, MEMBER_INVITE_DAYS,
-  memberInviteProblem, portfolioManagedBy,
+  memberInviteProblem, portfolioManagedBy, renderInvitationEmail,
 } from '../lib/invitations.js'
 import { parseOrgType } from '../../src/lib/orgType.js'
 
@@ -107,6 +107,15 @@ const handleRequest = async (req: Request) => {
       if (!caller) return unauthorized()
       const mfaBlock = await mfaRequired(req, caller)
       if (mfaBlock) return mfaBlock
+      // ?preview=<id>: the email exactly as it will be sent, for review before sending.
+      const preview = params.get('preview')
+      if (preview) {
+        const [row] = await db.select().from(invitations).where(eq(invitations.id, preview))
+        if (!row) return Response.json({ error: 'Not found' }, { status: 404 })
+        if (caller.role !== 'super_admin' && caller.email !== row.inviter && caller.email !== row.createdBy) return forbidden()
+        const { subject, html, replyTo, to } = await renderInvitationEmail(row, caller.email)
+        return Response.json({ subject, html, replyTo, to })
+      }
       if (inviter) {
         const target = inviter.trim().toLowerCase()
         if (target !== caller.email && caller.role !== 'super_admin') return forbidden()
@@ -132,6 +141,9 @@ const handleRequest = async (req: Request) => {
           link: r.engagement ? 'engagement' : r.networkNodeId ? 'network' : r.portfolioId ? 'portfolio' : r.grantRole ? r.grantRole : undefined,
           sentAt: r.sentAt ?? undefined,
           sentBy: r.sentBy ?? undefined,
+          deliveryStatus: r.deliveryStatus ?? undefined,
+          deliveryAt: r.deliveryAt ?? undefined,
+          respondedAt: r.respondedAt ?? undefined,
           createdBy: r.createdBy ?? undefined,
           message: r.message ?? undefined,
           acceptedOrgId: r.acceptedOrgId ?? undefined,

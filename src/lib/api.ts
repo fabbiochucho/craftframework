@@ -641,9 +641,27 @@ export interface Invitation {
   createdAt?: string
   /** First sent (absent = a draft not sent yet). */
   sentAt?: string
+  /** Latest delivery status from Resend: 'sent' | 'delivered' | 'delayed' | 'bounced' | 'complained'. */
+  deliveryStatus?: string
+  deliveryAt?: string
+  respondedAt?: string
   sentBy?: string
   createdBy?: string
   status: 'pending' | 'accepted' | 'expired' | 'revoked'
+}
+
+/** The invitation email exactly as it will be sent (inviter, creator or Super Admin). */
+export async function previewInvitation(id: string): Promise<{ subject: string; html: string; replyTo?: string; to: string } | { error: string }> {
+  const res = await fetch(`/api/invitations?preview=${encodeURIComponent(id)}`, { cache: 'no-store' })
+  const body = await res.json().catch(() => ({}))
+  return res.ok ? body : { error: String(body?.error ?? `Request failed (${res.status})`) }
+}
+
+/** Withdraw a pending invitation (inviter, creator or Super Admin); its link stops working. */
+export async function revokeInvitation(id: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch('/api/invitations', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id, status: 'revoked' }) })
+  const body = await res.json().catch(() => ({}))
+  return res.ok ? { ok: true } : { ok: false, error: String(body?.error ?? `Request failed (${res.status})`) }
 }
 
 /** Send (or resend) an invitation by id. The caller must be its inviter or the Super Admin. */

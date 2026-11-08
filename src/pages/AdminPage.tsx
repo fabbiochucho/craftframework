@@ -16,7 +16,7 @@ import {
   Table, Thead, Tbody, Th, Td, Input, Button, Toast, Select,
 } from '../components/ui'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
-import { AllOrganisations, DraftInvitations, InviteForAssessor, ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
+import { AllOrganisations, DraftInvitations, InviteForAssessor, SentInvitations, ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
 import * as api from '../lib/api'
 import type { UserDirectoryRow } from '../lib/api'
 import { cn } from '../lib/utils'
@@ -619,6 +619,7 @@ export function AdminPage() {
 
           <DraftInvitations all />
           <InviteForAssessor />
+          <SentInvitations all />
           <SupportFinder />
           <AllOrganisations />
           <ReferralsOverview />
