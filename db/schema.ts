@@ -796,6 +796,13 @@ export const evidenceRequestItems = pgTable(
     sha256: text('sha256'),
     linkedBy: text('linked_by').notNull(),
     linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+    // 'allowed' | 'view_only' | 'requested' | 'declined'. Set by the organisation; the reviewer may ask (with a reason).
+    downloadAccess: text('download_access').notNull().default('view_only'),
+    downloadRequestedBy: text('download_requested_by'),
+    downloadRequestedAt: timestamp('download_requested_at', { withTimezone: true }),
+    downloadReason: text('download_reason').notNull().default(''),
+    downloadDecidedBy: text('download_decided_by'),
+    downloadDecidedAt: timestamp('download_decided_at', { withTimezone: true }),
   },
   (t) => [unique('evidence_request_items_uq').on(t.requestId, t.evidenceId), index('evidence_request_items_request_idx').on(t.requestId)],
 )

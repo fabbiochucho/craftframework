@@ -15,6 +15,7 @@ import {
   assessorSideOf, audit, isSupport, MAX_REQUESTS_PER_ENGAGEMENT, OPEN_STATUSES, requestIsLive, requestLink, sideOf, tellOrganisation, tellRequester,
 } from '../lib/evidence-requests.js'
 import { assessedOrgIds, hasAssessorGrant } from '../lib/independent-assessor.js'
+import { notify } from '../lib/validation-lifecycle.js'
 import { tellSupportAction, wsOrgIdsForLegacyOrg } from '../lib/support.js'
 import { orgContactsFor } from '../lib/validation-lifecycle.js'
 import { HttpError, requireOrgAccess } from '../lib/orgAccess.js'
@@ -40,6 +41,8 @@ import { logger, monitored } from '../lib/logger.js'
 //   POST   /:id/review                       reviewer: { decision: 'accept' | 'more', note? } (a note is required for 'more')
 //   POST   /:id/cancel                       reviewer: withdraw an open request
 //   GET    /:id/items/:evidenceId/download   reviewer in an engagement: the submitted file (audit-logged)
+//   POST   /:id/items/:evidenceId/download-request  reviewer: { reason } ask to download a view-only document
+//   POST   /:id/items/:evidenceId/download-access   organisation: { allow } allow downloading, or view only / decline
 //   GET    /:id/items/:evidenceId/view       reviewer: view-only PDF stamped with the viewer and time (audit-logged);
 //                                            the only way an independent assessor sees a file: never the original
 //
@@ -62,7 +65,9 @@ const createSchema = z.object({
   dueOn: day,
   note: text(2000).optional(),
 }).refine((v) => !!v.engagementId !== !!v.orgId, 'Choose an engagement or an organisation')
-const itemSchema = z.object({ evidenceId: z.number().int().positive() })
+const itemSchema = z.object({ evidenceId: z.number().int().positive(), allowDownload: z.boolean().optional() })
+const askSchema = z.object({ reason: text(1000).pipe(z.string().min(10, 'Say why you need to download it')) })
+const accessSchema = z.object({ allow: z.boolean() })
 const submitSchema = z.object({ note: text(2000).optional() })
 const reviewSchema = z.object({ decision: z.enum(['accept', 'more']), note: text(2000).optional() })
 const cancelSchema = z.object({ reason: text(1000).optional() })
@@ -85,7 +90,10 @@ async function view(rows: EvidenceRequestRow[]) {
     submittedBy: r.submittedBy, submittedAt: r.submittedAt, submissionNote: r.submissionNote,
     reviewedBy: r.reviewedBy, reviewedAt: r.reviewedAt, reviewNote: r.reviewNote,
     items: items.filter((i) => i.requestId === r.id).sort((a, b) => +a.linkedAt - +b.linkedAt)
-      .map((i) => ({ evidenceId: i.evidenceId, name: i.documentName, sha256: i.sha256, linkedBy: i.linkedBy, linkedAt: i.linkedAt })),
+      .map((i) => ({
+        evidenceId: i.evidenceId, name: i.documentName, sha256: i.sha256, linkedBy: i.linkedBy, linkedAt: i.linkedAt,
+        downloadAccess: i.downloadAccess, downloadReason: i.downloadReason, downloadRequestedBy: i.downloadRequestedBy, downloadDecidedBy: i.downloadDecidedBy,
+      })),
   }))
 }
 
@@ -195,10 +203,12 @@ const handleRequest = async (req: Request) => {
       const inserted = await db.insert(evidenceRequestItems).values({
         id: `evri_${crypto.randomUUID()}`, requestId: r.id, evidenceId: ev.id, documentName: ev.documentName,
         sha256: await evidenceSha256(ev.filePath), linkedBy: caller.email,
+        downloadAccess: (p.data.allowDownload ?? !!r.engagementId) ? 'allowed' : 'view_only',
       }).onConflictDoNothing().returning({ id: evidenceRequestItems.id })
       if (inserted.length) {
         const support = isSupport(r, caller)
-        await audit(caller.email, `${support ? 'CRAFT support: ' : ''}linked evidence #${ev.id} (${ev.documentName})`, r.id, r.orgId)
+        const access = (p.data.allowDownload ?? !!r.engagementId) ? 'download allowed' : 'view only'
+        await audit(caller.email, `${support ? 'CRAFT support: ' : ''}linked evidence #${ev.id} (${ev.documentName}), ${access}`, r.id, r.orgId)
         if (support) await tellSupportAction(await orgContactsFor(r.orgId), `Linked "${ev.documentName}" to the evidence request "${r.title}".`, requestLink(r), caller.email)
       }
       return json((await view([r]))[0], inserted.length ? 201 : 200)
@@ -214,13 +224,15 @@ const handleRequest = async (req: Request) => {
     }
     if (sub === 'items' && who && (act === 'download' || act === 'view') && req.method === 'GET') {
       if (side !== 'reviewer') return forbidden()
-      if (act === 'download' && !r.engagementId) return json({ error: 'Evidence for an independent assessment can be viewed on CRAFT, not downloaded' }, 403)
       if (!active) return conflict(inactive)
       if (!['submitted', 'accepted', 'more_needed'].includes(r.status)) return notFound()
       const evidenceId = Number(who)
       if (!Number.isInteger(evidenceId)) return notFound()
       const [link] = await db.select().from(evidenceRequestItems).where(and(eq(evidenceRequestItems.requestId, r.id), eq(evidenceRequestItems.evidenceId, evidenceId)))
       if (!link) return notFound()
+      if (act === 'download' && link.downloadAccess !== 'allowed') {
+        return json({ error: link.downloadAccess === 'requested' ? 'Waiting for the organisation to allow downloading' : 'The organisation has made this document view only. You can ask to download it.' }, 403)
+      }
       const [ev] = await db.select().from(evidenceRegistry).where(and(eq(evidenceRegistry.id, evidenceId), isNull(evidenceRegistry.archivedAt)))
       if (!ev) return json({ error: 'The organisation has removed this document from its registry' }, 410)
       const data = await getStore('evidence').get(ev.filePath, { type: 'arrayBuffer' })
@@ -242,6 +254,45 @@ const handleRequest = async (req: Request) => {
           'x-content-type-options': 'nosniff',
         },
       })
+    }
+    if (sub === 'items' && who && (act === 'download-request' || act === 'download-access') && req.method === 'POST') {
+      const evidenceId = Number(who)
+      if (!Number.isInteger(evidenceId)) return notFound()
+      const [link] = await db.select().from(evidenceRequestItems).where(and(eq(evidenceRequestItems.requestId, r.id), eq(evidenceRequestItems.evidenceId, evidenceId)))
+      if (!link) return notFound()
+      if (!active) return conflict(inactive)
+      const name = (await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, r.orgId)))[0]?.name ?? 'The organisation'
+      if (act === 'download-request') {
+        if (side !== 'reviewer') return forbidden()
+        if (link.downloadAccess === 'allowed') return conflict('You can already download this document')
+        if (link.downloadAccess === 'requested') return conflict('You have already asked; the organisation has been told')
+        const p = askSchema.safeParse(await readBody(req))
+        if (!p.success) return bad(p.error.issues[0]?.message ?? 'Say why you need to download it')
+        await db.update(evidenceRequestItems).set({ downloadAccess: 'requested', downloadRequestedBy: caller.email, downloadRequestedAt: new Date(), downloadReason: p.data.reason })
+          .where(eq(evidenceRequestItems.id, link.id))
+        await audit(caller.email, `asked to download evidence #${evidenceId} (${link.documentName}): ${p.data.reason}`, r.id, r.orgId)
+        await notify(await orgContactsFor(r.orgId), `CRAFT: permission asked to download "${link.documentName}"`,
+          `${caller.email} can view "${link.documentName}" (submitted for "${r.title}") on CRAFT, and asks to download the original file.\n\nTheir reason: ${p.data.reason}\n\n`
+          + `Allow or decline it here (until you allow it, they can only view a copy stamped with their name):\n${requestLink(r)}`, caller.email)
+        return json((await view([r]))[0])
+      }
+      if (side !== 'organization') return forbidden()
+      const p = accessSchema.safeParse(await readBody(req))
+      if (!p.success) return bad('Choose to allow or not')
+      const wasAsked = link.downloadAccess === 'requested'
+      const next = p.data.allow ? 'allowed' : wasAsked ? 'declined' : 'view_only'
+      await db.update(evidenceRequestItems).set({ downloadAccess: next, downloadDecidedBy: caller.email, downloadDecidedAt: new Date() })
+        .where(eq(evidenceRequestItems.id, link.id))
+      const what = { allowed: 'allowed downloading', declined: 'declined the download request for', view_only: 'made view only' }[next]
+      await audit(caller.email, `${isSupport(r, caller) ? 'CRAFT support: ' : ''}${what} evidence #${evidenceId} (${link.documentName})`, r.id, r.orgId)
+      const reviewer = link.downloadRequestedBy ?? r.requestedBy
+      if (wasAsked || next === 'allowed') {
+        await notify([reviewer], `CRAFT: ${name} ${p.data.allow ? 'allowed you to download' : 'declined downloading'} "${link.documentName}"`,
+          p.data.allow
+            ? `${name} allowed you to download "${link.documentName}" (for "${r.title}"). Every download is recorded.\n\n${requestLink(r)}`
+            : `${name} declined your request to download "${link.documentName}". You can still view it on CRAFT.\n\n${requestLink(r)}`)
+      }
+      return json((await view([r]))[0])
     }
     if (sub === 'submit' && req.method === 'POST') {
       if (side !== 'organization') return forbidden()
