@@ -405,6 +405,8 @@ export const invitations = pgTable(
     sentBy: text('sent_by'),
     // Resend message id and the latest delivery status its webhook reported (no open tracking).
     emailId: text('email_id'),
+    // kind 'funder': the funding-partner firm the invitee joins when they accept.
+    firmId: text('firm_id'),
     deliveryStatus: text('delivery_status'),
     deliveryAt: timestamp('delivery_at', { withTimezone: true }),
     // Who created it, when that is not the inviter (the Super Admin inviting on someone's behalf).

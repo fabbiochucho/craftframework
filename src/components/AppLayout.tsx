@@ -20,7 +20,7 @@ import { ShieldCheck, Handshake,
   LayoutDashboard, ClipboardList, Gauge, Briefcase, AlertTriangle, TrendingUp, FileBarChart, Calculator,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
-  BarChart3, Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap,
+  BarChart3, Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap, Send,
 } from 'lucide-react'
 
 // The legacy /api endpoints answer 401 'mfa_required' when the account uses multi-factor sign-in
@@ -73,6 +73,7 @@ const orgNav = [
   { to: '/directory', label: 'Validator Directory', icon: Contact },
   { to: '/training', label: 'Validator Training', icon: GraduationCap },
   { to: '/engagements', label: 'Validation Engagements', icon: Handshake },
+  { to: '/invitations', label: 'Invitations', icon: Send },
   { to: '/validations', label: 'Validations', icon: ShieldCheck },
   { to: '/networks', label: 'Networks', icon: Network },
   { to: '/panel', label: 'Review Panel', icon: Scale },

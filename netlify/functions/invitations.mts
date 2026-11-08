@@ -8,7 +8,7 @@ import { logger, monitored } from '../lib/logger.js'
 import { clientIp, overLimit } from '../lib/public-rate-limit.js'
 import {
   acceptInvitation, audit, dispatchInvitationEmail, insertInvitation, invitationPurpose, inviteOrganization, MEMBER_INVITE_DAYS,
-  memberInviteProblem, portfolioManagedBy, renderInvitationEmail,
+  memberInviteProblem, portfolioManagedBy, renderInvitationEmail, funderFirmFor, inviteFunder,
 } from '../lib/invitations.js'
 import { parseOrgType } from '../../src/lib/orgType.js'
 
@@ -20,7 +20,7 @@ export const inviteeNameSchema = z.string().trim().max(120).refine((v) => !NAME_
 export const inviteMessageSchema = z.string().trim().max(4000).refine((v) => !NOTE_CTRL.test(v), 'message must not contain control characters')
 const orgNameSchema = z.string().trim().min(2, 'Enter the organisation name').max(200).refine((v) => !NAME_CTRL.test(v), 'The organisation name must not contain control characters')
 const createSchema = z.object({
-  kind: z.enum(['member', 'organization']).optional(),
+  kind: z.enum(['member', 'organization', 'funder']).optional(),
   email: z.string().trim().toLowerCase().email('Enter a valid email address').max(320),
   inviteeName: inviteeNameSchema.nullish(),
   message: inviteMessageSchema.nullish(),
@@ -31,6 +31,8 @@ const createSchema = z.object({
   scopeLabel: z.string().trim().max(300).nullish(),
   // organization
   orgName: orgNameSchema.nullish(),
+  // funder: the funding partner the invitee joins (e.g. GIZ); one shared account per funder
+  funderName: orgNameSchema.nullish(),
   orgArchetype: z.string().trim().max(40).nullish(),
   orgSector: z.string().trim().max(80).nullish(),
   orgCountry: z.string().trim().max(8).nullish(),
@@ -99,7 +101,7 @@ const handleRequest = async (req: Request) => {
           message: row.message ?? undefined,
           kind: row.kind,
           orgName: row.orgName ?? undefined,
-          purpose: row.kind === 'organization' && status === 'pending' ? await invitationPurpose(row) : undefined,
+          purpose: row.kind !== 'member' && status === 'pending' ? await invitationPurpose(row) : undefined,
           status,
         })
       }
@@ -164,6 +166,22 @@ const handleRequest = async (req: Request) => {
       if (!parsed.success) return bad(parsed.error.issues[0]?.message ?? 'Invalid invitation')
       const d = parsed.data
 
+      // Funder staff: anyone who can invite (assessors, independent assessors, administrators, portfolio
+      // reviewers) may invite them into a funder account they created or own. Joining shares nothing:
+      // organisations consent per funder review.
+      if (d.kind === 'funder') {
+        if (!d.funderName) return bad('Enter the funding partner (for example GIZ)')
+        let onBehalfOf: { email: string; name: string } | null = null
+        if (d.onBehalfOf && d.onBehalfOf !== caller.email) {
+          if (caller.role !== 'super_admin') return forbidden()
+          const [person] = await db.select().from(users).where(eq(users.email, d.onBehalfOf))
+          onBehalfOf = { email: d.onBehalfOf, name: person?.name || d.onBehalfOf }
+        }
+        const firm = await funderFirmFor(caller, onBehalfOf?.email ?? caller.email, d.funderName)
+        if (firm === 'forbidden') return Response.json({ error: `${d.funderName} is already on CRAFT. Ask one of its staff to invite colleagues.` }, { status: 403 })
+        const { invitation, email } = await inviteFunder(caller, { email: d.email, inviteeName: d.inviteeName, message: d.message, firm, send: d.send, onBehalfOf })
+        return Response.json({ ...invitation, email: email.body }, { status: 201 })
+      }
       if (d.kind === 'organization') {
         if (!d.orgName) return bad('Enter the organisation name')
         const orgType = parseOrgType({ archetype: d.orgArchetype, sector: d.orgSector, country: d.orgCountry })

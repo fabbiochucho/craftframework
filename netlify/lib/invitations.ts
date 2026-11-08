@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto'
 import { and, eq, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import {
-  accessGrants, auditLogs, firmMembers, invitations, networkMembers, networkNodes, networks, organizations, portfolioOrgs, portfolios,
+  accessGrants, auditLogs, firmMembers, firms, invitations, networkMembers, networkNodes, networks, organizations, portfolioOrgs, portfolios,
   rateLimits, users,
 } from '../../db/schema.js'
 import { canAccessOrg, isSuperAdmin, tenantOrgId, type Caller } from './auth.js'
@@ -81,6 +81,9 @@ export async function insertInvitation(values: Omit<typeof invitations.$inferIns
 /** What accepting an organisation invitation sets up, in plain words (shown in the email and on the accept page). */
 export async function invitationPurpose(inv: InvitationRow): Promise<string> {
   const who = inv.inviterName || inv.inviter || 'The inviter'
+  if (inv.kind === 'funder') {
+    return `Adds you to ${inv.scopeLabel || 'your organisation'}'s funding-partner account on CRAFT, shared with your colleagues. You see an organisation's results only when it proposes or accepts a funder review with ${inv.scopeLabel || 'you'}: nothing is shared without its consent.`
+  }
   if (inv.engagement) {
     const type = (inv.engagement as { type?: string }).type
     return type === 'funder_review'
@@ -123,7 +126,7 @@ const sendAudit = (actor: string, invitationId: string, outcome: string) => audi
 
 /** The email exactly as it will be sent: subject, HTML, text and reply-to. Shared by sending and the draft preview. */
 export async function renderInvitationEmail(inv: InvitationRow, actor: string) {
-  const kind = inv.kind === 'organization' ? 'organization' : 'member'
+  const kind = inv.kind === 'organization' ? 'organization' : inv.kind === 'funder' ? 'funder' : 'member'
   const input = {
     name: inv.inviteeName ?? '',
     email: inv.email,
@@ -136,8 +139,8 @@ export async function renderInvitationEmail(inv: InvitationRow, actor: string) {
     kind,
     orgName: inv.orgName ?? undefined,
     orgType: describeOrgType({ archetype: inv.orgArchetype, sector: inv.orgSector, country: inv.orgCountry }) || undefined,
-    purpose: kind === 'organization' ? await invitationPurpose(inv) : undefined,
-    expiresInDays: kind === 'organization' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS,
+    purpose: kind !== 'member' ? await invitationPurpose(inv) : undefined,
+    expiresInDays: kind !== 'member' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS,
     siteUrl: publicBaseUrl(),
     // Sent by someone else (e.g. the CRAFT team) on the inviter's behalf.
     sentOnBehalf: !!inv.inviter && actor !== inv.inviter,
@@ -156,7 +159,7 @@ export async function renderInvitationEmail(inv: InvitationRow, actor: string) {
  */
 export async function dispatchInvitationEmail(inv: InvitationRow, actor: string): Promise<Outcome> {
   // A draft's validity starts when it is first sent.
-  const days = inv.kind === 'organization' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS
+  const days = inv.kind !== 'member' ? ORG_INVITE_DAYS : MEMBER_INVITE_DAYS
   // (Only while the draft itself is still within its hold; an expired draft stays expired.)
   if (!inv.sentAt && inv.status === 'pending' && inv.expiresAt && new Date(inv.expiresAt).getTime() > Date.now()) {
     const [fresh] = await db.update(invitations).set({ expiresAt: new Date(Date.now() + days * DAY_MS) }).where(eq(invitations.id, inv.id)).returning()
@@ -295,6 +298,7 @@ export async function acceptInvitation(caller: Caller, token: string, orgNameInp
     .where(and(eq(invitations.id, inv.id), eq(invitations.status, 'pending'))).returning()
   if (!claimed) return gone()
 
+  if (inv.kind === 'funder') return acceptFunder(inv, caller)
   if (inv.kind !== 'organization') {
     const orgId = inv.orgId ?? (inv.inviter ? await inviterOrgId(inv.inviter) : caller.orgId)
     const role = (ASSIGNABLE_ROLES as readonly string[]).includes(inv.role) ? inv.role : 'assessor'
@@ -379,4 +383,59 @@ export async function acceptInvitation(caller: Caller, token: string, orgNameInp
   await audit(caller.email, 'Accepted organisation invitation', inv.id, orgId)
   await tellInviter(inv, caller, org?.name ?? orgName)
   return { status: 200, body }
+}
+
+// ---------------------------------------------------------------------------------------------------
+// Funder invitations: staff of a funding partner (e.g. GIZ) join ONE shared funding-partner firm, each
+// with their own invitation. Joining gives no access to any organisation: an organisation shares its
+// results with the funder only through a funder review it proposes or accepts (engagements).
+
+/**
+ * The funding-partner firm `name` names, created if new. Only its creator (while no one has joined),
+ * its owners or the Super Admin may invite staff into an existing one, so nobody can add themselves to
+ * a funder by typing its name.
+ */
+export async function funderFirmFor(caller: Caller, inviterEmail: string, name: string): Promise<{ id: string; name: string } | 'forbidden'> {
+  const wanted = name.trim().replace(/\s+/g, ' ')
+  const all = await db.select().from(firms).where(eq(firms.kind, 'funding_partner'))
+  const firm = all.find((f) => f.name.trim().toLowerCase() === wanted.toLowerCase())
+  if (!firm) {
+    const [created] = await db.insert(firms).values({ id: `firm_${crypto.randomUUID()}`, name: wanted, kind: 'funding_partner', createdBy: inviterEmail }).returning()
+    await audit(caller.email, 'Created funding-partner account for invitations', `${created.id} · ${wanted}`)
+    return { id: created.id, name: created.name }
+  }
+  if (isSuperAdmin(caller.email)) return { id: firm.id, name: firm.name }
+  const seats = await db.select().from(firmMembers).where(eq(firmMembers.firmId, firm.id))
+  const owner = seats.some((m) => m.email === inviterEmail && m.role === 'owner' && m.status === 'active')
+  const unclaimedByCreator = firm.createdBy === inviterEmail && !seats.some((m) => m.status === 'active')
+  return owner || unclaimedByCreator ? { id: firm.id, name: firm.name } : 'forbidden'
+}
+
+/** Create a funder invitation (draft unless `send`). */
+export async function inviteFunder(caller: Caller, input: {
+  email: string; inviteeName?: string | null; message?: string | null; firm: { id: string; name: string }
+  send?: boolean; onBehalfOf?: { email: string; name: string } | null
+}): Promise<{ invitation: InvitationRow; email: Outcome }> {
+  const inviter = input.onBehalfOf ?? { email: caller.email, name: caller.name }
+  const send = input.send !== false
+  const invitation = await insertInvitation({
+    kind: 'funder', email: input.email, inviter: inviter.email, inviterName: inviter.name, createdBy: caller.email,
+    inviteeName: input.inviteeName || null, message: input.message || null, role: 'portfolio', scopeLabel: input.firm.name,
+    firmId: input.firm.id, days: send ? ORG_INVITE_DAYS : 90,
+  })
+  await audit(caller.email, `${send ? 'Invited' : 'Drafted invitation for'} funder staff${input.onBehalfOf ? ` on behalf of ${inviter.email}` : ''}`, `${invitation.id} · ${input.firm.name}`)
+  if (!send) return { invitation, email: { status: 200, body: { dispatched: false, reason: 'draft' } } }
+  return { invitation, email: await dispatchInvitationEmail(invitation, caller.email) }
+}
+
+async function acceptFunder(inv: InvitationRow, caller: Caller): Promise<AcceptResult> {
+  if (!inv.firmId) return gone()
+  const seats = await db.select().from(firmMembers).where(eq(firmMembers.firmId, inv.firmId))
+  // The first to join manages the account; colleagues who join later can be made owners by them.
+  const role = seats.some((m) => m.role === 'owner' && m.status === 'active') ? 'consultant' : 'owner'
+  await db.insert(firmMembers).values({ firmId: inv.firmId, email: caller.email, role, status: 'active' })
+    .onConflictDoUpdate({ target: [firmMembers.firmId, firmMembers.email], set: { status: 'active' } })
+  await audit(caller.email, 'Accepted funder invitation', `${inv.id} · ${inv.scopeLabel}`)
+  await tellInviter(inv, caller, inv.scopeLabel || 'the funding partner')
+  return { status: 200, body: { kind: 'funder', firmId: inv.firmId, next: '/engagements' } }
 }
