@@ -16,6 +16,7 @@ import {
   Table, Thead, Tbody, Th, Td, Input, Button, Toast, Select,
 } from '../components/ui'
 import { InviteOrganizationCard } from '../components/InviteOrganizationWizard'
+import { TeamModerators } from '../components/TeamModerators'
 import { AllOrganisations, DraftInvitations, InviteForAssessor, SentInvitations, ReferralsOverview, SupportFinder } from '../components/SupportAdmin'
 import * as api from '../lib/api'
 import type { UserDirectoryRow } from '../lib/api'
@@ -603,6 +604,7 @@ export function AdminPage() {
               )}
             </CardContent>
           </Card>
+          <TeamModerators />
         </div>
       )}
 
