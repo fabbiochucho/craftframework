@@ -86,9 +86,14 @@ describe('free official-list screening with automatic review', () => {
     try { await refresh() } finally { mock.restore() }
     assert.equal(mock.calls.length, 0, 'nothing downloaded: every list is fresh')
     await getStore('screening-lists').setJSON('uk', { fetchedAt: '2020-01-01T00:00:00Z', count: 1, entries: [] }, { metadata: { fetchedAt: '2020-01-01T00:00:00Z' } })
+    // Retries are minutes apart in production; no waiting here.
+    const { RETRY_DELAYS_MS } = await import(new URL('../../netlify/lib/list-refresh.ts', import.meta.url).href)
+    const delays = [...RETRY_DELAYS_MS]
+    RETRY_DELAYS_MS.fill(0)
     const again = installFetchMock(() => new Response('', { status: 500 }))
-    try { await refresh() } finally { again.restore() }
-    assert.deepEqual(again.calls.map((c: any) => c.url), ['https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv'], 'only the stale list')
+    try { await refresh() } finally { again.restore(); RETRY_DELAYS_MS.splice(0, RETRY_DELAYS_MS.length, ...delays) }
+    const UK = 'https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv'
+    assert.deepEqual(again.calls.map((c: any) => c.url), [UK, UK, UK], 'only the stale list, tried three times')
   })
 
   it('uses OpenSanctions only when a paid key is set, and records provider failures as errors', async () => {

@@ -90,3 +90,15 @@ assert.deepEqual(NO_DATA_COLLECTION.httpBodies, [])
 assert.equal(NO_DATA_COLLECTION.urlQueryParams, false)
 assert.equal(NO_DATA_COLLECTION.stackFrameVariables, false)
 console.log('errorScrub.test.ts: all assertions passed')
+
+// --- connectivity noise filter (Sentry appends the host in brackets) ----------------------------
+{
+  const { IGNORE_ERRORS } = await import('./errorScrub.ts')
+  const ignored = (m: string) => IGNORE_ERRORS.some((p) => (typeof p === 'string' ? m.includes(p) : p.test(m)))
+  assert.ok(ignored('NetworkError when attempting to fetch resource.'))
+  assert.ok(ignored('NetworkError when attempting to fetch resource. (ingesteer.services-prod.nsvcs.net)'))
+  assert.ok(ignored('Failed to fetch (craftframework.becomechange.institute)'))
+  assert.ok(ignored('Load failed'))
+  assert.ok(!ignored('Failed to fetch dynamically imported module: https://x.example/assets/a.js'), 'stale chunks are not hidden')
+  assert.ok(!ignored('TypeError: Cannot read properties of undefined'))
+}

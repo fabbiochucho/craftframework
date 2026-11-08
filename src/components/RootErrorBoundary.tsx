@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { captureRenderError } from '../lib/monitoring'
+import { reloadForStaleChunk } from '../lib/staleChunk'
 
 /** What visitors see when a page crashes. Plain markup and inline-safe classes: it must not depend on anything that may have failed. */
 export function CrashFallback() {
@@ -29,6 +30,7 @@ export class RootErrorBoundary extends Component<{ children: ReactNode }, { fail
   }
 
   componentDidCatch(error: unknown, _info: ErrorInfo) {
+    if (reloadForStaleChunk(error)) return
     void captureRenderError(error)
   }
 
