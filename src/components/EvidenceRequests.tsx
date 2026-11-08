@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { CheckCircle2, Clock, Download, Eye, FileText, Inbox, Paperclip, RefreshCw, Send, Upload, X } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from './ui'
+import { EvidenceViewer } from './EvidenceViewer'
 
 // Evidence requests inside an engagement (/api/evidence-requests). The reviewing side asks for a document
 // by a due date; the organisation links items from its Evidence registry and submits; the reviewer opens
@@ -130,12 +131,14 @@ function RequestRow({ r, side, active, options, onRefreshOptions, act }: {
 }) {
   const [pick, setPick] = useState('')
   const [note, setNote] = useState('')
+  const [viewing, setViewing] = useState<{ url: string; name: string } | null>(null)
   const base = `/api/evidence-requests/${encodeURIComponent(r.id)}`
   const waitingOnOrg = r.status === 'open' || r.status === 'more_needed'
   const linked = new Set(r.items.map((i) => i.evidenceId))
   const choices = options.filter((o) => !linked.has(o.id))
   return (
     <li className={`rounded-xl border p-4 ${r.overdue ? 'border-rose-200 bg-rose-50/30' : 'border-slate-200'}`}>
+      {viewing && <EvidenceViewer url={viewing.url} name={viewing.name} onClose={() => setViewing(null)} />}
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold text-slate-900">{r.title}</p>
         <Badge className={STATUS[r.status].cls}>{STATUS[r.status].label}</Badge>
@@ -159,11 +162,11 @@ function RequestRow({ r, side, active, options, onRefreshOptions, act }: {
                   <Download className="h-3.5 w-3.5" /> Open
                 </a>
               ) : (
-                // Independent assessors view a watermarked copy in the browser; the original is never downloaded.
-                <a className="inline-flex items-center gap-1 text-emerald-700 underline" target="_blank" rel="noopener noreferrer"
-                  href={`${base}/items/${i.evidenceId}/view#toolbar=0`} title="Opens a view-only copy stamped with your name and the time">
+                // Independent assessors view a watermarked copy inside CRAFT; the original is never downloaded.
+                <button type="button" className="inline-flex items-center gap-1 text-emerald-700 underline" title="View a copy stamped with your name and the time"
+                  onClick={() => setViewing({ url: `${base}/items/${i.evidenceId}/view`, name: i.name })}>
                   <Eye className="h-3.5 w-3.5" /> View
-                </a>
+                </button>
               ))}
               {side === 'organization' && waitingOnOrg && active && (
                 <button type="button" aria-label={`Remove ${i.name}`} className="text-slate-400 hover:text-rose-600"
