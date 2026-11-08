@@ -388,10 +388,11 @@ export function SentInvitations({ all = false }: { all?: boolean }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const { currentUser } = useAuthCtx()
   const me = currentUser?.email ?? ''
+  // Before any early return: hooks must run in the same order on every render.
+  const [fixing, setFixing] = useState<{ id: string; email: string } | null>(null)
   const load = () => void (all ? fetchAllInvitations() : fetchInvitations(me)).then((r) => setRows(r.filter((x) => x.sentAt && x.kind !== 'member')), () => setRows([]))
   useEffect(() => { if (all || me) load() }, [all, me])
   if (!rows || !rows.length) return null
-  const [fixing, setFixing] = useState<{ id: string; email: string } | null>(null)
   const fixAndResend = async () => {
     if (!fixing) return
     setMsg(null)
