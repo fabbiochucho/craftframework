@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Printer, Scale } from 'lucide-react'
 import { Card } from './ui'
@@ -56,6 +56,8 @@ export function NhocatReading({ scores }: { scores: Record<string, number> }) {
   const { currentOrg } = useWorkspace()
   const { entityProfile } = useEntityProfileCtx()
   const { assessorScores } = useScoresCtx()
+  const [assessor, setAssessor] = useState('')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const printReport = () => {
     const orgId = currentOrg?.id ?? ''
     const html = buildNhocatReportHtml({
@@ -63,6 +65,7 @@ export function NhocatReading({ scores }: { scores: Record<string, number> }) {
       orgEmail: currentOrg?.email || '',
       orgType: [entityProfile.archetype, entityProfile.sector].filter(Boolean).join(' · '),
       scores, independent: assessorScores[orgId] ?? {},
+      assessor, date: date || undefined,
     })
     const w = window.open('', '_blank')
     if (!w) return
@@ -74,9 +77,17 @@ export function NhocatReading({ scores }: { scores: Record<string, number> }) {
     <Card className="p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-900">Read across to NHOCAT domains</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="text-xs text-slate-600">Assessor{' '}
+            <input value={assessor} onChange={(e) => setAssessor(e.target.value)} maxLength={200} placeholder="Name or firm" className="ml-1 w-40 rounded border border-slate-300 px-2 py-1 text-xs" />
+          </label>
+          <label className="text-xs text-slate-600">Date of assessment{' '}
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ml-1 rounded border border-slate-300 px-2 py-1 text-xs" />
+          </label>
         <button type="button" onClick={printReport} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-50">
           <Printer className="h-3.5 w-3.5" /> Print NHOCAT-style report
         </button>
+        </div>
       </div>
       <p className="mt-1 text-xs text-slate-500">
         The same answers, grouped under the eight domains of Nigeria's National Harmonised Organisational Capacity Assessment Tool and shown on a four-level scale

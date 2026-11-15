@@ -17,6 +17,8 @@ describe('NHOCAT+ methodology report', () => {
     if (process.env.NHOCAT_REPORT_OUT) writeFileSync(process.env.NHOCAT_REPORT_OUT, html)
     for (const field of ['ORGANISATION NAME', 'ORGANISATION EMAIL', 'ORGANISATION LEAD', 'DATE OF ASSESSMENT', 'ORGANISATION TYPE', 'ORGANISATION PHONE', 'PHONE CONTACT', 'ASSESSOR'])
       assert.ok(html.includes(field), field)
+    assert.ok(html.includes('<td>Martin Mary Consult</td>'), 'assessor value')
+    assert.ok(html.includes('<td>2026-11-09</td>'), 'date value')
     assert.match(html, /Capacity Area 1: GOVERNANCE AND LEADERSHIP/)
     for (const c of ['Capacity Score 1', 'Capacity Score 2', 'Capacity Score 3', 'Capacity Score 4', 'Domain Score', 'Evidence Sighted']) assert.ok(html.includes(c), c)
     assert.match(html, /<th colspan="2">2026<\/th>.*<th colspan="2">2030<\/th>/s, 'five yearly columns from the assessment year')
