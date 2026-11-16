@@ -156,6 +156,9 @@ export const responses = pgTable(
     questionId: text('question_id').notNull(),
     score: integer('score').notNull().default(0),
     assessorScore: integer('assessor_score'),
+    // The independent assessor's reason for the score, and when they assessed it.
+    assessorNote: text('assessor_note'),
+    assessorAt: timestamp('assessor_at', { withTimezone: true }),
     negotiatedScore: integer('negotiated_score'),
     evidenceUrl: text('evidence_url'),
     evidenceName: text('evidence_name'),

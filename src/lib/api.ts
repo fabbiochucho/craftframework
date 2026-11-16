@@ -251,6 +251,10 @@ export async function fetchScores(orgId: string): Promise<Record<string, number>
 // mandatory consensus note recorded during a Facilitated Debrief.
 export interface ResponseDetail {
   assessorScore?: number
+  /** The independent assessor's reason for the score ('' clears it). */
+  assessorNote?: string
+  /** Day the independent assessor assessed it (YYYY-MM-DD); read-only. */
+  assessorAt?: string
   negotiatedScore?: number
   notes?: string
   evidenceUrl?: string
@@ -267,6 +271,24 @@ export async function fetchResponseDetails(orgId: string): Promise<Record<string
     console.warn('[api] fetchResponseDetails failed', err)
     return {}
   }
+}
+
+/** The independent assessment of an organisation: scores, notes, who assessed and when (for the NHOCAT report). */
+export type AssessorView = { scores: Record<string, number>; notes: Record<string, string>; assessor: { email: string; name: string } | null; assessedOn: string | null }
+export async function fetchAssessorView(orgId: string): Promise<AssessorView> {
+  const out: AssessorView = { scores: {}, notes: {}, assessor: null, assessedOn: null }
+  try {
+    const data = await jsonOrThrow(await fetch(`/api/responses?orgId=${encodeURIComponent(orgId)}`))
+    for (const [q, d] of Object.entries((data?.details ?? {}) as Record<string, ResponseDetail>)) {
+      if (d.assessorScore != null) out.scores[q] = d.assessorScore
+      if (d.assessorNote) out.notes[q] = d.assessorNote
+    }
+    out.assessor = data?.assessor ?? null
+    out.assessedOn = data?.assessedOn ?? null
+  } catch (err) {
+    console.warn('[api] fetchAssessorView failed', err)
+  }
+  return out
 }
 
 // Persist Trust Delta / debrief detail for a single question without disturbing

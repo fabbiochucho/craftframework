@@ -3,7 +3,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responses } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
-import { isIndependentAssessorOf } from '../lib/independent-assessor.js'
+import { independentAssessorOf, isIndependentAssessorOf } from '../lib/independent-assessor.js'
 import { logger, monitored } from '../lib/logger.js'
 
 // /api/responses — per-organization assessment scores. The canonical store for
@@ -47,10 +47,17 @@ const handleRequest = async (req: Request) => {
       // consensus notes, evidence) alongside the flat self-score map. Only
       // populated keys are emitted so the payload stays lean.
       const details: Record<string, Record<string, unknown>> = {}
+      let assessedOn: string | null = null
       for (const r of rows) {
         scores[r.questionId] = r.score
         const d: Record<string, unknown> = {}
         if (r.assessorScore != null) d.assessorScore = r.assessorScore
+        if (r.assessorNote) d.assessorNote = r.assessorNote
+        if (r.assessorAt) {
+          const day = r.assessorAt.toISOString().slice(0, 10)
+          d.assessorAt = day
+          if (!assessedOn || day > assessedOn) assessedOn = day
+        }
         if (r.negotiatedScore != null) d.negotiatedScore = r.negotiatedScore
         if (r.notes != null) d.notes = r.notes
         if (r.evidenceUrl != null) d.evidenceUrl = r.evidenceUrl
@@ -58,7 +65,9 @@ const handleRequest = async (req: Request) => {
         if (r.updatedBy != null) d.updatedBy = r.updatedBy
         if (Object.keys(d).length) details[r.questionId] = d
       }
-      return Response.json({ orgId, scores, details })
+      // Who assessed independently and when: fills the NHOCAT report header.
+      const assessor = assessedOn ? await independentAssessorOf(orgId) : null
+      return Response.json({ orgId, scores, details, assessor, assessedOn })
     }
 
     // POST — upsert a single response. The self-score plus any Trust Delta
@@ -75,10 +84,17 @@ const handleRequest = async (req: Request) => {
       }
       const has = (k: string) => body[k] !== undefined && body[k] !== null
       const num = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : null)
+      if (has('assessorNote') && (typeof body.assessorNote !== 'string' || body.assessorNote.length > 2000)) {
+        return Response.json({ error: 'The assessor note must be text of at most 2,000 characters' }, { status: 400 })
+      }
+      if (has('assessedOn') && !(/^\d{4}-\d{2}-\d{2}$/.test(String(body.assessedOn)) && !Number.isNaN(Date.parse(body.assessedOn)) && body.assessedOn <= new Date().toISOString().slice(0, 10))) {
+        return Response.json({ error: 'assessedOn must be a date (YYYY-MM-DD) that is not in the future' }, { status: 400 })
+      }
+      const assessorWrite = has('assessorScore') || body.assessorNote !== undefined
       if (!(await canAccessOrg(caller, orgId))) {
-        // An independent assessor (read-only grant) may record only the independent score, as themselves.
+        // An independent assessor (read-only grant) may record only the independent score and its note, as themselves.
         if (!(await isIndependentAssessorOf(caller, orgId))) return forbidden()
-        if (!has('assessorScore') || ['score', 'negotiatedScore', 'notes', 'evidenceUrl', 'evidenceName'].some(has)) {
+        if (!assessorWrite || ['score', 'negotiatedScore', 'notes', 'evidenceUrl', 'evidenceName'].some(has)) {
           return Response.json({ error: 'An independent assessor can record only the independent score' }, { status: 403 })
         }
         body.updatedBy = caller.email
@@ -88,6 +104,10 @@ const handleRequest = async (req: Request) => {
       const set: Record<string, unknown> = { updatedBy: updatedBy ?? null, updatedAt: new Date() }
       if (has('score')) set.score = Number(body.score) || 0
       if (has('assessorScore')) set.assessorScore = num(body.assessorScore)
+      // '' clears the note. The assessment date is the day given, else today.
+      if (body.assessorNote !== undefined) set.assessorNote = body.assessorNote ? String(body.assessorNote).trim() : null
+      const assessorAt = assessorWrite ? (has('assessedOn') ? new Date(`${body.assessedOn}T12:00:00Z`) : new Date()) : null
+      if (assessorAt) set.assessorAt = assessorAt
       if (has('negotiatedScore')) set.negotiatedScore = num(body.negotiatedScore)
       if (has('notes')) set.notes = body.notes
       if (has('evidenceUrl')) set.evidenceUrl = body.evidenceUrl
@@ -100,6 +120,8 @@ const handleRequest = async (req: Request) => {
           questionId,
           score: Number(body.score) || 0,
           assessorScore: has('assessorScore') ? num(body.assessorScore) : null,
+          assessorNote: body.assessorNote ? String(body.assessorNote).trim() : null,
+          assessorAt,
           negotiatedScore: has('negotiatedScore') ? num(body.negotiatedScore) : null,
           notes: has('notes') ? body.notes : null,
           evidenceUrl: has('evidenceUrl') ? body.evidenceUrl : null,

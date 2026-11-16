@@ -110,6 +110,17 @@ describe('independent assessor on-behalf invitations', () => {
     // Reading the organisation's assessment is allowed.
     assert.equal((await call(responsesApi, MARTIN, 'GET', `responses?orgId=${COORD_ORG}`)).status, 200)
 
+    // The assessor's reason and assessment date: stored beside the score, returned with who assessed.
+    assert.equal((await score({ assessorNote: 'Printed VMG sighted', assessedOn: '2026-11-13' })).status, 200)
+    assert.equal((await score({ assessorNote: 'x', notes: 'debrief' })).status, 403, 'not the debrief note')
+    assert.equal((await score({ assessorNote: 'x', assessedOn: '2999-01-01' })).status, 400, 'no future dates')
+    assert.equal((await score({ assessorNote: 'x'.repeat(2001) })).status, 400)
+    const seen = await call(responsesApi, COORD, 'GET', `responses?orgId=${COORD_ORG}`)
+    assert.deepEqual(seen.body.details['GOV-01'].assessorNote, 'Printed VMG sighted')
+    assert.equal(seen.body.details['GOV-01'].assessorScore, 3, 'a note alone leaves the score')
+    assert.equal(seen.body.assessedOn, '2026-11-13')
+    assert.equal(seen.body.assessor.email, MARTIN)
+
     // Revoked: nothing more.
     await rows(`UPDATE access_grants SET status='revoked' WHERE org_id=$1`, [COORD_ORG])
     assert.equal((await score({ assessorScore: 4 })).status, 403)
