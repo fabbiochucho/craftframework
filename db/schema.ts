@@ -2204,7 +2204,9 @@ export const inboxMessages = pgTable('inbox_messages', {
   body: text('body').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   readAt: timestamp('read_at', { withTimezone: true }),
-}, (t) => [index('inbox_messages_recipient_idx').on(t.recipient, t.createdAt)])
+  // Set when another person wrote the message; null for system notifications.
+  sender: text('sender'),
+}, (t) => [index('inbox_messages_recipient_idx').on(t.recipient, t.createdAt), index('inbox_messages_sender_idx').on(t.sender, t.createdAt)])
 
 export const directorySearchLog = pgTable('directory_search_log', {
   id: serial('id').primaryKey(),
