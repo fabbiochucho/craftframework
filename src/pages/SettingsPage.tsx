@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { EmailPreferencesPage } from './EmailPreferencesPage'
 import { FinanceRolesCard } from '../components/FinanceRolesCard'
+import { FunderProgrammesCard } from '../components/FunderProgrammesCard'
 import { Settings, Building2, Users, Shield, Lock, UserPlus, X, Check, Layers, Clock, Mail, Eye, Globe, Briefcase, ShieldOff } from 'lucide-react'
 import { useAuthCtx, useTeamCtx, useWorkspace, useLensCtx, useEntityProfileCtx, useAccessCtx, UserRole } from '../lib/context'
 import { Card, CardContent, CardHeader, CardTitle, Input, Select, Button, Badge, Tabs, Toast, Switch } from '../components/ui'
@@ -484,6 +485,7 @@ export function SettingsPage() {
           </Card>
 
           {currentUser && !currentUser.isDemo && <FinanceRolesCard orgId={currentUser.orgId} />}
+          {currentUser && !currentUser.isDemo && <FunderProgrammesCard />}
 
           {/* Data sovereignty: firms/reviewers with access to this institution */}
           <Card>
