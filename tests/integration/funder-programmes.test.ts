@@ -43,4 +43,27 @@ describe('funder programmes', () => {
     await rows(`UPDATE firm_members SET status='removed'`)
     assert.equal((await save(STAFF)).status, 403, 'former staff cannot change it')
   })
+
+  it('lets a funder name beneficiary organisations, who are told and can add the grant to their awards', async () => {
+    delete process.env.RESEND_API_KEY
+    const ORG = 'self_coordinator_younite_example'
+    await rows(`INSERT INTO organizations(id, name, email, created_by) VALUES($1, 'YOUNITE', $2, $2)`, [ORG, ORG_USER])
+    await save(STAFF)
+    const ben = (who: string, method: string, body: object) => call(who, method, { firmId: 'firm_giz', grantId: 'youth-tb-response-1', ...body })
+    assert.equal((await ben(ORG_USER, 'POST', { email: ORG_USER })).status, 403, 'only the funder names beneficiaries')
+    assert.equal((await ben(STAFF, 'POST', { email: 'not-an-email' })).status, 400)
+    assert.equal((await ben(STAFF, 'POST', { grantId: 'other', email: ORG_USER })).status, 400, 'only its own grants')
+    assert.equal((await ben(STAFF, 'POST', { email: ORG_USER.toUpperCase() })).status, 200)
+    assert.equal((await ben(STAFF, 'POST', { email: 'nobody@unknown.example' })).status, 200, 'same answer whether or not the organisation is on CRAFT')
+    assert.equal((await ben(STAFF, 'POST', { email: ORG_USER })).status, 200, 'naming twice is harmless')
+    assert.equal((await rows(`SELECT count(*)::int AS n FROM inbox_messages WHERE recipient=$1`, [ORG_USER]))[0].n, 1, 'told once')
+    assert.deepEqual((await call(STAFF, 'GET', undefined, '?beneficiaries=firm_giz')).body.beneficiaries.map((b: any) => b.email).sort(), ['coordinator@younite.example', 'nobody@unknown.example'])
+    assert.equal((await call(ORG_USER, 'GET', undefined, '?beneficiaries=firm_giz')).status, 403)
+
+    const offered = (await call(ORG_USER, 'GET', undefined, '?offered=1')).body.offered
+    assert.deepEqual(offered, [{ firmId: 'firm_giz', funder: 'GIZ', grantId: 'youth-tb-response-1', grant: 'Youth TB Response' }])
+    await rows(`INSERT INTO awards(id, org_id, title, funder_name, funder_firm_id, funder_grant_id, created_by) VALUES('aw1', $1, 'Youth TB Response', 'GIZ', 'firm_giz', 'youth-tb-response-1', $2)`, [ORG, ORG_USER])
+    assert.deepEqual((await call(ORG_USER, 'GET', undefined, '?offered=1')).body.offered, [], 'gone once added to its awards')
+    assert.equal((await ben(STAFF, 'DELETE', { email: 'nobody@unknown.example' })).status, 200)
+  })
 })

@@ -271,6 +271,15 @@ export const funderProgrammes = pgTable('funder_programmes', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Organisations a funder names as beneficiaries of one of its grants (by contact email); they choose whether to add it.
+export const grantBeneficiaries = pgTable('grant_beneficiaries', {
+  firmId: text('firm_id').notNull(),
+  grantId: text('grant_id').notNull(),
+  email: text('email').notNull(),
+  addedBy: text('added_by').notNull(),
+  addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.firmId, t.grantId, t.email] }), index('grant_beneficiaries_email_idx').on(t.email)])
+
 export const financialTriangulations = pgTable(
   'financial_triangulations',
   {

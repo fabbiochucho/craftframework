@@ -66,16 +66,36 @@ function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
   const [programmes, setProgrammes] = useState<{ id: string; name: string; grants: { id: string; name: string }[] }[]>([])
   useEffect(() => { fetch('/api/funder-programmes').then((r) => (r.ok ? r.json() : { programmes: [] })).then((b) => setProgrammes(b.programmes ?? []), () => {}) }, [])
   const programme = programmes.find((p) => p.id === f.funderFirmId)
+  // Grants a funder says this organisation receives, not yet in its awards: one click adds them.
+  const [offered, setOffered] = useState<{ firmId: string; funder: string; grantId: string; grant: string }[]>([])
+  useEffect(() => { fetch('/api/funder-programmes?offered=1').then((r) => (r.ok ? r.json() : { offered: [] })).then((b) => setOffered(b.offered ?? []), () => {}) }, [d.awards.length])
+  const accept = (o: (typeof offered)[number]) => run(() => awardsApi('', { method: 'POST', body: { orgId, title: o.grant, funderName: o.funder, funderFirmId: o.firmId, funderGrantId: o.grantId } }))
   const [m, setM] = useState<Record<string, { kind: string; description: string; liftedWhen: string }>>({})
   const create = () => run(() => awardsApi('', { method: 'POST', body: { orgId, ...f, value: f.value ? Number(f.value) : null, startDate: f.startDate || null, endDate: f.endDate || null, funderFirmId: f.funderFirmId || null, funderGrantId: f.funderGrantId || null } }).then(() => setF({ ...f, title: '', agreementRef: '', value: '' })))
   return (
     <div className="space-y-4">
+      {offered.length > 0 && (
+        <Card className="border-emerald-200">
+          <CardHeader><CardTitle>Grants funders say you receive</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-slate-500">Add one if it is right: your assessments and finance reports can then be linked to it. Adding it shares nothing new with the funder.</p>
+            <ul className="divide-y divide-slate-100 text-sm">
+              {offered.map((o) => (
+                <li key={o.firmId + o.grantId} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                  <span><span className="font-medium text-slate-800">{o.grant}</span> <span className="text-slate-500">· {o.funder}</span></span>
+                  <Button size="sm" onClick={() => accept(o)}>Add to my awards</Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader><CardTitle>Add an award</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {programmes.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Select label="Funder on CRAFT (optional)" value={f.funderFirmId} onChange={(id) => setF({ ...f, funderFirmId: id, funderGrantId: '', funderName: programmes.find((p) => p.id === id)?.name ?? f.funderName })}
+              <Select label="Funder on CRAFT (optional; if yours is not listed, type it below)" value={f.funderFirmId} onChange={(id) => setF({ ...f, funderFirmId: id, funderGrantId: '', funderName: programmes.find((p) => p.id === id)?.name ?? f.funderName })}
                 options={[{ value: '', label: 'Not on CRAFT / type it below' }, ...programmes.map((p) => ({ value: p.id, label: p.name }))]} />
               {programme && <Select label="Grant" placeholder="Choose the grant" value={f.funderGrantId} onChange={(id) => setF({ ...f, funderGrantId: id, title: f.title || (programme.grants.find((g) => g.id === id)?.name ?? '') })}
                 options={programme.grants.map((g) => ({ value: g.id, label: g.name }))} />}

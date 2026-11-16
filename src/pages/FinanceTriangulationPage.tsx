@@ -242,10 +242,25 @@ export function FinanceTriangulationPage() {
     queryFn: async () => ((await (await fetch('/api/funder-programmes')).json()) as { programmes: Omit<DonorConfig, 'agreementPartyLabel'>[] }).programmes,
     enabled: !isDemo && !!currentUser,
   })
-  const donors = useMemo<DonorConfig[]>(() => [
-    ...(programmesQuery.data ?? []).map((p) => ({ ...p, agreementPartyLabel: 'Grantee', streams: p.streams.length ? p.streams : [{ id: 'all', name: 'All funds' }] })),
-    ...DONORS,
-  ], [programmesQuery.data])
+  // The organisation's own awards whose funder has not listed its grants on CRAFT: each is a grant it can report on.
+  const awardsQuery = useQuery({
+    queryKey: ['finance-own-awards', currentOrg?.id ?? currentUser?.orgId],
+    queryFn: async () => ((await (await fetch(`/api/awards?orgId=${encodeURIComponent(currentOrg?.id ?? currentUser?.orgId ?? '')}`)).json()) as { awards?: { id: string; title: string; funderName: string; funderFirmId: string | null; status: string }[] }).awards ?? [],
+    enabled: !isDemo && !!currentUser,
+  })
+  const donors = useMemo<DonorConfig[]>(() => {
+    const own = (awardsQuery.data ?? []).filter((a) => !a.funderFirmId && a.status === 'active')
+    const byFunder = new Map<string, typeof own>()
+    for (const a of own) byFunder.set(a.funderName || 'Other funder', [...(byFunder.get(a.funderName || 'Other funder') ?? []), a])
+    return [
+      ...(programmesQuery.data ?? []).map((p) => ({ ...p, agreementPartyLabel: 'Grantee', streams: p.streams.length ? p.streams : [{ id: 'all', name: 'All funds' }] })),
+      ...[...byFunder].map(([name, list]) => ({
+        id: `own:${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`, name: `${name} (your awards)`, agreementPartyLabel: 'Grantee',
+        grants: list.map((a) => ({ id: a.id, name: a.title })), reportTypes: [{ id: 'financial-report', name: 'Financial report' }], streams: [{ id: 'all', name: 'All funds' }],
+      })),
+      ...DONORS,
+    ]
+  }, [programmesQuery.data, awardsQuery.data])
   const [donorId, setDonorId] = useState(DONORS[0].id)
   const donor = donors.find((d) => d.id === donorId) ?? donors[0]
   const [grantId, setGrantId] = useState(donor.grants[0].id)
