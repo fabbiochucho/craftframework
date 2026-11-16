@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Printer, Scale } from 'lucide-react'
 import { Card } from './ui'
 import { useEntityProfileCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import { buildNhocatReportHtml } from '../lib/nhocatReport'
+import { fetchAssessorView, type AssessorView } from '../lib/api'
 import { lawsFor } from '../lib/laws/register'
 import { applyApprovals } from '../lib/laws/jurisdictionReport'
 import { useLawApprovals } from '../lib/laws/useLawApprovals'
@@ -58,13 +59,27 @@ export function NhocatReading({ scores }: { scores: Record<string, number> }) {
   const { assessorScores } = useScoresCtx()
   const [assessor, setAssessor] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const orgId = currentOrg?.id ?? ''
+  // Fill the header from the independent assessment on record; both fields stay editable.
+  const [view, setView] = useState<AssessorView | null>(null)
+  useEffect(() => {
+    if (!orgId) return
+    let live = true
+    void fetchAssessorView(orgId).then((v) => {
+      if (!live) return
+      setView(v)
+      if (v.assessor) setAssessor((a) => a || v.assessor!.name || v.assessor!.email)
+      if (v.assessedOn) setDate(v.assessedOn)
+    })
+    return () => { live = false }
+  }, [orgId])
   const printReport = () => {
-    const orgId = currentOrg?.id ?? ''
     const html = buildNhocatReportHtml({
       orgName: currentOrg?.name || 'Organisation',
       orgEmail: currentOrg?.email || '',
       orgType: [entityProfile.archetype, entityProfile.sector].filter(Boolean).join(' · '),
-      scores, independent: assessorScores[orgId] ?? {},
+      scores, independent: { ...(view?.scores ?? {}), ...(assessorScores[orgId] ?? {}) },
+      evidenceSighted: view?.notes,
       assessor, date: date || undefined,
     })
     const w = window.open('', '_blank')

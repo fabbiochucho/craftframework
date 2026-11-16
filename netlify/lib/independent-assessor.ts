@@ -6,7 +6,7 @@
 // The organisation's own answers, profile, plans and evidence stay unchanged. Revocable like any grant.
 import { and, eq } from 'drizzle-orm'
 import { db } from '../../db/index.js'
-import { accessGrants } from '../../db/schema.js'
+import { accessGrants, users } from '../../db/schema.js'
 import { grantAllows } from './access-policy.js'
 import type { Caller } from './auth.js'
 
@@ -25,6 +25,16 @@ export async function hasAssessorGrant(email: string, orgId: string): Promise<bo
   const [g] = await db.select().from(accessGrants)
     .where(and(eq(accessGrants.orgId, orgId), eq(accessGrants.grantee, email.toLowerCase()), eq(accessGrants.role, INDEPENDENT_ASSESSOR_ROLE)))
   return !!g && grantAllows(g, 'read')
+}
+
+/** The organisation's independent assessor (the first active grant), with their name when CRAFT knows it. */
+export async function independentAssessorOf(orgId: string): Promise<{ email: string; name: string } | null> {
+  const grants = await db.select().from(accessGrants)
+    .where(and(eq(accessGrants.orgId, orgId), eq(accessGrants.role, INDEPENDENT_ASSESSOR_ROLE)))
+  const g = grants.find((x) => grantAllows(x, 'read'))
+  if (!g) return null
+  const [u] = await db.select({ name: users.name }).from(users).where(eq(users.email, g.grantee)).limit(1)
+  return { email: g.grantee, name: u?.name?.trim() || '' }
 }
 
 /** Organisations where `email` holds an active independent-assessor grant. */

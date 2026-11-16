@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { fetchAssessorView, saveResponseDetail } from '../lib/api'
 import { ResultExplainer } from '../components/ResultExplainer'
 import { PlainSummaryCard } from '../components/PlainSummaryCard'
 import { indexSummary } from '../lib/plainSummary'
@@ -61,13 +62,34 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
   const m = getFoundationModule(moduleId)!
   const { currentUser } = useAuthCtx()
   const { currentOrg, readOnly } = useWorkspace()
-  const { scores: allScores, updateScore } = useScoresCtx()
+  const { scores: allScores, updateScore, assessorScores, updateAssessorScore } = useScoresCtx()
 
   const orgId = currentOrg?.id ?? currentUser?.orgId ?? ''
-  const scores = useMemo(() => allScores[orgId] ?? {}, [allScores, orgId])
+  // An independent assessor scores in their own column; the organisation's answers stay as they are.
+  const isIndependent = currentUser?.role === 'independent'
+  const scores = useMemo(() => (isIndependent ? assessorScores[orgId] : allScores[orgId]) ?? {}, [isIndependent, assessorScores, allScores, orgId])
   const select = (qId: string, value: number) => {
     if (!orgId || readOnly) return
-    updateScore(orgId, qId, value)
+    if (isIndependent) updateAssessorScore(orgId, qId, value)
+    else updateScore(orgId, qId, value)
+  }
+  // The independent assessor's scores and reasons: editable by the assessor, shown to everyone else.
+  const [indep, setIndep] = useState<{ scores: Record<string, number>; notes: Record<string, string> }>({ scores: {}, notes: {} })
+  const [noteError, setNoteError] = useState('')
+  useEffect(() => {
+    if (!orgId || currentUser?.isDemo) return
+    let live = true
+    void fetchAssessorView(orgId).then((v) => { if (live) setIndep({ scores: v.scores, notes: v.notes }) })
+    return () => { live = false }
+  }, [orgId, currentUser?.isDemo])
+  // ponytail: saved straight to the server on blur (no offline queue, unlike scores); queue it if assessors work offline.
+  const saveNote = (qId: string, text: string) => {
+    if ((indep.notes[qId] ?? '') === text.trim()) return
+    setNoteError('')
+    saveResponseDetail(orgId, qId, { assessorNote: text.trim() }).then(
+      () => setIndep((p) => ({ ...p, notes: { ...p.notes, [qId]: text.trim() } })),
+      () => setNoteError('A note could not be saved. Check your connection and try again.'),
+    )
   }
 
   // What the organisation has told CRAFT about itself (public body, E&S screening): decides which indicators apply.
@@ -397,6 +419,22 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
                             <p className="mt-3 text-xs text-slate-500">
                               Selected: <span className="font-semibold text-slate-700">{FIDUCIARY_LEVELS.find(l => l.value === selected)?.label}</span>
                               {' - '}{ind.soe[selected]}
+                            </p>
+                          )}
+                          {isIndependent ? (
+                            <label className="mt-3 block text-xs font-medium text-slate-600">
+                              Why this score (evidence seen, or what was missing)
+                              <textarea
+                                key={`${ind.id}:${indep.notes[ind.id] ?? ''}`} defaultValue={indep.notes[ind.id] ?? ''} maxLength={2000} rows={2}
+                                onBlur={(e) => saveNote(ind.id, e.target.value)}
+                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              />
+                              {noteError && <span role="alert" className="mt-1 block text-rose-700">{noteError}</span>}
+                            </label>
+                          ) : (indep.scores[ind.id] != null || indep.notes[ind.id]) && (
+                            <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                              <span className="font-semibold text-slate-700">Independent assessor{indep.scores[ind.id] != null ? `: ${indep.scores[ind.id]} / 5` : ''}</span>
+                              {indep.notes[ind.id] ? ` - ${indep.notes[ind.id]}` : ''}
                             </p>
                           )}
 
