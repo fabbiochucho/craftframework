@@ -417,7 +417,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   ? 'Portfolio Admin'
                   : currentUser.role === 'independent'
                     ? 'Independent Assessor'
-                    : 'Assessor'}
+                    : profile === 'all' ? 'Assessor' : PROFILE_LABEL[profile]}
           </Badge>
         </header>
 
