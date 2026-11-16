@@ -35,7 +35,7 @@ const PAGES: Record<Exclude<NavProfile, 'all'>, string[]> = {
     '/directory', '/validations', '/panel',
   ],
   // Assesses other organisations: scores, evidence, the Trust Delta and the report; invites organisations.
-  independent: ['/dashboard', '/frameworks', '/assessment', '/capacity', '/findings', '/verify', '/data-room', '/reports', '/engagements', '/invitations', '/directory', '/training'],
+  independent: ['/dashboard', '/frameworks', '/assessment', '/capacity', '/findings', '/verify', '/finance-triangulation', '/data-room', '/reports', '/engagements', '/invitations', '/directory', '/training'],
   validator: ['/directory', '/training', '/engagements', '/validations', '/panel', '/invitations'],
   funder: ['/dashboard', '/findings', '/verify', '/reports', '/networks', '/engagements', '/invitations', '/directory'],
   network: ['/networks', '/capacity', '/reports', '/engagements', '/invitations'],

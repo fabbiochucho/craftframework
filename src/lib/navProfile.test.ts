@@ -11,9 +11,11 @@ assert.equal(navProfile('assessor', null), 'all')
 assert.equal(navProfile('assessor', null, true), 'organisation')
 assert.equal(navProfile('assessor', 'validator', true), 'validator')
 
-// An independent assessor scores and sees evidence, but not the organisation's own finance and disclosure tools.
+// An independent assessor scores and sees evidence, but not the organisation's own planning and disclosure tools.
 assert.ok(showsLink('independent', '/assessment') && showsLink('independent', '/verify') && showsLink('independent', '/data-room'))
-assert.ok(!showsLink('independent', '/issb-disclosures') && !showsLink('independent', '/finance-triangulation'))
+assert.ok(!showsLink('independent', '/issb-disclosures') && !showsLink('independent', '/cip'))
+// The independent assessor verifies and locks the organisation's Finance Triangulation.
+assert.ok(showsLink('independent', '/finance-triangulation'))
 // Validators do not get the organisation workspace; organisations do not get the validator tools.
 assert.ok(showsLink('validator', '/panel') && !showsLink('validator', '/cip'))
 assert.ok(!showsLink('organisation', '/training') && showsLink('organisation', '/panel') && showsLink('organisation', '/engagements'))
