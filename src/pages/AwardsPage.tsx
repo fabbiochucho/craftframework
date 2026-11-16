@@ -61,14 +61,26 @@ export function AwardsPage() {
 type Run = (fn: () => Promise<unknown>) => Promise<void>
 
 function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
-  const [f, setF] = useState({ title: '', funderName: '', funderEmail: '', agreementRef: '', value: '', currency: '', modality: '', startDate: '', endDate: '' })
+  const [f, setF] = useState({ title: '', funderName: '', funderEmail: '', agreementRef: '', value: '', currency: '', modality: '', startDate: '', endDate: '', funderFirmId: '', funderGrantId: '' })
+  // Funders that listed their own grants on CRAFT: choosing one ties this award to that funder's grant.
+  const [programmes, setProgrammes] = useState<{ id: string; name: string; grants: { id: string; name: string }[] }[]>([])
+  useEffect(() => { fetch('/api/funder-programmes').then((r) => (r.ok ? r.json() : { programmes: [] })).then((b) => setProgrammes(b.programmes ?? []), () => {}) }, [])
+  const programme = programmes.find((p) => p.id === f.funderFirmId)
   const [m, setM] = useState<Record<string, { kind: string; description: string; liftedWhen: string }>>({})
-  const create = () => run(() => awardsApi('', { method: 'POST', body: { orgId, ...f, value: f.value ? Number(f.value) : null, startDate: f.startDate || null, endDate: f.endDate || null } }).then(() => setF({ ...f, title: '', agreementRef: '', value: '' })))
+  const create = () => run(() => awardsApi('', { method: 'POST', body: { orgId, ...f, value: f.value ? Number(f.value) : null, startDate: f.startDate || null, endDate: f.endDate || null, funderFirmId: f.funderFirmId || null, funderGrantId: f.funderGrantId || null } }).then(() => setF({ ...f, title: '', agreementRef: '', value: '' })))
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader><CardTitle>Add an award</CardTitle></CardHeader>
         <CardContent className="space-y-3">
+          {programmes.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Select label="Funder on CRAFT (optional)" value={f.funderFirmId} onChange={(id) => setF({ ...f, funderFirmId: id, funderGrantId: '', funderName: programmes.find((p) => p.id === id)?.name ?? f.funderName })}
+                options={[{ value: '', label: 'Not on CRAFT / type it below' }, ...programmes.map((p) => ({ value: p.id, label: p.name }))]} />
+              {programme && <Select label="Grant" placeholder="Choose the grant" value={f.funderGrantId} onChange={(id) => setF({ ...f, funderGrantId: id, title: f.title || (programme.grants.find((g) => g.id === id)?.name ?? '') })}
+                options={programme.grants.map((g) => ({ value: g.id, label: g.name }))} />}
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-3">
             <Input label="Title" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
             <Input label="Funder" value={f.funderName} onChange={(e) => setF({ ...f, funderName: e.target.value })} />
@@ -79,7 +91,7 @@ function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
             <Input label="Start" type="date" value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} />
             <Input label="End" type="date" value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} />
           </div>
-          <Button onClick={create} disabled={f.title.trim().length < 2}>Add award</Button>
+          <Button onClick={create} disabled={f.title.trim().length < 2 || (!!f.funderFirmId && !f.funderGrantId)}>Add award</Button>
         </CardContent>
       </Card>
       {d.awards.map((a) => {

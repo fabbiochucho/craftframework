@@ -4,7 +4,7 @@ import { getStore } from '@netlify/blobs'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { auditLogs, awardMeasures, awards, ccaAssessments, issueShares, orgIssues, organizations } from '../../db/schema.js'
+import { auditLogs, awardMeasures, awards, ccaAssessments, funderProgrammes, issueShares, orgIssues, organizations } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import {
@@ -36,6 +36,8 @@ const awardFields = {
   agreementRef: z.string().trim().max(120).optional(), value: z.number().min(0).max(1e13).nullable().optional(), currency: z.string().trim().max(10).optional(),
   modality: z.union([z.enum(FUNDING_MODALITIES.map((m) => m.id) as [string, ...string[]]), z.literal('')]).optional(),
   startDate: day.nullable().optional(), endDate: day.nullable().optional(),
+  // A funder's own grant on CRAFT (both, or neither); checked against funder_programmes.
+  funderFirmId: z.string().max(80).nullable().optional(), funderGrantId: z.string().max(80).nullable().optional(),
 }
 const createAward = z.object({ orgId: z.string().min(1).max(200), ...awardFields }).strict()
 const editAward = z.object({ ...awardFields, title: awardFields.title.optional(), close: z.boolean().optional() }).strict()
@@ -51,6 +53,13 @@ const editIssue = z.object({
 const share = z.object({ orgId: z.string().min(1).max(200), viewerEmail: email, level: z.enum(['summary', 'full']) }).strict()
 const unshare = z.object({ orgId: z.string().min(1).max(200), viewerEmail: email }).strict()
 
+/** Both empty, or a grant the funding partner listed on CRAFT. */
+async function knownFunderGrant(firmId?: string | null, grantId?: string | null): Promise<boolean> {
+  if (!firmId && !grantId) return true
+  if (!firmId || !grantId) return false
+  const [p] = await db.select().from(funderProgrammes).where(eq(funderProgrammes.firmId, firmId))
+  return !!p?.grants.some((g) => g.id === grantId)
+}
 const isFunderOf = (caller: Caller, a: { funderEmail: string } | undefined) => !!a?.funderEmail && a.funderEmail.toLowerCase() === caller.email.toLowerCase()
 const toIssue = (r: typeof orgIssues.$inferSelect): Issue => ({
   id: r.id, orgId: r.orgId, awardId: r.awardId, source: r.source, type: r.type, title: r.title, verified: r.verified, orgResponse: r.orgResponse,
@@ -118,6 +127,7 @@ const handleRequest = async (req: Request) => {
       const p = createAward.safeParse(body)
       if (!p.success) return bad('Give the award a title (2 to 200 characters) and check the funder email, dates and amount.')
       if (!(await canAccessOrg(caller, p.data.orgId, 'write'))) return forbid()
+      if (!(await knownFunderGrant(p.data.funderFirmId, p.data.funderGrantId))) return bad('Choose a grant the funder has listed on CRAFT.')
       const id = `aw_${randomUUID()}`
       const { value, ...rest } = p.data
       await db.insert(awards).values({ id, ...rest, value: value == null ? null : String(value), createdBy: caller.email })
@@ -203,6 +213,7 @@ const handleRequest = async (req: Request) => {
       if (!(await canAccessOrg(caller, award.orgId, 'write'))) return forbid()
       const p = editAward.safeParse(body)
       if (!p.success) return bad('Check the award details.')
+      if ((p.data.funderFirmId !== undefined || p.data.funderGrantId !== undefined) && !(await knownFunderGrant(p.data.funderFirmId, p.data.funderGrantId))) return bad('Choose a grant the funder has listed on CRAFT.')
       const { close, value, ...rest } = p.data
       const set: Partial<typeof awards.$inferInsert> = { ...rest, ...(value !== undefined ? { value: value == null ? null : String(value) } : {}) }
       if (close) {

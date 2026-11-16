@@ -2555,6 +2555,9 @@ export const awards = pgTable('awards', {
   value: numeric('value'),
   currency: text('currency').notNull().default(''),
   modality: text('modality').notNull().default(''),
+  // The funder's own grant on CRAFT this award is (funder_programmes), when the funder has entered it.
+  funderFirmId: text('funder_firm_id'),
+  funderGrantId: text('funder_grant_id'),
   startDate: date('start_date', { mode: 'string' }),
   endDate: date('end_date', { mode: 'string' }),
   status: text('status').notNull().default('active'),
@@ -2562,6 +2565,15 @@ export const awards = pgTable('awards', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   closedAt: timestamp('closed_at', { withTimezone: true }),
 }, (t) => [index('awards_org_idx').on(t.orgId)])
+
+// Which award (grant) each of an organisation's assessments is for: 'craft-onc', 'wizard' or 'cca:<id>'.
+export const assessmentLinks = pgTable('assessment_links', {
+  orgId: text('org_id').notNull(),
+  assessment: text('assessment').notNull(),
+  awardId: text('award_id').notNull(),
+  linkedBy: text('linked_by').notNull(),
+  linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.orgId, t.assessment] })])
 
 // Milestone register and verification pack (src/lib/milestones.ts).
 export const awardMilestones = pgTable('award_milestones', {
