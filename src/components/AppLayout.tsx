@@ -366,7 +366,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2 text-sm">
             <Lock className="h-4 w-4 text-emerald-600" />
             <span className="font-semibold text-slate-700">Secure Workspace:</span>
-            <span className="hidden text-slate-500 sm:inline">{currentUser.orgName}</span>
+            <span className="hidden text-slate-500 sm:inline">{currentOrg?.name ?? currentUser.orgName}</span>
           </div>
           <div className="flex-1" />
           <ComplianceDeadlineBadge orgId={currentOrg?.id} isDemo={currentUser?.isDemo ?? false} />
