@@ -20,6 +20,20 @@ async function recordOutcome(kind: string, outcome: EmailAcceptance): Promise<vo
   }
 }
 
+/**
+ * Keep a copy of a notification in each recipient's in-app inbox, whether or not the email provider took it
+ * (that is the point: the message can still be read on the platform). Best effort, like recordOutcome.
+ */
+export async function recordInbox(to: string | string[], subject: string, text: string, kind = 'other'): Promise<void> {
+  try {
+    const [{ db }, { inboxMessages }] = await Promise.all([import('../../db/index.js'), import('../../db/schema.js')])
+    const recipients = [...new Set([to].flat().map((e) => e.trim().toLowerCase()).filter(Boolean))]
+    if (recipients.length) await db.insert(inboxMessages).values(recipients.map((recipient) => ({ recipient, kind, subject, body: text })))
+  } catch {
+    /* no database in this context, or the insert failed */
+  }
+}
+
 export async function sendReminderEmail(
   email: ReminderEmail,
   idempotencyKey?: string,
@@ -27,6 +41,7 @@ export async function sendReminderEmail(
 ): Promise<EmailAcceptance> {
   const result = await deliver(email, idempotencyKey)
   await recordOutcome(kind, result)
+  await recordInbox(email.to, email.subject, email.text, kind)
   return result
 }
 

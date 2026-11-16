@@ -37,6 +37,7 @@ import { Route as FindingsRouteImport } from './routes/findings'
 import { Route as FrameworksRouteImport } from './routes/frameworks'
 import { Route as GuideRouteImport } from './routes/guide'
 import { Route as HelpRouteImport } from './routes/help'
+import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as InformalEconomyRouteImport } from './routes/informal-economy'
 import { Route as InstituteRouteImport } from './routes/institute'
 import { Route as InvitationsRouteImport } from './routes/invitations'
@@ -256,6 +257,11 @@ const GuideRoute = GuideRouteImport.update({
 const HelpRoute = HelpRouteImport.update({
   id: '/help',
   path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InformalEconomyRoute = InformalEconomyRouteImport.update({
@@ -720,6 +726,7 @@ export interface FileRoutesByFullPath {
   '/frameworks': typeof FrameworksRoute
   '/guide': typeof GuideRoute
   '/help': typeof HelpRoute
+  '/inbox': typeof InboxRoute
   '/informal-economy': typeof InformalEconomyRoute
   '/institute': typeof InstituteRoute
   '/invitations': typeof InvitationsRoute
@@ -830,6 +837,7 @@ export interface FileRoutesByTo {
   '/frameworks': typeof FrameworksRoute
   '/guide': typeof GuideRoute
   '/help': typeof HelpRoute
+  '/inbox': typeof InboxRoute
   '/informal-economy': typeof InformalEconomyRoute
   '/institute': typeof InstituteRoute
   '/invitations': typeof InvitationsRoute
@@ -941,6 +949,7 @@ export interface FileRoutesById {
   '/frameworks': typeof FrameworksRoute
   '/guide': typeof GuideRoute
   '/help': typeof HelpRoute
+  '/inbox': typeof InboxRoute
   '/informal-economy': typeof InformalEconomyRoute
   '/institute': typeof InstituteRoute
   '/invitations': typeof InvitationsRoute
@@ -1053,6 +1062,7 @@ export interface FileRouteTypes {
     | '/frameworks'
     | '/guide'
     | '/help'
+    | '/inbox'
     | '/informal-economy'
     | '/institute'
     | '/invitations'
@@ -1163,6 +1173,7 @@ export interface FileRouteTypes {
     | '/frameworks'
     | '/guide'
     | '/help'
+    | '/inbox'
     | '/informal-economy'
     | '/institute'
     | '/invitations'
@@ -1273,6 +1284,7 @@ export interface FileRouteTypes {
     | '/frameworks'
     | '/guide'
     | '/help'
+    | '/inbox'
     | '/informal-economy'
     | '/institute'
     | '/invitations'
@@ -1384,6 +1396,7 @@ export interface RootRouteChildren {
   FrameworksRoute: typeof FrameworksRoute
   GuideRoute: typeof GuideRoute
   HelpRoute: typeof HelpRoute
+  InboxRoute: typeof InboxRoute
   InformalEconomyRoute: typeof InformalEconomyRoute
   InstituteRoute: typeof InstituteRoute
   InvitationsRoute: typeof InvitationsRoute
@@ -1662,6 +1675,13 @@ declare module '@tanstack/react-router' {
       path: '/help'
       fullPath: '/help'
       preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/informal-economy': {
@@ -2256,6 +2276,7 @@ const rootRouteChildren: RootRouteChildren = {
   FrameworksRoute: FrameworksRoute,
   GuideRoute: GuideRoute,
   HelpRoute: HelpRoute,
+  InboxRoute: InboxRoute,
   InformalEconomyRoute: InformalEconomyRoute,
   InstituteRoute: InstituteRoute,
   InvitationsRoute: InvitationsRoute,
