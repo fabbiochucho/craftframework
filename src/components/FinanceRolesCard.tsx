@@ -39,7 +39,7 @@ export function FinanceRolesCard({ orgId }: { orgId: string }) {
               <p className="mt-1 text-xs text-slate-500">{r.hint}</p>
             </div>
             <Button variant="outline" disabled={draft[r.key].trim() === named[r.key]} onClick={() => void save(r.key)}>
-              {draft[r.key].trim() ? 'Save' : 'Clear'}
+              {!draft[r.key].trim() && named[r.key] ? 'Clear' : 'Save'}
             </Button>
           </div>
         ))}
