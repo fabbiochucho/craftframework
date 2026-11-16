@@ -5,7 +5,7 @@ import { clearOfflineSession, setOfflineSession } from '../lib/offline/session'
 import { cn } from '../lib/utils'
 import { skipsOnboarding } from '../lib/onboardingRoutes'
 import { readStartChoice, unconfiguredHome } from '../lib/startChoice'
-import { useAuthCtx, useWorkspace, useScoresCtx, useQuestionsCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace, useScoresCtx, useQuestionsCtx, useEntityProfileCtx } from '../lib/context'
 import { Badge, Button } from './ui'
 import { Footer } from './Footer'
 import { Logo } from './Logo'
@@ -102,6 +102,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentOrg, organizations, activeClientOrgId, setActiveClient, isViewingClient } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
   const { bankStatus } = useQuestionsCtx()
+  const { entityProfile, profileSaveStatus } = useEntityProfileCtx()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouterState()
   const navigate = useNavigate()
@@ -161,6 +162,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     // The platform Super Admin runs CRAFT, and an independent assessor assesses other organisations;
     // neither is an assessed organisation, so neither is sent to set one up.
     if (onboardingComplete || currentUser?.role === 'super_admin' || currentUser?.role === 'independent') return
+    // On a full page load sign-in starts as 'not set up' until the saved profile arrives; this effect runs before the
+    // provider's, so read the profile itself, and never decide while it is still loading.
+    if (profileSaveStatus === 'loading' || (entityProfile.onboardingComplete === true && !!entityProfile.archetype)) return
     // /app/workspaces is the newer platform's own self-sufficient entry point -
     // it already renders a "create your first organization" form (CreateOrg)
     // whenever the signed-in user has no org yet, so it must never be bounced
@@ -180,7 +184,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     if (skipsOnboarding(pathname)) return
     // New people are first asked what brings them to CRAFT; those who chose 'my organisation' go to the wizard.
     navigate({ to: unconfiguredHome(readStartChoice()) })
-  }, [authReady, currentUser, onboardingComplete, pathname, navigate, enterDemo])
+  }, [authReady, currentUser, onboardingComplete, pathname, navigate, enterDemo, profileSaveStatus, entityProfile])
 
   // Before Identity resolves (always true on first server paint - GoTrue is a
   // client-only session), render a real, honest placeholder instead of an
