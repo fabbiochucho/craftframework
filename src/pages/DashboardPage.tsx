@@ -10,6 +10,7 @@ import { Lock, AlertOctagon, ShieldCheck, ArrowRight, Gauge, ClipboardList, Glob
 import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useLensCtx, useQuestionsCtx } from '../lib/context'
 import { PlainSummaryCard } from '../components/PlainSummaryCard'
 import { GrowthLevelCard } from '../components/GrowthLevelCard'
+import { OtherAssessmentsCard } from '../components/OtherAssessmentsCard'
 import { coreSummary } from '../lib/plainSummary'
 import {
   computeOrgScore, computeTierScore, computeCompositeIndices,
@@ -69,10 +70,11 @@ export function DashboardPage() {
           </p>
           <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">Readiness Dashboard</h1>
         </div>
+        <OtherAssessmentsCard orgId={currentOrg?.id ?? ''} signedIn={!!currentUser && !currentUser.isDemo} />
         <Card>
           <CardContent className="flex flex-col items-center py-20 text-center">
             <ClipboardList className="h-14 w-14 text-slate-300" />
-            <h2 className="mt-4 font-display text-2xl font-bold text-emerald-900">Your dashboard is ready for data</h2>
+            <h2 className="mt-4 font-display text-2xl font-bold text-emerald-900">5-tier assessment not started</h2>
             <p className="mt-2 max-w-lg text-sm text-slate-500">
               {currentOrg && currentUser && currentOrg.id !== currentUser.orgId
                 ? `${currentOrg.name} has not answered the 5-tier Assessment Wizard yet. Its composite score, accreditation level, findings and capacity plan will build here from its answers.`
@@ -165,6 +167,7 @@ export function DashboardPage() {
       </div>
 
       <GrowthLevelCard orgId={currentOrg?.id ?? ''} composite={composite} signedIn={!!currentUser && !currentUser.isDemo} />
+      <OtherAssessmentsCard orgId={currentOrg?.id ?? ''} signedIn={!!currentUser && !currentUser.isDemo} />
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">

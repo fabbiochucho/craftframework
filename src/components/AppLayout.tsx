@@ -370,6 +370,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex-1" />
           <ComplianceDeadlineBadge orgId={currentOrg?.id} isDemo={currentUser?.isDemo ?? false} />
+          {!currentUser.isDemo && (
+            <Link to="/inbox" aria-label={unread ? `Inbox, ${unread} unread` : 'Inbox'} title="Messages and notifications"
+              className="relative rounded-md p-1.5 text-slate-600 hover:bg-slate-100 hover:text-emerald-700">
+              <Inbox className="h-5 w-5" />
+              {unread > 0 && <span className="absolute -right-1 -top-1 min-w-[1.1rem] rounded-full bg-rose-600 px-1 text-center text-[10px] font-bold leading-[1.1rem] text-white">{unread > 99 ? '99+' : unread}</span>}
+            </Link>
+          )}
           <LanguageToggle tone="light" />
           <Badge
             className={cn(
