@@ -65,7 +65,7 @@ export function DashboardPage() {
         <div>
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-500">
             <Lock className="h-4 w-4 text-emerald-600" /> Secure Workspace:{' '}
-            <span className="text-slate-800">{currentUser?.orgName}</span>
+            <span className="text-slate-800">{currentOrg?.name ?? currentUser?.orgName}</span>
           </p>
           <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">Readiness Dashboard</h1>
         </div>
@@ -74,9 +74,9 @@ export function DashboardPage() {
             <ClipboardList className="h-14 w-14 text-slate-300" />
             <h2 className="mt-4 font-display text-2xl font-bold text-emerald-900">Your dashboard is ready for data</h2>
             <p className="mt-2 max-w-lg text-sm text-slate-500">
-              This workspace reflects only your own assessment. Start the 5-tier Assessment Wizard, and your
-              composite score, accreditation level, findings, and capacity plan will build
-              automatically from your answers.
+              {currentOrg && currentUser && currentOrg.id !== currentUser.orgId
+                ? `${currentOrg.name} has not answered the 5-tier Assessment Wizard yet. Its composite score, accreditation level, findings and capacity plan will build here from its answers.`
+                : 'This workspace reflects only your own assessment. Start the 5-tier Assessment Wizard, and your composite score, accreditation level, findings, and capacity plan will build automatically from your answers.'}
             </p>
             <Link to="/assessment" className="mt-6">
               <Button size="lg"><ShieldCheck className="h-5 w-5" /> Start Your Assessment</Button>
@@ -94,7 +94,7 @@ export function DashboardPage() {
         <div>
           <p className="flex items-center gap-2 text-sm font-semibold text-slate-500">
             <Lock className="h-4 w-4 text-emerald-600" /> Secure Workspace:{' '}
-            <span className="text-slate-800">{currentUser?.orgName}</span>
+            <span className="text-slate-800">{currentOrg?.name ?? currentUser?.orgName}</span>
             <span className="text-slate-300">|</span> Session: 14:59
           </p>
           <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">Readiness Dashboard</h1>

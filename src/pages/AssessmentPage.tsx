@@ -82,9 +82,15 @@ export function AssessmentPage() {
   return (
     <div className="space-y-6">
       <LegacySaveStatus status={evidenceStatus} />
-      <LegacySaveStatus status={lensSaveStatus} />
-      <LegacySaveStatus status={mandateSaveStatus} />
-      <LegacySaveStatus status={profileSaveStatus} />
+      {/* The organisation's own settings (scope, mandate, profile): one line when they are a client's, not three. */}
+      {[lensSaveStatus, mandateSaveStatus, profileSaveStatus].filter(s => s !== 'read-only').map((s, i) => <LegacySaveStatus key={i} status={s} />)}
+      {[lensSaveStatus, mandateSaveStatus, profileSaveStatus].includes('read-only') && (
+        <p role="status" className="text-xs text-slate-500">
+          {isIndependent
+            ? `You are assessing ${currentOrg?.name ?? 'this organisation'}. Its own answers and settings cannot be changed here; your independent scores and notes are saved as you enter them.`
+            : 'Client workspace — read-only.'}
+        </p>
+      )}
       <p className="text-xs text-slate-500">Evidence matrix entries are self-reported confidence, not verified uploads.</p>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
