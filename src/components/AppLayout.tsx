@@ -5,6 +5,7 @@ import { clearOfflineSession, setOfflineSession } from '../lib/offline/session'
 import { cn } from '../lib/utils'
 import { skipsOnboarding } from '../lib/onboardingRoutes'
 import { readStartChoice, unconfiguredHome } from '../lib/startChoice'
+import { navProfile, PROFILE_LABEL, showsAccreditation, showsLink } from '../lib/navProfile'
 import { useAuthCtx, useWorkspace, useScoresCtx, useQuestionsCtx, useEntityProfileCtx } from '../lib/context'
 import { Badge, Button } from './ui'
 import { Footer } from './Footer'
@@ -103,6 +104,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { scores, implementationEvidence } = useScoresCtx()
   const { bankStatus } = useQuestionsCtx()
   const { entityProfile, profileSaveStatus } = useEntityProfileCtx()
+  // The sidebar follows the sign-in type and start choice; "Show all pages" (kept in this browser) brings back every link.
+  const [showAll, setShowAll] = useState(() => { try { return localStorage.getItem('craft-nav-all') === '1' } catch { return false } })
+  const toggleShowAll = () => { const v = !showAll; setShowAll(v); try { localStorage.setItem('craft-nav-all', v ? '1' : '0') } catch { /* storage blocked */ } }
+  const profile = navProfile(currentUser?.isDemo ? 'admin' : currentUser?.role ?? '', readStartChoice(), onboardingComplete && !!entityProfile.archetype)
+  const shown = (to: string) => showAll || showsLink(profile, to)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const router = useRouterState()
   const navigate = useNavigate()
@@ -271,16 +277,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold text-white">{currentUser.orgName}</p>
               <p className="mt-0.5 flex items-center gap-1 text-[10px] text-slate-400">
-                <Lock className="h-2.5 w-2.5" /> Isolated tenant · {currentUser.orgId}
+                <Lock className="h-2.5 w-2.5" /> <span title={`Isolated tenant · ${currentUser.orgId}`}>{profile === 'all' ? 'Isolated tenant' : PROFILE_LABEL[profile]}</span>
               </p>
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-between rounded-md bg-slate-800/70 px-2.5 py-1.5">
+          {showsAccreditation(profile) && <div className="mt-2 flex items-center justify-between rounded-md bg-slate-800/70 px-2.5 py-1.5">
             <span className="text-[10px] uppercase tracking-wide text-slate-400">Accreditation</span>
             <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold text-slate-900">
               {accred.level}
             </span>
-          </div>
+          </div>}
         </div>
 
         {/* Client switcher - Administrators, Portfolio Reviewers & the Super
@@ -305,10 +311,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/80">ICARF v4.0 Workspace</p>
-          {workspaceNav.filter(i => !offFor(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
-          <p className="mb-2 mt-4 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Organization</p>
-          {orgNav.filter(i => !offFor(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.to === '/inbox' && unread ? `Inbox (${unread})` : i.label} Icon={i.icon} />)}
+          {workspaceNav.some(i => shown(i.to)) && <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/80">ICARF v4.0 Workspace</p>}
+          {workspaceNav.filter(i => !offFor(i.to) && shown(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
+          <p className="mb-2 mt-4 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{profile === 'all' || profile === 'organisation' ? 'Organization' : 'Your work'}</p>
+          {orgNav.filter(i => !offFor(i.to) && shown(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.to === '/inbox' && unread ? `Inbox (${unread})` : i.label} Icon={i.icon} />)}
           {(currentUser.role === 'super_admin' || currentUser.role === 'admin' || currentUser.role === 'portfolio') && (
             <>
               <p className="mb-2 mt-4 px-2 text-xs font-semibold uppercase tracking-wider text-amber-500/80">Admin Portals</p>
@@ -316,6 +322,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 .filter(i => currentUser.role === 'super_admin' || i.to === '/admin/portfolio')
                 .map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} accent="admin" />)}
             </>
+          )}
+          {profile !== 'all' && (
+            <div className="mt-4 space-y-1 border-t border-slate-700/60 px-2 pt-3 text-[11px] text-slate-400">
+              <p>Showing pages for: <span className="text-slate-200">{PROFILE_LABEL[profile]}</span></p>
+              <button type="button" onClick={toggleShowAll} className="block underline hover:text-white">{showAll ? 'Show only my pages' : 'Show all pages'}</button>
+              {currentUser.role === 'assessor' && <Link to="/start" className="block underline hover:text-white">Change what I use CRAFT for</Link>}
+            </div>
           )}
         </nav>
 
