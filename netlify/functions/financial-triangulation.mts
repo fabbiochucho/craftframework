@@ -2,10 +2,11 @@ import type { Config } from '@netlify/functions'
 import { eq, and, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { financialTriangulations } from '../../db/schema.js'
+import { financeRoles, financialTriangulations } from '../../db/schema.js'
 import { resolveCaller, canAccessOrg, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 import { financeMutationError } from '../lib/finance-policy.js'
+import { financeRoleOf, namedFinanceRoles, NAMED_FINANCE_ROLES } from '../lib/finance-roles.js'
 
 function cleanNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 0
@@ -46,11 +47,37 @@ const handleRequest = async (req: Request) => {
 
     const url = new URL(req.url)
 
+    // GET ?roles=1&orgId=  -> { myRole, named: { org_finance_officer, org_grant_manager } }
+    if (req.method === 'GET' && url.searchParams.get('roles')) {
+      const orgId = url.searchParams.get('orgId') ?? ''
+      const myRole = await financeRoleOf(caller, orgId)
+      if (!myRole && !(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
+      return Response.json({ myRole, named: await namedFinanceRoles(orgId) })
+    }
+
+    // PUT { orgId, role, email } -> name (or, with email '', clear) the organisation's finance officer or grant manager.
+    // Only someone who can write to the organisation; the two must be different people (one prepares, one reviews).
+    if (req.method === 'PUT') {
+      const b = (await req.json().catch(() => ({}))) as { orgId?: unknown; role?: unknown; email?: unknown }
+      const orgId = String(b.orgId ?? '')
+      const role = String(b.role ?? '')
+      const email = String(b.email ?? '').trim().toLowerCase()
+      if (!orgId || !(NAMED_FINANCE_ROLES as readonly string[]).includes(role)) return Response.json({ error: 'orgId and a finance role are required' }, { status: 400 })
+      if (email && (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return Response.json({ error: 'Enter a valid email address' }, { status: 400 })
+      if (caller.readOnly || !(await canAccessOrg(caller, orgId, 'write'))) return forbidden()
+      const other = (await namedFinanceRoles(orgId))[role === 'org_finance_officer' ? 'org_grant_manager' : 'org_finance_officer']
+      if (email && email === other) return Response.json({ error: 'The finance officer and the grant manager must be different people' }, { status: 400 })
+      if (!email) await db.delete(financeRoles).where(and(eq(financeRoles.orgId, orgId), eq(financeRoles.role, role)))
+      else await db.insert(financeRoles).values({ orgId, role, email, assignedBy: caller.email })
+        .onConflictDoUpdate({ target: [financeRoles.orgId, financeRoles.role], set: { email, assignedBy: caller.email, assignedAt: new Date() } })
+      return Response.json({ named: await namedFinanceRoles(orgId) })
+    }
+
     if (req.method === 'GET') {
       const orgId = url.searchParams.get('orgId')
       const contextKey = url.searchParams.get('contextKey')
       if (!orgId || !contextKey) return Response.json({ error: 'orgId and contextKey required' }, { status: 400 })
-      if (!(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
+      if (!(await financeRoleOf(caller, orgId)) && !(await canAccessOrg(caller, orgId, 'read'))) return forbidden()
 
       const [row] = await db
         .select()
@@ -67,7 +94,9 @@ const handleRequest = async (req: Request) => {
         return Response.json({ error: 'Invalid request body', details: parsed.error.flatten() }, { status: 400 })
       }
       const body = parsed.data
-      if (!(await canAccessOrg(caller, body.orgId))) return forbidden()
+      // The workflow role decides what may change (finance-policy.ts); without one, nothing may.
+      const workflowRole = await financeRoleOf(caller, body.orgId)
+      if (!workflowRole || (workflowRole !== 'independent_assessor' && !(await canAccessOrg(caller, body.orgId)))) return forbidden()
 
       return await db.transaction(async (tx) => {
       // Serialize both first creation and transitions for this reporting context.
@@ -75,7 +104,7 @@ const handleRequest = async (req: Request) => {
       const [existing] = await tx.select().from(financialTriangulations).where(and(
         eq(financialTriangulations.orgId, body.orgId), eq(financialTriangulations.contextKey, body.contextKey),
       )).limit(1)
-      const error = financeMutationError(caller.role, existing ?? null, body)
+      const error = financeMutationError(workflowRole, existing ?? null, body)
       if (error) return Response.json({ error }, { status: 403 })
       const value = {
         ...existing,
@@ -99,7 +128,7 @@ const handleRequest = async (req: Request) => {
         status: body.status ?? 'draft',
         lockedBy: body.status === 'locked' ? caller.email : null,
         lockedAt: body.status === 'locked' ? new Date().toISOString() : null,
-        history: [...(existing?.history ?? []), `${new Date().toISOString()} - ${caller.email} (${caller.role}) saved ${body.status ?? existing?.status ?? 'draft'}`],
+        history: [...(existing?.history ?? []), `${new Date().toISOString()} - ${caller.email} (${workflowRole}) saved ${body.status ?? existing?.status ?? 'draft'}`],
         updatedAt: new Date(),
       }
 

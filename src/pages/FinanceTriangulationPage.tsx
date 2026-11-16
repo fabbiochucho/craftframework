@@ -116,11 +116,12 @@ const DONORS: DonorConfig[] = [
   },
 ]
 
-const PERIODS = [
-  { id: '2026-q1', label: '2026-01-01 - 2026-03-31' },
-  { id: '2026-q2', label: '2026-04-01 - 2026-06-30' },
-  { id: '2026-q3', label: '2026-07-01 - 2026-09-30' },
-]
+// Any calendar quarter from 2024 to the end of next year, newest first; the current quarter is chosen first.
+const QUARTER_DAYS = [['01-01', '03-31'], ['04-01', '06-30'], ['07-01', '09-30'], ['10-01', '12-31']]
+const PERIODS = Array.from({ length: new Date().getFullYear() + 2 - 2024 }, (_, i) => 2024 + i)
+  .flatMap((y) => QUARTER_DAYS.map(([a, b], q) => ({ id: `${y}-q${q + 1}`, label: `Q${q + 1} ${y} (${y}-${a} to ${y}-${b})` })))
+  .reverse()
+const CURRENT_PERIOD = `${new Date().getFullYear()}-q${Math.floor(new Date().getMonth() / 3) + 1}`
 
 const ROLE_OPTIONS = [
   { value: 'org_finance_officer', label: 'Finance Officer' },
@@ -235,13 +236,12 @@ export function FinanceTriangulationPage() {
   const { readOnly, currentOrg } = useWorkspace()
   const queryClient = useQueryClient()
   const [demoRole, setRole] = useState<WorkflowRole>('org_finance_officer')
-  const role = (isDemo ? demoRole : String(currentUser?.role ?? '')) as WorkflowRole
   const [donorId, setDonorId] = useState(DONORS[0].id)
   const donor = DONORS.find((d) => d.id === donorId) ?? DONORS[0]
   const [grantId, setGrantId] = useState(donor.grants[0].id)
   const [reportTypeId, setReportTypeId] = useState(donor.reportTypes[0].id)
   const [streamId, setStreamId] = useState(donor.streams[0].id)
-  const [periodId, setPeriodId] = useState(PERIODS[0].id)
+  const [periodId, setPeriodId] = useState(CURRENT_PERIOD)
   const [record, setRecord] = useState<TriangulationRecord>(() => emptyRecord('initial'))
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -253,6 +253,9 @@ export function FinanceTriangulationPage() {
 
   const contextKey = `${donorId}|${grantId}|${reportTypeId}|${streamId}|${periodId}`
   const orgId = currentOrg?.id ?? currentUser?.orgId ?? 'demo'
+  // The workflow role comes from the server: the people the organisation named, or its independent assessor.
+  const rolesQuery = useQuery({ queryKey: ['finance-roles', orgId], queryFn: () => api.fetchFinanceRoles(orgId), enabled: !isDemo && !!currentUser && orgId !== 'demo' })
+  const role = (isDemo ? demoRole : rolesQuery.data?.myRole ?? '') as WorkflowRole
   const periodLabel = PERIODS.find((p) => p.id === periodId)?.label ?? periodId
   const reportTypeLabel = donor.reportTypes.find((r) => r.id === reportTypeId)?.name ?? reportTypeId
   const userName = currentUser?.email?.split('@')[0] || 'Current User'
@@ -387,7 +390,10 @@ export function FinanceTriangulationPage() {
             <Select label="Funding Stream/Tranche" value={streamId} onChange={setStreamId} options={donor.streams.map((s) => ({ value: s.id, label: s.name }))} />
             <Select label="Reporting Period" value={periodId} onChange={setPeriodId} options={PERIODS.map((p) => ({ value: p.id, label: p.label }))} />
             {isDemo ? <Select label="Demo Workflow Role" value={role} onChange={(value) => setRole(value as WorkflowRole)} options={ROLE_OPTIONS} /> :
-              <p className="text-sm text-slate-600">Workflow role is assigned server-side: {role || 'unassigned'}. A finance officer, grant manager or independent assessor assignment is required.</p>}
+              <p className="text-sm text-slate-600">
+                {role ? <>Your part: <span className="font-semibold">{ROLE_OPTIONS.find((o) => o.value === role)?.label ?? role}</span>.</>
+                  : <>You have no part in this organisation's finance workflow. Its administrators name the finance officer and grant manager in <a href="/settings" className="text-emerald-700 underline">Settings &amp; Team → Finance roles</a>; its independent assessor verifies.</>}
+              </p>}
           </div>
           <p className="mt-3 text-xs font-medium text-slate-500">
             Current agreement term: <span className="text-slate-800">{donor.agreementPartyLabel}</span>

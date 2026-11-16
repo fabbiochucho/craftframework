@@ -252,6 +252,15 @@ export const auditLogs = pgTable(
 // --- financial_triangulations ----------------------------------------------
 // Universal donor-agnostic reconciliation records, keyed by organization and
 // report context. Lock fields preserve the independent assessor's final action.
+// The finance officer and grant manager an organisation names for Finance Triangulation (one of each).
+export const financeRoles = pgTable('finance_roles', {
+  orgId: text('org_id').notNull(),
+  role: text('role').notNull(),
+  email: text('email').notNull(),
+  assignedBy: text('assigned_by').notNull(),
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.orgId, t.role] })])
+
 export const financialTriangulations = pgTable(
   'financial_triangulations',
   {

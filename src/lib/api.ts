@@ -506,6 +506,17 @@ export interface FinancialTriangulationPayload {
   history: string[]
 }
 
+export type FinanceRoles = { myRole: string; named: { org_finance_officer: string; org_grant_manager: string } }
+/** The caller's finance workflow role in an organisation, and who it named as finance officer and grant manager. */
+export async function fetchFinanceRoles(orgId: string): Promise<FinanceRoles> {
+  return (await jsonOrThrow(await fetch(`/api/financial-triangulation?roles=1&orgId=${encodeURIComponent(orgId)}`))) as FinanceRoles
+}
+/** Name (or, with '', clear) an organisation's finance officer or grant manager. */
+export async function saveFinanceRole(orgId: string, role: 'org_finance_officer' | 'org_grant_manager', email: string): Promise<FinanceRoles['named']> {
+  const res = await fetch('/api/financial-triangulation', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ orgId, role, email }) })
+  return ((await jsonOrThrow(res)) as { named: FinanceRoles['named'] }).named
+}
+
 export async function fetchFinancialTriangulation(orgId: string, contextKey: string, strict = false): Promise<FinancialTriangulationPayload | null> {
   try {
     const qs = `?orgId=${encodeURIComponent(orgId)}&contextKey=${encodeURIComponent(contextKey)}`
