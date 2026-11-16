@@ -3,6 +3,7 @@ import { and, eq, lte, ne } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { complianceItems, organizations } from '../../db/schema.js'
 import { logger, monitored } from '../lib/logger.js'
+import { recordInbox } from '../lib/reminder-email.js'
 
 // ============================================================================
 // CRAFT v4.0 — Scheduled compliance alerts (Global Fund PR reporting cycles)
@@ -87,6 +88,12 @@ async function sendResendEmail(item: ComplianceItem, tier: Tier): Promise<'accep
   const subjectTier = tier === 'overdue' ? 'OVERDUE' : tier === '30-day' ? 'Urgent (30 days)' : 'Upcoming (90 days)'
   const subject = `[${subjectTier}] ${item.type} due ${item.due_date}: ${item.title}`
 
+  const text =
+    `This is an automated CRAFT reminder for a Global Fund reporting obligation.\n\n` +
+    `Obligation: ${item.type} — ${item.title}\nDue: ${item.due_date}\nStatus: ${tier}\n\n` +
+    `Please prepare and submit the report through your CRAFT secure workspace.`
+  await recordInbox(item.recipient_email, subject, text, 'compliance_alert')
+
   // No key configured (e.g. preview build) — log instead of failing the run.
   if (!apiKey || !from || /@resend\.dev\b/i.test(from)) {
     console.log(`[compliance-alerts] would email ${item.recipient_email} — ${subject}`)
@@ -101,10 +108,7 @@ async function sendResendEmail(item: ComplianceItem, tier: Tier): Promise<'accep
       from,
       to: item.recipient_email,
       subject,
-      text:
-        `This is an automated CRAFT reminder for a Global Fund reporting obligation.\n\n` +
-        `Obligation: ${item.type} — ${item.title}\nDue: ${item.due_date}\nStatus: ${tier}\n\n` +
-        `Please prepare and submit the report through your CRAFT secure workspace.`,
+      text,
     }),
   }).catch(err => logger.error("compliance-alerts", "Resend error", err))
   if (!response?.ok) logger.warn('compliance-alerts', `Provider rejected reminder (${response?.status ?? 'network error'})`)

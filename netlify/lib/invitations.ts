@@ -17,7 +17,7 @@ import { canAccessOrg, isSuperAdmin, tenantOrgId, type Caller } from './auth.js'
 import { createEngagement, createSchema, myFirms } from './engagement-create.js'
 import { logger } from './logger.js'
 import { publicBaseUrl } from './public-validation.js'
-import { sendReminderEmail } from './reminder-email.js'
+import { recordInbox, sendReminderEmail } from './reminder-email.js'
 import { buildWelcomeEmail, buildWelcomeEmailHtml } from '../../src/lib/inviteEmail.js'
 import { getViewLevel, type ViewLevel } from '../../src/lib/data.js'
 import { countryNameOf, describeOrgType, type OrgType } from '../../src/lib/orgType.js'
@@ -212,6 +212,7 @@ export async function dispatchInvitationEmail(inv: InvitationRow, actor: string)
     return { status: 429, body: { error: `This invitation has already been sent ${SEND_LIMIT_PER_INVITATION} times.` } }
   }
   const { subject, html, text, replyTo } = await renderInvitationEmail(inv, actor)
+  await recordInbox(inv.email, subject, text, 'invitation')
   let res: Response
   try {
     res = await fetch('https://api.resend.com/emails', {

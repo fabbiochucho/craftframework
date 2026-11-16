@@ -20,7 +20,7 @@ import { ShieldCheck, Handshake,
   LayoutDashboard, ClipboardList, Gauge, Briefcase, AlertTriangle, TrendingUp, FileBarChart, Calculator,
   Settings, ScrollText, HelpCircle, Shield, Network, Menu, X, LogOut, Building2,
   Users, Lock, CalendarClock, FolderCheck, BookOpen,
-  BarChart3, Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap, Send,
+  BarChart3, Layers, Scale, Banknote, Eye, ArrowLeft, Globe, Leaf, Smartphone, FileText, Contact, GraduationCap, Send, Inbox,
 } from 'lucide-react'
 
 // The legacy /api endpoints answer 401 'mfa_required' when the account uses multi-factor sign-in
@@ -68,6 +68,7 @@ const workspaceNav = [
   { to: '/app/workspaces', label: 'Org Workspaces', icon: Building2 },
 ]
 const orgNav = [
+  { to: '/inbox', label: 'Inbox', icon: Inbox },
   { to: '/settings', label: 'Settings & Team', icon: Settings },
   { to: '/app/org/members', label: 'Org Members & RBAC', icon: Users },
   { to: '/directory', label: 'Validator Directory', icon: Contact },
@@ -90,6 +91,14 @@ const adminNav = [
 // Secure multi-tenant vault chrome (Zones 3 & 4).
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { currentUser, setRole, logout, onboardingComplete, enterDemo, authReady, sessionTimeout } = useAuthCtx()
+  // Unread inbox count for the sidebar; refreshed on each page change (so it clears after reading).
+  const [unread, setUnread] = useState(0)
+  const inboxPath = useRouterState({ select: (s) => s.location.pathname })
+  const inboxUser = currentUser && !currentUser.isDemo ? currentUser.email : ''
+  useEffect(() => {
+    if (!inboxUser) return
+    fetch('/api/inbox').then((r) => (r.ok ? r.json() : null)).then((d) => setUnread(d?.unread ?? 0), () => {})
+  }, [inboxUser, inboxPath])
   const { currentOrg, organizations, activeClientOrgId, setActiveClient, isViewingClient } = useWorkspace()
   const { scores, implementationEvidence } = useScoresCtx()
   const { bankStatus } = useQuestionsCtx()
@@ -294,7 +303,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/80">ICARF v4.0 Workspace</p>
           {workspaceNav.filter(i => !offFor(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
           <p className="mb-2 mt-4 px-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Organization</p>
-          {orgNav.filter(i => !offFor(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.label} Icon={i.icon} />)}
+          {orgNav.filter(i => !offFor(i.to)).map(i => <NavItem key={i.to} to={i.to} label={i.to === '/inbox' && unread ? `Inbox (${unread})` : i.label} Icon={i.icon} />)}
           {(currentUser.role === 'super_admin' || currentUser.role === 'admin' || currentUser.role === 'portfolio') && (
             <>
               <p className="mb-2 mt-4 px-2 text-xs font-semibold uppercase tracking-wider text-amber-500/80">Admin Portals</p>

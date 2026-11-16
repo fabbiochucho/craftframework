@@ -9,6 +9,7 @@ import {
 } from '../../db/schema.js'
 import { fieldLookupHashes } from '../lib/crypto.js'
 import type { UserRow } from '../../db/schema.js'
+import { inboxMessages } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, isSuperAdmin, resolveCaller, forbidden, unauthorized, mfaRequired, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 
@@ -58,6 +59,7 @@ async function removeFromEveryRole(email: string) {
   await db.update(engagementMembers).set({ status: 'removed', grantId: null, grantedAt: null })
     .where(and(eq(engagementMembers.email, email), eq(engagementMembers.status, 'named')))
   await db.delete(accessGrants).where(eq(accessGrants.grantee, email))
+  await db.delete(inboxMessages).where(eq(inboxMessages.recipient, email))
   await db.update(invitations).set({ status: 'revoked', respondedAt: new Date() })
     .where(and(eq(invitations.email, email), eq(invitations.status, 'pending')))
 }

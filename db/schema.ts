@@ -2195,6 +2195,17 @@ export const emailLog = pgTable('email_log', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('email_log_created_idx').on(t.createdAt)])
 
+// In-app inbox: a copy of each notification email, for its recipient to read on the platform.
+export const inboxMessages = pgTable('inbox_messages', {
+  id: serial('id').primaryKey(),
+  recipient: text('recipient').notNull(),
+  kind: text('kind').notNull(),
+  subject: text('subject').notNull(),
+  body: text('body').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  readAt: timestamp('read_at', { withTimezone: true }),
+}, (t) => [index('inbox_messages_recipient_idx').on(t.recipient, t.createdAt)])
+
 export const directorySearchLog = pgTable('directory_search_log', {
   id: serial('id').primaryKey(),
   type: text('type').notNull(),
