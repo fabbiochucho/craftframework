@@ -261,6 +261,16 @@ export const financeRoles = pgTable('finance_roles', {
   assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.orgId, t.role] })])
 
+// A funding partner's own grants, report types and streams (entered by its staff) for Finance Triangulation.
+export const funderProgrammes = pgTable('funder_programmes', {
+  firmId: text('firm_id').primaryKey(),
+  grants: jsonb('grants').$type<{ id: string; name: string }[]>().notNull().default([]),
+  reportTypes: jsonb('report_types').$type<{ id: string; name: string }[]>().notNull().default([]),
+  streams: jsonb('streams').$type<{ id: string; name: string }[]>().notNull().default([]),
+  updatedBy: text('updated_by').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const financialTriangulations = pgTable(
   'financial_triangulations',
   {

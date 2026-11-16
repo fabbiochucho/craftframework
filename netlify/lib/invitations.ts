@@ -97,7 +97,7 @@ export async function insertInvitation(values: Omit<typeof invitations.$inferIns
 export async function invitationPurpose(inv: InvitationRow): Promise<string> {
   const who = inv.inviterName || inv.inviter || 'The inviter'
   if (inv.kind === 'funder') {
-    return `Adds you to ${inv.scopeLabel || 'your organisation'}'s funding-partner account on CRAFT, shared with your colleagues. You see an organisation's results only when it proposes or accepts a funder review with ${inv.scopeLabel || 'you'}: nothing is shared without its consent.`
+    return `Adds you to ${inv.scopeLabel || 'your organisation'}'s funding-partner account on CRAFT, shared with your colleagues. You see an organisation's results only when it proposes or accepts a funder review with ${inv.scopeLabel || 'you'}: nothing is shared without its consent. Once you have joined, add your grants and report types under Settings & Team, so the organisations you fund can report against them.`
   }
   if (inv.engagement) {
     const type = (inv.engagement as { type?: string }).type

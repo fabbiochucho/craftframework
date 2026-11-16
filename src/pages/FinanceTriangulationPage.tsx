@@ -236,8 +236,18 @@ export function FinanceTriangulationPage() {
   const { readOnly, currentOrg } = useWorkspace()
   const queryClient = useQueryClient()
   const [demoRole, setRole] = useState<WorkflowRole>('org_finance_officer')
+  // Funders who entered their own grants on CRAFT come first; the built-in donor list follows.
+  const programmesQuery = useQuery({
+    queryKey: ['funder-programmes'],
+    queryFn: async () => ((await (await fetch('/api/funder-programmes')).json()) as { programmes: Omit<DonorConfig, 'agreementPartyLabel'>[] }).programmes,
+    enabled: !isDemo && !!currentUser,
+  })
+  const donors = useMemo<DonorConfig[]>(() => [
+    ...(programmesQuery.data ?? []).map((p) => ({ ...p, agreementPartyLabel: 'Grantee', streams: p.streams.length ? p.streams : [{ id: 'all', name: 'All funds' }] })),
+    ...DONORS,
+  ], [programmesQuery.data])
   const [donorId, setDonorId] = useState(DONORS[0].id)
-  const donor = DONORS.find((d) => d.id === donorId) ?? DONORS[0]
+  const donor = donors.find((d) => d.id === donorId) ?? donors[0]
   const [grantId, setGrantId] = useState(donor.grants[0].id)
   const [reportTypeId, setReportTypeId] = useState(donor.reportTypes[0].id)
   const [streamId, setStreamId] = useState(donor.streams[0].id)
@@ -384,7 +394,7 @@ export function FinanceTriangulationPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <Select label="Donor/Funding Agency" value={donorId} onChange={setDonorId} options={DONORS.map((d) => ({ value: d.id, label: d.name }))} />
+            <Select label="Donor/Funding Agency" value={donorId} onChange={setDonorId} options={donors.map((d) => ({ value: d.id, label: d.name }))} />
             <Select label="Grant/Project Name" value={grantId} onChange={setGrantId} options={donor.grants.map((g) => ({ value: g.id, label: g.name }))} />
             <Select label="Report Type" value={reportTypeId} onChange={setReportTypeId} options={donor.reportTypes.map((r) => ({ value: r.id, label: r.name }))} />
             <Select label="Funding Stream/Tranche" value={streamId} onChange={setStreamId} options={donor.streams.map((s) => ({ value: s.id, label: s.name }))} />
