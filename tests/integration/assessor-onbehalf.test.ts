@@ -12,6 +12,7 @@ const load = async (f: string) => (await import(new URL(`../../netlify/functions
 const invitations = await load('invitations')
 const sendInvite = await load('send-invite')
 const responsesApi = await load('responses')
+const grantsApi = await load('access-grants')
 const legacyState = await load('legacy-state')
 const networks = await load('networks')
 
@@ -120,6 +121,14 @@ describe('independent assessor on-behalf invitations', () => {
     assert.equal(seen.body.details['GOV-01'].assessorScore, 3, 'a note alone leaves the score')
     assert.equal(seen.body.assessedOn, '2026-11-13')
     assert.equal(seen.body.assessor.email, MARTIN)
+
+    // The name printed on this organisation's reports can be set on the grant, by the organisation or the assessor.
+    const rename = (who: string, body: object) => call(grantsApi, who, 'PATCH', 'access-grants', { orgId: COORD_ORG, grantee: MARTIN, ...body })
+    assert.equal((await rename(COORD, { reportName: 'Martin Mary Consult' })).status, 200)
+    assert.equal((await call(responsesApi, COORD, 'GET', `responses?orgId=${COORD_ORG}`)).body.assessor.name, 'Martin Mary Consult')
+    assert.equal((await rename('stranger@x.example', { reportName: 'Mallory' })).status, 403)
+    assert.equal((await rename(COORD, { reportName: 'x'.repeat(201) })).status, 400)
+    assert.equal((await rows('SELECT status FROM access_grants WHERE org_id=$1', [COORD_ORG]))[0].status, 'active', 'naming does not touch the status')
 
     // Revoked: nothing more.
     await rows(`UPDATE access_grants SET status='revoked' WHERE org_id=$1`, [COORD_ORG])

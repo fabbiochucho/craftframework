@@ -91,6 +91,19 @@ const handleRequest = async (req: Request) => {
       const body = await req.json()
       const orgId = String(body.orgId ?? '').trim()
       const grantee = String(body.grantee ?? '').trim().toLowerCase()
+      // { orgId, grantee, reportName }: the name an independent assessor prints under on this organisation's
+      // reports ('' goes back to the name on their account). Set by the organisation's side or the assessor.
+      if (body.reportName !== undefined && body.status === undefined) {
+        if (!orgId || !grantee) return Response.json({ error: 'orgId and grantee required' }, { status: 400 })
+        if (typeof body.reportName !== 'string' || body.reportName.length > 200) return Response.json({ error: 'The name must be text of at most 200 characters' }, { status: 400 })
+        if (!(await canAccessOrg(caller, orgId)) && grantee !== caller.email) return forbidden()
+        const [named] = await db
+          .update(accessGrants)
+          .set({ reportName: body.reportName.trim() || null })
+          .where(and(eq(accessGrants.orgId, orgId), eq(accessGrants.grantee, grantee), eq(accessGrants.role, 'independent_assessor')))
+          .returning()
+        return named ? Response.json(named) : Response.json({ error: 'No independent assessor grant found' }, { status: 404 })
+      }
       const status = String(body.status ?? '')
       if (!orgId || !grantee || !status) {
         return Response.json({ error: 'orgId, grantee and status required' }, { status: 400 })

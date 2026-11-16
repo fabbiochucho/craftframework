@@ -34,7 +34,7 @@ export async function independentAssessorOf(orgId: string): Promise<{ email: str
   const g = grants.find((x) => grantAllows(x, 'read'))
   if (!g) return null
   const [u] = await db.select({ name: users.name }).from(users).where(eq(users.email, g.grantee)).limit(1)
-  return { email: g.grantee, name: u?.name?.trim() || '' }
+  return { email: g.grantee, name: g.reportName?.trim() || u?.name?.trim() || '' }
 }
 
 /** Organisations where `email` holds an active independent-assessor grant. */

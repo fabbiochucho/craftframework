@@ -4,7 +4,7 @@ import { Printer, Scale } from 'lucide-react'
 import { Card } from './ui'
 import { useEntityProfileCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import { buildNhocatReportHtml } from '../lib/nhocatReport'
-import { fetchAssessorView, type AssessorView } from '../lib/api'
+import { fetchAssessorView, saveAssessorReportName, type AssessorView } from '../lib/api'
 import { lawsFor } from '../lib/laws/register'
 import { applyApprovals } from '../lib/laws/jurisdictionReport'
 import { useLawApprovals } from '../lib/laws/useLawApprovals'
@@ -73,6 +73,17 @@ export function NhocatReading({ scores }: { scores: Record<string, number> }) {
     })
     return () => { live = false }
   }, [orgId])
+  // Keep a typed assessor name for next time (stored on the assessor's grant for this organisation).
+  const [nameMsg, setNameMsg] = useState('')
+  const savedName = view?.assessor ? view.assessor.name || view.assessor.email : ''
+  const saveName = () => {
+    if (!view?.assessor) return
+    const name = assessor.trim()
+    saveAssessorReportName(orgId, view.assessor.email, name).then(
+      () => { setView({ ...view, assessor: { ...view.assessor!, name } }); setNameMsg('Saved') },
+      () => setNameMsg('Could not save the name'),
+    )
+  }
   const printReport = () => {
     const html = buildNhocatReportHtml({
       orgName: currentOrg?.name || 'Organisation',
@@ -96,6 +107,10 @@ export function NhocatReading({ scores }: { scores: Record<string, number> }) {
           <label className="text-xs text-slate-600">Assessor{' '}
             <input value={assessor} onChange={(e) => setAssessor(e.target.value)} maxLength={200} placeholder="Name or firm" className="ml-1 w-40 rounded border border-slate-300 px-2 py-1 text-xs" />
           </label>
+          {view?.assessor && assessor.trim() && assessor.trim() !== savedName && (
+            <button type="button" onClick={saveName} className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50">Use this name on reports</button>
+          )}
+          {nameMsg && <span role="status" className="text-xs text-slate-500">{nameMsg}</span>}
           <label className="text-xs text-slate-600">Date of assessment{' '}
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="ml-1 rounded border border-slate-300 px-2 py-1 text-xs" />
           </label>

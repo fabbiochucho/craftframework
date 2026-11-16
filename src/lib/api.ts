@@ -291,6 +291,15 @@ export async function fetchAssessorView(orgId: string): Promise<AssessorView> {
   return out
 }
 
+/** Set the name an organisation's independent assessor prints under on its reports ('' = the name on their account). */
+export async function saveAssessorReportName(orgId: string, grantee: string, reportName: string): Promise<void> {
+  await jsonOrThrow(await fetch('/api/access-grants', {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ orgId, grantee, reportName }),
+  }))
+}
+
 // Persist Trust Delta / debrief detail for a single question without disturbing
 // the self-score (the server only writes the keys present in the body).
 export async function saveResponseDetail(

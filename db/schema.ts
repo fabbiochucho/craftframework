@@ -351,6 +351,9 @@ export const accessGrants = pgTable(
     status: text('status').notNull().default('pending'),
     // The portfolio the client is added to on accept.
     portfolioId: text('portfolio_id'),
+    // Independent assessor grants: the assessor's name as it should print on this organisation's reports
+    // (overrides the name on their account).
+    reportName: text('report_name'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
     respondedAt: timestamp('responded_at', { withTimezone: true }),
   },
