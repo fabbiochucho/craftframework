@@ -489,7 +489,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Reviewers and admins also see the institutions they administer, their
     // portfolios, every client's scores (Phase 1), the firms they belong to
     // (Phase 5), and the access grants they hold over clients (Phase 4).
-    if (currentUser.role === 'portfolio' || currentUser.role === 'admin' || currentUser.role === 'super_admin') {
+    // An independent assessor needs the same list: the organisations they were granted are what they assess.
+    if (currentUser.role === 'portfolio' || currentUser.role === 'admin' || currentUser.role === 'super_admin' || currentUser.role === 'independent') {
       const email = currentUser.email
       // Gather org ids across administered orgs + portfolio memberships +
       // active grants, then batch-load all their scores in one round-trip.
