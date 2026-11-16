@@ -59,7 +59,7 @@ async function removeFromEveryRole(email: string) {
   await db.update(engagementMembers).set({ status: 'removed', grantId: null, grantedAt: null })
     .where(and(eq(engagementMembers.email, email), eq(engagementMembers.status, 'named')))
   await db.delete(accessGrants).where(eq(accessGrants.grantee, email))
-  await db.delete(inboxMessages).where(eq(inboxMessages.recipient, email))
+  await db.delete(inboxMessages).where(or(eq(inboxMessages.recipient, email), eq(inboxMessages.sender, email)))
   await db.update(invitations).set({ status: 'revoked', respondedAt: new Date() })
     .where(and(eq(invitations.email, email), eq(invitations.status, 'pending')))
 }

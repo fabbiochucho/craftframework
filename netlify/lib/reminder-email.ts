@@ -38,10 +38,11 @@ export async function sendReminderEmail(
   email: ReminderEmail,
   idempotencyKey?: string,
   kind = 'other',
+  inbox = true,
 ): Promise<EmailAcceptance> {
   const result = await deliver(email, idempotencyKey)
   await recordOutcome(kind, result)
-  await recordInbox(email.to, email.subject, email.text, kind)
+  if (inbox) await recordInbox(email.to, email.subject, email.text, kind)
   return result
 }
 
