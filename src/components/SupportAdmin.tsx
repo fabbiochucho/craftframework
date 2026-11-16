@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Link } from '@tanstack/react-router'
-import { Award, Building, FolderOpen, Handshake, LifeBuoy, Search, Send, Trash } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Award, Building, Eye, FolderOpen, Handshake, LifeBuoy, Search, Send, Trash } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from './ui'
 import { BadgeChip } from './AmbassadorBadges'
 import type { Badge as AmbassadorBadge } from '../lib/ambassadors'
 import { deleteOrganization, fetchAllInvitations, fetchInvitations, fetchOrganizations, inviteOrganizationByEmail, previewInvitation, revokeInvitation, sendInvitation, setInvitationEmail, setInvitationSubject, type Invitation } from '../lib/api'
 import { InviteOrganizationWizard } from './InviteOrganizationWizard'
 import { InviteFunderCard } from './InviteFunder'
-import { useAuthCtx } from '../lib/context'
+import { useAuthCtx, useWorkspace } from '../lib/context'
+import type { Organization } from '../lib/data'
 
 // Super Admin tools: support an organisation directly (open its Evidence registry, answer its evidence
 // requests) and see referrals / ambassadors across the platform.
@@ -158,6 +159,9 @@ export function AllOrganisations() {
   const [confirming, setConfirming] = useState<string | null>(null)
   const [typed, setTyped] = useState('')
   const [busy, setBusy] = useState(false)
+  const { setActiveClient } = useWorkspace()
+  const navigate = useNavigate()
+  const view = (o: OrgRow) => { setActiveClient(o.id, o as unknown as Organization); void navigate({ to: '/dashboard' }) }
   useEffect(() => { void fetchOrganizations().then((r) => setRows(r as unknown as OrgRow[]), () => setRows([])) }, [])
   const shown = (rows ?? []).filter((o) => !q.trim() || `${o.name} ${o.email} ${o.id}`.toLowerCase().includes(q.trim().toLowerCase()))
   const del = async (o: OrgRow) => {
@@ -186,8 +190,11 @@ export function AllOrganisations() {
                   <span className="font-medium text-slate-900">{o.name || '(no name)'}</span>
                   {o.status === 'archived' && <Badge className="bg-slate-200 text-slate-600">Archived</Badge>}
                   <span className="text-xs text-slate-500">{[o.email, o.country, o.id].filter(Boolean).join(' · ')}</span>
+                  {o.status !== 'archived' && (
+                    <Button size="sm" variant="outline" className="ml-auto" onClick={() => view(o)}><Eye className="h-3.5 w-3.5" /> View</Button>
+                  )}
                   {confirming !== o.id && (
-                    <Button size="sm" variant="outline" className="ml-auto border-rose-300 text-rose-700 hover:bg-rose-50"
+                    <Button size="sm" variant="outline" className={`${o.status === 'archived' ? 'ml-auto ' : ''}border-rose-300 text-rose-700 hover:bg-rose-50`}
                       onClick={() => { setConfirming(o.id); setTyped(''); setMsg(null) }}><Trash className="h-3.5 w-3.5" /> Delete</Button>
                   )}
                 </div>

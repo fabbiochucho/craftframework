@@ -169,7 +169,8 @@ interface WorkspaceContextType {
   // reviewer's own workspace. `readOnly` is true while a client is active so
   // the reviewer cannot mutate the client's data from within the drill-down.
   activeClientOrgId: string | null
-  setActiveClient: (orgId: string | null) => void
+  /** Pass the organisation itself to open one that is not in the caller's own list (Super Admin, from All organisations). */
+  setActiveClient: (orgId: string | null, org?: Organization) => void
   isViewingClient: boolean
   readOnly: boolean
 }
@@ -1110,7 +1111,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Open (or leave) a client's workspace read-only. On entry, lazily hydrate the
   // client's scores and capacity plan if they are not already loaded.
   const setActiveClient = useCallback(
-    (orgId: string | null) => {
+    (orgId: string | null, org?: Organization) => {
+      if (org && org.id === orgId) setOrganizations(prev => (prev.some(o => o.id === org.id) ? prev : [...prev, org]))
       setActiveClientOrgId(orgId)
       if (orgId && currentUser && !currentUser.isDemo) {
         if (!scores[orgId] || Object.keys(scores[orgId]).length === 0) {
@@ -1120,8 +1122,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }
           })
         }
-        // An independent assessor's own scores for this organisation (the Trust Delta columns).
-        if (currentUser.role === 'independent') {
+        // The independent assessor's scores for this organisation (the Trust Delta columns and the NHOCAT report).
+        {
           api.fetchResponseDetails(orgId).then(details => {
             const asMap: Record<string, number> = {}
             for (const [qId, d] of Object.entries(details)) if (d.assessorScore != null) asMap[qId] = d.assessorScore
@@ -1131,8 +1133,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         api.fetchCapacityStatuses(orgId).then(statuses => {
           if (Object.keys(statuses).length) setCipStatuses(prev => ({ ...statuses, ...prev }))
         })
-        const org = organizations.find(o => o.id === orgId)
-        appendAudit(currentUser.email, 'Opened client workspace (read-only)', org?.name ?? orgId, 'Auth')
+        const name = org?.name ?? organizations.find(o => o.id === orgId)?.name
+        appendAudit(currentUser.email, 'Opened client workspace (read-only)', name ?? orgId, 'Auth')
       }
     },
     [appendAudit, currentUser, organizations, scores],
