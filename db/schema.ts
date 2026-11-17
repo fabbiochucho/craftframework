@@ -276,6 +276,9 @@ export const grantBeneficiaries = pgTable('grant_beneficiaries', {
   firmId: text('firm_id').notNull(),
   grantId: text('grant_id').notNull(),
   email: text('email').notNull(),
+  // The amount allocated to this organisation; seen only by it and the funder.
+  amount: numeric('amount'),
+  currency: text('currency').notNull().default(''),
   addedBy: text('added_by').notNull(),
   addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.firmId, t.grantId, t.email] }), index('grant_beneficiaries_email_idx').on(t.email)])
@@ -2562,6 +2565,8 @@ export const awards = pgTable('awards', {
   funderEmail: text('funder_email').notNull().default(''),
   agreementRef: text('agreement_ref').notNull().default(''),
   value: numeric('value'),
+  // The value is an estimate (non-cash support such as technical assistance or in-kind), not cash received.
+  valueEstimated: boolean('value_estimated').notNull().default(false),
   currency: text('currency').notNull().default(''),
   modality: text('modality').notNull().default(''),
   // The funder's own grant on CRAFT this award is (funder_programmes), when the funder has entered it.

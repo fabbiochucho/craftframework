@@ -33,10 +33,10 @@ describe('assessment links to grants', () => {
     assert.equal((await award({ funderFirmId: 'firm_giz', funderGrantId: 'nope' })).status, 400, 'the grant must be one the funder listed')
     assert.equal((await award({ funderFirmId: 'firm_giz' })).status, 400, 'funder and grant go together')
     assert.equal((await award({ supportTypes: ['not_a_type'] })).status, 400, 'only known support types')
-    const made = await award({ funderFirmId: 'firm_giz', funderGrantId: 'youth-tb-1', supportTypes: ['technical_assistance'] })
+    const made = await award({ funderFirmId: 'firm_giz', funderGrantId: 'youth-tb-1', supportTypes: ['technical_assistance'], value: 12000, currency: 'EUR', valueEstimated: true })
     assert.equal(made.status, 201)
     const awardId = made.body.id
-    assert.deepEqual((await rows('SELECT funder_grant_id, support_types FROM awards'))[0], { funder_grant_id: 'youth-tb-1', support_types: ['technical_assistance'] })
+    assert.deepEqual((await rows('SELECT funder_grant_id, support_types, value_estimated FROM awards'))[0], { funder_grant_id: 'youth-tb-1', support_types: ['technical_assistance'], value_estimated: true })
 
     const put = (who: string, assessment: string, id = awardId) => call(links, who, 'PUT', 'assessment-links', { orgId: ORG, assessment, awardId: id })
     assert.equal((await put(OWNER, 'craft-onc')).status, 200)

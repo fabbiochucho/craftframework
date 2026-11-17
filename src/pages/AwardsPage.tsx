@@ -12,7 +12,7 @@ import { FUNDING_MODALITIES } from '../lib/data'
 import { MilestonesCard } from '../components/MilestonesCard'
 import { SUPPORT_TYPES, supportLabel } from '../lib/supportTypes'
 
-type Award = { supportTypes?: string[]; id: string; title: string; funderName: string; funderEmail: string; agreementRef: string; value: string | null; currency: string; modality: string; startDate: string | null; endDate: string | null; status: AwardStatus }
+type Award = { supportTypes?: string[]; valueEstimated?: boolean; id: string; title: string; funderName: string; funderEmail: string; agreementRef: string; value: string | null; currency: string; modality: string; startDate: string | null; endDate: string | null; status: AwardStatus }
 type Measure = { id: string; awardId: string; kind: string; description: string; liftedWhen: string; status: string; imposedAt: string }
 type IssueRow = { id: string; awardId: string | null; source: string; type: string; title: string; description: string; verified: boolean; orgResponse: string; status: string; dueDate: string | null; openedAt: string; closedAt: string | null; fixHeld: boolean | null }
 type Share = { viewerEmail: string; level: 'summary' | 'full'; grantedAt: string }
@@ -62,15 +62,15 @@ export function AwardsPage() {
 type Run = (fn: () => Promise<unknown>) => Promise<void>
 
 function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
-  const [f, setF] = useState({ title: '', funderName: '', funderEmail: '', agreementRef: '', value: '', currency: '', modality: '', startDate: '', endDate: '', funderFirmId: '', funderGrantId: '', supportTypes: [] as string[] })
+  const [f, setF] = useState({ title: '', funderName: '', funderEmail: '', agreementRef: '', value: '', currency: '', modality: '', startDate: '', endDate: '', funderFirmId: '', funderGrantId: '', supportTypes: [] as string[], valueEstimated: false })
   // Funders that listed their own grants on CRAFT: choosing one ties this award to that funder's grant.
   const [programmes, setProgrammes] = useState<{ id: string; name: string; grants: { id: string; name: string; types?: string[] }[] }[]>([])
   useEffect(() => { fetch('/api/funder-programmes').then((r) => (r.ok ? r.json() : { programmes: [] })).then((b) => setProgrammes(b.programmes ?? []), () => {}) }, [])
   const programme = programmes.find((p) => p.id === f.funderFirmId)
   // Grants a funder says this organisation receives, not yet in its awards: one click adds them.
-  const [offered, setOffered] = useState<{ firmId: string; funder: string; grantId: string; grant: string; types: string[] }[]>([])
+  const [offered, setOffered] = useState<{ firmId: string; funder: string; grantId: string; grant: string; types: string[]; amount: number | null; currency: string }[]>([])
   useEffect(() => { fetch('/api/funder-programmes?offered=1').then((r) => (r.ok ? r.json() : { offered: [] })).then((b) => setOffered(b.offered ?? []), () => {}) }, [d.awards.length])
-  const accept = (o: (typeof offered)[number]) => run(() => awardsApi('', { method: 'POST', body: { orgId, title: o.grant, funderName: o.funder, funderFirmId: o.firmId, funderGrantId: o.grantId, supportTypes: o.types } }))
+  const accept = (o: (typeof offered)[number]) => run(() => awardsApi('', { method: 'POST', body: { orgId, title: o.grant, funderName: o.funder, funderFirmId: o.firmId, funderGrantId: o.grantId, supportTypes: o.types, ...(o.amount != null ? { value: o.amount, currency: o.currency } : {}) } }))
   const [m, setM] = useState<Record<string, { kind: string; description: string; liftedWhen: string }>>({})
   const create = () => run(() => awardsApi('', { method: 'POST', body: { orgId, ...f, value: f.value ? Number(f.value) : null, startDate: f.startDate || null, endDate: f.endDate || null, funderFirmId: f.funderFirmId || null, funderGrantId: f.funderGrantId || null } }).then(() => setF({ ...f, title: '', agreementRef: '', value: '' })))
   return (
@@ -83,7 +83,7 @@ function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
             <ul className="divide-y divide-slate-100 text-sm">
               {offered.map((o) => (
                 <li key={o.firmId + o.grantId} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                  <span><span className="font-medium text-slate-800">{o.grant}</span> <span className="text-slate-500">· {o.funder}{o.types.length > 0 && ` · ${o.types.map(supportLabel).join(', ')}`}</span></span>
+                  <span><span className="font-medium text-slate-800">{o.grant}</span> <span className="text-slate-500">· {o.funder}{o.types.length > 0 && ` · ${o.types.map(supportLabel).join(', ')}`}{o.amount != null && ` · ${o.amount.toLocaleString()} ${o.currency}`}</span></span>
                   <Button size="sm" onClick={() => accept(o)}>Add to my awards</Button>
                 </li>
               ))}
@@ -107,7 +107,8 @@ function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
             <Input label="Funder" value={f.funderName} onChange={(e) => setF({ ...f, funderName: e.target.value })} />
             <Input label="Funder contact email (can see this award)" type="email" value={f.funderEmail} onChange={(e) => setF({ ...f, funderEmail: e.target.value })} />
             <Input label="Agreement reference" value={f.agreementRef} onChange={(e) => setF({ ...f, agreementRef: e.target.value })} />
-            <div className="grid grid-cols-[1fr_6rem] gap-2"><Input label="Value" type="number" min={0} value={f.value} onChange={(e) => setF({ ...f, value: e.target.value })} /><Input label="Currency" value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })} /></div>
+            <div className="grid grid-cols-[1fr_6rem] gap-2"><Input label="Value" type="number" min={0} value={f.value} onChange={(e) => setF({ ...f, value: e.target.value })} /><Input label="Currency" value={f.currency} onChange={(e) => setF({ ...f, currency: e.target.value })} />
+              <label className="col-span-2 flex items-center gap-1.5 text-xs text-slate-600"><input type="checkbox" checked={f.valueEstimated} onChange={(e) => setF({ ...f, valueEstimated: e.target.checked })} /> Estimated value (technical assistance or in-kind, not cash)</label></div>
             <Select label="Funding model" value={f.modality} onChange={(modality) => setF({ ...f, modality })} options={[{ value: '', label: 'Not set' }, ...FUNDING_MODALITIES.map((x) => ({ value: x.id, label: x.label }))]} />
             <Input label="Start" type="date" value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} />
             <Input label="End" type="date" value={f.endDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} />
@@ -135,7 +136,7 @@ function AwardsTab({ orgId, d, run }: { orgId: string; d: OrgData; run: Run }) {
           <Card key={a.id}>
             <CardHeader>
               <CardTitle>{a.title}</CardTitle>
-              <p className="text-sm text-slate-500">{a.funderName || 'Funder not named'}{a.agreementRef && ` · ${a.agreementRef}`}{a.value && ` · ${Number(a.value).toLocaleString()} ${a.currency}`}{a.modality && ` · ${FUNDING_MODALITIES.find((x) => x.id === a.modality)?.label}`} · <b>{AWARD_STATUS_LABEL[a.status]}</b></p>
+              <p className="text-sm text-slate-500">{a.funderName || 'Funder not named'}{a.agreementRef && ` · ${a.agreementRef}`}{a.value && ` · ${Number(a.value).toLocaleString()} ${a.currency}${a.valueEstimated ? ' (estimated)' : ''}`}{a.modality && ` · ${FUNDING_MODALITIES.find((x) => x.id === a.modality)?.label}`} · <b>{AWARD_STATUS_LABEL[a.status]}</b></p>
               {(a.supportTypes ?? []).length > 0 && (
                 <p className="mt-1 flex flex-wrap gap-1">{(a.supportTypes ?? []).map((t) => <span key={t} className="rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-800">{supportLabel(t)}</span>)}</p>
               )}

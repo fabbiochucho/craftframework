@@ -39,7 +39,7 @@ const awardFields = {
   startDate: day.nullable().optional(), endDate: day.nullable().optional(),
   // A funder's own grant on CRAFT (both, or neither); checked against funder_programmes.
   funderFirmId: z.string().max(80).nullable().optional(), funderGrantId: z.string().max(80).nullable().optional(),
-  supportTypes: z.array(z.enum(SUPPORT_TYPE_IDS)).max(SUPPORT_TYPE_IDS.length).optional(),
+  supportTypes: z.array(z.enum(SUPPORT_TYPE_IDS)).max(SUPPORT_TYPE_IDS.length).optional(), valueEstimated: z.boolean().optional(),
 }
 const createAward = z.object({ orgId: z.string().min(1).max(200), ...awardFields }).strict()
 const editAward = z.object({ ...awardFields, title: awardFields.title.optional(), close: z.boolean().optional() }).strict()

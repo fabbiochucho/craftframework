@@ -18,9 +18,11 @@ const field = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm 
 // The organisations this funder names as beneficiaries of each grant (by contact email). They are told and decide
 // whether to add the grant to their awards; naming them shares nothing about them with the funder.
 function Beneficiaries({ p }: { p: Programme }) {
-  const [rows, setRows] = useState<{ grantId: string; email: string }[]>([])
+  const [rows, setRows] = useState<{ grantId: string; email: string; amount: string | null; currency: string }[]>([])
   const [grantId, setGrantId] = useState(p.grants[0]?.id ?? '')
   const [email, setEmail] = useState('')
+  const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState('')
   const [msg, setMsg] = useState('')
   const load = () => fetch(`/api/funder-programmes?beneficiaries=${encodeURIComponent(p.id)}`).then((r) => (r.ok ? r.json() : { beneficiaries: [] })).then((d) => setRows(d.beneficiaries ?? []), () => {})
   useEffect(() => { void load() }, [p.id])
@@ -29,13 +31,13 @@ function Beneficiaries({ p }: { p: Programme }) {
     const r = await fetch('/api/funder-programmes', { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firmId: p.id, ...body }) })
     const d = await r.json().catch(() => null)
     setMsg(r.ok ? (method === 'POST' ? 'Added. The organisation has been told and can add the grant to its awards.' : 'Removed.') : d?.error ?? 'Could not save.')
-    if (r.ok) { setEmail(''); void load() }
+    if (r.ok) { setEmail(''); setAmount(''); void load() }
   }
   const grantName = (id: string) => p.grants.find((g) => g.id === id)?.name ?? id
   return (
     <div className="space-y-2 border-t border-slate-100 pt-3">
       <p className="text-sm font-semibold text-slate-800">Beneficiary organisations</p>
-      <p className="text-xs text-slate-500">Name an organisation by its contact email. It is told by email and in its CRAFT inbox, and chooses whether to add the grant to its awards. You see its results only if it shares them with you.</p>
+      <p className="text-xs text-slate-500">Name an organisation by its contact email, with the amount allocated to it if you wish (only that organisation sees it). It is told by email and in its CRAFT inbox, and chooses whether to add the grant to its awards. You see its results only if it shares them with you.</p>
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs font-medium text-slate-600">Grant
           <select value={grantId} onChange={(e) => setGrantId(e.target.value)} className={field}>{p.grants.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
@@ -43,15 +45,21 @@ function Beneficiaries({ p }: { p: Programme }) {
         <label className="min-w-[14rem] flex-1 text-xs font-medium text-slate-600">Organisation contact email
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contact@organisation.org" className={field} />
         </label>
-        <Button variant="outline" disabled={!email.trim()} onClick={() => void send('POST', { grantId, email: email.trim() })}>Add</Button>
+        <label className="w-32 text-xs font-medium text-slate-600">Amount (optional)
+          <input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} className={field} />
+        </label>
+        <label className="w-20 text-xs font-medium text-slate-600">Currency
+          <input value={currency} maxLength={10} onChange={(e) => setCurrency(e.target.value)} placeholder="EUR" className={field} />
+        </label>
+        <Button variant="outline" disabled={!email.trim()} onClick={() => void send('POST', { grantId, email: email.trim(), amount: amount === '' ? null : Number(amount), currency })}>Add</Button>
       </div>
       {msg && <p role="status" className="text-xs text-slate-600">{msg}</p>}
       {rows.length > 0 && (
         <ul className="divide-y divide-slate-100 text-sm">
           {rows.map((r) => (
             <li key={r.grantId + r.email} className="flex items-center justify-between py-1">
-              <span><span className="text-slate-800">{r.email}</span> <span className="text-xs text-slate-500">· {grantName(r.grantId)}</span></span>
-              <button type="button" onClick={() => void send('DELETE', r)} className="text-xs text-rose-700 underline">Remove</button>
+              <span><span className="text-slate-800">{r.email}</span> <span className="text-xs text-slate-500">· {grantName(r.grantId)}{r.amount != null && ` · ${Number(r.amount).toLocaleString()} ${r.currency}`}</span></span>
+              <button type="button" onClick={() => void send('DELETE', { grantId: r.grantId, email: r.email })} className="text-xs text-rose-700 underline">Remove</button>
             </li>
           ))}
         </ul>
