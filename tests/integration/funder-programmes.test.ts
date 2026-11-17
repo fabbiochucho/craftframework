@@ -48,7 +48,7 @@ describe('funder programmes', () => {
     delete process.env.RESEND_API_KEY
     const ORG = 'self_coordinator_younite_example'
     await rows(`INSERT INTO organizations(id, name, email, created_by) VALUES($1, 'YOUNITE', $2, $2)`, [ORG, ORG_USER])
-    await save(STAFF)
+    await save(STAFF, { grantTypes: { 'Youth TB Response': ['technical_assistance', 'bogus', 'project_grant'] } })
     const ben = (who: string, method: string, body: object) => call(who, method, { firmId: 'firm_giz', grantId: 'youth-tb-response-1', ...body })
     assert.equal((await ben(ORG_USER, 'POST', { email: ORG_USER })).status, 403, 'only the funder names beneficiaries')
     assert.equal((await ben(STAFF, 'POST', { email: 'not-an-email' })).status, 400)
@@ -61,7 +61,7 @@ describe('funder programmes', () => {
     assert.equal((await call(ORG_USER, 'GET', undefined, '?beneficiaries=firm_giz')).status, 403)
 
     const offered = (await call(ORG_USER, 'GET', undefined, '?offered=1')).body.offered
-    assert.deepEqual(offered, [{ firmId: 'firm_giz', funder: 'GIZ', grantId: 'youth-tb-response-1', grant: 'Youth TB Response' }])
+    assert.deepEqual(offered, [{ firmId: 'firm_giz', funder: 'GIZ', grantId: 'youth-tb-response-1', grant: 'Youth TB Response', types: ['project_grant', 'technical_assistance'] }], 'support types kept, unknown ones dropped')
     await rows(`INSERT INTO awards(id, org_id, title, funder_name, funder_firm_id, funder_grant_id, created_by) VALUES('aw1', $1, 'Youth TB Response', 'GIZ', 'firm_giz', 'youth-tb-response-1', $2)`, [ORG, ORG_USER])
     assert.deepEqual((await call(ORG_USER, 'GET', undefined, '?offered=1')).body.offered, [], 'gone once added to its awards')
     assert.equal((await ben(STAFF, 'DELETE', { email: 'nobody@unknown.example' })).status, 200)

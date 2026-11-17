@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { randomUUID } from 'node:crypto'
 import { getStore } from '@netlify/blobs'
 import { and, eq, inArray, sql } from 'drizzle-orm'
+import { SUPPORT_TYPE_IDS } from '../../src/lib/supportTypes.js'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { auditLogs, awardMeasures, awards, ccaAssessments, funderProgrammes, issueShares, orgIssues, organizations } from '../../db/schema.js'
@@ -38,6 +39,7 @@ const awardFields = {
   startDate: day.nullable().optional(), endDate: day.nullable().optional(),
   // A funder's own grant on CRAFT (both, or neither); checked against funder_programmes.
   funderFirmId: z.string().max(80).nullable().optional(), funderGrantId: z.string().max(80).nullable().optional(),
+  supportTypes: z.array(z.enum(SUPPORT_TYPE_IDS)).max(SUPPORT_TYPE_IDS.length).optional(),
 }
 const createAward = z.object({ orgId: z.string().min(1).max(200), ...awardFields }).strict()
 const editAward = z.object({ ...awardFields, title: awardFields.title.optional(), close: z.boolean().optional() }).strict()

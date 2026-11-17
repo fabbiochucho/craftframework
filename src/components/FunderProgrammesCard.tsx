@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { Landmark } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, Button } from './ui'
+import { SUPPORT_TYPES } from '../lib/supportTypes'
 
-type Item = { id: string; name: string }
+type Item = { id: string; name: string; types?: string[] }
 type Programme = { id: string; name: string; grants: Item[]; reportTypes: Item[]; streams: Item[] }
 const FIELDS = [
   { key: 'grants', label: 'Grants or projects', hint: 'For example: Youth TB Community Response 2025–2027' },
@@ -63,17 +64,20 @@ export function FunderProgrammesCard() {
   const [list, setList] = useState<Programme[]>([])
   const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({})
   const [msg, setMsg] = useState<Record<string, string>>({})
+  // Type of support per grant, by grant name: { [firmId]: { [grant name]: type ids } }.
+  const [types, setTypes] = useState<Record<string, Record<string, string[]>>>({})
   useEffect(() => {
     fetch('/api/funder-programmes?mine=1').then((r) => (r.ok ? r.json() : { programmes: [] })).then((d: { programmes: Programme[] }) => {
       setList(d.programmes)
       setDrafts(Object.fromEntries(d.programmes.map((p) => [p.id, { grants: lines(p.grants), reportTypes: lines(p.reportTypes), streams: lines(p.streams) }])))
+      setTypes(Object.fromEntries(d.programmes.map((p) => [p.id, Object.fromEntries(p.grants.map((g) => [g.name, g.types ?? []]))])))
     }, () => {})
   }, [])
   if (!list.length) return null
   const save = async (id: string) => {
     const d = drafts[id]
     const split = (s: string) => s.split('\n').map((x) => x.trim()).filter(Boolean)
-    const res = await fetch('/api/funder-programmes', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firmId: id, grants: split(d.grants), reportTypes: split(d.reportTypes), streams: split(d.streams) }) })
+    const res = await fetch('/api/funder-programmes', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ firmId: id, grants: split(d.grants), reportTypes: split(d.reportTypes), streams: split(d.streams), grantTypes: types[id] ?? {} }) })
     const body = await res.json().catch(() => null)
     setMsg({ ...msg, [id]: res.ok ? 'Saved. Organisations can now choose these in Finance Triangulation.' : body?.error ?? 'Could not save.' })
   }
@@ -90,6 +94,32 @@ export function FunderProgrammesCard() {
                   onChange={(e) => setDrafts({ ...drafts, [p.id]: { ...drafts[p.id], [f.key]: e.target.value } })} />
               </label>
             ))}
+            {(() => {
+              const names = (drafts[p.id]?.grants ?? '').split('\n').map((x) => x.trim()).filter(Boolean)
+              if (!names.length) return null
+              const set = (name: string, t: string, on: boolean) => {
+                const cur = types[p.id]?.[name] ?? []
+                setTypes({ ...types, [p.id]: { ...types[p.id], [name]: on ? [...cur, t] : cur.filter((x) => x !== t) } })
+              }
+              return (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-600">Type of support for each grant</p>
+                  {names.map((name) => (
+                    <div key={name} className="rounded-lg border border-slate-200 p-2">
+                      <p className="text-sm font-medium text-slate-800">{name}</p>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        {SUPPORT_TYPES.map((t) => (
+                          <label key={t.id} className="flex items-center gap-1.5 text-xs text-slate-700" title={t.blurb}>
+                            <input type="checkbox" checked={(types[p.id]?.[name] ?? []).includes(t.id)} onChange={(e) => set(name, t.id, e.target.checked)} />
+                            {t.label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
             <div className="flex items-center gap-3">
               <Button onClick={() => void save(p.id)}>Save</Button>
               {msg[p.id] && <p role="status" className="text-sm text-slate-600">{msg[p.id]}</p>}

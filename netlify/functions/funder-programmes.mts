@@ -4,6 +4,7 @@ import { db } from '../../db/index.js'
 import { awards, firmMembers, firms, funderProgrammes, grantBeneficiaries, organizations } from '../../db/schema.js'
 import { publicBaseUrl } from '../lib/public-validation.js'
 import { sendReminderEmail } from '../lib/reminder-email.js'
+import { cleanSupportTypes } from '../../src/lib/supportTypes.js'
 import { forbidden, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 
@@ -53,7 +54,7 @@ async function offeredTo(caller: { email: string; orgId: string }) {
   return named.filter((n) => !have.some((h) => h.f === n.firmId && h.g === n.grantId)).flatMap((n) => {
     const p = progs.find((x) => x.id === n.firmId)
     const g = p?.grants.find((x) => x.id === n.grantId)
-    return p && g ? [{ firmId: p.id, funder: p.name, grantId: g.id, grant: g.name }] : []
+    return p && g ? [{ firmId: p.id, funder: p.name, grantId: g.id, grant: g.name, types: g.types ?? [] }] : []
   })
 }
 
@@ -89,7 +90,9 @@ const handleRequest = async (req: Request) => {
       const [firm] = await db.select().from(firms).where(and(eq(firms.id, firmId), eq(firms.kind, 'funding_partner')))
       if (!firm) return Response.json({ error: 'Funding partner not found' }, { status: 404 })
       if (caller.role !== 'super_admin' && !(await memberFirmIds(caller.email)).includes(firmId)) return forbidden()
-      const value = { grants: asItems(grants), reportTypes: asItems(reportTypes), streams: asItems(streams), updatedBy: caller.email, updatedAt: new Date() }
+      // Optional { [grant name]: support type ids } — what kind of support each grant is.
+      const typesByName = (b.grantTypes && typeof b.grantTypes === 'object' ? b.grantTypes : {}) as Record<string, unknown>
+      const value = { grants: asItems(grants).map((g) => ({ ...g, types: cleanSupportTypes(typesByName[g.name]) })), reportTypes: asItems(reportTypes), streams: asItems(streams), updatedBy: caller.email, updatedAt: new Date() }
       await db.insert(funderProgrammes).values({ firmId, ...value }).onConflictDoUpdate({ target: funderProgrammes.firmId, set: value })
       return Response.json({ programmes: await view([firmId]) })
     }

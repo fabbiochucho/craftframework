@@ -264,7 +264,7 @@ export const financeRoles = pgTable('finance_roles', {
 // A funding partner's own grants, report types and streams (entered by its staff) for Finance Triangulation.
 export const funderProgrammes = pgTable('funder_programmes', {
   firmId: text('firm_id').primaryKey(),
-  grants: jsonb('grants').$type<{ id: string; name: string }[]>().notNull().default([]),
+  grants: jsonb('grants').$type<{ id: string; name: string; types?: string[] }[]>().notNull().default([]),
   reportTypes: jsonb('report_types').$type<{ id: string; name: string }[]>().notNull().default([]),
   streams: jsonb('streams').$type<{ id: string; name: string }[]>().notNull().default([]),
   updatedBy: text('updated_by').notNull(),
@@ -2567,6 +2567,8 @@ export const awards = pgTable('awards', {
   // The funder's own grant on CRAFT this award is (funder_programmes), when the funder has entered it.
   funderFirmId: text('funder_firm_id'),
   funderGrantId: text('funder_grant_id'),
+  // What kind of support it is (src/lib/supportTypes.ts): technical assistance, project grant, core funding, ...
+  supportTypes: jsonb('support_types').$type<string[]>().notNull().default([]),
   startDate: date('start_date', { mode: 'string' }),
   endDate: date('end_date', { mode: 'string' }),
   status: text('status').notNull().default('active'),
