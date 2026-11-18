@@ -127,14 +127,13 @@ export function EsgAssessmentPanel() {
 
   return (
     <div className="space-y-6">
-      <LegacySaveStatus status={saveStatus} />
+      <LegacySaveStatus status={[saveStatus, evidenceStatus]} />
       {showNotice && (
         <div role="status" className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
           <p>8 new questions added, including nature (TNFD), materiality and value chain. Your earlier answers are kept; answer the new ones to confirm your maturity stage.</p>
           <button type="button" onClick={dismissNotice} className="text-xs font-semibold underline">Dismiss</button>
         </div>
       )}
-      <LegacySaveStatus status={evidenceStatus} />
       <p className="text-sm text-amber-700">Evidence confidence is self-reported, not independent verification or an external ESG rating.</p>
       {/* Header */}
       <div className="flex items-center gap-3">

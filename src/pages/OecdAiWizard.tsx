@@ -87,8 +87,7 @@ export function OecdAiWizard() {
 
   return (
     <div className="space-y-6">
-      <LegacySaveStatus status={saveStatus} />
-      <LegacySaveStatus status={checkStatus} />
+      <LegacySaveStatus status={[saveStatus, checkStatus]} />
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>

@@ -88,7 +88,13 @@ export function useTenantState<T>(
   return loadedScope.current === scope ? [value, update, status] : [fresh(), update, 'loading']
 }
 
-export function LegacySaveStatus({ status }: { status: SaveStatus }) {
+// Several saved settings load on one page; show ONE line for all of them, the one that matters most.
+const STATUS_RANK: SaveStatus[] = ['error', 'loading', 'saving', 'saved', 'demo', 'read-only', 'ready']
+export const combinedStatus = (statuses: SaveStatus[]): SaveStatus =>
+  STATUS_RANK.find((s) => statuses.includes(s)) ?? 'ready'
+
+export function LegacySaveStatus({ status: given }: { status: SaveStatus | SaveStatus[] }) {
+  const status = Array.isArray(given) ? combinedStatus(given) : given
   const label = {
     loading: 'Loading saved assessment — editing will be available when loaded.',
     ready: 'Assessment loaded. Changes save to your workspace.',

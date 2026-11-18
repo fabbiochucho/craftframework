@@ -100,9 +100,7 @@ export function G7AiEngine() {
 
   return (
     <div className="space-y-6">
-      <LegacySaveStatus status={saveStatus} />
-      <LegacySaveStatus status={metricStatus} />
-      <LegacySaveStatus status={checkStatus} />
+      <LegacySaveStatus status={[saveStatus, metricStatus, checkStatus]} />
       {/* Header */}
       <div className="rounded-xl border border-indigo-200 bg-gradient-to-br from-indigo-50 via-white to-white p-6">
         <div className="flex items-start gap-4">
