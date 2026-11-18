@@ -11,6 +11,7 @@ import { activeQuestions, getRiskColor, TIER_NAMES, computeTierScore, scopeLabel
 import { Card, Button, Stepper, Toast } from '../components/ui'
 import { resolveRegulatoryContext, PRIORITY_RANK } from '../lib/regulatory-context'
 import { ExcelImport } from '../components/ExcelImport'
+import { OfflineWorkbook } from '../components/OfflineWorkbook'
 import { NotesThread } from '../components/NotesThread'
 import { cn } from '../lib/utils'
 
@@ -117,13 +118,14 @@ export function AssessmentPage() {
           )}
         </div>
         <Button variant="outline" size="sm" onClick={() => setShowImport(s => !s)}>
-          <UploadCloud className="h-4 w-4" /> Bulk Import
+          <UploadCloud className="h-4 w-4" /> Offline workbook / import
         </Button>
       </div>
 
       {showImport && (
-        <Card className="p-5">
-          <ExcelImport orgId={orgId} onImported={() => setToast('✅ Scores imported into your assessment.')} />
+        <Card className="space-y-5 p-5">
+          <OfflineWorkbook questions={inScope} />
+          {!isIndependent && <details className="text-sm text-slate-600"><summary className="cursor-pointer">Or import a CSV of scores</summary><div className="mt-3"><ExcelImport orgId={orgId} onImported={() => setToast('✅ Scores imported into your assessment.')} /></div></details>}
         </Card>
       )}
 

@@ -1,5 +1,5 @@
 import type { Config } from '@netlify/functions'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { checkProgress } from '../lib/progress.js'
 import { db } from '../../db/index.js'
 import { responses } from '../../db/schema.js'
@@ -13,6 +13,29 @@ import { logger, monitored } from '../lib/logger.js'
 // scopes the request to org ids that caller is actually allowed to touch, so the
 // guessable `self_<email>` tenant id in the request can never reach another
 // tenant's data.
+// One side of a bulk upload: { qId: score } and { qId: note } into rows, with any problems named.
+const QID = /^[A-Za-z0-9._-]{1,64}$/
+function bulkPart(scores: unknown, notes: unknown): { rows: Map<string, { score?: number; note?: string }>; problems: string[] } {
+  const rows = new Map<string, { score?: number; note?: string }>()
+  const problems: string[] = []
+  const row = (q: string) => rows.get(q) ?? rows.set(q, {}).get(q)!
+  for (const [q, v] of Object.entries(scores && typeof scores === 'object' ? scores as Record<string, unknown> : {})) {
+    if (!QID.test(q)) { problems.push(`${q.slice(0, 40)}: not a CRAFT question code`); continue }
+    if (v === null || v === '') continue
+    const n = Number(v)
+    if (!Number.isInteger(n) || n < 0 || n > 5) { problems.push(`${q}: the score must be a whole number from 0 to 5`); continue }
+    row(q).score = n
+  }
+  for (const [q, v] of Object.entries(notes && typeof notes === 'object' ? notes as Record<string, unknown> : {})) {
+    if (!QID.test(q)) { problems.push(`${q.slice(0, 40)}: not a CRAFT question code`); continue }
+    const t = String(v ?? '').trim()
+    if (t.length > 2000) { problems.push(`${q}: the note is longer than 2,000 characters`); continue }
+    if (t) row(q).note = t
+  }
+  if (rows.size > 2000) problems.push('Too many rows in one upload (2,000 at most)')
+  return { rows, problems }
+}
+
 const handleRequest = async (req: Request) => {
   try {
     const caller = await resolveCaller()
@@ -139,24 +162,44 @@ const handleRequest = async (req: Request) => {
       return Response.json({ ok: true })
     }
 
-    // PUT — bulk upsert. body: { orgId, scores: { qId: score } }
+    // PUT — bulk upsert (the Bulk Import and the offline Excel workbook).
+    // body: { orgId, scores?: { qId: 0-5 }, notes?: { qId: text },                       the organisation's own answers
+    //         assessor?: { scores?: { qId: 0-5 }, notes?: { qId: text }, assessedOn? } } the independent assessment
+    // Own answers need write access to the organisation; the independent block needs the organisation's independent
+    // assessor (or the Super Admin). The whole upload is checked first: one bad row and nothing is saved.
     if (req.method === 'PUT') {
-      const { orgId, scores } = await req.json()
-      if (!orgId || !scores) {
-        return Response.json({ error: 'orgId and scores required' }, { status: 400 })
-      }
-      if (!(await canAccessOrg(caller, orgId))) return forbidden()
-      const entries = Object.entries(scores as Record<string, number>)
-      if (entries.length) {
-        await db
-          .insert(responses)
-          .values(entries.map(([questionId, score]) => ({ orgId, questionId, score: Number(score) || 0 })))
-          .onConflictDoUpdate({
-            target: [responses.orgId, responses.questionId],
-            set: { score: sql`excluded.score`, updatedAt: new Date() },
-          })
-      }
-      return Response.json({ ok: true, count: entries.length })
+      const body = await req.json().catch(() => ({}))
+      const { orgId } = body
+      const own = bulkPart(body.scores, body.notes)
+      const ind = body.assessor ? bulkPart(body.assessor.scores, body.assessor.notes) : { rows: new Map(), problems: [] }
+      if (!orgId || (!own.rows.size && !ind.rows.size)) return Response.json({ error: 'orgId and at least one answer required' }, { status: 400 })
+      const problems = [...own.problems, ...ind.problems]
+      const assessedOn = body.assessor?.assessedOn
+      if (assessedOn !== undefined && !(typeof assessedOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(assessedOn) && assessedOn <= new Date().toISOString().slice(0, 10))) problems.push('assessedOn must be a date (YYYY-MM-DD) that is not in the future')
+      if (problems.length) return Response.json({ error: 'Nothing was saved: fix these rows and upload again.', problems: problems.slice(0, 50) }, { status: 400 })
+      const writer = await canAccessOrg(caller, orgId)
+      if (own.rows.size && !writer) return forbidden()
+      if (ind.rows.size && !(caller.role === 'super_admin' || (await isIndependentAssessorOf(caller, orgId)))) return forbidden()
+      const now = new Date()
+      const assessorAt = assessedOn ? new Date(`${assessedOn}T12:00:00Z`) : now
+      await db.transaction(async (tx) => {
+        for (const [questionId, r] of own.rows) {
+          const set: Record<string, unknown> = { updatedBy: caller.email, updatedAt: now }
+          if (r.score !== undefined) { set.score = r.score; set.selfAt = now }
+          if (r.note !== undefined) set.notes = r.note || null
+          await tx.insert(responses).values({ orgId, questionId, score: r.score ?? 0, selfAt: r.score !== undefined ? now : null, notes: r.note || null, updatedBy: caller.email })
+            .onConflictDoUpdate({ target: [responses.orgId, responses.questionId], set })
+        }
+        for (const [questionId, r] of ind.rows) {
+          const set: Record<string, unknown> = { updatedBy: caller.email, updatedAt: now, assessorAt }
+          if (r.score !== undefined) set.assessorScore = r.score
+          if (r.note !== undefined) set.assessorNote = r.note || null
+          await tx.insert(responses).values({ orgId, questionId, score: 0, assessorScore: r.score ?? null, assessorNote: r.note || null, assessorAt, updatedBy: caller.email })
+            .onConflictDoUpdate({ target: [responses.orgId, responses.questionId], set })
+        }
+      })
+      if ([...own.rows].some(([q, r]) => r.score !== undefined && q.startsWith('CRAFT-ONC-'))) await checkProgress(orgId)
+      return Response.json({ ok: true, count: own.rows.size + ind.rows.size, own: own.rows.size, independent: ind.rows.size })
     }
 
     return new Response('Method Not Allowed', { status: 405 })
