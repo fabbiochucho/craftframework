@@ -49,6 +49,12 @@ export function OtherAssessmentsCard({ orgId, signedIn }: { orgId: string; signe
       </label>
     )
   const wizardAnswered = answeredCount(scores[orgId] ?? {})
+  // The organisation's steps, done and to do (the same list its progress messages use).
+  const [steps, setSteps] = useState<{ id: string; title: string; how: string; done: boolean }[]>([])
+  useEffect(() => {
+    if (!signedIn || !orgId) return
+    fetch(`/api/progress?orgId=${encodeURIComponent(orgId)}`).then((r) => (r.ok ? r.json() : { steps: [] })).then((d) => setSteps(d.steps ?? []), () => {})
+  }, [orgId, signedIn])
   const [cca, setCca] = useState<{ modules: CcaModule[]; assessments: Assessment[] } | null>(null)
   useEffect(() => {
     if (!signedIn || !orgId) return
@@ -66,7 +72,7 @@ export function OtherAssessmentsCard({ orgId, signedIn }: { orgId: string; signe
     const m = cca!.modules.find((x) => x.id === a.module)
     return m ? [{ a, m, d: dashboard(m, a.responses, effectiveNotAssessed(m, a.notAssessed, a.domainIds)) }] : []
   }).sort((x, y) => y.a.year - x.a.year)
-  if (!self && !indep && !capacity.length && !wizardAnswered) return null
+  if (!self && !indep && !capacity.length && !wizardAnswered && !steps.length) return null
 
   const pct = (avg: number) => `${Math.round((avg / 5) * 100)}%`
   return (
@@ -109,6 +115,18 @@ export function OtherAssessmentsCard({ orgId, signedIn }: { orgId: string; signe
             <Link to="/capacity" className="text-emerald-700 underline">Open</Link>
           </div>
         ))}
+        {steps.length > 0 && (
+          <div className="border-t border-slate-100 pt-3">
+            <p className="font-semibold text-slate-800">Your steps ({steps.filter((s) => s.done).length} of {steps.length} done)</p>
+            <ul className="mt-1 space-y-0.5">
+              {steps.map((s) => (
+                <li key={s.id} className={s.done ? 'text-slate-500 line-through' : 'text-slate-700'}>
+                  {s.done ? '✓' : '○'} {s.title}{!s.done && <span className="text-xs text-slate-500"> · {s.how}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {linkError && <p role="alert" className="text-xs text-rose-700">{linkError}</p>}
         {!readOnly && !awards.length && <p className="text-xs text-slate-500">To say which grant an assessment is for, add the grant under <Link to="/awards" className="underline">Awards &amp; Issues</Link>.</p>}
       </CardContent>

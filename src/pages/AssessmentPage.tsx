@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLegacyAssessment } from '../lib/legacy-assessment'
 import { LegacySaveStatus } from '../lib/legacy-state'
 import { Link } from '@tanstack/react-router'
@@ -20,7 +20,7 @@ const EVIDENCE_LEVELS = [
 
 export function AssessmentPage() {
   const { currentUser } = useAuthCtx()
-  const { currentOrg } = useWorkspace()
+  const { currentOrg, readOnly } = useWorkspace()
   const {
     scores, getScore, updateScore,
     getAssessorScore, updateAssessorScore, scoreAttribution,
@@ -66,6 +66,15 @@ export function AssessmentPage() {
       .requirements.slice()
       .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
   }, [entityProfile.jurisdictions, entityProfile.regSector])
+  // When the organisation has answered every question in its scope, tell CRAFT once (it sends the next-steps message).
+  const wizardReported = useRef('')
+  useEffect(() => {
+    if (isIndependent || readOnly || !currentUser || currentUser.isDemo || !inScope.length || wizardReported.current === orgId) return
+    const own = scores[orgId] ?? {}
+    if (!inScope.every((q) => q.id in own)) return
+    wizardReported.current = orgId
+    void fetch('/api/progress', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ orgId, wizardDone: true }) }).catch(() => {})
+  }, [isIndependent, readOnly, currentUser, inScope, scores, orgId])
   const tierQuestions = useMemo(() => inScope.filter(q => q.tier === tier + 1), [inScope, tier])
   const tierDomains = useMemo(
     () => Array.from(new Set(tierQuestions.map(q => q.domain))),

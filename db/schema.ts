@@ -155,6 +155,8 @@ export const responses = pgTable(
     orgId: text('org_id').notNull(),
     questionId: text('question_id').notNull(),
     score: integer('score').notNull().default(0),
+    // When the organisation itself answered; null when only an assessor has written to this row (then `score` is not an answer).
+    selfAt: timestamp('self_at', { withTimezone: true }),
     assessorScore: integer('assessor_score'),
     // The independent assessor's reason for the score, and when they assessed it.
     assessorNote: text('assessor_note'),
@@ -282,6 +284,15 @@ export const grantBeneficiaries = pgTable('grant_beneficiaries', {
   addedBy: text('added_by').notNull(),
   addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.firmId, t.grantId, t.email] }), index('grant_beneficiaries_email_idx').on(t.email)])
+
+// What each organisation has been told it finished (netlify/lib/progress.ts).
+export const orgProgress = pgTable('org_progress', {
+  orgId: text('org_id').primaryKey(),
+  notified: jsonb('notified').$type<string[]>().notNull().default([]),
+  wizardDoneAt: timestamp('wizard_done_at', { withTimezone: true }),
+  congratulatedAt: timestamp('congratulated_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
 
 export const financialTriangulations = pgTable(
   'financial_triangulations',

@@ -115,7 +115,8 @@ describe('evidence requests', () => {
     const submitted = await req(ALICE, 'POST', `/${id}/submit`, { note: 'Signed copy attached' })
     assert.equal(submitted.status, 200, submitted.text)
     assert.equal(submitted.body.status, 'submitted')
-    assert.deepEqual(mails().at(-1).to, [VAL], 'the requester is told')
+    assert.ok(mails().some((m) => m.to.length === 1 && m.to[0] === VAL), 'the requester is told')
+    assert.ok(mails().some((m) => /Submit the requested evidence/.test(m.subject)), 'the organisation gets its progress message')
     assert.equal((await req(ALICE, 'DELETE', `/${id}/items/${evA}`)).status, 409, 'submitted evidence stays')
 
     const file = await req(VAL, 'GET', `/${id}/items/${evA}/download`)

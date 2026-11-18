@@ -8,6 +8,7 @@
 // so an invitation can never move someone into an organisation without consent.
 import { createHash } from 'node:crypto'
 import { and, eq, sql } from 'drizzle-orm'
+import { checkProgress } from './progress.js'
 import { db } from '../../db/index.js'
 import {
   accessGrants, auditLogs, firmMembers, firms, invitations, networkMembers, networkNodes, networks, organizations, portfolioOrgs, portfolios,
@@ -376,6 +377,8 @@ export async function acceptInvitation(caller: Caller, token: string, orgNameInp
   }
   const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, orgId))
   const body: Record<string, unknown> = { kind: 'organization', orgId, next: '/onboarding' }
+  // The first progress message: the workspace is set up, and here is what is left.
+  await checkProgress(orgId)
 
   if (inv.engagement && inv.inviter) {
     const parsed = createSchema.safeParse(inv.engagement)

@@ -2,6 +2,7 @@ import type { Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { randomUUID } from 'node:crypto'
 import { and, asc, eq } from 'drizzle-orm'
+import { checkProgress } from '../lib/progress.js'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { auditLogs, ccaAssessments } from '../../db/schema.js'
@@ -137,6 +138,7 @@ const handleRequest = async (req: Request) => {
         await tx.update(ccaAssessments).set({ status: 'complete', domainIds, completedAt: new Date(), updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
         await tx.insert(auditLogs).values({ orgId: row.orgId, actor: caller.email, action: `Completed capacity assessment (${row.module} ${row.year})`, target: row.id, category: 'Assessment' })
       })
+      await checkProgress(row.orgId)
       return json({ ok: true })
     }
 
