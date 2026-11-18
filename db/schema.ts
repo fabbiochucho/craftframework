@@ -264,7 +264,7 @@ export const financeRoles = pgTable('finance_roles', {
 // A funding partner's own grants, report types and streams (entered by its staff) for Finance Triangulation.
 export const funderProgrammes = pgTable('funder_programmes', {
   firmId: text('firm_id').primaryKey(),
-  grants: jsonb('grants').$type<{ id: string; name: string }[]>().notNull().default([]),
+  grants: jsonb('grants').$type<{ id: string; name: string; types?: string[] }[]>().notNull().default([]),
   reportTypes: jsonb('report_types').$type<{ id: string; name: string }[]>().notNull().default([]),
   streams: jsonb('streams').$type<{ id: string; name: string }[]>().notNull().default([]),
   updatedBy: text('updated_by').notNull(),
@@ -276,6 +276,9 @@ export const grantBeneficiaries = pgTable('grant_beneficiaries', {
   firmId: text('firm_id').notNull(),
   grantId: text('grant_id').notNull(),
   email: text('email').notNull(),
+  // The amount allocated to this organisation; seen only by it and the funder.
+  amount: numeric('amount'),
+  currency: text('currency').notNull().default(''),
   addedBy: text('added_by').notNull(),
   addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.firmId, t.grantId, t.email] }), index('grant_beneficiaries_email_idx').on(t.email)])
@@ -2562,11 +2565,15 @@ export const awards = pgTable('awards', {
   funderEmail: text('funder_email').notNull().default(''),
   agreementRef: text('agreement_ref').notNull().default(''),
   value: numeric('value'),
+  // The value is an estimate (non-cash support such as technical assistance or in-kind), not cash received.
+  valueEstimated: boolean('value_estimated').notNull().default(false),
   currency: text('currency').notNull().default(''),
   modality: text('modality').notNull().default(''),
   // The funder's own grant on CRAFT this award is (funder_programmes), when the funder has entered it.
   funderFirmId: text('funder_firm_id'),
   funderGrantId: text('funder_grant_id'),
+  // What kind of support it is (src/lib/supportTypes.ts): technical assistance, project grant, core funding, ...
+  supportTypes: jsonb('support_types').$type<string[]>().notNull().default([]),
   startDate: date('start_date', { mode: 'string' }),
   endDate: date('end_date', { mode: 'string' }),
   status: text('status').notNull().default('active'),

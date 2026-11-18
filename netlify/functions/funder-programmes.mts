@@ -4,6 +4,7 @@ import { db } from '../../db/index.js'
 import { awards, firmMembers, firms, funderProgrammes, grantBeneficiaries, organizations } from '../../db/schema.js'
 import { publicBaseUrl } from '../lib/public-validation.js'
 import { sendReminderEmail } from '../lib/reminder-email.js'
+import { cleanSupportTypes } from '../../src/lib/supportTypes.js'
 import { forbidden, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
 
@@ -53,7 +54,7 @@ async function offeredTo(caller: { email: string; orgId: string }) {
   return named.filter((n) => !have.some((h) => h.f === n.firmId && h.g === n.grantId)).flatMap((n) => {
     const p = progs.find((x) => x.id === n.firmId)
     const g = p?.grants.find((x) => x.id === n.grantId)
-    return p && g ? [{ firmId: p.id, funder: p.name, grantId: g.id, grant: g.name }] : []
+    return p && g ? [{ firmId: p.id, funder: p.name, grantId: g.id, grant: g.name, types: g.types ?? [], amount: n.amount == null ? null : Number(n.amount), currency: n.currency }] : []
   })
 }
 
@@ -72,7 +73,7 @@ const handleRequest = async (req: Request) => {
       const benOf = qs.get('beneficiaries')
       if (benOf) {
         if (!(await canManage(caller, benOf))) return forbidden()
-        const rows = await db.select({ grantId: grantBeneficiaries.grantId, email: grantBeneficiaries.email }).from(grantBeneficiaries).where(eq(grantBeneficiaries.firmId, benOf))
+        const rows = await db.select({ grantId: grantBeneficiaries.grantId, email: grantBeneficiaries.email, amount: grantBeneficiaries.amount, currency: grantBeneficiaries.currency }).from(grantBeneficiaries).where(eq(grantBeneficiaries.firmId, benOf))
         return Response.json({ beneficiaries: rows })
       }
       if (qs.get('mine')) {
@@ -89,7 +90,9 @@ const handleRequest = async (req: Request) => {
       const [firm] = await db.select().from(firms).where(and(eq(firms.id, firmId), eq(firms.kind, 'funding_partner')))
       if (!firm) return Response.json({ error: 'Funding partner not found' }, { status: 404 })
       if (caller.role !== 'super_admin' && !(await memberFirmIds(caller.email)).includes(firmId)) return forbidden()
-      const value = { grants: asItems(grants), reportTypes: asItems(reportTypes), streams: asItems(streams), updatedBy: caller.email, updatedAt: new Date() }
+      // Optional { [grant name]: support type ids } — what kind of support each grant is.
+      const typesByName = (b.grantTypes && typeof b.grantTypes === 'object' ? b.grantTypes : {}) as Record<string, unknown>
+      const value = { grants: asItems(grants).map((g) => ({ ...g, types: cleanSupportTypes(typesByName[g.name]) })), reportTypes: asItems(reportTypes), streams: asItems(streams), updatedBy: caller.email, updatedAt: new Date() }
       await db.insert(funderProgrammes).values({ firmId, ...value }).onConflictDoUpdate({ target: funderProgrammes.firmId, set: value })
       return Response.json({ programmes: await view([firmId]) })
     }
@@ -106,12 +109,21 @@ const handleRequest = async (req: Request) => {
         await db.delete(grantBeneficiaries).where(and(eq(grantBeneficiaries.firmId, firmId), eq(grantBeneficiaries.grantId, grantId), eq(grantBeneficiaries.email, email)))
         return Response.json({ ok: true })
       }
-      const [added] = await db.insert(grantBeneficiaries).values({ firmId, grantId, email, addedBy: caller.email }).onConflictDoNothing().returning()
+      // Optional amount allocated to this organisation (seen only by it and the funder); naming again updates it.
+      const amount = b.amount === undefined || b.amount === null || b.amount === '' ? null : Number(b.amount)
+      const currency = String(b.currency ?? '').trim().toUpperCase().slice(0, 10)
+      if (amount !== null && !(Number.isFinite(amount) && amount >= 0 && amount <= 1e13)) return Response.json({ error: 'Enter the amount as a number' }, { status: 400 })
+      const [before] = await db.select({ email: grantBeneficiaries.email }).from(grantBeneficiaries)
+        .where(and(eq(grantBeneficiaries.firmId, firmId), eq(grantBeneficiaries.grantId, grantId), eq(grantBeneficiaries.email, email)))
+      await db.insert(grantBeneficiaries).values({ firmId, grantId, email, amount: amount === null ? null : String(amount), currency, addedBy: caller.email })
+        .onConflictDoUpdate({ target: [grantBeneficiaries.firmId, grantBeneficiaries.grantId, grantBeneficiaries.email], set: { amount: amount === null ? null : String(amount), currency } })
+      const added = !before
+      const allocation = amount !== null ? ` The amount allocated to your organisation is ${amount.toLocaleString('en')} ${currency}.`.replace(' .', '.') : ''
       // Told once; also lands in their CRAFT inbox. Nothing about the organisation is returned to the funder.
       if (added) {
         await sendReminderEmail({
           to: email, subject: `${p.name} lists your organisation as a beneficiary of ${grant.name}`,
-          text: `${p.name} has listed your organisation on CRAFT as a beneficiary of its grant "${grant.name}".\n\nIf this is right, add it to your awards so your assessments and finance reports can be linked to it: sign in at ${publicBaseUrl()}/awards and choose "Add to my awards". If it is not right, you can ignore this message.\n\nThis shares nothing about your organisation with ${p.name}.`,
+          text: `${p.name} has listed your organisation on CRAFT as a beneficiary of its grant "${grant.name}".${allocation}\n\nIf this is right, add it to your awards so your assessments and finance reports can be linked to it: sign in at ${publicBaseUrl()}/awards and choose "Add to my awards". If it is not right, you can ignore this message.\n\nThis shares nothing about your organisation with ${p.name}.`,
         }, `beneficiary-${firmId}-${grantId}-${email}`, 'grant_beneficiary')
       }
       return Response.json({ ok: true })
