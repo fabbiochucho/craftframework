@@ -1,5 +1,6 @@
 import type { Config } from '@netlify/functions'
 import { eq, and, sql } from 'drizzle-orm'
+import { checkProgress } from '../lib/progress.js'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import { financeRoles, financialTriangulations } from '../../db/schema.js'
@@ -70,6 +71,7 @@ const handleRequest = async (req: Request) => {
       if (!email) await db.delete(financeRoles).where(and(eq(financeRoles.orgId, orgId), eq(financeRoles.role, role)))
       else await db.insert(financeRoles).values({ orgId, role, email, assignedBy: caller.email })
         .onConflictDoUpdate({ target: [financeRoles.orgId, financeRoles.role], set: { email, assignedBy: caller.email, assignedAt: new Date() } })
+      await checkProgress(orgId)
       return Response.json({ named: await namedFinanceRoles(orgId) })
     }
 
@@ -148,7 +150,7 @@ const handleRequest = async (req: Request) => {
         .returning()
 
       return Response.json(row, { status: 201 })
-      })
+      }).then(async (res) => { if (res.status === 201) await checkProgress(body.orgId); return res })
     }
 
     return new Response('Method Not Allowed', { status: 405 })

@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 import { and, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm'
+import { checkProgress } from '../lib/progress.js'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
@@ -309,6 +310,7 @@ const handleRequest = async (req: Request) => {
       await audit(caller.email, `${support ? 'CRAFT support: ' : ''}submitted evidence (${items.length} document${items.length === 1 ? '' : 's'})`, r.id, r.orgId)
       if (support) await tellSupportAction(await orgContactsFor(r.orgId), `Submitted the evidence request "${r.title}" for you (${items.length} document${items.length === 1 ? '' : 's'}).`, requestLink(r), caller.email)
       await tellRequester(u)
+      await checkProgress(r.orgId)
       return json((await view([u]))[0])
     }
     if (sub === 'review' && req.method === 'POST') {

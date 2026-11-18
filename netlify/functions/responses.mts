@@ -1,5 +1,6 @@
 import type { Config } from '@netlify/functions'
 import { eq, inArray, sql } from 'drizzle-orm'
+import { checkProgress } from '../lib/progress.js'
 import { db } from '../../db/index.js'
 import { responses } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
@@ -34,7 +35,7 @@ const handleRequest = async (req: Request) => {
         if (ids.length) {
           const rows = await db.select().from(responses).where(inArray(responses.orgId, ids))
           for (const r of rows) {
-            ;(scoresByOrg[r.orgId] ??= {})[r.questionId] = r.score
+            if (r.selfAt) (scoresByOrg[r.orgId] ??= {})[r.questionId] = r.score
           }
         }
         return Response.json({ scoresByOrg })
@@ -49,7 +50,7 @@ const handleRequest = async (req: Request) => {
       const details: Record<string, Record<string, unknown>> = {}
       let assessedOn: string | null = null
       for (const r of rows) {
-        scores[r.questionId] = r.score
+        if (r.selfAt) scores[r.questionId] = r.score
         const d: Record<string, unknown> = {}
         if (r.assessorScore != null) d.assessorScore = r.assessorScore
         if (r.assessorNote) d.assessorNote = r.assessorNote
@@ -102,7 +103,7 @@ const handleRequest = async (req: Request) => {
       const { updatedBy } = body
 
       const set: Record<string, unknown> = { updatedBy: updatedBy ?? null, updatedAt: new Date() }
-      if (has('score')) set.score = Number(body.score) || 0
+      if (has('score')) { set.score = Number(body.score) || 0; set.selfAt = new Date() }
       if (has('assessorScore')) set.assessorScore = num(body.assessorScore)
       // '' clears the note. The assessment date is the day given, else today.
       if (body.assessorNote !== undefined) set.assessorNote = body.assessorNote ? String(body.assessorNote).trim() : null
@@ -119,6 +120,7 @@ const handleRequest = async (req: Request) => {
           orgId,
           questionId,
           score: Number(body.score) || 0,
+          selfAt: has('score') ? new Date() : null,
           assessorScore: has('assessorScore') ? num(body.assessorScore) : null,
           assessorNote: body.assessorNote ? String(body.assessorNote).trim() : null,
           assessorAt,
@@ -132,6 +134,8 @@ const handleRequest = async (req: Request) => {
           target: [responses.orgId, responses.questionId],
           set,
         })
+      // An organisation answering its own CRAFT-ONC may finish a step of its assessment.
+      if (has('score') && String(questionId).startsWith('CRAFT-ONC-')) await checkProgress(orgId)
       return Response.json({ ok: true })
     }
 
