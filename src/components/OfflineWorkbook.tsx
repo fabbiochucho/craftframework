@@ -31,7 +31,7 @@ export function OfflineWorkbook({ questions }: { questions: Question[] }) {
   const fileRef = useRef<HTMLInputElement>(null)
   if (!currentUser || currentUser.isDemo || !orgId) return null
 
-  const label = (m: WorkbookMode) => (m === 'own' ? `${orgName}'s own answers` : 'Independent assessor scores')
+  const label = (m: WorkbookMode) => (m === 'own' ? `${orgName}'s own answers` : 'independent assessor scores')
 
   const download = async () => {
     setBusy('Preparing the workbook…'); setMsg(null)
@@ -53,7 +53,7 @@ export function OfflineWorkbook({ questions }: { questions: Question[] }) {
       line('CRAFT · Capacity Readiness & Fiduciary Assurance Toolkit', { size: 18, bold: true, fill: GREEN, color: 'FFFFFFFF' })
       line('Offline assessment workbook', { size: 14, bold: true, fill: LIGHT, color: GREEN })
       line(`Organisation: ${orgName}`, { bold: true })
-      line(`For: ${label(mode)}`, { bold: true })
+      line(`For: ${label(mode).replace(/^i/, 'I')}`, { bold: true })
       line(`Prepared on ${new Date().toISOString().slice(0, 10)} by ${currentUser.email}`)
       line('')
       line('How to fill it in', { bold: true, color: GREEN })
@@ -167,7 +167,7 @@ export function OfflineWorkbook({ questions }: { questions: Question[] }) {
       if (r.status === 403) throw new Error(pending.mode === 'own' ? `Your account cannot save ${orgName}'s own answers. Ask the organisation, or the CRAFT team, to upload it.` : 'Only the organisation\'s independent assessor (or the CRAFT team) can upload independent scores.')
       if (!r.ok) throw new Error([d?.error ?? 'The upload failed.', ...(d?.problems ?? [])].join(' '))
       await refreshScores()
-      setMsg({ ok: `Saved ${Object.keys(pending.scores).length} scores and ${Object.keys(pending.notes).length} notes as ${label(pending.mode).toLowerCase()}.${pending.mode === 'independent' ? ' Reload the page to see them.' : ''}` })
+      setMsg({ ok: `Saved ${Object.keys(pending.scores).length} scores and ${Object.keys(pending.notes).length} notes as ${label(pending.mode)}.${pending.mode === 'independent' ? ' Reload the page to see them.' : ''}` })
       setPending(null)
     } catch (err) {
       setMsg({ problems: [err instanceof Error ? err.message : 'The upload failed.'] })
@@ -186,7 +186,7 @@ export function OfflineWorkbook({ questions }: { questions: Question[] }) {
       <div className="flex flex-wrap items-center gap-2">
         {modes.length > 1 && (
           <select value={mode} onChange={(e) => setMode(e.target.value as WorkbookMode)} className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
-            {modes.map((m) => <option key={m} value={m}>{label(m)}</option>)}
+            {modes.map((m) => <option key={m} value={m}>{label(m).replace(/^i/, 'I')}</option>)}
           </select>
         )}
         <Button variant="outline" size="sm" disabled={!!busy} onClick={() => void download()}><Download className="h-4 w-4" /> Download workbook</Button>
@@ -196,7 +196,7 @@ export function OfflineWorkbook({ questions }: { questions: Question[] }) {
       </div>
       {pending && (
         <div role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
-          <p>Ready to save as <b>{label(pending.mode).toLowerCase()}</b>: {Object.keys(pending.scores).length} scores and {Object.keys(pending.notes).length} notes. Existing scores for these questions will be replaced.</p>
+          <p>Ready to save as <b>{label(pending.mode)}</b>: {Object.keys(pending.scores).length} scores and {Object.keys(pending.notes).length} notes. Existing scores for these questions will be replaced.</p>
           <div className="mt-2 flex gap-2">
             <Button size="sm" disabled={!!busy} onClick={() => void save()}>Save to CRAFT</Button>
             <Button size="sm" variant="outline" onClick={() => setPending(null)}>Cancel</Button>
