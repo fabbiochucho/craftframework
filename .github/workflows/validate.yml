@@ -76,7 +76,10 @@ jobs:
       # Gate on what ships. The remaining high advisories (braces, node-forge,
       # sharp) only arrive via @netlify/vite-plugin-tanstack-start's local-dev
       # server and have no upstream fix yet; they stay reported, not blocking.
-      - run: timeout 120s npm audit --omit=dev --audit-level=high
+      # Same gate, with named and dated exemptions (scripts/audit-check.mjs): an advisory with no upstream fix
+      # can be exempted with its reason and a review date; anything else high or critical still fails.
+      - run: node scripts/audit-check.mjs --self-test
+      - run: timeout 150s node scripts/audit-check.mjs --omit=dev
       - run: timeout 120s npm audit --audit-level=high
         continue-on-error: true
 
