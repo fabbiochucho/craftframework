@@ -415,7 +415,8 @@ describe('lifecycle emails', () => {
       assert.equal((await call(adminApi, SUPER, 'GET', '/api/admin-lifecycle/preview?id=nope')).status, 404)
     })
 
-    it('shows what is due in the next 30 days, per-person history and counts per kind', async () => {
+    it('shows what is due in the next 30 days, per-person history and counts per kind', async (t) => {
+      t.mock.timers.enable({ apis: ['Date'], now: TUE.getTime() }) // the schedule reads the clock; the people are seeded relative to TUE
       await seed({ key: 'amina', completedDaysAgo: 5 })        // nudge due in 9 days, feedback in 25
       await seed({ key: 'ben', completedDaysAgo: 14 })          // nudge due today
       const sched = (await call(adminApi, SUPER, 'GET', '/api/admin-lifecycle/schedule')).body

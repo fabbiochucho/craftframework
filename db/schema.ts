@@ -1297,6 +1297,8 @@ export const wsOrganizations = pgTable('ws_organizations', {
   typeVerificationNote: text('type_verification_note').notNull().default(''),
   // Members must use multi-factor sign-in to reach this organisation's data.
   requireMfa: boolean('require_mfa').notNull().default(false),
+  // The main CRAFT organisation (organizations.id) this institute belongs to (netlify/lib/nphi.ts).
+  craftOrgId: text('craft_org_id'),
 })
 
 // Multi-factor sign-in (TOTP) per user. The secret is field-encrypted; recovery codes are stored as hashes.
@@ -2673,3 +2675,22 @@ export const issueShares = pgTable('issue_shares', {
   grantedBy: text('granted_by').notNull(),
   grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.orgId, t.viewerEmail] })])
+
+// NPHI / JEE / SPAR: the independent assessor's level per item, beside the institute's governance_scores (netlify/lib/nphi.ts).
+export const catalogueIndependentScores = pgTable('catalogue_independent_scores', {
+  assessmentId: integer('assessment_id').notNull(),
+  domain: text('domain').notNull(),
+  score: integer('score'),
+  notApplicable: boolean('not_applicable').notNull().default(false),
+  note: text('note').notNull().default(''),
+  assessor: text('assessor').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.assessmentId, t.domain] })])
+
+// The independent assessor's declaration of independence, required before they score an assessment.
+export const catalogueIndependence = pgTable('catalogue_independence', {
+  assessmentId: integer('assessment_id').notNull(),
+  assessor: text('assessor').notNull(),
+  organisation: text('organisation').notNull().default(''),
+  declaredAt: timestamp('declared_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [primaryKey({ columns: [t.assessmentId, t.assessor] })])

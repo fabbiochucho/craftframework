@@ -15,8 +15,11 @@ import {
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
   supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks, userMfa,
+  catalogueIndependentScores,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
+import { catalogueResponses, independentResponses, isNphiType, liveEvidenceIds } from '../lib/nphi.js'
+import { checkProgress } from '../lib/progress.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
 import {
   ALLOWED_EVIDENCE_MIME, MAX_EVIDENCE_BYTES, SEVERITIES, buildScorecard, canAssignRole, capCloseBlockers,
@@ -56,7 +59,7 @@ import { exportResponse } from '../lib/export-formats.js'
 import { catalogueScorecardDoc, craftScorecardDoc, domainScorecardDoc, planExportDoc, qaExportDoc, roadmapExportDoc } from '../lib/export-docs.js'
 import {
   activeItems, catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
-  isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
+  isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore,
 } from '../../src/lib/health-security.js'
 import { ASSESSMENT_CATALOGUES, assessmentTypesFor, catalogueByType, RESTRICTED_LABELS, RESTRICTED_TYPES } from '../../src/lib/assessment-catalogues.js'
 import { CHECK_OUTCOMES, regulatorySources, REVERIFY_AFTER_DAYS, sourceByKey, sourceStatus } from '../../src/lib/regulatory-sources.js'
@@ -537,18 +540,11 @@ function typeVerificationFor(type: string, email: string) {
     : { typeVerification: 'pending', typeVerificationMethod: null, typeVerifiedBy: null, typeVerifiedAt: null, typeVerificationNote: `Requested by ${email}` }
 }
 
-type CatalogueRow = { domain: string; tierLevel: number; evidenceUploaded: boolean; evidenceId: number | null; notApplicable: boolean; naReason: string }
-// Evidence counts only while its document is live: not archived, rejected or expired.
-async function liveEvidenceIds(orgId: number, ids: (number | null)[]): Promise<Set<number>> {
-  const want = [...new Set(ids.filter((x): x is number => x !== null))]
-  if (!want.length) return new Set()
-  const docs = await db.select().from(evidenceRegistry).where(and(eq(evidenceRegistry.orgId, orgId), inArray(evidenceRegistry.id, want), isNull(evidenceRegistry.archivedAt)))
-  return new Set(docs.filter((d) => d.status !== 'rejected' && evidenceExpiryState(d.expiryDate) !== 'expired').map((d) => d.id))
-}
-async function catalogueResponses(orgId: number, scores: CatalogueRow[]): Promise<Responses> {
-  const live = await liveEvidenceIds(orgId, scores.map((s) => s.evidenceId))
-  const evidenced = (s: CatalogueRow) => (s.evidenceId === null ? s.evidenceUploaded : live.has(s.evidenceId))
-  return Object.fromEntries(scores.map((s) => [s.domain, { score: s.notApplicable ? null : s.tierLevel, evidence: evidenced(s), notApplicable: s.notApplicable, naReason: s.naReason }]))
+// An NPHI / JEE / SPAR step finished: the institute's CRAFT organisation gets its progress message.
+async function progressOf(orgId: number, type: string) {
+  if (!isNphiType(type)) return
+  const [org] = await db.select({ craftOrgId: wsOrganizations.craftOrgId }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+  if (org?.craftOrgId) await checkProgress(org.craftOrgId)
 }
 
 function craftResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean }[]) {
@@ -695,7 +691,9 @@ async function scorecardData(orgId: number, a: typeof governanceAssessments.$inf
     const cat = catalogueByType(a.assessmentType)
     if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
       const { findingsBySeverity } = buildScorecard([], findings)
-      return ({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, await catalogueResponses(orgId, scores), a.innovationSupport) : {}) })
+      const ind = cat && isNphiType(a.assessmentType) ? await db.select().from(catalogueIndependentScores).where(eq(catalogueIndependentScores.assessmentId, a.id)) : []
+      const independent = cat && ind.length ? { overall: catalogueScore(cat, independentResponses(ind), a.innovationSupport).overall, answered: ind.length } : null
+      return ({ assessment: a, findingsBySeverity, findings: findings.length, independent, ...(cat ? catalogueScore(cat, await catalogueResponses(orgId, scores), a.innovationSupport) : {}) })
     }
     return ({ assessment: a, ...buildScorecard(scores, findings) })
 }
@@ -927,6 +925,7 @@ const routes: Route[] = [
       name: str(c.body.name, 'name', 200), type, ...typeVerificationFor(type, caller.email), country: str(c.body.country, 'country', 100, false),
       region: str(c.body.region, 'region', 100, false), contactEmail: encryptField(str(c.body.contactEmail, 'contactEmail', 200, false) || caller.email),
       contactPhone: encryptField(str(c.body.contactPhone, 'contactPhone', 50, false)),
+      craftOrgId: caller.orgId || null, // the creator's CRAFT organisation: its dashboard, assessor and grants reach these assessments
     }).returning()
     await db.insert(wsOrgMembers).values({ userId: encryptField(caller.email), userIdHash: fieldLookupHashes(caller.email)[0] ?? null, orgId: org.id, role: 'owner' })
     const [ws] = await db.insert(workspaces).values({ orgId: org.id, workspaceName: 'Main workspace' }).returning()
@@ -936,6 +935,8 @@ const routes: Route[] = [
   { method: 'PUT', pattern: '/orgs/:org', access: 'admin', scope: 'org', handler: async (c, { orgId, caller }) => {
     const set: Record<string, unknown> = {}
     if (c.body.name !== undefined) set.name = str(c.body.name, 'name', 200)
+    // Join this organisation to the admin's own CRAFT organisation (set when created; this links an older one).
+    if (c.body.linkCraft === true) { if (!caller.orgId) throw bad('you have no CRAFT organisation to link'); set.craftOrgId = caller.orgId }
     if (c.body.type !== undefined) {
       set.type = oneOf(c.body.type, 'type', ORG_TYPES)
       const [cur] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
@@ -1057,8 +1058,10 @@ const routes: Route[] = [
       db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
       db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
     ])
+    const independent = isNphiType(a.assessmentType) ? await db.select().from(catalogueIndependentScores).where(eq(catalogueIndependentScores.assessmentId, a.id)) : []
     return json({
       ...a,
+      independent,
       scores: scores.map((s) => ({ ...s, reviewerNotes: decryptField(s.reviewerNotes) })),
       findings: findings.map((f) => ({ ...f, description: decryptField(f.description) })),
     })
@@ -1235,6 +1238,7 @@ const routes: Route[] = [
     }
     const [u] = await db.update(governanceAssessments).set({ status: 'in_review', completedAt: new Date() }).where(eq(governanceAssessments.id, a.id)).returning()
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { status: 'in_review' })
+    await progressOf(orgId, a.assessmentType)
     return json(u)
   } },
   { method: 'POST', pattern: `${A}/approve`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
@@ -1244,6 +1248,7 @@ const routes: Route[] = [
     await db.update(governanceScores).set({ verifiedAt: new Date() }).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
     const [u] = await db.update(governanceAssessments).set({ status: 'approved' }).where(eq(governanceAssessments.id, a.id)).returning()
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { status: 'approved' })
+    await progressOf(orgId, a.assessmentType)
     return json(u)
   } },
   { method: 'POST', pattern: `${A}/reject`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
