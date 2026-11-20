@@ -55,7 +55,7 @@ import {
 import { exportResponse } from '../lib/export-formats.js'
 import { catalogueScorecardDoc, craftScorecardDoc, domainScorecardDoc, planExportDoc, qaExportDoc, roadmapExportDoc } from '../lib/export-docs.js'
 import {
-  catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
+  activeItems, catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
   isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
 } from '../../src/lib/health-security.js'
 import { ASSESSMENT_CATALOGUES, assessmentTypesFor, catalogueByType, RESTRICTED_LABELS, RESTRICTED_TYPES } from '../../src/lib/assessment-catalogues.js'
@@ -537,8 +537,18 @@ function typeVerificationFor(type: string, email: string) {
     : { typeVerification: 'pending', typeVerificationMethod: null, typeVerifiedBy: null, typeVerifiedAt: null, typeVerificationNote: `Requested by ${email}` }
 }
 
-function catalogueResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean; naReason: string }[]): Responses {
-  return Object.fromEntries(scores.map((s) => [s.domain, { score: s.notApplicable ? null : s.tierLevel, evidence: s.evidenceUploaded, notApplicable: s.notApplicable, naReason: s.naReason }]))
+type CatalogueRow = { domain: string; tierLevel: number; evidenceUploaded: boolean; evidenceId: number | null; notApplicable: boolean; naReason: string }
+// Evidence counts only while its document is live: not archived, rejected or expired.
+async function liveEvidenceIds(orgId: number, ids: (number | null)[]): Promise<Set<number>> {
+  const want = [...new Set(ids.filter((x): x is number => x !== null))]
+  if (!want.length) return new Set()
+  const docs = await db.select().from(evidenceRegistry).where(and(eq(evidenceRegistry.orgId, orgId), inArray(evidenceRegistry.id, want), isNull(evidenceRegistry.archivedAt)))
+  return new Set(docs.filter((d) => d.status !== 'rejected' && evidenceExpiryState(d.expiryDate) !== 'expired').map((d) => d.id))
+}
+async function catalogueResponses(orgId: number, scores: CatalogueRow[]): Promise<Responses> {
+  const live = await liveEvidenceIds(orgId, scores.map((s) => s.evidenceId))
+  const evidenced = (s: CatalogueRow) => (s.evidenceId === null ? s.evidenceUploaded : live.has(s.evidenceId))
+  return Object.fromEntries(scores.map((s) => [s.domain, { score: s.notApplicable ? null : s.tierLevel, evidence: evidenced(s), notApplicable: s.notApplicable, naReason: s.naReason }]))
 }
 
 function craftResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean }[]) {
@@ -685,7 +695,7 @@ async function scorecardData(orgId: number, a: typeof governanceAssessments.$inf
     const cat = catalogueByType(a.assessmentType)
     if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
       const { findingsBySeverity } = buildScorecard([], findings)
-      return ({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
+      return ({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, await catalogueResponses(orgId, scores), a.innovationSupport) : {}) })
     }
     return ({ assessment: a, ...buildScorecard(scores, findings) })
 }
@@ -1078,8 +1088,17 @@ const routes: Route[] = [
       throw bad('after-action reviews and simulation exercises record findings, not scores')
     } else if (!Number.isFinite(score) || score < 0 || score > 5) throw bad('score must be 0-5')
     const naReason = notApplicable ? str(c.body.naReason, 'naReason', 1000) : ''
+    // Catalogue items: evidence is a document from this workspace's evidence registry, not a tick box.
+    let evidenceId: number | null = null
+    if (catalogueByType(a.assessmentType) && !notApplicable && c.body.evidenceId != null) {
+      evidenceId = intParam(String(c.body.evidenceId))
+      const [doc] = await db.select().from(evidenceRegistry).where(and(eq(evidenceRegistry.id, evidenceId), eq(evidenceRegistry.orgId, orgId), eq(evidenceRegistry.workspaceId, wsId), isNull(evidenceRegistry.archivedAt)))
+      if (!doc) throw bad('evidenceId is not a document in this workspace')
+      if (doc.status === 'rejected' || evidenceExpiryState(doc.expiryDate) === 'expired') throw bad(`${doc.documentName} is ${doc.status === 'rejected' ? 'rejected' : 'expired'} and cannot be used as evidence`)
+    }
     const values = {
-      tierLevel: tierFromScore(score), evidenceUploaded: !notApplicable && !!c.body.evidenceUploaded,
+      tierLevel: tierFromScore(score), evidenceId,
+      evidenceUploaded: catalogueByType(a.assessmentType) ? evidenceId !== null : !notApplicable && !!c.body.evidenceUploaded,
       reviewerNotes: encryptField(str(c.body.reviewerNotes, 'reviewerNotes', 2000, false)), notApplicable, naReason,
     }
     const [row] = await db.insert(governanceScores).values({ orgId, assessmentId: a.id, pillar, domain, ...values })
@@ -1203,6 +1222,17 @@ const routes: Route[] = [
   { method: 'POST', pattern: `${A}/submit`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
     if (a.status !== 'draft') throw new HttpError(409, 'Only draft assessments can be submitted')
+    const cat = catalogueByType(a.assessmentType)
+    if (cat) {
+      // Every item must be scored or marked not applicable before review (an empty assessment cannot be submitted).
+      const scores = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
+      const answered = new Set(scores.map((s) => s.domain))
+      const missing = activeItems(cat, a.innovationSupport).filter((i) => !answered.has(i.id)).map((i) => i.id)
+      if (missing.length) throw new HttpError(409, `Score every item, or mark it not applicable, before submitting: ${missing.length} unanswered (${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ', …' : ''})`)
+      const live = await liveEvidenceIds(orgId, scores.map((s) => s.evidenceId))
+      const stale = scores.filter((s) => s.evidenceId !== null && !live.has(s.evidenceId)).map((s) => s.domain)
+      if (stale.length) throw new HttpError(409, `The evidence for ${stale.join(', ')} has been archived, rejected or has expired: attach a current document or remove it`)
+    }
     const [u] = await db.update(governanceAssessments).set({ status: 'in_review', completedAt: new Date() }).where(eq(governanceAssessments.id, a.id)).returning()
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { status: 'in_review' })
     return json(u)
@@ -1561,7 +1591,7 @@ const routes: Route[] = [
     const summary = []
     for (const [type, a] of Object.entries(latest)) {
       const rows = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
-      const cs = catalogueScore(catalogueFor(type)!, catalogueResponses(rows), a.innovationSupport)
+      const cs = catalogueScore(catalogueFor(type)!, await catalogueResponses(orgId, rows), a.innovationSupport)
       scores[type] = cs
       summary.push({ type, label: HEALTH_SECURITY_LABELS[type as keyof typeof HEALTH_SECURITY_LABELS], assessmentId: a.id, version: a.version, status: a.status, reportingPeriod: a.reportingPeriod, overall: cs.overall, completeness: cs.completeness, sdg: cs.sdg ?? null })
     }
