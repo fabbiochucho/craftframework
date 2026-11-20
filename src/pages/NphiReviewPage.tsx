@@ -29,7 +29,9 @@ export function NphiReviewPage({ id }: { id?: number }) {
     if (!id) return
     fetch(`/api/nphi?assessment=${id}`).then(async (r) => {
       const b = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(r.status === 403 ? 'Only the institute, its invited independent assessor and the CRAFT team can see this assessment.' : b.error || 'This assessment could not be loaded.')
+      if (!r.ok) throw new Error(r.status === 403 ? 'Only the institute, its invited independent assessor and the CRAFT team can see this assessment.'
+        : r.status === 404 ? 'There is no NPHI, JEE or SPAR assessment at this link. It may have been removed, or the link is incomplete. Open the assessment from the institute’s dashboard instead.'
+        : b.error || 'This assessment could not be loaded.')
       setD(b)
       setSection((s) => s || b.catalogue.sections[0]?.id || '')
     }).catch((e) => setError((e as Error).message))
@@ -44,7 +46,7 @@ export function NphiReviewPage({ id }: { id?: number }) {
   }
 
   if (!id) return <p className="text-sm text-slate-600">Open an assessment from the institute's dashboard.</p>
-  if (!d) return error ? <p role="alert" className="text-sm text-rose-700">{error}</p> : <p className="text-sm text-slate-500">Loading…</p>
+  if (!d) return error ? <div className="space-y-2"><p role="alert" className="text-sm text-rose-700">{error}</p><Link to="/dashboard" className="text-sm text-emerald-700 underline">Go to the dashboard</Link></div> : <p className="text-sm text-slate-500">Loading…</p>
   const s = d.summary
   const items = d.catalogue.items.filter((i) => i.sectionId === section)
   const levelName = (n: number | null) => (n === null ? '' : d.catalogue.levels[n - 1] ?? String(n))
