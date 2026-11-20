@@ -7,6 +7,7 @@ import { db } from '../../db/index.js'
 import { ccaAssessments, evidenceRequests, financeRoles, financialTriangulations, orgProgress, organizations, responses } from '../../db/schema.js'
 import { independentAssessorOf } from './independent-assessor.js'
 import { logger } from './logger.js'
+import { linkedTo } from './nphi.js'
 import { publicBaseUrl } from './public-validation.js'
 import { sendReminderEmail } from './reminder-email.js'
 import { orgContactsFor } from './validation-lifecycle.js'
@@ -17,7 +18,7 @@ const ONC_INDICATORS = 44
 
 /** Where the organisation stands on each step. A step that does not apply (no evidence was requested) is left out. */
 export async function stepsFor(orgId: string): Promise<Step[]> {
-  const [onc, evidence, wizard, cca, roles, finance] = await Promise.all([
+  const [onc, evidence, wizard, cca, roles, finance, nphi] = await Promise.all([
     db.select({ q: responses.questionId }).from(responses).where(and(eq(responses.orgId, orgId), like(responses.questionId, 'CRAFT-ONC-%'), isNotNull(responses.selfAt))),
     db.select({ status: evidenceRequests.status }).from(evidenceRequests).where(and(eq(evidenceRequests.orgId, orgId), ne(evidenceRequests.status, 'cancelled'))),
     db.select({ wizardDoneAt: orgProgress.wizardDoneAt }).from(orgProgress).where(eq(orgProgress.orgId, orgId)),
@@ -25,7 +26,10 @@ export async function stepsFor(orgId: string): Promise<Step[]> {
     db.select({ role: financeRoles.role }).from(financeRoles).where(eq(financeRoles.orgId, orgId)),
     db.select({ id: financialTriangulations.id }).from(financialTriangulations)
       .where(and(eq(financialTriangulations.orgId, orgId), inArray(financialTriangulations.status, ['pending_review', 'pending_assessor', 'locked']))),
+    linkedTo(orgId),
   ])
+  // Each NPHI, JEE or SPAR assessment the institute has started (the latest version of each type) is a step.
+  const latest = nphi.assessments.filter((a, i, all) => all.findIndex((b) => b.type === a.type) === i)
   const ownOnc = new Set(onc.map((r) => r.q)).size
   return [
     { id: 'joined', title: 'Set up your workspace', how: 'Done when you joined CRAFT.', applies: true, done: true },
@@ -35,6 +39,7 @@ export async function stepsFor(orgId: string): Promise<Step[]> {
     { id: 'cca', title: 'Complete your Capacity Assessment with your independent assessor', how: 'Capacity Assessment → open the draft → Complete', applies: true, done: cca.length > 0 },
     { id: 'roles', title: 'Name your finance officer and grant manager', how: 'Settings & Team → Finance roles', applies: true, done: roles.length >= 2 },
     { id: 'finance', title: 'Submit a Finance Triangulation report', how: 'Finance Triangulation (finance officer)', applies: true, done: finance.length > 0 },
+    ...latest.map((a) => ({ id: `ws-${a.type}`, title: `Submit your ${a.label} for review (${a.own.completeness}% answered)`, how: 'Org Workspaces → Governance assessments → Submit for review', applies: true, done: a.status === 'in_review' || a.status === 'approved' })),
   ].filter((s) => s.applies)
 }
 

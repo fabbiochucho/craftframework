@@ -5,9 +5,10 @@ import { and, eq, inArray, sql } from 'drizzle-orm'
 import { SUPPORT_TYPE_IDS } from '../../src/lib/supportTypes.js'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
-import { auditLogs, awardMeasures, awards, ccaAssessments, funderProgrammes, issueShares, orgIssues, organizations } from '../../db/schema.js'
+import { assessmentLinks, auditLogs, awardMeasures, awards, ccaAssessments, funderProgrammes, issueShares, orgIssues, organizations } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized, type Caller } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
+import { assessmentResult } from '../lib/nphi.js'
 import {
   awardStage, closingStatus, funderView, ISSUE_SOURCES, ISSUE_TYPES, latestRated, MEASURE_KINDS, repeatedTypes, trackRecord, type AwardStatus, type Issue,
 } from '../../src/lib/awards.js'
@@ -112,13 +113,16 @@ const handleRequest = async (req: Request) => {
       const stageRows = mine.length ? await db.select().from(ccaAssessments).where(inArray(ccaAssessments.awardRef, mine.map((x) => x.id))) : []
       const modules = stageRows.length ? (await getStore('cca-private').get('modules', { type: 'json' }) as CcaModule[] | null) ?? [] : []
       const shares = shared.map((s) => ({ orgId: s.orgId, viewerEmail: s.viewerEmail, level: s.level as 'summary' | 'full' }))
+      // The results of the assessments each organisation linked to one of this funder's awards.
+      const linked = mine.length ? await db.select().from(assessmentLinks).where(inArray(assessmentLinks.awardId, mine.map((x) => x.id))) : []
+      const results = await Promise.all(linked.map(async (l) => ({ awardId: l.awardId, ...(await assessmentResult(l.orgId, l.assessment)) })))
       return json({
         organisations: orgIds.map((orgId) => {
           const v = funderView(me, orgId, allAwards.map((x) => ({ id: x.id, orgId: x.orgId, funderEmail: x.funderEmail, status: x.status })), issues.map(toIssue), shares)
           const own = mine.filter((x) => x.orgId === orgId)
           const withStage = own.map((x) => {
             const as = stageRows.filter((r) => r.awardRef === x.id).map((r) => ({ ...r, createdAt: r.createdAt.toISOString(), completedAt: r.completedAt?.toISOString() ?? null }))
-            return { ...x, stage: awardStage(x.status as AwardStatus, as), rating: ratingOf(latestRated(as), modules) }
+            return { ...x, stage: awardStage(x.status as AwardStatus, as), rating: ratingOf(latestRated(as), modules), results: results.filter((r) => r.awardId === x.id) }
           })
           return { orgId, name: orgs.find((o) => o.id === orgId)?.name ?? orgId, awards: withStage, measures: measures.filter((m) => own.some((x) => x.id === m.awardId)), ownAwardIssues: v.ownAwardIssues, shared: v.shared }
         }),

@@ -46,6 +46,7 @@ import { Route as LaunchRouteImport } from './routes/launch'
 import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as NarrativeReportRouteImport } from './routes/narrative-report'
 import { Route as NetworksRouteImport } from './routes/networks'
+import { Route as NphiReviewRouteImport } from './routes/nphi-review'
 import { Route as ObligationsRouteImport } from './routes/obligations'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as OpenSourceRouteImport } from './routes/open-source'
@@ -302,6 +303,11 @@ const NarrativeReportRoute = NarrativeReportRouteImport.update({
 const NetworksRoute = NetworksRouteImport.update({
   id: '/networks',
   path: '/networks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NphiReviewRoute = NphiReviewRouteImport.update({
+  id: '/nphi-review',
+  path: '/nphi-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ObligationsRoute = ObligationsRouteImport.update({
@@ -735,6 +741,7 @@ export interface FileRoutesByFullPath {
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
   '/networks': typeof NetworksRoute
+  '/nphi-review': typeof NphiReviewRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -846,6 +853,7 @@ export interface FileRoutesByTo {
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
   '/networks': typeof NetworksRoute
+  '/nphi-review': typeof NphiReviewRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -958,6 +966,7 @@ export interface FileRoutesById {
   '/methodology': typeof MethodologyRoute
   '/narrative-report': typeof NarrativeReportRoute
   '/networks': typeof NetworksRoute
+  '/nphi-review': typeof NphiReviewRoute
   '/obligations': typeof ObligationsRoute
   '/onboarding': typeof OnboardingRoute
   '/open-source': typeof OpenSourceRoute
@@ -1071,6 +1080,7 @@ export interface FileRouteTypes {
     | '/methodology'
     | '/narrative-report'
     | '/networks'
+    | '/nphi-review'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1182,6 +1192,7 @@ export interface FileRouteTypes {
     | '/methodology'
     | '/narrative-report'
     | '/networks'
+    | '/nphi-review'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1293,6 +1304,7 @@ export interface FileRouteTypes {
     | '/methodology'
     | '/narrative-report'
     | '/networks'
+    | '/nphi-review'
     | '/obligations'
     | '/onboarding'
     | '/open-source'
@@ -1405,6 +1417,7 @@ export interface RootRouteChildren {
   MethodologyRoute: typeof MethodologyRoute
   NarrativeReportRoute: typeof NarrativeReportRoute
   NetworksRoute: typeof NetworksRoute
+  NphiReviewRoute: typeof NphiReviewRoute
   ObligationsRoute: typeof ObligationsRoute
   OnboardingRoute: typeof OnboardingRoute
   OpenSourceRoute: typeof OpenSourceRoute
@@ -1738,6 +1751,13 @@ declare module '@tanstack/react-router' {
       path: '/networks'
       fullPath: '/networks'
       preLoaderRoute: typeof NetworksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nphi-review': {
+      id: '/nphi-review'
+      path: '/nphi-review'
+      fullPath: '/nphi-review'
+      preLoaderRoute: typeof NphiReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/obligations': {
@@ -2285,6 +2305,7 @@ const rootRouteChildren: RootRouteChildren = {
   MethodologyRoute: MethodologyRoute,
   NarrativeReportRoute: NarrativeReportRoute,
   NetworksRoute: NetworksRoute,
+  NphiReviewRoute: NphiReviewRoute,
   ObligationsRoute: ObligationsRoute,
   OnboardingRoute: OnboardingRoute,
   OpenSourceRoute: OpenSourceRoute,

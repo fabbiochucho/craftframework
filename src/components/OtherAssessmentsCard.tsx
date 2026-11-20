@@ -8,6 +8,15 @@ import { useAuthCtx, useScoresCtx, useWorkspace } from '../lib/context'
 import { answeredCount } from '../lib/data'
 import { dashboard, effectiveNotAssessed, type CcaModule, type NotAssessed, type Responses } from '../lib/cca/engine'
 
+type Nphi = {
+  orgs: { id: number; name: string; type: string; typeVerification: string; workspaceId: number | null }[]
+  assessments: { id: number; workspaceId: number; type: string; label: string; version: number; status: string; reportingPeriod: string
+    own: { overall: number | null; completeness: number }; independent: { overall: number | null; answered: number; total: number } }[]
+  canReview: boolean
+}
+// The three public health institute instruments kept in Org Workspaces; CRAFT-ONC and the 5-tier wizard are above them.
+const INSTRUMENTS: [string, string][] = [['NPHI', 'NPHI development (Africa CDC framework)'], ['JEE', 'WHO Joint External Evaluation (JEE)'], ['SPAR', 'WHO IHR SPAR self-assessment']]
+
 type Assessment = { id: string; module: string; year: number; status: string; responses: Responses; notAssessed?: NotAssessed; domainIds?: string[] | null; updatedAt?: string }
 const LEVEL: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800' }
 
@@ -48,6 +57,20 @@ export function OtherAssessmentsCard({ orgId, signedIn }: { orgId: string; signe
         </select>
       </label>
     )
+  // A public health institute's NPHI, JEE and SPAR assessments, and its own Org Workspaces institutes not yet joined here.
+  const [nphi, setNphi] = useState<Nphi | null>(null)
+  const [unlinked, setUnlinked] = useState<{ id: number; name: string }[]>([])
+  const loadNphi = () => {
+    fetch(`/api/nphi?orgId=${encodeURIComponent(orgId)}`).then((r) => (r.ok ? r.json() : null)).then(setNphi, () => {})
+    if (!readOnly) fetch('/api/orgs').then((r) => (r.ok ? r.json() : [])).then((os: any[]) => setUnlinked(os.filter((o) => o.type === 'nphi' && o.craftOrgId !== orgId && ['owner', 'admin'].includes(o.role))), () => {})
+  }
+  useEffect(() => { if (signedIn && orgId) loadNphi() }, [orgId, signedIn])
+  const linkInstitute = async (id: number) => {
+    const r = await fetch(`/api/orgs/${id}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ linkCraft: true }) })
+    if (r.ok) loadNphi()
+    else setLinkError('The institute could not be linked; only its owner or an admin can link it.')
+  }
+  const institute = !!nphi?.orgs.length
   const wizardAnswered = answeredCount(scores[orgId] ?? {})
   // The organisation's steps, done and to do (the same list its progress messages use).
   const [steps, setSteps] = useState<{ id: string; title: string; how: string; done: boolean }[]>([])
@@ -72,14 +95,16 @@ export function OtherAssessmentsCard({ orgId, signedIn }: { orgId: string; signe
     const m = cca!.modules.find((x) => x.id === a.module)
     return m ? [{ a, m, d: dashboard(m, a.responses, effectiveNotAssessed(m, a.notAssessed, a.domainIds)) }] : []
   }).sort((x, y) => y.a.year - x.a.year)
-  if (!self && !indep && !capacity.length && !wizardAnswered && !steps.length) return null
+  if (!self && !indep && !capacity.length && !wizardAnswered && !steps.length && !institute && !unlinked.length) return null
+  const pctOf = (v: number | null) => (v === null ? '—' : `${v}%`)
+  const ws = nphi?.orgs.find((o) => o.workspaceId)?.workspaceId ?? null
 
   const pct = (avg: number) => `${Math.round((avg / 5) * 100)}%`
   return (
     <Card>
       <CardHeader><CardTitle>Other assessments</CardTitle></CardHeader>
       <CardContent className="space-y-3 text-sm">
-        {(self || indep) && (
+        {(self || indep || institute) && (
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <p className="font-semibold text-slate-800">CRAFT Organisational &amp; Network Capacity Index</p>
@@ -92,16 +117,39 @@ export function OtherAssessmentsCard({ orgId, signedIn }: { orgId: string; signe
             <Link to="/assessment/$frameworkId" params={{ frameworkId: 'craft-onc' }} className="text-emerald-700 underline">Open</Link>
           </div>
         )}
-        {wizardAnswered > 0 && (
+        {(wizardAnswered > 0 || institute) && (
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-100 pt-3">
             <div>
               <p className="font-semibold text-slate-800">5-tier Assessment Wizard</p>
-              <p className="text-slate-600">{wizardAnswered} questions answered; results are on this dashboard</p>
+              <p className="text-slate-600">{wizardAnswered ? `${wizardAnswered} questions answered; results are on this dashboard` : 'Not started'}</p>
               <ForGrant k="wizard" />
             </div>
             <Link to="/assessment" className="text-emerald-700 underline">Open</Link>
           </div>
         )}
+        {institute && INSTRUMENTS.map(([type, name]) => {
+          const a = nphi!.assessments.find((x) => x.type === type) // newest first
+          return (
+            <div key={type} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-100 pt-3">
+              <div>
+                <p className="font-semibold text-slate-800">{name}</p>
+                <p className="text-slate-600">{a
+                  ? `v${a.version}${a.reportingPeriod ? ` (${a.reportingPeriod})` : ''} · ${a.status.replace('_', ' ')} · institute ${pctOf(a.own.overall)}, ${a.own.completeness}% answered · independent assessor ${a.independent.answered ? `${pctOf(a.independent.overall)} (${a.independent.answered} of ${a.independent.total} items)` : 'not yet scored'}`
+                  : 'Not started'}</p>
+                {a && <ForGrant k={`ws:${a.id}`} />}
+              </div>
+              {a && nphi!.canReview
+                ? <Link to="/nphi-review" search={{ id: a.id }} className="text-emerald-700 underline">Review</Link>
+                : a && !readOnly ? <Link to="/app/workspaces/$workspaceId/governance/assessments/$assessmentId" params={{ workspaceId: String(a.workspaceId), assessmentId: String(a.id) }} className="text-emerald-700 underline">Open</Link>
+                : !a && !readOnly && ws ? <Link to="/app/workspaces/$workspaceId/governance/assessments" params={{ workspaceId: String(ws) }} className="text-emerald-700 underline">Start</Link>
+                : null}
+            </div>
+          )
+        })}
+        {institute && nphi!.orgs.some((o) => o.typeVerification !== 'verified') && <p className="text-xs text-amber-700">NPHI, JEE and SPAR open once CRAFT confirms the institute ({nphi!.orgs.map((o) => `${o.name}: ${o.typeVerification}`).join('; ')}).</p>}
+        {unlinked.map((o) => (
+          <p key={o.id} className="border-t border-slate-100 pt-3 text-slate-600">{o.name} is a public health institute in Org Workspaces. <button type="button" className="text-emerald-700 underline" onClick={() => void linkInstitute(o.id)}>Show its NPHI, JEE and SPAR assessments here</button></p>
+        ))}
         {capacity.map(({ a, m, d }) => (
           <div key={a.id} className="flex flex-wrap items-baseline justify-between gap-2 border-t border-slate-100 pt-3">
             <div>

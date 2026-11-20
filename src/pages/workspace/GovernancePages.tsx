@@ -26,6 +26,7 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
   const docs = useApi<any[]>(wsPath(workspaceId, '/evidence'))
   const usable = (docs.data ?? []).filter(e => e.status !== 'rejected' && e.status !== 'expired')
   const saved = new Map<string, any>(a.scores.map((s: any) => [s.domain, s]))
+  const independent = new Map<string, any>((a.independent ?? []).map((s: any) => [s.domain, s]))
   const intro = sections.find(s => s.id === section)?.intro
   return (
     <div className="space-y-4">
@@ -45,6 +46,7 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
           <Card key={i.id}><CardContent className="space-y-2">
             <p className="font-semibold text-slate-800">{i.id} · {i.name} {i.critical && <Badge className="bg-rose-100 text-rose-700">critical</Badge>}</p>
             {i.description && <p className="text-sm text-slate-600">{i.description}</p>}
+            {independent.has(i.id) && <p className="text-sm text-indigo-800">Independent assessor: {independent.get(i.id).notApplicable ? `not applicable (${independent.get(i.id).note})` : cat.levels[independent.get(i.id).score - 1]}{!independent.get(i.id).notApplicable && independent.get(i.id).note && ` · ${independent.get(i.id).note}`}</p>}
             {SPAR_LEVELS[i.id] && <p className="text-xs text-slate-500">Level summaries are CRAFT paraphrases. Confirm against WHO’s wording on p. {SPAR_LEVELS[i.id].page} of the <a className="underline" href={SPAR_SOURCE.url} target="_blank" rel="noreferrer">SPAR tool</a>. {SPAR_SOURCE.rule}</p>}
             <fieldset disabled={locked} className="flex flex-wrap items-end gap-3">
               {!d.na && <div className="w-full max-w-xl"><Select placeholder="Not scored" label="Level" value={d.score} onChange={score => set({ score })} options={cat.levels.map((l, n) => ({ value: String(n + 1), label: SPAR_LEVELS[i.id] ? `${l} — ${SPAR_LEVELS[i.id].levels[n]}` : l }))} /></div>}
@@ -76,6 +78,7 @@ function CatalogueScorecard({ workspaceId, a }: { workspaceId: string; a: any })
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Overall</p><p className="text-3xl font-bold text-emerald-900">{d.overall === null ? '—' : `${d.overall}%`}</p><p className="text-sm">mean of section scores</p></div>
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Completeness</p><p className="text-3xl font-bold text-emerald-900">{d.completeness}%</p></div>
+        {d.independent && <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Independent assessor</p><p className="text-3xl font-bold text-indigo-900">{d.independent.overall === null ? '—' : `${d.independent.overall}%`}</p><p className="text-sm">{d.independent.answered} items scored</p></div>}
         {d.sdg && <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">SDG 3.d.1</p><p className="text-3xl font-bold text-emerald-900">{d.sdg.value === null ? '—' : `${d.sdg.value}%`}</p><p className="text-xs">{d.sdg.indicator}</p></div>}
       </div>
       <Card><CardContent><div className="h-80"><ResponsiveContainer width="100%" height="100%">
