@@ -1379,6 +1379,8 @@ export const governanceScores = pgTable(
     // Tier 1-5 derived from the 0-5 slider score
     tierLevel: integer('tier_level').notNull().default(1),
     evidenceUploaded: boolean('evidence_uploaded').notNull().default(false),
+    // Catalogue assessments: the evidence_registry document behind the score (null = no evidence, or an older row).
+    evidenceId: integer('evidence_id'),
     reviewerNotes: text('reviewer_notes').notNull().default(''),
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
     // Not applicable is distinct from "not answered"; it requires a reason.
