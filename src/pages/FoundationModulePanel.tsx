@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchAssessorView, saveResponseDetail } from '../lib/api'
+import { fetchAssessorView, fetchResponseDetails, saveResponseDetail } from '../lib/api'
 import { ResultExplainer } from '../components/ResultExplainer'
 import { PlainSummaryCard } from '../components/PlainSummaryCard'
 import { indexSummary } from '../lib/plainSummary'
@@ -75,13 +75,24 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
   }
   // The independent assessor's scores and reasons: editable by the assessor, shown to everyone else.
   const [indep, setIndep] = useState<{ scores: Record<string, number>; notes: Record<string, string> }>({ scores: {}, notes: {} })
+  // The organisation's own reason for each score (what it holds, or what does not exist yet), seen by its assessor.
+  const [ownNotes, setOwnNotes] = useState<Record<string, string>>({})
   const [noteError, setNoteError] = useState('')
   useEffect(() => {
     if (!orgId || currentUser?.isDemo) return
     let live = true
     void fetchAssessorView(orgId).then((v) => { if (live) setIndep({ scores: v.scores, notes: v.notes }) })
+    void fetchResponseDetails(orgId).then((d) => { if (live) setOwnNotes(Object.fromEntries(Object.entries(d).filter(([, x]) => x.notes).map(([q, x]) => [q, x.notes!]))) }, () => {})
     return () => { live = false }
   }, [orgId, currentUser?.isDemo])
+  const saveOwnNote = (qId: string, text: string) => {
+    if ((ownNotes[qId] ?? '') === text.trim()) return
+    setNoteError('')
+    saveResponseDetail(orgId, qId, { notes: text.trim() }).then(
+      () => setOwnNotes((p) => ({ ...p, [qId]: text.trim() })),
+      () => setNoteError('Your comment could not be saved. Check your connection and try again.'),
+    )
+  }
   // ponytail: saved straight to the server on blur (no offline queue, unlike scores); queue it if assessors work offline.
   const saveNote = (qId: string, text: string) => {
     if ((indep.notes[qId] ?? '') === text.trim()) return
@@ -420,6 +431,20 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
                               Selected: <span className="font-semibold text-slate-700">{FIDUCIARY_LEVELS.find(l => l.value === selected)?.label}</span>
                               {' - '}{ind.soe[selected]}
                             </p>
+                          )}
+                          {!isIndependent && !readOnly && (
+                            <label className="mt-3 block text-xs font-medium text-slate-600">
+                              Your comment: why this score (the document you hold, or that it does not exist yet). Your independent assessor sees it.
+                              <textarea
+                                key={`own:${ind.id}:${ownNotes[ind.id] ?? ''}`} defaultValue={ownNotes[ind.id] ?? ''} maxLength={2000} rows={2}
+                                onBlur={(e) => saveOwnNote(ind.id, e.target.value)}
+                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                              />
+                              {noteError && <span role="alert" className="mt-1 block text-rose-700">{noteError}</span>}
+                            </label>
+                          )}
+                          {(isIndependent || readOnly) && ownNotes[ind.id] && (
+                            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-slate-700"><span className="font-semibold">Organisation's comment:</span> {ownNotes[ind.id]}</p>
                           )}
                           {isIndependent ? (
                             <label className="mt-3 block text-xs font-medium text-slate-600">
