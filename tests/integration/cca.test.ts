@@ -95,6 +95,22 @@ describe('CRAFT Capacity Assessment API', () => {
     assert.deepEqual(audit.map((a) => a.action.split(' (')[0]), ['Started capacity assessment', 'Started capacity assessment', 'Completed capacity assessment'])
   })
 
+  it('an empty assessment cannot be completed; a completed one is reopened only by the independent assessor or the Super Admin', async () => {
+    const MARTIN = 'martin@assessor.example'
+    await rows(`INSERT INTO access_grants(id, org_id, grantee, role, status, level) VALUES('g1', 'org_a', $1, 'independent_assessor', 'active', 'read')`, [MARTIN])
+    const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
+    assert.equal((await call(ALICE, 'POST', `/${id}/complete`)).status, 400, 'nothing answered')
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g2.2': { met: false, evidence: 'No board minutes exist yet' } } })).status, 200)
+    assert.equal((await call(ALICE, 'POST', `/${id}/complete`)).status, 200, 'a note on what is missing counts as an answer')
+    assert.equal((await call(ALICE, 'POST', `/${id}/reopen`, { reason: 'x' })).status, 403, 'the organisation cannot reopen its own')
+    assert.equal((await call(MARTIN, 'POST', `/${id}/reopen`, {})).status, 400, 'a reason is required')
+    assert.equal((await call(MARTIN, 'POST', `/${id}/reopen`, { reason: 'Completed before the group met' })).status, 200)
+    assert.equal((await call(MARTIN, 'POST', `/${id}/reopen`, { reason: 'again' })).status, 409)
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g2.2': ok } })).status, 200, 'editable again')
+    assert.equal((await call(BOB, 'POST', `/${id}/reopen`, { reason: 'x' })).status, 403)
+    assert.match((await rows(`SELECT action FROM audit_logs WHERE action LIKE 'Reopened%'`))[0].action, /Completed before the group met/)
+  })
+
   it('Approach II: an agreed score above the evidence needs a note before completion', async () => {
     publish()
     const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id

@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom'
 import { Link } from '@tanstack/react-router'
 import { Line, LineChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs } from '../components/ui'
-import { useWorkspace } from '../lib/context'
+import { useAuthCtx, useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
   availableReports, awardReadiness, cascade, rollup, weakestDomains, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed, resolveConsensus, planReview, previousAssessment, reassessmentsDue, unexplainedMisses,
@@ -347,6 +347,13 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
   const [tab, setTab] = useState('assess')
   const [message, setMessage] = useState<string | null>(null)
   const locked = a.status === 'complete'
+  // The independent assessor or the Super Admin can reopen a completed assessment, saying why (logged).
+  const { currentUser } = useAuthCtx()
+  const canReopen = locked && (currentUser?.role === 'super_admin' || currentUser?.role === 'independent')
+  const [reopenReason, setReopenReason] = useState('')
+  const reopen = async () => {
+    try { await api(`/${a.id}/reopen`, { method: 'POST', body: { reason: reopenReason } }); setMessage('Reopened: the organisation can answer it again.'); setReopenReason(''); onChanged() } catch (e) { setMessage((e as Error).message) }
+  }
   const d = useMemo(() => dashboard(mod, responses, notAssessed), [mod, responses, notAssessed])
   // Desk review documents behind each domain, so the evidence already gathered is in front of the assessor.
   const desk = useDeskReview(a.orgId)
@@ -368,6 +375,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
         <Button variant="ghost" size="sm" onClick={onBack}>← All assessments</Button>
         <h2 className="font-display text-lg font-bold text-emerald-900">{mod.name} · {a.year}{a.awardRef && ` · ${a.awardRef}`}{placeLabel(a) && ` · ${placeLabel(a)}`}</h2>
         <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>Overall {fmt(d)} · {d.level}</span>
+        {canReopen && <div className="ml-auto flex flex-wrap items-end gap-2"><div className="w-72"><Input aria-label="Why reopen" placeholder="Why reopen (for example: completed with nothing answered)" value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} /></div><Button size="sm" variant="outline" disabled={!reopenReason.trim()} onClick={() => void reopen()}>Reopen assessment</Button></div>}
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
