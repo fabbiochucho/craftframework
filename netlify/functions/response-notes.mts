@@ -3,6 +3,7 @@ import { getUser } from '@netlify/identity'
 import { and, asc, eq, or } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { responseNotes, users } from '../../db/schema.js'
+import { isIndependentAssessorOf } from '../lib/independent-assessor.js'
 import { logger, monitored } from '../lib/logger.js'
 import { mfaRequired } from '../lib/auth.js'
 
@@ -86,7 +87,9 @@ const handleRequest = async (req: Request) => {
       if (!orgId) return Response.json({ error: 'orgId required' }, { status: 400 })
       // Boundary 1: only your own tenant. This also makes the guessable
       // `self_<email>` org ids harmless — org identity comes from the token.
-      if (orgId !== caller.orgId) return Response.json({ error: 'Forbidden' }, { status: 403 })
+      // The organisation's independent assessor (and the Super Admin) may also read; the assessor sees only shared notes.
+      const outsider = orgId !== caller.orgId
+      if (outsider && caller.role !== 'super_admin' && !(await isIndependentAssessorOf(caller, orgId))) return Response.json({ error: 'Forbidden' }, { status: 403 })
 
       const scope = questionId
         ? and(eq(responseNotes.orgId, orgId), eq(responseNotes.questionId, questionId))
@@ -96,6 +99,7 @@ const handleRequest = async (req: Request) => {
       const where =
         caller.role === 'super_admin'
           ? scope
+          : outsider ? and(scope, eq(responseNotes.visibility, 'shared'))
           : and(scope, or(eq(responseNotes.authorEmail, caller.email), eq(responseNotes.visibility, 'shared')))
 
       const rows = await db.select().from(responseNotes).where(where).orderBy(asc(responseNotes.id))
