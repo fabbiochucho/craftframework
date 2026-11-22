@@ -57,6 +57,54 @@ Organization workspaces, governance assessments, ESG roadmap, corrective action 
 
 The canonical `data.ts` question bank has 20 base assessment domains; its separate climate module adds four additional domain labels. The former README count of 19 and the hand-maintained workspace pillar labels did not match the bank. Workspace assessment labels now derive from `TIER_NAMES`, `DOMAIN_DISPLAY`, and the T1–T5 question assignments; [the full tier mapping and legacy-data note](docs/platform-guide.md#canonical-domain-reconciliation) are documented in the platform guide.
 
+## Capacity assessment saving
+
+`/capacity` uses the same save and completion rules for all seven modules.
+Drafts can be saved while a "not assessed" explanation is unfinished; completion
+requires a reason of at least three characters. Grant-stage modules must assess
+every domain. Automatically generated SWOT lists are retained, and validation
+errors identify the field to correct. Choosing "Not used" removes a group
+consensus score. Read-only access permits inspection, not changes or submission.
+Unsaved edits remain on the device until their save succeeds; saves are ordered
+so an earlier request cannot clear a newer draft.
+The shared organisation profile context supplies missing fields for older saved
+profiles without replacing their existing values, so the wizard can still open.
+
+## Assessment autosave and revision history
+
+Successful capacity, legacy, workspace score, independent score, reviewer and
+funder-note saves now append encrypted revisions in the same database transaction.
+`/assessment-archive` shows the signed-in author's revisions, reporting period
+(where the assessment defines one) and server date/time, rechecking current access.
+Each update is a separate revision. Live metrics and dashboards continue reading
+the current assessment tables, not the revision archive. Existing live records
+remain available; revisions are recorded from deployment onwards, not backfilled
+with invented historical timestamps.
+
+Independent reviewer scores, comments, evidence references, fieldwork setup,
+organisation debrief responses and workspace score inputs autosave when complete.
+Unfinished or failed input stays on the device per account and assessment until
+saved. Submission and finalisation remain explicit and flush pending inputs before
+locking; issued reviews remain immutable and use the existing follow-up workflow.
+
+Funding-partner progress consent does not share comments by default. Organisations
+can separately allow and revoke sharing of frozen reviewer/debrief comments.
+Funders can autosave their own encrypted, timestamped notes without changing
+independent scores. Revoked consent removes access to both the live view and those
+archive revisions. Account removal, institution deletion and workspace data-subject
+erasure also remove the corresponding revision data.
+
+For approved workspace CRAFT scorecards, independent validators' unfinished work
+is encrypted and autosaved per author, including across devices. A declaration and
+explicit recording are still required to issue the validation; a draft never
+changes a scorecard. The funding partner's dashboard displays consented progress
+and its own firm's notes separately from existing scores; notes have no numeric
+weight and do not alter assessment metrics.
+
+Deploy migration `20261122120000_assessment_revisions` before the updated functions
+and frontend, followed by `20261122130000_validation_drafts`. Keep the existing
+field-encryption key available to read archives and validation drafts.
+
 ## Stabilization and deployment
 
 Netlify remains the supported host during incremental consolidation. Existing

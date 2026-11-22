@@ -10,6 +10,7 @@ const load = async (f: string) => (await import(new URL(`../../netlify/functions
 const nphi = await load('nphi')
 const links = await load('assessment-links')
 const awardsApi = await load('awards')
+const archive = await load('assessment-archive')
 const OPERATOR = 'fabbiochucho@gmail.com'
 const CRAFT_ORG = 'self_owner_acme_example' // the owner's own CRAFT organisation
 const REVIEWER = 'reviewer@africacdc.example'
@@ -65,6 +66,12 @@ describe('NPHI assessments from the CRAFT organisation', () => {
     assert.equal(detail.own.A1.score, 4)
     assert.equal(detail.independent.A1.score, 2)
     assert.equal(detail.declaration.organisation, 'Africa CDC')
+    const history = await ok(call(archive, REVIEWER, 'GET', 'assessment-archive?source=independent'))
+    assert.equal(history.revisions.length, 1)
+    assert.equal(history.revisions[0].period, '2026')
+    assert.equal(history.revisions[0].snapshot.score, 2)
+    assert.equal(history.revisions[0].actor, REVIEWER)
+    assert.ok((await rows("SELECT snapshot FROM assessment_revisions WHERE source='independent'"))[0].snapshot.startsWith('enc:'))
     // The institute sees the independent level in Org Workspaces too.
     const a = expectStatus(await as(VIEWER).get(`/workspaces/${wsId}/assessments/${id}`), 200).body
     assert.equal(a.independent[0].score, 2)
@@ -79,5 +86,7 @@ describe('NPHI assessments from the CRAFT organisation', () => {
     assert.equal(funded.length, 1)
     assert.equal(funded[0].label, 'NPHI development assessment (Africa CDC framework) v1 (2026)')
     assert.match(funded[0].summary, /draft · institute .* · independent assessor/)
+    await rows("UPDATE access_grants SET status='revoked' WHERE id='g1'")
+    assert.deepEqual((await ok(call(archive, REVIEWER, 'GET', 'assessment-archive?source=independent'))).revisions, [])
   })
 })

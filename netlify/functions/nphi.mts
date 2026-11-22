@@ -8,6 +8,7 @@ import { logger, monitored } from '../lib/logger.js'
 import { assessmentWithCraftOrg, linkedTo, summarise } from '../lib/nphi.js'
 import { catalogueByType } from '../../src/lib/assessment-catalogues.js'
 import { activeItems } from '../../src/lib/health-security.js'
+import { archiveAssessment } from '../lib/assessment-archive.js'
 
 // /api/nphi — a public health institute's NPHI, JEE and SPAR assessments (kept in Org Workspaces), seen from its
 // CRAFT organisation (netlify/lib/nphi.ts).
@@ -86,9 +87,12 @@ const handleRequest = async (req: Request) => {
       const score = notApplicable ? null : Number(body.score)
       if (!notApplicable && (!Number.isInteger(score) || score! < 1 || score! > 5)) return bad('score must be an integer 1-5')
       const values = { score, notApplicable, note, assessor: caller.email, updatedAt: new Date() }
-      await db.insert(catalogueIndependentScores).values({ assessmentId: a.id, domain: item.id, ...values })
-        .onConflictDoUpdate({ target: [catalogueIndependentScores.assessmentId, catalogueIndependentScores.domain], set: values })
-      return Response.json({ ok: true, summary: await summarise(a) })
+      await db.transaction(async (tx) => {
+        await tx.insert(catalogueIndependentScores).values({ assessmentId: a.id, domain: item.id, ...values })
+          .onConflictDoUpdate({ target: [catalogueIndependentScores.assessmentId, catalogueIndependentScores.domain], set: values })
+        await archiveAssessment(tx, { source: 'independent', orgId: craftOrgId, assessmentId: String(a.id), recordKey: item.id, period: a.reportingPeriod, actor: caller.email, snapshot: values, savedAt: values.updatedAt })
+      })
+      return Response.json({ ok: true, savedAt: values.updatedAt.toISOString(), summary: await summarise(a) })
     }
     return new Response('Method Not Allowed', { status: 405 })
   } catch (err) {

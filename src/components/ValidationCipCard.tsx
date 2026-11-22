@@ -12,7 +12,7 @@ type Plan = {
   id: string; verificationId: string; outcome: string; validatedRung: number; status: string; statusLabel: string; expiresAt: string
   nextFollowUp: string | null; followUpOverdue: boolean; broughtForward: boolean; tracked: string[]
   progress: { done: number; total: number }; progressLine: string; actions: Action[]
-  funders: Array<{ firmId: string; name: string; grantedAt: string }>; canEdit: boolean
+  funders: Array<{ firmId: string; name: string; grantedAt: string; shareComments: boolean }>; canEdit: boolean
 }
 
 async function api<T = any>(path: string, init?: { method?: string; json?: unknown }): Promise<T> {
@@ -139,9 +139,11 @@ function Funders({ p, base, act }: { p: Plan; base: string; act: (fn: () => Prom
     <div className="space-y-2 border-t border-slate-100 pt-3 text-sm">
       <h4 className="font-semibold text-slate-700">Funding partners who can follow this</h4>
       <p className="text-xs text-slate-500">With your consent a funding partner sees the status, the schedule and a count such as “2 of 5 actions done, follow-up due 15 March”. Never the actions, owners or proof. You can withdraw consent at any time.</p>
+      <p className="text-xs text-slate-500">Sharing review comments is a separate permission, off by default. It never shares scores or evidence.</p>
       <ul className="space-y-1">
         {p.funders.map((f) => (
           <li key={f.firmId} className="flex items-center gap-2">{f.name} <span className="text-xs text-slate-500">since {fmt(f.grantedAt)}</span>
+            <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={f.shareComments} onChange={e => void act(() => api(`${base}/funder-consent`, { method: 'PUT', json: { funderFirmId: f.firmId, granted: true, shareComments: e.target.checked } }), 'Comment sharing updated')} />Share review comments</label>
             <Button size="sm" variant="ghost" onClick={() => void act(() => api(`${base}/funder-consent`, { method: 'PUT', json: { funderFirmId: f.firmId, granted: false } }), `${f.name} can no longer follow this`)}>Withdraw</Button></li>
         ))}
         {!p.funders.length && <li className="text-slate-500">None.</li>}

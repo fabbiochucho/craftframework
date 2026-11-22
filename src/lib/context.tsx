@@ -356,9 +356,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     climate: false, emergency: false, research: false,
   }, !!activeClientOrgId)
   // Entity profile - blank in a live workspace until the user selects it.
-  const [entityProfile, setEntityProfileState, profileSaveStatus] = useTenantState<EntityProfile>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', {
+  const profileDefaults = useMemo<EntityProfile>(() => ({
     archetype: currentUser?.isDemo ? 'Private' : '', country: currentUser?.isDemo ? 'NG' : '', sector: currentUser?.isDemo ? 'Fintech' : '', subsector: currentUser?.isDemo ? 'Digital Lending & Credit' : '', jurisdictions: currentUser?.isDemo ? ['NG', 'EU'] : [], regSector: currentUser?.isDemo ? 'bank_dfi' : '',
-  }, !!activeClientOrgId)
+  }), [currentUser?.isDemo])
+  const [savedEntityProfile, setEntityProfileState, profileSaveStatus] = useTenantState<Partial<EntityProfile>>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'entity-profile', profileDefaults, !!activeClientOrgId)
+  // Profiles saved before regulatory context was introduced lack these fields.
+  const entityProfile = useMemo<EntityProfile>(() => ({ ...profileDefaults, ...savedEntityProfile }), [profileDefaults, savedEntityProfile])
   // Capacity Improvement Plan timeline settings; the plan length follows from them (spec §6).
   const [savedTimeline, setTimelineState] = useTenantState<TimelineSettings>(currentUser?.email, activeClientOrgId ?? currentUser?.orgId, !!currentUser?.isDemo, 'cip:timeline', DEFAULT_TIMELINE, !!activeClientOrgId)
   useEffect(() => {
@@ -631,7 +634,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (patch: Partial<EntityProfile>) => {
       if (readOnlyRef.current) return
       setEntityProfileState(prev => {
-        const next = { ...prev, ...patch }
+        const next = { ...profileDefaults, ...prev, ...patch }
         // Changing archetype invalidates the previously selected sector and
         // subsector; changing sector invalidates the previously chosen subsector.
         if (patch.archetype !== undefined && patch.archetype !== prev.archetype) {
@@ -648,7 +651,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         appendAudit(currentUser.email, 'Updated entity profile', String(label), 'Config')
       }
     },
-    [appendAudit, currentUser],
+    [appendAudit, currentUser, profileDefaults],
   )
 
   const logout = useCallback(() => {

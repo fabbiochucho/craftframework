@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ClipboardCheck } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
@@ -7,13 +7,14 @@ import { CHECK_LABEL, CHECK_VALUES, CONTROL_CHECKS, isComplete, scoreCap, scoreP
 import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
 import { methodologyById, methodologyConclusion, reportFindings } from '../lib/methodologies'
 import { scopeText, type EngagementScope } from '../lib/engagements'
+import { AssessmentAutosaveContext, useAssessmentAutosave, type FlushAssessment } from '../lib/assessmentAutosave'
 
 // Validator system PR 3: the review itself. Every rule (who may score, when the
 // debrief is open, what freezes) is enforced by /api/validation-reviews.
 
 type Row = {
   id: string; framework?: string; level: number; domain: string; question: string; self: number | null; validator: number | null; delta: number | null; optimismBias: number | null
-  sufficiency?: string | null; comment?: string; evidenceRef?: string; orgResponse?: string; negotiated?: number | null
+  sufficiency?: string | null; comment?: string; evidenceRef?: string; orgResponse?: string; negotiated?: number | null; updatedAt?: string | null
   paperCap?: { negotiated: number; capped: number; message: string } | null; final?: number | null; evidence?: LinkedEvidence[]
   result?: ScoreResult | null; checks?: ControlChecks
 }
@@ -23,6 +24,7 @@ type LinkedEvidence = {
 }
 type Confirmation = { level: number; name: string; achieved: boolean }
 type View = {
+  engagementId?: string; createdAt?: string | null; updatedAt?: string | null
   status: string; engagementStatus: string; framework: { name: string; version: string }; type: string
   lead?: boolean; method?: Method | null; fieldworkStart?: string | null; fieldworkEnd?: string | null
   levels?: Array<{ level: number; name: string }>; rows?: Row[]
@@ -73,20 +75,36 @@ export function ReviewPage({ id }: { id: string }) {
   const [v, setV] = useState<View | null>(null)
   const [error, setError] = useState('')
   const [msg, setMsg] = useState<{ ok: boolean; text: string; problems?: string[] } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const writers = useRef(new Map<string, FlushAssessment>())
+  const register = useCallback((key: string, flush: FlushAssessment) => {
+    writers.current.set(key, flush)
+    return () => { writers.current.delete(key) }
+  }, [])
   const load = () => api<View>(`/api/validation-reviews/${encodeURIComponent(id)}`).then(setV, (e) => setError(e.message))
   useEffect(() => { void load() }, [id])
   const act = async (fn: () => Promise<unknown>, ok: string) => {
-    try { await fn(); setMsg({ ok: true, text: ok }); await load() } catch (e: any) { setMsg({ ok: false, text: e.message, problems: e.problems }); await load() }
+    setBusy(true)
+    try {
+      for (const flush of writers.current.values()) if (!(await flush())) throw new Error('Save or complete the pending assessment inputs before this action.')
+      await fn(); setMsg({ ok: true, text: ok }); await load()
+    } catch (e: any) { setMsg({ ok: false, text: e.message, problems: e.problems }); await load() }
+    finally { setBusy(false) }
   }
-  const call = (path: string, method: string, json?: unknown) => () => api(`/api/validation-reviews/${encodeURIComponent(id)}${path}`, { method, json })
+  const call: Call = (path, method, json) => async () => {
+    const result = await api<{ savedAt?: string }>(`/api/validation-reviews/${encodeURIComponent(id)}${path}`, { method, json })
+    await load()
+    return result
+  }
   if (error) return <p role="alert" className="text-sm text-rose-700">{error}</p>
   if (!v) return <p className="text-sm text-slate-500">Loading…</p>
   return (
-    <div className="space-y-6">
+    <AssessmentAutosaveContext.Provider value={register}><fieldset disabled={busy} className="space-y-6">
       <Link to="/engagements/$id" params={{ id }} className="text-sm text-emerald-700 hover:underline">← Engagement</Link>
       <div>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-500"><ClipboardCheck className="h-4 w-4 text-emerald-600" /> {v.framework.name}, {v.framework.version}</p>
         <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">Review</h1>
+        <p className="text-xs text-slate-500">Changes save automatically when complete. {v.updatedAt && `Last updated ${new Date(v.updatedAt).toLocaleString()}.`} <Link to="/assessment-archive" className="underline">My saved revisions</Link></p>
       </div>
       {msg && (
         <div role="status" className={`text-sm ${msg.ok ? 'text-emerald-700' : 'text-rose-700'}`}>
@@ -98,12 +116,12 @@ export function ReviewPage({ id }: { id: string }) {
       {v.specialismBlock && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{v.specialismBlock}</p>}
       {v.status === 'finalised' ? <Frozen v={v} /> : v.rows && v.lead !== undefined ? <Reviewer v={v} act={act} call={call} /> : v.rows ? <OrgDebrief v={v} act={act} call={call} />
         : <p className="text-sm text-slate-600">{v.status === 'not_started' ? 'The review has not started.' : 'The review is in progress. You will see the validator\'s scores and comments when the debrief opens.'}</p>}
-    </div>
+    </fieldset></AssessmentAutosaveContext.Provider>
   )
 }
 
 type Act = (fn: () => Promise<unknown>, ok: string) => Promise<void>
-type Call = (path: string, method: string, json?: unknown) => () => Promise<unknown>
+type Call = (path: string, method: string, json?: unknown) => () => Promise<{ savedAt?: string }>
 
 function Reviewer({ v, act, call }: { v: View; act: Act; call: Call }) {
   const debrief = v.status === 'debrief'
@@ -125,7 +143,7 @@ function Reviewer({ v, act, call }: { v: View; act: Act; call: Call }) {
           <Card key={lvl.level}>
             <CardHeader><CardTitle>Level {lvl.level}: {lvl.name}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {rows.map((r) => <IndicatorRow key={r.id} r={r} debrief={debrief} lead={!!v.lead} act={act} call={call} />)}
+              {rows.map((r) => <IndicatorRow key={r.id} reviewId={v.engagementId ?? ''} r={r} debrief={debrief} lead={!!v.lead} act={act} call={call} />)}
             </CardContent>
           </Card>
         ) : null
@@ -140,7 +158,7 @@ function Reviewer({ v, act, call }: { v: View; act: Act; call: Call }) {
               <p className="text-sm text-slate-600">Band on the scores so far: <strong>{band ?? 'not yet scored'}</strong>. Only the band is published, never the scores.</p>
             </CardHeader>
             <CardContent className="space-y-4">
-              {rows.map((r) => <IndicatorRow key={r.id} r={r} debrief={debrief} lead={!!v.lead} act={act} call={call} />)}
+              {rows.map((r) => <IndicatorRow key={r.id} reviewId={v.engagementId ?? ''} r={r} debrief={debrief} lead={!!v.lead} act={act} call={call} />)}
             </CardContent>
           </Card>
         ) : null
@@ -150,10 +168,16 @@ function Reviewer({ v, act, call }: { v: View; act: Act; call: Call }) {
   )
 }
 
-function Setup({ v, act, call }: { v: View; act: Act; call: Call }) {
-  const [m, setM] = useState<string>(v.method ?? '')
-  const [s, setS] = useState(v.fieldworkStart ?? '')
-  const [e, setE] = useState(v.fieldworkEnd ?? '')
+function Setup({ v, call }: { v: View; act: Act; call: Call }) {
+  const draft = useAssessmentAutosave({
+    key: `review:${v.engagementId}:setup`, initial: { m: v.method ?? '', s: v.fieldworkStart ?? '', e: v.fieldworkEnd ?? '' },
+    validate: x => !x.m || !x.s || !x.e ? 'Choose the method and both fieldwork dates to save.' : x.e < x.s ? 'Fieldwork cannot end before it starts.' : null,
+    write: x => call('/setup', 'PUT', { method: x.m, fieldworkStart: x.s, fieldworkEnd: x.e })(),
+  })
+  const { m, s, e } = draft.value
+  const setM = (m: string) => draft.setValue(x => ({ ...x, m }))
+  const setS = (s: string) => draft.setValue(x => ({ ...x, s }))
+  const setE = (e: string) => draft.setValue(x => ({ ...x, e }))
   return (
     <Card>
       <CardHeader><CardTitle>Method and fieldwork</CardTitle></CardHeader>
@@ -161,20 +185,32 @@ function Setup({ v, act, call }: { v: View; act: Act; call: Call }) {
         <Select label="Method" placeholder="Choose…" options={METHODS.map((x) => ({ value: x, label: METHOD_LABEL[x] }))} value={m} onChange={setM} />
         <Input label="Fieldwork start" type="date" value={s} onChange={(ev) => setS(ev.target.value)} />
         <Input label="Fieldwork end" type="date" value={e} onChange={(ev) => setE(ev.target.value)} />
-        <Button disabled={!m || !s || !e} onClick={() => void act(call('/setup', 'PUT', { method: m, fieldworkStart: s, fieldworkEnd: e }), 'Saved')}>Save</Button>
+        <Button disabled={!m || !s || !e} onClick={() => void draft.save()}>Save</Button>
+        {draft.status && <p role="status" className="text-xs text-slate-600">{draft.status}</p>}
       </CardContent>
     </Card>
   )
 }
 
-function IndicatorRow({ r, debrief, lead, act, call }: { r: Row; debrief: boolean; lead: boolean; act: Act; call: Call }) {
-  const [score, setScore] = useState(r.validator == null ? '' : String(r.validator))
-  const [suff, setSuff] = useState(r.sufficiency ?? 'sufficient')
-  const [comment, setComment] = useState(r.comment ?? '')
-  const [ref, setRef] = useState(r.evidenceRef ?? '')
-  const [neg, setNeg] = useState(r.negotiated == null ? '' : String(r.negotiated))
-  const [result, setResult] = useState<ScoreResult>(r.result ?? 'scored')
-  const [checks, setChecks] = useState<ControlChecks>(r.checks ?? {})
+function IndicatorRow({ r, reviewId, debrief, lead, call }: { r: Row; reviewId: string; debrief: boolean; lead: boolean; act: Act; call: Call }) {
+  const draft = useAssessmentAutosave({
+    key: `review:${reviewId}:${r.id}`, initial: { score: r.validator == null ? '' : String(r.validator), suff: r.sufficiency ?? 'sufficient', comment: r.comment ?? '', ref: r.evidenceRef ?? '', result: (r.result ?? 'scored') as ScoreResult, checks: (r.checks ?? {}) as ControlChecks },
+    validate: x => x.score === '' ? 'Choose a score to save.' : scoreProblem(x.result, x.result === 'not_evidenced' ? 0 : Number(x.score), x.checks),
+    write: x => call(`/scores/${r.id}`, 'PUT', { score: x.result === 'not_evidenced' ? 0 : Number(x.score), sufficiency: x.suff, comment: x.comment, evidenceRef: x.ref, result: x.result, ...(x.result === 'scored' ? { checks: x.checks } : {}) })(),
+  })
+  const { score, suff, comment, ref, result, checks } = draft.value
+  const setScore = (score: string) => draft.setValue(x => ({ ...x, score }))
+  const setSuff = (suff: string) => draft.setValue(x => ({ ...x, suff }))
+  const setComment = (comment: string) => draft.setValue(x => ({ ...x, comment }))
+  const setRef = (ref: string) => draft.setValue(x => ({ ...x, ref }))
+  const setResult = (result: ScoreResult) => draft.setValue(x => ({ ...x, result }))
+  const setChecks = (checks: ControlChecks) => draft.setValue(x => ({ ...x, checks }))
+  const negotiated = useAssessmentAutosave({
+    key: `review:${reviewId}:negotiated:${r.id}`, initial: r.negotiated == null ? '' : String(r.negotiated), enabled: debrief && lead,
+    validate: () => null, write: x => call(`/negotiated/${r.id}`, 'PUT', { score: x === '' ? null : Number(x) })(),
+  })
+  const neg = negotiated.value
+  const setNeg = negotiated.setValue
   const scores = [0, 1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))
   const cap = isComplete(checks) ? scoreCap(checks) : null
   const problem = score === '' ? null : scoreProblem(result, result === 'not_evidenced' ? 0 : Number(score), checks)
@@ -212,10 +248,11 @@ function IndicatorRow({ r, debrief, lead, act, call }: { r: Row; debrief: boolea
       <div className="grid gap-2 sm:grid-cols-[6rem_12rem_1fr_1fr_auto] sm:items-end">
         <Select label="Your score" placeholder="–" options={result === 'not_evidenced' ? [{ value: '0', label: '0' }] : scores} value={score} onChange={setScore} />
         <Select label="Evidence" options={SUFFICIENCY.map((x) => ({ value: x, label: SUFF_LABEL[x] }))} value={suff} onChange={setSuff} />
-        <Input label="Comment" value={comment} onChange={(e) => setComment(e.target.value)} />
-        <Input label="Evidence reference" value={ref} onChange={(e) => setRef(e.target.value)} />
-        <Button size="sm" disabled={score === '' || !!problem} onClick={() => void act(call(`/scores/${r.id}`, 'PUT', { score: result === 'not_evidenced' ? 0 : Number(score), sufficiency: suff, comment, evidenceRef: ref, result, ...(result === 'scored' ? { checks } : {}) }), `${r.id} saved`)}>Save</Button>
+        <Input label="Comment" maxLength={4000} value={comment} onChange={(e) => setComment(e.target.value)} />
+        <Input label="Evidence reference" maxLength={1000} value={ref} onChange={(e) => setRef(e.target.value)} />
+        <Button size="sm" disabled={score === '' || !!problem} onClick={() => void draft.save()}>Save</Button>
       </div>
+      {(draft.status || r.updatedAt) && <p role="status" className="text-xs text-slate-600">{draft.status || `Saved ${new Date(r.updatedAt!).toLocaleString()}`}</p>}
       {problem && <p className="text-xs text-rose-700" role="alert">{problem}</p>}
       {debrief && (
         <div className="rounded-lg bg-amber-50/60 p-3 text-sm">
@@ -224,7 +261,8 @@ function IndicatorRow({ r, debrief, lead, act, call }: { r: Row; debrief: boolea
           {lead && (
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <div className="w-28"><Select label="Negotiated score" placeholder="–" options={scores} value={neg} onChange={setNeg} /></div>
-              <Button size="sm" variant="outline" onClick={() => void act(call(`/negotiated/${r.id}`, 'PUT', { score: neg === '' ? null : Number(neg) }), 'Negotiated score recorded')}>Record</Button>
+              <Button size="sm" variant="outline" onClick={() => void negotiated.save()}>Record</Button>
+              {negotiated.status && <p role="status" className="text-xs text-slate-600">{negotiated.status}</p>}
             </div>
           )}
         </div>
@@ -294,7 +332,7 @@ function OrgDebrief({ v, act, call }: { v: View; act: Act; call: Call }) {
   return (
     <>
       <p className="text-sm text-slate-600">The validator has opened the debrief. Respond to any indicator you dispute; the validator may then record a negotiated score.</p>
-      {v.rows!.map((r) => <OrgRow key={r.id} r={r} act={act} call={call} />)}
+      {v.rows!.map((r) => <OrgRow key={r.id} reviewId={v.engagementId ?? ''} r={r} act={act} call={call} />)}
     </>
   )
 }
@@ -325,16 +363,23 @@ function OrgEvidence({ id, v, act, call }: { id: string; v: View; act: Act; call
   )
 }
 
-function OrgRow({ r, act, call }: { r: Row; act: Act; call: Call }) {
-  const [text, setText] = useState(r.orgResponse ?? '')
+function OrgRow({ r, reviewId, call }: { r: Row; reviewId: string; act: Act; call: Call }) {
+  const draft = useAssessmentAutosave({
+    key: `review:${reviewId}:response:${r.id}`, initial: r.orgResponse ?? '',
+    validate: x => x.trim() ? null : 'Enter a response to save.',
+    write: x => call(`/debrief/${r.id}`, 'PUT', { response: x })(),
+  })
+  const text = draft.value
+  const setText = draft.setValue
   return (
     <Card><CardContent className="space-y-2 pt-6">
       <p className="text-sm font-medium text-slate-800"><span className="font-mono text-xs text-slate-500">{r.id}</span> {r.question}</p>
       <p className="text-sm">You scored {r.self ?? '—'} · validator {r.validator ?? '—'} · <span className={deltaStyle(r.delta)}>{r.delta == null ? '' : `delta ${r.delta > 0 ? '+' : ''}${r.delta}`}</span>{r.negotiated != null && ` · negotiated ${r.negotiated}`}</p>
       {r.comment && <p className="text-sm text-slate-600">Validator comment: {r.comment}</p>}
       {r.paperCap && <CapNote cap={r.paperCap} />}
-      <Input label="Your response" value={text} onChange={(e) => setText(e.target.value)} />
-      <Button size="sm" disabled={!text.trim()} onClick={() => void act(call(`/debrief/${r.id}`, 'PUT', { response: text }), 'Response saved')}>Save response</Button>
+      <Input label="Your response" maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} />
+      <Button size="sm" disabled={!text.trim()} onClick={() => void draft.save()}>Save response</Button>
+      {draft.status && <p role="status" className="text-xs text-slate-600">{draft.status}</p>}
     </CardContent></Card>
   )
 }

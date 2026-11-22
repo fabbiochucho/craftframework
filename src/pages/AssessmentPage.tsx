@@ -41,7 +41,7 @@ export function AssessmentPage() {
   const [showImport, setShowImport] = useState(false)
   const [evidence, setEvidence, evidenceStatus] = useLegacyAssessment<Record<string, number>>('craft:evidence-confidence', {})
   // Evidence-gated questions: statement responses, kept separately for an independent assessor.
-  const [stmts, setStmts] = useLegacyAssessment<StatementResponses>(isIndependent ? 'craft:assessor-statements' : 'craft:statements', {})
+  const [stmts, setStmts, statementStatus] = useLegacyAssessment<StatementResponses>(isIndependent ? 'craft:assessor-statements' : 'craft:statements', {})
   const setStatement = (qId: string, levels: QuestionLevels, id: string, r: StatementResponse) => {
     const next = { ...stmts, [id]: r }
     setStmts(next)
@@ -92,7 +92,8 @@ export function AssessmentPage() {
   return (
     <div className="space-y-6">
       {/* One line for the answers and the organisation's own settings (scope, mandate, profile). */}
-      <LegacySaveStatus status={[evidenceStatus, ...[lensSaveStatus, mandateSaveStatus, profileSaveStatus].filter(s => s !== 'read-only')]} />
+      <LegacySaveStatus status={[evidenceStatus, statementStatus, ...[lensSaveStatus, mandateSaveStatus, profileSaveStatus].filter(s => s !== 'read-only')]} />
+      <Link to="/assessment-archive" className="text-xs text-emerald-700 underline">My timestamped assessment revisions</Link>
       {[lensSaveStatus, mandateSaveStatus, profileSaveStatus].includes('read-only') && (
         <p role="status" className="text-xs text-slate-500">
           {isIndependent
@@ -117,7 +118,7 @@ export function AssessmentPage() {
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => setShowImport(s => !s)}>
+        <Button variant="outline" size="sm" disabled={readOnly} onClick={() => setShowImport(s => !s)}>
           <UploadCloud className="h-4 w-4" /> Offline workbook / import
         </Button>
       </div>
@@ -258,9 +259,9 @@ export function AssessmentPage() {
                         return (
                           <div key={id} className="grid gap-2 py-1 sm:grid-cols-[1fr_15rem] sm:items-center">
                             <label className="flex items-start gap-2 text-sm text-slate-800">
-                              <input type="checkbox" className="mt-1" checked={r.met} onChange={() => setStatement(q.id, q.levels!, id, { ...r, met: !r.met })} />{text}
+                              <input type="checkbox" className="mt-1" checked={r.met} disabled={readOnly} onChange={() => setStatement(q.id, q.levels!, id, { ...r, met: !r.met })} />{text}
                             </label>
-                            <input aria-label={`Evidence seen for: ${text}`} placeholder="Evidence seen (document, date)" value={r.evidence}
+                            <input aria-label={`Evidence seen for: ${text}`} placeholder="Evidence seen (document, date)" value={r.evidence} disabled={readOnly}
                               className={cn('rounded border px-2 py-1 text-xs', r.met && !r.evidence.trim() ? 'border-amber-400' : 'border-slate-300')}
                               onChange={e => setStatement(q.id, q.levels!, id, { ...r, evidence: e.target.value })} />
                           </div>
@@ -281,6 +282,7 @@ export function AssessmentPage() {
                   max={5}
                   step={1}
                   value={score}
+                  disabled={readOnly}
                   onChange={e => writeScore(orgId, q.id, Number(e.target.value))}
                   className="w-full"
                 />
@@ -305,6 +307,7 @@ export function AssessmentPage() {
                       <button
                         key={label}
                         title={label}
+                        disabled={readOnly}
                         onClick={() => setEvidence(prev => ({ ...prev, [q.id]: idx }))}
                         className={cn(
                           'flex h-12 flex-col items-center justify-center rounded-md border px-1 text-center text-[8px] font-semibold leading-tight transition-colors',
@@ -342,7 +345,7 @@ export function AssessmentPage() {
         <Button variant="outline" onClick={() => setTier(t => Math.max(0, t - 1))} disabled={tier === 0}>
           <ChevronLeft className="h-4 w-4" /> Previous Tier
         </Button>
-        <Button onClick={() => setToast('Assessment saved.')}>
+        <Button disabled={readOnly} onClick={() => setToast('Changes save automatically. Check the save status above and the offline sync indicator for confirmation.')}>
           <ShieldCheck className="h-4 w-4" /> Save
         </Button>
         {tier < 4 ? (

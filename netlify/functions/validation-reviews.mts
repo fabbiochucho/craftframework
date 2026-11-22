@@ -14,6 +14,7 @@ import { evidenceOptions, evidenceSha256 } from '../lib/evidence-options.js'
 import { HttpError, requireOrgAccess } from '../lib/orgAccess.js'
 import { reconcileEngagement, specialismsMissing, sweepEngagements } from '../lib/engagement-access.js'
 import { logger, monitored } from '../lib/logger.js'
+import { archiveAssessment } from '../lib/assessment-archive.js'
 import { engagementLabel, GRANT_ROLE, type EngagementScope, type EngagementType } from '../../src/lib/engagements.js'
 import { effectiveAccreditation } from '../../src/lib/validatorDirectory.js'
 import { FOLLOW_UP_MODES, issuedValidity, validityProblems } from '../../src/lib/validationLifecycle.js'
@@ -196,8 +197,10 @@ const handleRequest = async (req: Request) => {
         const now = new Date()
         await tx.insert(validationDebriefs).values({ reviewId: r.id, indicatorId: who, orgResponse: p.data.response, respondedBy: caller.email, respondedAt: now })
           .onConflictDoUpdate({ target: [validationDebriefs.reviewId, validationDebriefs.indicatorId], set: { orgResponse: p.data.response, respondedBy: caller.email, respondedAt: now } })
+        await tx.update(validationReviews).set({ updatedAt: now }).where(eq(validationReviews.id, r.id))
         await tx.insert(auditLogs).values({ actor: caller.email, action: `responded in debrief on ${who}`, target: r.id, category: 'Validation', orgId: e.orgId })
-        return json({ ok: true })
+        await archiveAssessment(tx, { source: 'review', orgId: e.orgId, assessmentId: id, recordKey: `response:${who}`, period: r.fieldworkStart && r.fieldworkEnd ? `${r.fieldworkStart} to ${r.fieldworkEnd}` : null, actor: caller.email, snapshot: p.data, savedAt: now })
+        return json({ ok: true, savedAt: now.toISOString() })
       })
     }
 
@@ -229,8 +232,10 @@ const handleRequest = async (req: Request) => {
         const set = { score: p.data.score, sufficiency: p.data.sufficiency, comment: p.data.comment ?? '', evidenceRef: p.data.evidenceRef ?? '', scoredBy: caller.email, updatedAt: new Date(), result, checks: result === 'not_evidenced' ? {} : checks }
         await tx.insert(validationScores).values({ reviewId: row.id, indicatorId: who, ...set })
           .onConflictDoUpdate({ target: [validationScores.reviewId, validationScores.indicatorId], set })
+        await tx.update(validationReviews).set({ updatedAt: set.updatedAt }).where(eq(validationReviews.id, row.id))
         await tx.insert(auditLogs).values({ actor: caller.email, action: `scored ${who}: ${old ? old.score : '—'} → ${result === 'not_evidenced' ? 'not evidenced' : p.data.score} (${p.data.sufficiency})`, target: row.id, category: 'Validation', orgId: e.orgId })
-        return json({ ok: true })
+        await archiveAssessment(tx, { source: 'review', orgId: e.orgId, assessmentId: id, recordKey: who, period: row.fieldworkStart && row.fieldworkEnd ? `${row.fieldworkStart} to ${row.fieldworkEnd}` : null, actor: caller.email, snapshot: set, savedAt: set.updatedAt })
+        return json({ ok: true, savedAt: set.updatedAt.toISOString() })
       })
     }
 
@@ -244,9 +249,11 @@ const handleRequest = async (req: Request) => {
       const r = await ensure()
       return await locked(r.id, async (tx, row) => {
         if (row.status === 'finalised') return conflict('This review is finalised')
-        await tx.update(validationReviews).set({ method: p.data.method, fieldworkStart: p.data.fieldworkStart, fieldworkEnd: p.data.fieldworkEnd, updatedAt: new Date() }).where(eq(validationReviews.id, row.id))
+        const now = new Date()
+        await tx.update(validationReviews).set({ method: p.data.method, fieldworkStart: p.data.fieldworkStart, fieldworkEnd: p.data.fieldworkEnd, updatedAt: now }).where(eq(validationReviews.id, row.id))
         await tx.insert(auditLogs).values({ actor: caller.email, action: `set method ${p.data.method}, fieldwork ${p.data.fieldworkStart} to ${p.data.fieldworkEnd}`, target: row.id, category: 'Validation', orgId: e.orgId })
-        return json({ ok: true })
+        await archiveAssessment(tx, { source: 'review', orgId: e.orgId, assessmentId: id, recordKey: 'setup', period: `${p.data.fieldworkStart} to ${p.data.fieldworkEnd}`, actor: caller.email, snapshot: p.data, savedAt: now })
+        return json({ ok: true, savedAt: now.toISOString() })
       })
     }
 
@@ -278,8 +285,10 @@ const handleRequest = async (req: Request) => {
         const set = { negotiatedScore: p.data.score, negotiatedBy: caller.email, negotiatedAt: now }
         await tx.insert(validationDebriefs).values({ reviewId: row.id, indicatorId: who, ...set })
           .onConflictDoUpdate({ target: [validationDebriefs.reviewId, validationDebriefs.indicatorId], set })
+        await tx.update(validationReviews).set({ updatedAt: now }).where(eq(validationReviews.id, row.id))
+        await archiveAssessment(tx, { source: 'review', orgId: e.orgId, assessmentId: id, recordKey: `negotiated:${who}`, period: row.fieldworkStart && row.fieldworkEnd ? `${row.fieldworkStart} to ${row.fieldworkEnd}` : null, actor: caller.email, snapshot: set, savedAt: now })
         await tx.insert(auditLogs).values({ actor: caller.email, action: `negotiated ${who}: ${p.data.score ?? 'cleared'}`, target: row.id, category: 'Validation', orgId: e.orgId })
-        return json({ ok: true })
+        return json({ ok: true, savedAt: now.toISOString() })
       })
     }
 
@@ -419,6 +428,7 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
   const { e, review } = ctx
   const selfScores = (orgId: string, _key: string, idSet: Set<string>) => loadScopeSelfScores(orgId, fw, scope, idSet)
   const base = {
+    engagementId: e.id, createdAt: review?.createdAt ?? null, updatedAt: review?.updatedAt ?? null,
     engagementStatus: e.status, framework: { key: fw.key, name: fw.name, version: fw.version }, scope, type: e.type,
     indices: scopeIndices(scope).map((f) => ({ key: f.key, name: f.name, version: f.version })), specialismBlock: ctx.specialismBlock,
   }
@@ -442,7 +452,7 @@ async function view(ctx: Ctx, fw: (typeof FRAMEWORKS)[string], scope: Engagement
     const rows = trustDeltaWithCaps(fw, scope, self, validatorScores, negotiated, sufficiency, ctx.profile).map((t) => {
       const s = scoreRows.find((x) => x.indicatorId === t.id)
       const d = debriefRows.find((x) => x.indicatorId === t.id)
-      return { ...t, sufficiency: s?.sufficiency ?? null, comment: s?.comment ?? '', evidenceRef: s?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '', evidence: evidence.filter((x) => x.indicatorId === t.id), result: s?.result ?? null, checks: s?.checks ?? {} }
+      return { ...t, updatedAt: s?.updatedAt ?? null, sufficiency: s?.sufficiency ?? null, comment: s?.comment ?? '', evidenceRef: s?.evidenceRef ?? '', orgResponse: d?.orgResponse ?? '', evidence: evidence.filter((x) => x.indicatorId === t.id), result: s?.result ?? null, checks: s?.checks ?? {} }
     })
     const problems = finalisationProblems({ fw, scope, validatorScores, negotiated, sufficiency, method: (review?.method ?? null) as never, fieldworkStart: review?.fieldworkStart ?? null, fieldworkEnd: review?.fieldworkEnd ?? null, outcome: null, qualifications: quals, profile: ctx.profile, checks: checksOf(scoreRows, ids) })
       .filter((x) => x !== 'Choose an outcome')

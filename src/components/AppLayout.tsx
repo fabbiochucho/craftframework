@@ -53,6 +53,7 @@ const workspaceNav = [
   { to: '/frameworks', label: 'Assessment Frameworks', icon: Layers },
   { to: '/assessment', label: 'Assessment Wizard', icon: ClipboardList },
   { to: '/capacity', label: 'Capacity Assessment', icon: Gauge },
+  { to: '/assessment-archive', label: 'My Assessment Archive', icon: ClipboardList },
   { to: '/awards', label: 'Awards & Issues', icon: Briefcase },
   { to: '/findings', label: 'Findings', icon: AlertTriangle },
   { to: '/verify', label: 'Trust Delta & Verify', icon: Scale },
