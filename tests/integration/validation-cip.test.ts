@@ -84,6 +84,14 @@ describe('validation CIP follow-up, funder consent, debrief notice, history and 
     }
   })
 
+  it('identifies the expected funder-dashboard denial for specialized read-only identities', async () => {
+    ;(globalThis as any).__craftTestIdentity = { email: FUND, appMetadata: { role: 'cbn_examiner', access_expires_at: Math.floor(Date.now() / 1000) + 3600 } }
+    const res: Response = await lifecycle(new Request('http://localhost/api/validations/funder'))
+    assert.equal(res.status, 403)
+    assert.equal((await res.json()).code, 'SPECIALIZED_READ_ONLY')
+    assert.equal((await lifecycle(new Request('http://localhost/api/validations'))).status, 403)
+  })
+
   it('turns each qualification into an improvement action, with a history row and a surveillance checkpoint at issue', async () => {
     const v = await issue({ outcome: 'validated_with_qualifications', qualify: [IDS[1], IDS[2]] })
     const actions = await rows('SELECT text, indicator_ids, owner, due_date, status, qualification_id FROM validation_cip_actions ORDER BY text')
@@ -120,6 +128,10 @@ describe('validation CIP follow-up, funder consent, debrief notice, history and 
     assert.equal(saved.status, 200, saved.text)
     const updated = await val(FUND, 'PUT', `/${v.id}/funder-note`, { funderFirmId: funder1, note: 'Updated funding action' })
     assert.equal(updated.status, 200)
+    const dashboard = await val(FUND, 'GET', '/funder')
+    assert.equal(dashboard.body[0].notes[0].note, 'Updated funding action')
+    assert.ok(dashboard.body[0].notes[0].updatedAt)
+    assert.deepEqual((await val(FUND2, 'GET', '/funder')).body, [], 'other firms cannot see the note')
     assert.equal((await val(FUND2, 'PUT', `/${v.id}/funder-note`, { funderFirmId: funder1, note: 'Not permitted' })).status, 404)
     const [stored] = await rows('SELECT funder_note, note_updated_by FROM validation_funder_consents')
     assert.ok(stored.funder_note.startsWith('enc:'))
@@ -132,6 +144,7 @@ describe('validation CIP follow-up, funder consent, debrief notice, history and 
     await val(ALICE, 'PUT', `/${v.id}/funder-consent`, { funderFirmId: funder1, granted: true, shareComments: false })
     assert.deepEqual((await val(FUND, 'GET', `/${v.id}`)).body.comments, [])
     await val(ALICE, 'PUT', `/${v.id}/funder-consent`, { funderFirmId: funder1, granted: false })
+    assert.deepEqual((await val(FUND, 'GET', '/funder')).body, [], 'dashboard access is withdrawn with consent')
     assert.equal((await val(FUND, 'PUT', `/${v.id}/funder-note`, { funderFirmId: funder1, note: 'After withdrawal' })).status, 404)
     assert.deepEqual((await call(FUND, archiveApi, 'GET', '/api/assessment-archive?source=funder')).body.revisions, [])
   })

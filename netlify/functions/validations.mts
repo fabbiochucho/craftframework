@@ -81,8 +81,13 @@ const handleRequest = async (req: Request) => {
     if (!caller) return unauthorized()
     const mfaBlock = await mfaRequired(req, caller)
     if (mfaBlock) return mfaBlock
-    if (caller.readOnly) return forbidden()
     const url = new URL(req.url)
+    if (caller.readOnly) {
+      if (req.method === 'GET' && url.pathname === '/api/validations/funder') {
+        return Response.json({ error: 'Funding partner access is unavailable for this read-only role.', code: 'SPECIALIZED_READ_ONLY' }, { status: 403 })
+      }
+      return forbidden()
+    }
     const [id, sub, eid, act] = url.pathname.replace(/^\/api\/validations\/?/, '').split('/').filter(Boolean)
     const readBody = async () => { try { return await req.json() } catch { return null } }
     const admin = isSuperAdmin(caller.email)

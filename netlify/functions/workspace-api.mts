@@ -11,12 +11,13 @@ import { notify } from '../lib/validation-lifecycle.js'
 import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, or, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { archiveAssessment } from '../lib/assessment-archive.js'
+import { validationDraftSchema } from '../../src/lib/validationDraft.js'
 import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
   supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks, userMfa,
-  catalogueIndependentScores, assessmentRevisions,
+  catalogueIndependentScores, assessmentRevisions, governanceValidationDrafts,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { catalogueResponses, independentResponses, isNphiType, liveEvidenceIds } from '../lib/nphi.js'
@@ -303,6 +304,7 @@ async function approveErasureRequest(c: Ctx, caller: Caller, requestId: number):
     await db.update(wsOrganizations).set({ contactEmail: '', contactPhone: '' }).where(eq(wsOrganizations.id, request.orgId))
   }
   await db.delete(assessmentRevisions).where(and(eq(assessmentRevisions.source, 'workspace'), eq(assessmentRevisions.orgId, String(request.orgId)), eq(assessmentRevisions.actor, request.requestedBy)))
+  await db.delete(governanceValidationDrafts).where(and(eq(governanceValidationDrafts.orgId, request.orgId), eq(governanceValidationDrafts.validatorEmail, request.requestedBy)))
   if (membership) await db.delete(wsOrgMembers).where(eq(wsOrgMembers.id, membership.id))
   await audit(c, request.orgId, null, 'gdpr_erasure', request.id, 'update', { subject: pseudonym, purgedEvidenceBlobs: archivedEvidence.length })
   const [approved] = await db.update(gdprRequests).set({
@@ -1186,6 +1188,34 @@ const routes: Route[] = [
   } },
   { method: 'GET', pattern: `${W}/craft-scorecard/catalogue`, access: 'viewer', scope: 'workspace', handler: async () =>
     json({ pillars: Object.values(GOVERNANCE_PILLARS), criteria: GOVERNANCE_CRITERIA }) },
+  { method: 'GET', pattern: `${A}/validation-draft`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
+    if (a.assessmentType !== 'CRAFT') throw bad('independent validation applies to CRAFT Governance Scorecard assessments')
+    const [row] = await db.select().from(governanceValidationDrafts).where(and(eq(governanceValidationDrafts.orgId, orgId), eq(governanceValidationDrafts.assessmentId, a.id), eq(governanceValidationDrafts.validatorEmail, caller.email)))
+    const [recorded] = await db.select({ id: governanceValidations.id }).from(governanceValidations).where(and(eq(governanceValidations.assessmentId, a.id), eq(governanceValidations.validatorEmail, caller.email)))
+    return Response.json({ draft: row ? validationDraftSchema.parse(JSON.parse(decryptField(row.payload))) : null, savedAt: row?.updatedAt ?? null, recorded: !!recorded }, { headers: { 'Cache-Control': 'private, no-store' } })
+  } },
+  { method: 'PUT', pattern: `${A}/validation-draft`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
+    const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
+    if (a.assessmentType !== 'CRAFT') throw bad('independent validation applies to CRAFT Governance Scorecard assessments')
+    if (a.createdBy === caller.email && caller.role !== 'super_admin') throw new HttpError(403, 'Segregation of duties: the assessment creator cannot validate it')
+    const parsed = validationDraftSchema.safeParse(c.body)
+    if (!parsed.success) throw bad('Invalid independent validation draft; check field lengths and scores')
+    const allowed = new Set(activeCriteria({ innovationSupport: a.innovationSupport }).map(x => x.id))
+    if (Object.keys(parsed.data.rescore).some(id => !allowed.has(id))) throw bad('Unknown criterion in validation draft')
+    const now = new Date()
+    await db.transaction(async tx => {
+      const [current] = await tx.select().from(governanceAssessments).where(eq(governanceAssessments.id, a.id)).for('update')
+      if (!current || current.status !== 'approved') throw new HttpError(409, 'Only an approved assessment can be independently validated')
+      const [finished] = await tx.select({ id: governanceValidations.id }).from(governanceValidations).where(and(eq(governanceValidations.assessmentId, a.id), eq(governanceValidations.validatorEmail, caller.email)))
+      if (finished) throw new HttpError(409, 'You have already validated this assessment')
+      const payload = encryptField(JSON.stringify(parsed.data))
+      await tx.insert(governanceValidationDrafts).values({ orgId, assessmentId: a.id, validatorEmail: caller.email, payload, updatedAt: now })
+        .onConflictDoUpdate({ target: [governanceValidationDrafts.assessmentId, governanceValidationDrafts.validatorEmail], set: { payload, updatedAt: now } })
+      await archiveAssessment(tx, { source: 'workspace', orgId: String(orgId), assessmentId: String(a.id), recordKey: 'validation:draft', period: a.reportingPeriod, actor: caller.email, snapshot: parsed.data, savedAt: now })
+    })
+    return json({ ok: true, savedAt: now.toISOString() })
+  } },
   { method: 'POST', pattern: `${A}/validations`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     // Independent (external) validation of an approved CRAFT assessment. Validators are usually
     // invited as viewers; they must declare independence and cannot be the assessment's creator.
@@ -1216,8 +1246,13 @@ const routes: Route[] = [
       scope: str(c.body.scope, 'scope', 2000, false), method: oneOf(c.body.method, 'method', VALIDATION_METHODS), outcome, notes, scores,
     }
     const row = await db.transaction(async tx => {
+      const [current] = await tx.select().from(governanceAssessments).where(eq(governanceAssessments.id, a.id)).for('update')
+      if (!current || current.status !== 'approved') throw new HttpError(409, 'Only an approved assessment can be independently validated')
+      const [existing] = await tx.select({ id: governanceValidations.id }).from(governanceValidations).where(and(eq(governanceValidations.assessmentId, a.id), eq(governanceValidations.validatorEmail, caller.email)))
+      if (existing) throw new HttpError(409, 'You have already validated this assessment')
       const [saved] = await tx.insert(governanceValidations).values(values).returning()
       await archiveAssessment(tx, { source: 'workspace', orgId: String(orgId), assessmentId: String(a.id), recordKey: `validation:${saved.id}`, period: a.reportingPeriod, actor: caller.email, snapshot: saved, savedAt: saved.createdAt })
+      await tx.delete(governanceValidationDrafts).where(and(eq(governanceValidationDrafts.assessmentId, a.id), eq(governanceValidationDrafts.validatorEmail, caller.email)))
       return saved
     })
     const scoreRows = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))

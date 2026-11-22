@@ -85,6 +85,19 @@ describe('GDPR erasure', () => {
   })
   const request = (user: string, org = orgId) => as(user).post('/privacy/erasure-requests', { orgId: org })
 
+  it('removes an independent validation draft and its revisions when its author is erased', async () => {
+    const id = expectStatus(await as(ASSESSOR).post(`/workspaces/${wsId}/assessments`, { assessmentType: 'CRAFT', reportingPeriod: '2026' }), 201).body.id
+    expectStatus(await as(ASSESSOR).post(`/workspaces/${wsId}/assessments/${id}/submit`, {}), 200)
+    expectStatus(await as(OWNER).post(`/workspaces/${wsId}/assessments/${id}/approve`, {}), 200)
+    expectStatus(await as(ADMIN).put(`/workspaces/${wsId}/assessments/${id}/validation-draft`, {
+      validatorName: 'Reviewer', validatorOrganisation: '', scope: '', method: 'document_review', outcome: 'validated', notes: 'Private draft', rescore: {},
+    }), 200)
+    const req = expectStatus(await request(ADMIN), 201).body
+    expectStatus(await as(OWNER).post(`/privacy/erasure-requests/${req.id}/approve`, {}), 200)
+    assert.equal((await rows('SELECT 1 FROM governance_validation_drafts WHERE validator_email=$1', [ADMIN])).length, 0)
+    assert.equal((await rows('SELECT 1 FROM assessment_revisions WHERE actor=$1', [ADMIN])).length, 0)
+  })
+
   it('requires membership to file, is idempotent while pending and is listed per role', async () => {
     assert.equal((await request(OUTSIDER)).status, 404)
     const first = expectStatus(await request(ADMIN), 201).body

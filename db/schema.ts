@@ -1482,6 +1482,19 @@ export const governanceValidations = pgTable(
   (t) => [index('governance_validations_assessment_idx').on(t.orgId, t.assessmentId)],
 )
 
+export const governanceValidationDrafts = pgTable(
+  'governance_validation_drafts',
+  {
+    id: serial('id').primaryKey(),
+    orgId: integer('org_id').notNull(),
+    assessmentId: integer('assessment_id').notNull(),
+    validatorEmail: text('validator_email').notNull(),
+    payload: text('payload').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [unique('governance_validation_drafts_uq').on(t.assessmentId, t.validatorEmail)],
+)
+
 // --- ESG --------------------------------------------------------------------
 export const esgFrameworks = pgTable(
   'esg_frameworks',

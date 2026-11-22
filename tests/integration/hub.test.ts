@@ -215,10 +215,27 @@ describe('CRAFT Governance Scorecard', () => {
     assert.equal((await as(VIEWER).post(vpath, { ...vbody, independenceDeclared: false })).status, 400)
     assert.equal((await as(VIEWER).post(vpath, { ...vbody, notes: '' })).status, 400, 'qualifications need notes')
     assert.equal((await as(VIEWER).post(vpath, { ...vbody, scores: { 'ETH-4': { score: 3 } } })).status, 400, 'overlay criterion not in this assessment')
+    const draftPath = `${P()}/assessments/${id}/validation-draft`
+    const draft = { validatorName: 'Ada Obi', validatorOrganisation: 'Independent Reviews Ltd', scope: 'Governance', method: 'sample_testing', outcome: 'validated_with_qualifications', notes: 'Work in progress', rescore: { 'LDR-1': { score: '3', evidence: true, comment: 'Charter needs review' } } }
+    assert.equal((await as(ASSESSOR).put(draftPath, draft)).status, 403, 'the creator cannot save an independent draft')
+    assert.equal((await as(VIEWER).put(draftPath, { ...draft, rescore: { 'ETH-4': { score: '3', evidence: true, comment: '' } } })).status, 400)
+    const draftSave = expectStatus(await as(VIEWER).put(draftPath, draft), 200).body
+    assert.ok(draftSave.savedAt)
+    const [storedDraft] = await rows('SELECT payload FROM governance_validation_drafts')
+    assert.ok(storedDraft.payload.startsWith('enc:'))
+    assert.deepEqual(expectStatus(await as(VIEWER).get(draftPath), 200).body.draft, draft)
+    assert.equal(expectStatus(await as(ADMIN).get(draftPath), 200).body.draft, null, 'drafts are scoped to their author')
+    assert.equal((await rows('SELECT 1 FROM governance_validations')).length, 0, 'drafting does not record a validation or declaration')
+    assert.equal(expectStatus(await as(VIEWER).get(`${P()}/assessments/${id}/scorecard`), 200).body.overall, 70)
     const val = expectStatus(await as(VIEWER).post(vpath, vbody), 201).body
     assert.equal(val.selfOverall, 70)
     assert.ok(val.validatedOverall < 70 && val.delta < 0)
     assert.equal((await as(VIEWER).post(vpath, vbody)).status, 409, 'one validation per validator')
+    assert.equal((await rows('SELECT 1 FROM governance_validation_drafts')).length, 0, 'finalisation removes the draft')
+    assert.equal(expectStatus(await as(VIEWER).get(draftPath), 200).body.recorded, true)
+    assert.equal(expectStatus(await as(ADMIN).get(draftPath), 200).body.recorded, false, 'recording state is author-scoped')
+    assert.equal((await as(VIEWER).put(draftPath, draft)).status, 409, 'no late draft can appear after finalisation')
+    assert.equal((await rows("SELECT 1 FROM assessment_revisions WHERE record_key='validation:draft' AND period='FY2026'")).length, 1)
     const vsc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${id}/scorecard`), 200).body
     assert.equal(vsc.validations.length, 1)
     assert.equal(vsc.validations[0].outcome, 'validated_with_qualifications')

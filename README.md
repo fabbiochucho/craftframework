@@ -94,8 +94,16 @@ independent scores. Revoked consent removes access to both the live view and tho
 archive revisions. Account removal, institution deletion and workspace data-subject
 erasure also remove the corresponding revision data.
 
+For approved workspace CRAFT scorecards, independent validators' unfinished work
+is encrypted and autosaved per author, including across devices. A declaration and
+explicit recording are still required to issue the validation; a draft never
+changes a scorecard. The funding partner's dashboard displays consented progress
+and its own firm's notes separately from existing scores; notes have no numeric
+weight and do not alter assessment metrics.
+
 Deploy migration `20261122120000_assessment_revisions` before the updated functions
-and frontend. Keep the existing field-encryption key available to read archives.
+and frontend, followed by `20261122130000_validation_drafts`. Keep the existing
+field-encryption key available to read archives and validation drafts.
 
 ## Stabilization and deployment
 

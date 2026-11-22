@@ -9,6 +9,7 @@ import { activeItems, REVIEW_DOMAINS } from '../../lib/health-security'
 import { catalogueByType, RESTRICTED_LABELS } from '../../lib/assessment-catalogues'
 import { SPAR_LEVELS, SPAR_SOURCE } from '../../lib/spar-levels'
 import { AssessmentAutosaveContext, useAssessmentAutosave, type FlushAssessment } from '../../lib/assessmentAutosave'
+import { emptyValidationDraft, type ValidationDraft } from '../../lib/validationDraft'
 
 const CATALOGUE_TYPES = ['NPHI', 'JEE', 'JEE_SUB', 'SPAR', 'PSP']
 function healthSecurityDomains(a: any): { value: string; label: string }[] | null {
@@ -161,11 +162,7 @@ const OUTCOME_LABEL: Record<string, string> = { validated: 'Validated', validate
 const OUTCOME_STYLE: Record<string, string> = { validated: 'bg-emerald-100 text-emerald-700', validated_with_qualifications: 'bg-amber-100 text-amber-800', not_validated: 'bg-rose-100 text-rose-700' }
 
 function IndependentValidation({ workspaceId, a, d, reload }: { workspaceId: string; a: any; d: any; reload: () => void }) {
-  const [v, setV] = useState({ validatorName: '', validatorOrganisation: '', scope: '', method: 'document_review', outcome: 'validated', notes: '', independenceDeclared: false })
-  const [rescore, setRescore] = useState<Record<string, { score: string; evidence: boolean; comment: string }>>({})
-  const { run, error, busy } = useAction(reload)
-  const answered: string[] = a.scores.filter((s: any) => !s.notApplicable).map((s: any) => s.domain)
-  const scores = Object.fromEntries(Object.entries(rescore).filter(([, x]) => x.score).map(([id, x]) => [id, { score: Number(x.score), evidence: x.evidence, comment: x.comment }]))
+  const draft = useApi<{ draft: ValidationDraft | null; savedAt: string | null; recorded: boolean }>(a.status === 'approved' ? wsPath(workspaceId, `/assessments/${a.id}/validation-draft`) : null)
   return (
     <Card><CardContent className="space-y-3">
       <h3 className="font-semibold">Independent validation</h3>
@@ -180,34 +177,61 @@ function IndependentValidation({ workspaceId, a, d, reload }: { workspaceId: str
       {d.validations?.flatMap((x: any) => x.adjustments.map((j: any) => ({ ...j, by: x.validatorName }))).length > 0 && <ul className="list-disc pl-5 text-xs text-slate-600">
         {d.validations.flatMap((x: any) => x.adjustments.map((j: any) => <li key={`${x.id}-${j.criterionId}`}>{j.criterionId}: self {j.selfScore ?? '—'} → validator {j.validatorScore}{j.validatorEvidence ? '' : ' (no evidence)'} — {x.validatorName}{j.comment ? `: ${j.comment}` : ''}</li>))}
       </ul>}
-      {a.status !== 'approved' ? <p className="text-sm text-slate-500">Independent validation opens once the assessment is approved.</p> : <>
+      {a.status !== 'approved' ? <p className="text-sm text-slate-500">Independent validation opens once the assessment is approved.</p>
+        : draft.data?.recorded ? <p role="status" className="text-sm text-emerald-700">Independent validation recorded.</p>
+        : draft.data ? <IndependentValidationForm key={a.id} workspaceId={workspaceId} a={a} initial={draft.data.draft ?? emptyValidationDraft()} savedAt={draft.data.savedAt} reload={reload} />
+        : <State loading={draft.loading} error={draft.error} />}
+    </CardContent></Card>
+  )
+}
+
+function IndependentValidationForm({ workspaceId, a, initial, savedAt, reload }: { workspaceId: string; a: any; initial: ValidationDraft; savedAt: string | null; reload: () => void }) {
+  const [independenceDeclared, setIndependenceDeclared] = useState(false)
+  const [finalised, setFinalised] = useState(false)
+  const { run, error, busy } = useAction(reload)
+  const draft = useAssessmentAutosave<ValidationDraft>({
+    key: `workspace:${workspaceId}:${a.id}:independent-validation`, initial, enabled: !finalised,
+    validate: () => null,
+    write: value => api(wsPath(workspaceId, `/assessments/${a.id}/validation-draft`), { method: 'PUT', body: value }),
+  })
+  const v = draft.value
+  const setV = (value: ValidationDraft) => draft.setValue(value)
+  const answered: string[] = a.scores.filter((s: any) => !s.notApplicable).map((s: any) => s.domain)
+  const scores = Object.fromEntries(Object.entries(v.rescore).filter(([, x]) => x.score).map(([id, x]) => [id, { score: Number(x.score), evidence: x.evidence, comment: x.comment }]))
+  const submit = () => run(async () => {
+    if (!(await draft.save())) throw new Error('Save the independent validation draft before recording it.')
+    await api(wsPath(workspaceId, `/assessments/${a.id}/validations`), { method: 'POST', body: { ...v, rescore: undefined, scores, independenceDeclared } })
+    setFinalised(true)
+  })
+  if (finalised) return <p role="status" className="text-sm text-emerald-700">Independent validation recorded.</p>
+  return <fieldset disabled={busy} className="space-y-3">
+        <p className="text-xs text-slate-500">Drafts save automatically. Recording a validation and declaring independence remain explicit actions.</p>
         <div className="grid gap-3 md:grid-cols-3">
-          <Input label="Validator name" value={v.validatorName} onChange={e => setV({ ...v, validatorName: e.target.value })} />
-          <Input label="Validator organisation" value={v.validatorOrganisation} onChange={e => setV({ ...v, validatorOrganisation: e.target.value })} />
-          <Input label="Validation scope" value={v.scope} onChange={e => setV({ ...v, scope: e.target.value })} />
-          <Select label="Method" value={v.method} onChange={method => setV({ ...v, method })} options={['document_review', 'sample_testing', 'interviews', 'site_visit', 'combined'].map(x => ({ value: x, label: x.replace(/_/g, ' ') }))} />
-          <Select label="Outcome" value={v.outcome} onChange={outcome => setV({ ...v, outcome })} options={Object.entries(OUTCOME_LABEL).map(([value, label]) => ({ value, label }))} />
-          <Input label="Notes (required unless fully validated)" value={v.notes} onChange={e => setV({ ...v, notes: e.target.value })} />
+          <Input label="Validator name" maxLength={200} value={v.validatorName} onChange={e => setV({ ...v, validatorName: e.target.value })} />
+          <Input label="Validator organisation" maxLength={200} value={v.validatorOrganisation} onChange={e => setV({ ...v, validatorOrganisation: e.target.value })} />
+          <Input label="Validation scope" maxLength={2000} value={v.scope} onChange={e => setV({ ...v, scope: e.target.value })} />
+          <Select label="Method" value={v.method} onChange={method => setV({ ...v, method: method as ValidationDraft['method'] })} options={['document_review', 'sample_testing', 'interviews', 'site_visit', 'combined'].map(x => ({ value: x, label: x.replace(/_/g, ' ') }))} />
+          <Select label="Outcome" value={v.outcome} onChange={outcome => setV({ ...v, outcome: outcome as ValidationDraft['outcome'] })} options={Object.entries(OUTCOME_LABEL).map(([value, label]) => ({ value, label }))} />
+          <Input label="Notes (required unless fully validated)" maxLength={4000} value={v.notes} onChange={e => setV({ ...v, notes: e.target.value })} />
         </div>
         <Accordion title={`Re-score criteria (optional, ${Object.keys(scores).length} re-scored)`}>
           <div className="space-y-2 p-3">{answered.map(id => {
-            const x = rescore[id] ?? { score: '', evidence: true, comment: '' }
-            const set = (p: Partial<typeof x>) => setRescore({ ...rescore, [id]: { ...x, ...p } })
+            const x = v.rescore[id] ?? { score: '' as const, evidence: true, comment: '' }
+            const set = (p: Partial<typeof x>) => setV({ ...v, rescore: { ...v.rescore, [id]: { ...x, ...p } } })
             return <div key={id} className="flex flex-wrap items-end gap-2">
               <span className="w-20 text-sm font-medium">{id}</span>
-              <div className="w-48"><Select placeholder="Keep self score" value={x.score} onChange={score => set({ score })} options={RUBRIC.map((l, i) => ({ value: String(i + 1), label: l }))} /></div>
+              <div className="w-48"><Select placeholder="Keep self score" value={x.score} onChange={score => set({ score: score as typeof x.score })} options={RUBRIC.map((l, i) => ({ value: String(i + 1), label: l }))} /></div>
               <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={x.evidence} onChange={e => set({ evidence: e.target.checked })} /> Evidence seen</label>
-              <div className="min-w-[200px] flex-1"><Input aria-label={`${id} comment`} value={x.comment} onChange={e => set({ comment: e.target.value })} /></div>
+              <div className="min-w-[200px] flex-1"><Input aria-label={`${id} comment`} maxLength={1000} value={x.comment} onChange={e => set({ comment: e.target.value })} /></div>
             </div>
           })}</div>
         </Accordion>
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={v.independenceDeclared} onChange={e => setV({ ...v, independenceDeclared: e.target.checked })} />
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={independenceDeclared} onChange={e => setIndependenceDeclared(e.target.checked)} />
           <span>I declare that I am independent of the assessed institution and have no conflict of interest in this validation.</span></label>
         <ErrorLine error={error} />
-        <Button disabled={busy || !v.validatorName || !v.independenceDeclared} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/validations`), { method: 'POST', body: { ...v, scores } }))}>Record independent validation</Button>
-      </>}
-    </CardContent></Card>
-  )
+        <p role="status" className="text-xs text-slate-600">{draft.status || (savedAt ? `Draft saved ${new Date(savedAt).toLocaleString()}` : '')}</p>
+        <Button disabled={!v.validatorName.trim() || !independenceDeclared} onClick={() => void submit()}>Record independent validation</Button>
+      </fieldset>
 }
 
 function CraftScorecard({ workspaceId, a }: { workspaceId: string; a: any }) {

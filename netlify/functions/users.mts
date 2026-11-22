@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
   accessGrants, auditLogs, dailyActive, engagementMembers, firmMembers, invitations, networkAdmins, panelRoster, users, validatorProfiles,
-  validatorSpecialisms, wsOrgMembers, assessmentRevisions,
+  validatorSpecialisms, wsOrgMembers, assessmentRevisions, governanceValidationDrafts,
 } from '../../db/schema.js'
 import { fieldLookupHashes } from '../lib/crypto.js'
 import type { UserRow } from '../../db/schema.js'
@@ -50,6 +50,7 @@ const RANK: Record<string, number> = { assessor: 1, independent: 1, portfolio: 2
 async function removeFromEveryRole(email: string) {
   const hashes = fieldLookupHashes(email)
   await db.delete(assessmentRevisions).where(eq(assessmentRevisions.actor, email))
+  await db.delete(governanceValidationDrafts).where(eq(governanceValidationDrafts.validatorEmail, email))
   await db.delete(users).where(eq(users.email, email))
   await db.delete(validatorProfiles).where(eq(validatorProfiles.email, email)) // credentials cascade
   await db.delete(validatorSpecialisms).where(eq(validatorSpecialisms.email, email))

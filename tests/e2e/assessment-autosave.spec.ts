@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect, fakeSession } from './fixtures'
 import type { Page } from '@playwright/test'
 
 test.use({ serviceWorkers: 'block' })
@@ -137,4 +137,66 @@ test('workspace submission saves pending scores before locking and keeps their p
   await expect(page.getByText(/workspace · leadership\/LDR-1 · FY2026/)).toBeVisible()
   await page.getByText('Saved details', { exact: true }).first().click()
   await expect(page.getByText(/"tierLevel": 4/)).toBeVisible()
+})
+
+test('workspace independent drafts persist across sessions and require explicit recording', async ({ signedIn: page, request, context }) => {
+  const origin = `http://127.0.0.1:${process.env.E2E_API_PORT ?? 8899}`
+  const owner = (await context.cookies()).find(c => c.name === 'nf_jwt')!.value
+  const headers = { cookie: `nf_jwt=${owner}` }
+  const created = await request.post(`${origin}/api/orgs`, { headers, data: { name: 'Validation draft org', type: 'ngo', country: 'KE' } })
+  expect(created.status()).toBe(201)
+  const org = await created.json()
+  expect((await request.post(`${origin}/api/orgs/${org.id}/members`, { headers, data: { email: 'draft-creator@acme.example', role: 'assessor' } })).status()).toBe(201)
+  const creator = { cookie: `nf_jwt=${fakeSession('draft-creator@acme.example').token}` }
+  const assessment = await request.post(`${origin}/api/workspaces/${org.defaultWorkspaceId}/assessments`, { headers: creator, data: { assessmentType: 'CRAFT', reportingPeriod: 'FY2026' } })
+  expect(assessment.status()).toBe(201)
+  const id = (await assessment.json()).id
+  const base = `${origin}/api/workspaces/${org.defaultWorkspaceId}/assessments/${id}`
+  expect((await request.put(`${base}/scores/leadership/LDR-1`, { headers: creator, data: { score: 4, evidenceUploaded: true } })).status()).toBe(200)
+  expect((await request.post(`${base}/submit`, { headers: creator, data: {} })).status()).toBe(200)
+  expect((await request.post(`${base}/approve`, { headers, data: {} })).status()).toBe(200)
+  await page.goto(`/app/workspaces/${org.defaultWorkspaceId}/governance/assessments/${id}`)
+  await page.getByRole('button', { name: 'Scorecard', exact: true }).click()
+  await page.getByLabel('Validator name').fill('Independent Reviewer')
+  await page.getByLabel('Notes (required unless fully validated)').fill('Review observations')
+  await expect(page.getByRole('status').filter({ hasText: /^Saved / })).toBeVisible()
+  expect((await (await request.get(`${base}/scorecard`, { headers })).json()).validations).toHaveLength(0)
+  await page.reload()
+  await page.getByRole('button', { name: 'Scorecard', exact: true }).click()
+  await expect(page.getByLabel('Validator name')).toHaveValue('Independent Reviewer')
+  await expect(page.getByLabel('Notes (required unless fully validated)')).toHaveValue('Review observations')
+  await expect(page.getByRole('button', { name: 'Record independent validation' })).toBeDisabled()
+  await page.getByLabel(/I declare that I am independent/).check()
+  await page.getByRole('button', { name: 'Record independent validation' }).click()
+  await expect.poll(async () => (await (await request.get(`${base}/scorecard`, { headers })).json()).validations.length).toBe(1)
+  expect((await (await request.get(`${base}/validation-draft`, { headers })).json()).draft).toBeNull()
+  await page.reload()
+  await page.getByRole('button', { name: 'Scorecard', exact: true }).click()
+  await expect(page.getByText('Independent validation recorded.', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Validator name')).toHaveCount(0)
+})
+
+test('funding partner dashboard displays notes separately from scores', async ({ signedIn: page }) => {
+  await page.route('**/api/validations/funder', route => route.fulfill({ json: [{
+    id: 'v1', organization: 'Riverbend', framework: 'Readiness', statusLabel: 'Current',
+    progress: { done: 2, total: 5 }, nextFollowUp: '2026-12-01',
+    notes: [{ firmId: 'firm1', note: 'Follow up on the action plan', updatedAt: '2026-11-22T12:00:00Z' }],
+  }] }))
+  await page.goto('/dashboard')
+  await expect(page.getByText('Funding partner inputs')).toBeVisible()
+  await expect(page.getByText(/2 of 5 actions complete/)).toBeVisible()
+  await expect(page.getByText(/Follow up on the action plan/)).toBeVisible()
+  await expect(page.getByText(/do not change assessment scores/)).toBeVisible()
+})
+
+test('dashboard hides the expected read-only role denial but displays other funder errors', async ({ signedIn: page }) => {
+  let specialized = true
+  await page.route('**/api/validations/funder', route => route.fulfill({
+    status: 403, json: specialized ? { code: 'SPECIALIZED_READ_ONLY' } : { error: 'Forbidden' },
+  }))
+  await page.goto('/dashboard')
+  await expect(page.getByText('Funding partner information could not be loaded')).toHaveCount(0)
+  specialized = false
+  await page.reload()
+  await expect(page.getByText('Funding partner information could not be loaded (403).')).toBeVisible()
 })

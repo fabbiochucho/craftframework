@@ -11,6 +11,7 @@ import { useAuthCtx, useWorkspace, useScoresCtx, useCIPCtx, useLensCtx, useQuest
 import { PlainSummaryCard } from '../components/PlainSummaryCard'
 import { GrowthLevelCard } from '../components/GrowthLevelCard'
 import { OtherAssessmentsCard } from '../components/OtherAssessmentsCard'
+import { FunderDashboardCard } from '../components/FunderDashboardCard'
 import { coreSummary } from '../lib/plainSummary'
 import {
   computeOrgScore, computeTierScore, computeCompositeIndices,
@@ -71,6 +72,7 @@ export function DashboardPage() {
           <h1 className="mt-1 font-display text-3xl font-bold text-emerald-900">Readiness Dashboard</h1>
         </div>
         <OtherAssessmentsCard orgId={currentOrg?.id ?? ''} signedIn={!!currentUser && !currentUser.isDemo} />
+        <FunderDashboardCard enabled={!!currentUser && !currentUser.isDemo} />
         <Card>
           <CardContent className="flex flex-col items-center py-20 text-center">
             <ClipboardList className="h-14 w-14 text-slate-300" />
@@ -168,6 +170,7 @@ export function DashboardPage() {
 
       <GrowthLevelCard orgId={currentOrg?.id ?? ''} composite={composite} signedIn={!!currentUser && !currentUser.isDemo} />
       <OtherAssessmentsCard orgId={currentOrg?.id ?? ''} signedIn={!!currentUser && !currentUser.isDemo} />
+      <FunderDashboardCard enabled={!!currentUser && !currentUser.isDemo} />
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
