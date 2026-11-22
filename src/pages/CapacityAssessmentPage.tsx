@@ -282,7 +282,7 @@ function LastYearPlan({ a, mod, history, current, notes, setNotes, locked, onSav
           <div key={r.domainId} className="grid gap-2 sm:grid-cols-[1fr_10rem_2fr] sm:items-center">
             <span>{names.get(r.domainId) ?? r.domainId}</span>
             <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', r.met ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800')}>{r.met ? 'Reached' : 'Not reached'}: {r.reached} of {r.envisioned}</span>
-            {!r.met && <Input aria-label={`Why the target for ${names.get(r.domainId)} was not reached`} placeholder="Why it was not reached" value={notes[r.domainId] ?? ''} disabled={locked} onChange={(e) => setNotes({ ...notes, [r.domainId]: e.target.value })} />}
+            {!r.met && <Input aria-label={`Why the target for ${names.get(r.domainId)} was not reached`} placeholder="Why it was not reached" maxLength={1000} value={notes[r.domainId] ?? ''} disabled={locked} onChange={(e) => setNotes({ ...notes, [r.domainId]: e.target.value })} />}
           </div>
         ))}
         {!locked && <div className="flex items-center gap-3"><Button size="sm" variant="outline" onClick={onSave}>Save</Button>{open.length > 0 && <span className="text-xs text-amber-700">{open.length} still to explain.</span>}</div>}
@@ -305,7 +305,7 @@ function ConsensusRow({ name, evidenced, value, locked, onChange }: {
       </select>
       {r && value && (r.steppedDown
         ? <><span className="text-amber-700">The evidence supports {r.final}, not {value.agreed}.</span>
-            <input aria-label={`Why the group agreed a higher score for ${name}`} placeholder="Why the group differed" disabled={locked} value={value.note}
+            <input aria-label={`Why the group agreed a higher score for ${name}`} placeholder="Why the group differed" maxLength={1000} disabled={locked} value={value.note}
               className={cn('w-64 rounded border px-2 py-0.5', value.note.trim().length < 3 ? 'border-amber-400' : 'border-slate-300')}
               onChange={(e) => onChange({ ...value, note: e.target.value })} /></>
         : <span>Agreed score stands: <b>{r.final}</b></span>)}
@@ -379,7 +379,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
     try {
       await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, consensus, plan, swot, planReviewNotes: reviewNotes, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } })
       dropDraft(a.id)
-      if (quiet) setMessage((m) => (m && m !== 'Saved.' && !m.startsWith('Restored') ? m : 'Saved.'))
+      if (quiet) setMessage('Saved.')
       else { setMessage('Saved.'); onChanged() }
       return true
     } catch (e) { setMessage((e as Error).message); return false }
@@ -414,8 +414,8 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
       {tab === 'assess' && (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <Input label="Assessor" value={meta.assessor} disabled={locked} onChange={(e) => setMeta({ ...meta, assessor: e.target.value })} />
-            <Input label="Organisation lead" value={meta.orgLead} disabled={locked} onChange={(e) => setMeta({ ...meta, orgLead: e.target.value })} />
+            <Input label="Assessor" maxLength={200} value={meta.assessor} disabled={locked} onChange={(e) => setMeta({ ...meta, assessor: e.target.value })} />
+            <Input label="Organisation lead" maxLength={200} value={meta.orgLead} disabled={locked} onChange={(e) => setMeta({ ...meta, orgLead: e.target.value })} />
           </div>
           {mod.areas.map((area) => (
             <Card key={area.id}>
@@ -438,7 +438,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
                         <span className={cn('rounded px-2 py-0.5 text-sm font-semibold', skipped ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-800', !canSkip && 'ml-auto')}>{skipped ? 'Not assessed' : `Score ${score}`}</span>
                       </div>
                       {skipped && (
-                        <input aria-label={`Why ${dom.name} is not assessed`} placeholder="Why it is not assessed (left out of the averages)" value={notAssessed[dom.id]} disabled={locked}
+                        <input aria-label={`Why ${dom.name} is not assessed`} placeholder="Why it is not assessed (left out of the averages)" maxLength={300} value={notAssessed[dom.id]} disabled={locked}
                           className={cn('mt-2 w-full rounded border px-2 py-1 text-xs', notAssessed[dom.id].trim().length < 3 ? 'border-amber-400' : 'border-slate-300')}
                           onChange={(e) => setNotAssessed({ ...notAssessed, [dom.id]: e.target.value })} />
                       )}
@@ -457,7 +457,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
                                   <input type="checkbox" className="mt-1" checked={r.met} disabled={locked} onChange={() => setResponses({ ...responses, [s.id]: { ...r, met: !r.met } })} />
                                   {s.text}
                                 </label>
-                                <input aria-label={`Evidence seen for: ${s.text}`} placeholder="Evidence seen (document, date)" value={r.evidence} disabled={locked}
+                                <input aria-label={`Evidence seen for: ${s.text}`} placeholder="Evidence seen (document, date)" maxLength={1000} value={r.evidence} disabled={locked}
                                   className={cn('rounded border px-2 py-1 text-xs', r.met && !r.evidence.trim() ? 'border-amber-400' : 'border-slate-300')}
                                   onChange={(e) => setResponses({ ...responses, [s.id]: { ...r, evidence: e.target.value } })} />
                               </div>
@@ -565,8 +565,8 @@ function PlanView({ mod, responses, notAssessed, plan, setPlan, locked, onSave }
             <p className="font-medium">{r.domain}: {r.current} → <b>{r.envisioned}</b></p>
             <ul className="mt-1 list-disc pl-5 text-slate-700">{r.actions.map((x) => <li key={x}>{x}</li>)}</ul>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <Input label="Timeline (e.g. weeks 2–6, June)" value={r.timeline} disabled={locked} onChange={(e) => upd(r.domainId, { timeline: e.target.value })} />
-              <Input label="Responsible (by role)" value={r.responsible} disabled={locked} onChange={(e) => upd(r.domainId, { responsible: e.target.value })} />
+              <Input label="Timeline (e.g. weeks 2–6, June)" maxLength={200} value={r.timeline} disabled={locked} onChange={(e) => upd(r.domainId, { timeline: e.target.value })} />
+              <Input label="Responsible (by role)" maxLength={200} value={r.responsible} disabled={locked} onChange={(e) => upd(r.domainId, { responsible: e.target.value })} />
             </div>
             <div className="mt-2 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               {COST_LINES.map((c) => (

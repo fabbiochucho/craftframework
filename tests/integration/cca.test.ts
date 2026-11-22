@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { blobStores, rows, truncateAll } from './harness.ts'
-import { dashboard, improvementPlan } from '../../src/lib/cca/engine.ts'
+import { dashboard, improvementPlan, swotSeed } from '../../src/lib/cca/engine.ts'
 
 const cca = (await import(new URL('../../netlify/functions/cca.mts', import.meta.url).href)).default
 
@@ -93,6 +93,51 @@ describe('CRAFT Capacity Assessment API', () => {
     assert.deepEqual(places.filter((p: any[]) => p[0] !== 'pre_award').sort(), [['community', 2026, '', ''], ['community', 2027, '', ''], ['local', 2026, 'Kano', 'Dala'], ['local', 2026, 'Kano', 'Fagge']], 'place only for government modules')
     const audit = await rows(`SELECT action FROM audit_logs WHERE org_id='org_a' AND action NOT LIKE '%local%' AND action NOT LIKE '%2027%' ORDER BY id`)
     assert.deepEqual(audit.map((a) => a.action.split(' (')[0]), ['Started capacity assessment', 'Started capacity assessment', 'Completed capacity assessment'])
+  })
+
+  it('saves and completes assessments with a large automatically seeded SWOT across module types', async () => {
+    for (const module of ['national', 'community', 'pre_award']) {
+      const areas = Array.from({ length: 10 }, (_, area) => ({
+        id: `area${area}`, name: `Area ${area}`,
+        domains: Array.from({ length: 4 }, (_, domain) => dom(`${module}.${area}.${domain}`)),
+      }))
+      const mod = { id: module, name: module, audience: 'Organisations', areas }
+      blobStores().set('cca-private', new Map([['modules', { bytes: Buffer.from(JSON.stringify([mod])) }]]))
+      const created = await call(ALICE, 'POST', '', { orgId: 'org_a', module, year: 2026, ...(module === 'pre_award' ? { awardRef: 'Grant' } : {}) })
+      assert.equal(created.status, 201)
+      const id = created.body.id
+      const swot = swotSeed(dashboard(mod as any, {}))
+      assert.equal(swot.weaknesses.length, 40)
+      const saved = await call(ALICE, 'PUT', `/${id}`, {
+        responses: { [`${module}.0.0.2`]: ok }, votes: {}, consensus: {}, plan: [], swot,
+        planReviewNotes: {}, ...(module === 'pre_award' ? {} : { notAssessed: { [`${module}.0.1`]: 'Not applicable yet' } }),
+        assessor: 'Assessor', orgLead: 'Lead',
+      })
+      assert.equal(saved.status, 200, JSON.stringify(saved.body))
+      assert.deepEqual((await call(ALICE, 'GET', `/${id}`)).body.assessment.swot, swot)
+      assert.equal((await call(ALICE, 'POST', `/${id}/complete`)).status, 200)
+    }
+  })
+
+  it('identifies the invalid field rather than blaming evidence and skipped domains for every save error', async () => {
+    const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
+    const evidence = await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': { met: true, evidence: 'x'.repeat(1001) } } })
+    assert.equal(evidence.status, 400)
+    assert.match(evidence.body.error, /Evidence or response \(g1\.2, evidence\)/)
+    const reason = await call(ALICE, 'PUT', `/${id}`, { notAssessed: { g1: '' } })
+    assert.equal(reason.status, 400)
+    assert.match(reason.body.error, /Not assessed reason \(g1\)/)
+    const swot = await call(ALICE, 'PUT', `/${id}`, { swot: { strengths: [], weaknesses: ['x'.repeat(301)], opportunities: [], threats: [] } })
+    assert.equal(swot.status, 400)
+    assert.match(swot.body.error, /SWOT \(weaknesses, 0\)/)
+    const votes = await call(ALICE, 'PUT', `/${id}`, { votes: { g1: [1.5] } })
+    assert.equal(votes.status, 400)
+    assert.match(votes.body.error, /Facilitated votes \(g1, 0\)/)
+    const largeSwot = { strengths: [], weaknesses: Array(1000).fill('Domain'), opportunities: [], threats: [] }
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { swot: largeSwot })).status, 200)
+    const tooLarge = await call(ALICE, 'PUT', `/${id}`, { swot: { ...largeSwot, weaknesses: [...largeSwot.weaknesses, 'Another'] } })
+    assert.equal(tooLarge.status, 400)
+    assert.match(tooLarge.body.error, /SWOT \(weaknesses\)/)
   })
 
   it('an empty assessment cannot be completed; a completed one is reopened only by the independent assessor or the Super Admin', async () => {

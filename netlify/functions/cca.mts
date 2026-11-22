@@ -30,7 +30,7 @@ const putSchema = z.object({
   votes: z.record(z.string().max(80), z.array(z.number().int().min(1).max(4)).max(60)).optional(),
   // Approach II: domain id -> the score the group agreed and, when the evidence brings it down, why the group differed.
   consensus: z.record(z.string().max(80), z.object({ agreed: z.number().int().min(1).max(4), note: z.string().trim().max(1000) }).strict()).optional(),
-  swot: z.object({ strengths: z.array(z.string().max(300)).max(30), weaknesses: z.array(z.string().max(300)).max(30), opportunities: z.array(z.string().max(300)).max(30), threats: z.array(z.string().max(300)).max(30) }).strict().optional(),
+  swot: z.object({ strengths: z.array(z.string().max(300)).max(1000), weaknesses: z.array(z.string().max(300)).max(1000), opportunities: z.array(z.string().max(300)).max(1000), threats: z.array(z.string().max(300)).max(1000) }).strict().optional(),
   plan: z.array(z.object({
     domainId: z.string().max(80), costs: z.number().min(0).max(1e12).optional(),
     lines: z.object({ ...Object.fromEntries(COST_LINES.map((c) => [c.id, z.number().min(0).max(1e12).optional()])), participants: z.number().int().min(0).max(100000).optional() }).strict().optional(),
@@ -42,6 +42,21 @@ const putSchema = z.object({
   assessor: z.string().max(200).optional(),
   orgLead: z.string().max(200).optional(),
 }).strict()
+
+function saveValidationError(error: z.ZodError): string {
+  const issue = error.issues[0]
+  if (!issue) return 'Some of the answers could not be saved. Check the assessment fields and try again.'
+  const [field, key, index] = issue.path
+  const labels: Record<string, string> = {
+    responses: 'Evidence or response', votes: 'Facilitated votes', consensus: 'Group consensus',
+    swot: 'SWOT', plan: 'Improvement plan', notAssessed: 'Not assessed reason',
+    planReviewNotes: 'Previous plan review', assessor: 'Assessor', orgLead: 'Organisation lead',
+  }
+  const label = labels[String(field)] ?? 'Assessment field'
+  const location = [key, index].filter((part) => part !== undefined).map(String).join(', ')
+  return `Could not save ${label}${location ? ` (${location})` : ''}: ${issue.message}.`
+}
+
 const createSchema = z.object({
   orgId: z.string().min(1).max(200), module: z.enum(CCA_MODULE_IDS as [string, ...string[]]),
   year: z.number().int().min(2000).max(2100), awardRef: z.string().trim().max(120).optional(),
@@ -113,7 +128,7 @@ const handleRequest = async (req: Request) => {
 
     if (req.method === 'PUT' && !action) {
       const p = putSchema.safeParse(await req.json().catch(() => null))
-      if (!p.success) return json({ error: 'Some of the answers could not be saved. Check the evidence notes are under 1,000 characters and every domain marked not assessed has a reason.' }, 400)
+      if (!p.success) return json({ error: saveValidationError(p.error) }, 400)
       const d = p.data
       if (d.notAssessed && Object.keys(d.notAssessed).length && isAwardModule(row.module)) return json({ error: 'Every domain must be assessed for a grant or contract.' }, 400)
       await db.update(ccaAssessments).set({
