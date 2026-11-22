@@ -5,6 +5,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select 
 import { RateYourValidator, ReReviewFlags, ValidatorStatistics } from '../components/ValidatorFeedback'
 import { RequireReReview, ReReviews } from '../components/ReReviews'
 import { EVENT_DECISIONS, FOLLOW_UP_LABEL, FOLLOW_UP_MODES, type FollowUpMode } from '../lib/validationLifecycle'
+import { useAssessmentAutosave } from '../lib/assessmentAutosave'
 
 // Validator system PR 5: the issued validation's lifecycle. Every rule is
 // enforced by /api/validations; status is always computed on the server.
@@ -21,7 +22,9 @@ type Event = {
   id: string; key: string; label: string; starred: boolean; details: string; occurredOn: string; reportedAt: string; reportedBySide: string
   deadlineOn: string; late: boolean; status: string; orgResponse: string; decisionNote: string
 }
-type FunderView = Summary & { funderView: true; progressLine: string; progress: { done: number; total: number }; scheduleMode: FollowUpMode; followUpOverdue: boolean; verificationId: string }
+type FunderView = Summary & { funderView: true; progressLine: string; progress: { done: number; total: number }; scheduleMode: FollowUpMode; followUpOverdue: boolean; verificationId: string
+  comments?: Array<{ id: string; comment: string; orgResponse: string }>; notes?: Array<{ firmId: string; note: string; updatedAt: string | null }>
+}
 type Checkpoint = { id: string; kind: 'surveillance' | 'follow_up'; dueOn: string; state: 'pending' | 'done'; result: string | null; note: string; doneAt: string | null; indicatorIds: string[] }
 type Detail = Summary & {
   cip: { actions: Array<{ id: string; text: string; indicatorIds: string[]; owner: string | null; dueDate: string | null; status: string; proof: string; fromQualification: boolean }>; progress: { done: number; total: number }; progressLine: string }
@@ -329,9 +332,25 @@ function FunderProgress({ v }: { v: FunderView }) {
           <p>Issued {fmt(v.issuedAt)} · {v.status === 'expired' ? 'expired' : 'expires'} {fmt(v.expiresAt)}</p>
           <p>Schedule: {FOLLOW_UP_LABEL[v.scheduleMode]}{v.followUpOverdue ? ' · follow-up overdue' : ''}</p>
           {['current', 'follow_up_overdue', 'suspended'].includes(v.status) && <RequireReReview validationId={v.id} />}
-          <p className="text-xs text-slate-500">You can see this because {v.organization} consented. It shares progress as counts and dates only, and can withdraw consent at any time. Verification ID <a className="font-mono text-emerald-700 underline" href={`/validation/${v.verificationId}`}>{v.verificationId}</a>.</p>
+          <p className="text-xs text-slate-500">You can see this because {v.organization} consented. Review comments need separate permission; scores and evidence are not shared. Consent can be withdrawn at any time. Verification ID <a className="font-mono text-emerald-700 underline" href={`/validation/${v.verificationId}`}>{v.verificationId}</a>.</p>
+          {v.comments?.map(c => <div key={c.id} className="rounded border p-2"><p className="font-medium">{c.id}</p>{c.comment && <p>Reviewer: {c.comment}</p>}{c.orgResponse && <p>Organisation: {c.orgResponse}</p>}</div>)}
+          {v.notes?.map(note => <FunderNote key={`${v.id}:${note.firmId}`} id={v.id} initial={note} />)}
+          <Link to="/assessment-archive" className="text-emerald-700 underline">My saved revisions</Link>
         </CardContent>
       </Card>
     </div>
   )
+}
+
+function FunderNote({ id, initial }: { id: string; initial: { firmId: string; note: string; updatedAt: string | null } }) {
+  const draft = useAssessmentAutosave({
+    key: `funder:${id}:${initial.firmId}`, initial: initial.note, validate: () => null,
+    write: note => api<{ savedAt: string }>(`/api/validations/${encodeURIComponent(id)}/funder-note`, { method: 'PUT', json: { funderFirmId: initial.firmId, note } }),
+  })
+  return <div className="space-y-2 border-t pt-3">
+    <Input label="Your funding partner's review note" maxLength={4000} value={draft.value} onChange={e => draft.setValue(e.target.value)} />
+    <p className="text-xs text-slate-500">This is your firm's own input, not an independent score. Changes save automatically.</p>
+    <Button size="sm" variant="outline" onClick={() => void draft.save()}>Save note</Button>
+    <p role="status" className="text-xs text-slate-600">{draft.status || (initial.updatedAt ? `Saved ${new Date(initial.updatedAt).toLocaleString()}` : '')}</p>
+  </div>
 }

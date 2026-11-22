@@ -1,9 +1,9 @@
 import type { Config } from '@netlify/functions'
-import { and, desc, eq, inArray, or } from 'drizzle-orm'
+import { and, desc, eq, inArray, ne, or } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '../../db/index.js'
 import {
-  organizations, responses, capacityActions, complianceItems, auditLogs,
+  organizations, responses, capacityActions, complianceItems, auditLogs, assessmentRevisions,
   accessGrants, networkMembers, users,
 } from '../../db/schema.js'
 import { legacyWorkspaceState } from '../../db/legacy-schema.js'
@@ -145,6 +145,7 @@ const handleRequest = async (req: Request) => {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 })
       if (!(await canAccessOrg(caller, id))) return forbidden()
       await db.delete(responses).where(eq(responses.orgId, id))
+      await db.delete(assessmentRevisions).where(and(eq(assessmentRevisions.orgId, id), ne(assessmentRevisions.source, 'workspace')))
       await db.delete(capacityActions).where(eq(capacityActions.orgId, id))
       await db.delete(complianceItems).where(eq(complianceItems.orgId, id))
       await db.delete(auditLogs).where(eq(auditLogs.orgId, id))

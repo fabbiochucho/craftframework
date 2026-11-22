@@ -23,7 +23,7 @@ export function navProfile(role: string, choice: StartChoice | null, hasOrganisa
 }
 
 // Shown to everyone.
-const ALWAYS = ['/inbox', '/settings', '/help', '/guide']
+const ALWAYS = ['/inbox', '/settings', '/help', '/guide', '/assessment-archive']
 
 const PAGES: Record<Exclude<NavProfile, 'all'>, string[]> = {
   organisation: [

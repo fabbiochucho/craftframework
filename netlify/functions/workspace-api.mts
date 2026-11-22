@@ -10,12 +10,13 @@ import { isPasswordProtected } from '../lib/evidence-watermark.js'
 import { notify } from '../lib/validation-lifecycle.js'
 import { and, asc, desc, eq, gte, inArray, lte, isNull, isNotNull, or, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
+import { archiveAssessment } from '../lib/assessment-archive.js'
 import {
   wsOrganizations, wsOrgMembers, workspaces, governanceAssessments, governanceScores, governanceFindings,
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
   supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks, userMfa,
-  catalogueIndependentScores,
+  catalogueIndependentScores, assessmentRevisions,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
 import { catalogueResponses, independentResponses, isNphiType, liveEvidenceIds } from '../lib/nphi.js'
@@ -301,6 +302,7 @@ async function approveErasureRequest(c: Ctx, caller: Caller, requestId: number):
   if (org && decryptField(org.contactEmail) === request.requestedBy) {
     await db.update(wsOrganizations).set({ contactEmail: '', contactPhone: '' }).where(eq(wsOrganizations.id, request.orgId))
   }
+  await db.delete(assessmentRevisions).where(and(eq(assessmentRevisions.source, 'workspace'), eq(assessmentRevisions.orgId, String(request.orgId)), eq(assessmentRevisions.actor, request.requestedBy)))
   if (membership) await db.delete(wsOrgMembers).where(eq(wsOrgMembers.id, membership.id))
   await audit(c, request.orgId, null, 'gdpr_erasure', request.id, 'update', { subject: pseudonym, purgedEvidenceBlobs: archivedEvidence.length })
   const [approved] = await db.update(gdprRequests).set({
@@ -1052,7 +1054,7 @@ const routes: Route[] = [
     await audit(c, orgId, wsId, 'assessment', a.id, 'create', { assessmentType })
     return json(a, 201)
   } },
-  { method: 'GET', pattern: A, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
+  { method: 'GET', pattern: A, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, role, caller }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
     const [scores, findings] = await Promise.all([
       db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
@@ -1061,6 +1063,7 @@ const routes: Route[] = [
     const independent = isNphiType(a.assessmentType) ? await db.select().from(catalogueIndependentScores).where(eq(catalogueIndependentScores.assessmentId, a.id)) : []
     return json({
       ...a,
+      canScore: hasMinRole(role, 'assessor') && !caller.readOnly,
       independent,
       scores: scores.map((s) => ({ ...s, reviewerNotes: decryptField(s.reviewerNotes) })),
       findings: findings.map((f) => ({ ...f, description: decryptField(f.description) })),
@@ -1102,12 +1105,18 @@ const routes: Route[] = [
     const values = {
       tierLevel: tierFromScore(score), evidenceId,
       evidenceUploaded: catalogueByType(a.assessmentType) ? evidenceId !== null : !notApplicable && !!c.body.evidenceUploaded,
-      reviewerNotes: encryptField(str(c.body.reviewerNotes, 'reviewerNotes', 2000, false)), notApplicable, naReason,
+      reviewerNotes: encryptField(str(c.body.reviewerNotes, 'reviewerNotes', 2000, false)), notApplicable, naReason, updatedAt: new Date(),
     }
-    const [row] = await db.insert(governanceScores).values({ orgId, assessmentId: a.id, pillar, domain, ...values })
-      .onConflictDoUpdate({ target: [governanceScores.assessmentId, governanceScores.pillar, governanceScores.domain], set: values }).returning()
+    const row = await db.transaction(async (tx) => {
+      const [current] = await tx.select().from(governanceAssessments).where(eq(governanceAssessments.id, a.id)).for('update')
+      if (!current || current.status !== 'draft') throw new HttpError(409, 'Assessment is locked for review')
+      const [saved] = await tx.insert(governanceScores).values({ orgId, assessmentId: a.id, pillar, domain, ...values })
+        .onConflictDoUpdate({ target: [governanceScores.assessmentId, governanceScores.pillar, governanceScores.domain], set: values }).returning()
+      await archiveAssessment(tx, { source: 'workspace', orgId: String(orgId), assessmentId: String(a.id), recordKey: `${pillar}/${domain}`, period: a.reportingPeriod, actor: caller.email, snapshot: { ...saved, reviewerNotes: decryptField(saved.reviewerNotes) }, savedAt: values.updatedAt })
+      return saved
+    })
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { pillar, domain, tier: row.tierLevel, by: caller.email })
-    return json({ ...row, reviewerNotes: decryptField(row.reviewerNotes), suggestedSeverity: severityFromTier(row.tierLevel) })
+    return json({ ...row, savedAt: values.updatedAt.toISOString(), reviewerNotes: decryptField(row.reviewerNotes), suggestedSeverity: severityFromTier(row.tierLevel) })
   } },
   { method: 'POST', pattern: `${A}/findings`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
@@ -1201,14 +1210,19 @@ const routes: Route[] = [
         scores[id] = { score, evidence: v?.evidence === true, comment: str(v?.comment, 'comment', 1000, false) }
       }
     }
-    const [row] = await db.insert(governanceValidations).values({
+    const values = {
       orgId, assessmentId: a.id, validatorEmail: caller.email, validatorName: str(c.body.validatorName, 'validatorName', 200),
       validatorOrganisation: str(c.body.validatorOrganisation, 'validatorOrganisation', 200, false), independenceDeclared: true,
       scope: str(c.body.scope, 'scope', 2000, false), method: oneOf(c.body.method, 'method', VALIDATION_METHODS), outcome, notes, scores,
-    }).returning()
+    }
+    const row = await db.transaction(async tx => {
+      const [saved] = await tx.insert(governanceValidations).values(values).returning()
+      await archiveAssessment(tx, { source: 'workspace', orgId: String(orgId), assessmentId: String(a.id), recordKey: `validation:${saved.id}`, period: a.reportingPeriod, actor: caller.email, snapshot: saved, savedAt: saved.createdAt })
+      return saved
+    })
     const scoreRows = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { externalValidation: row.id, outcome, reScored: Object.keys(scores).length })
-    return json({ ...row, ...validationDelta(craftResponses(scoreRows), scores, { innovationSupport: a.innovationSupport }) }, 201)
+    return json({ ...row, savedAt: row.createdAt.toISOString(), ...validationDelta(craftResponses(scoreRows), scores, { innovationSupport: a.innovationSupport }) }, 201)
   } },
   { method: 'GET', pattern: `${W}/craft-scorecard/history`, access: 'viewer', scope: 'workspace', handler: async (_c, { orgId, wsId }) => {
     // Every CRAFT assessment version with its own score: earlier results are never recalculated away.

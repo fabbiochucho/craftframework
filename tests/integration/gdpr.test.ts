@@ -147,6 +147,7 @@ describe('GDPR erasure', () => {
     assert.equal(approved.status, 'approved')
     assert.equal(approved.approvedBy, OWNER)
     assert.ok(approved.approvedAt)
+    assert.equal((await rows("SELECT 1 FROM assessment_revisions WHERE source='workspace' AND actor=$1", [ADMIN])).length, 0, 'erasure also removes encrypted input revisions')
     assert.equal((await as(OWNER).post(`/privacy/erasure-requests/${req.id}/approve`, {})).status, 409, 'cannot approve twice')
 
     // Audit rows are preserved (and only added to), with the actor pseudonymised.

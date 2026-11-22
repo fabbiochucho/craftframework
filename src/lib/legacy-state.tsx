@@ -63,10 +63,15 @@ export function useTenantState<T>(
       edited.current = true
       setValue(draft.value)
       setStatus('saving')
-      saveLegacyState(orgId, key, draft.value, signal).then(
-        () => { if (generation.current === gen) { if (current.current === draft.value) dropDraft(draftKey); setStatus('saved') } },
-        (err) => { if (generation.current === gen) setStatus(failure(err)) },
-      )
+      writes.current = writes.current.then(async () => {
+        if (generation.current !== gen || activeScope.current !== scope || signal.aborted) return
+        try {
+          await saveLegacyState(orgId, key, draft.value, signal)
+          if (generation.current === gen && current.current === draft.value) { dropDraft(draftKey); setStatus('saved') }
+        } catch (err) {
+          if (generation.current === gen) setStatus(failure(err))
+        }
+      })
     }).catch((err) => { if (generation.current === gen) setStatus(failure(err)) })
     const lock = () => { ++generation.current; controller.current.abort(); setStatus('error') }
     const storageLock = (event: StorageEvent) => { if (event.key === 'craft_session_lock') lock() }

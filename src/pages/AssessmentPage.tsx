@@ -93,6 +93,7 @@ export function AssessmentPage() {
     <div className="space-y-6">
       {/* One line for the answers and the organisation's own settings (scope, mandate, profile). */}
       <LegacySaveStatus status={[evidenceStatus, statementStatus, ...[lensSaveStatus, mandateSaveStatus, profileSaveStatus].filter(s => s !== 'read-only')]} />
+      <Link to="/assessment-archive" className="text-xs text-emerald-700 underline">My timestamped assessment revisions</Link>
       {[lensSaveStatus, mandateSaveStatus, profileSaveStatus].includes('read-only') && (
         <p role="status" className="text-xs text-slate-500">
           {isIndependent

@@ -9,6 +9,7 @@ import { INDEPENDENT_STATE_KEYS, isIndependentAssessorOf } from '../lib/independ
 import { logger, monitored } from '../lib/logger.js'
 import { fairKeyReadable } from '../../src/lib/fairRisk.js'
 import { SPECIALIZED_READONLY_ROLES } from '../lib/access-policy.js'
+import { archiveAssessment } from '../lib/assessment-archive.js'
 
 // The organisation itself: its own users, not read-only or specialised reviewer accounts provisioned on it.
 const isOwnOrg = (caller: { orgId?: string | null; readOnly?: boolean; role: string }, orgId: string) =>
@@ -62,11 +63,14 @@ const handleRequest = async (req: Request) => {
       // Only the organisation itself writes its quantified-risk inputs and its consent.
       if (key.startsWith('fair:') && !isOwnOrg(caller, orgId)) return forbidden()
       const record = { orgId, key, value: encryptField(JSON.stringify(value)), updatedAt: new Date() }
-      await db.insert(legacyWorkspaceState).values(record).onConflictDoUpdate({
-        target: [legacyWorkspaceState.orgId, legacyWorkspaceState.key],
-        set: { value: record.value, updatedAt: record.updatedAt },
+      await db.transaction(async (tx) => {
+        await tx.insert(legacyWorkspaceState).values(record).onConflictDoUpdate({
+          target: [legacyWorkspaceState.orgId, legacyWorkspaceState.key],
+          set: { value: record.value, updatedAt: record.updatedAt },
+        })
+        await archiveAssessment(tx, { source: 'legacy', orgId, assessmentId: orgId, recordKey: key, actor: caller.email, snapshot: value, savedAt: record.updatedAt })
       })
-      return Response.json({ ok: true })
+      return Response.json({ ok: true, savedAt: record.updatedAt.toISOString() })
     }
     return new Response('Method Not Allowed', { status: 405 })
   } catch (error) {

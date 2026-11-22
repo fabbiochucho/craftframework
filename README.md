@@ -70,6 +70,33 @@ so an earlier request cannot clear a newer draft.
 The shared organisation profile context supplies missing fields for older saved
 profiles without replacing their existing values, so the wizard can still open.
 
+## Assessment autosave and revision history
+
+Successful capacity, legacy, workspace score, independent score, reviewer and
+funder-note saves now append encrypted revisions in the same database transaction.
+`/assessment-archive` shows the signed-in author's revisions, reporting period
+(where the assessment defines one) and server date/time, rechecking current access.
+Each update is a separate revision. Live metrics and dashboards continue reading
+the current assessment tables, not the revision archive. Existing live records
+remain available; revisions are recorded from deployment onwards, not backfilled
+with invented historical timestamps.
+
+Independent reviewer scores, comments, evidence references, fieldwork setup,
+organisation debrief responses and workspace score inputs autosave when complete.
+Unfinished or failed input stays on the device per account and assessment until
+saved. Submission and finalisation remain explicit and flush pending inputs before
+locking; issued reviews remain immutable and use the existing follow-up workflow.
+
+Funding-partner progress consent does not share comments by default. Organisations
+can separately allow and revoke sharing of frozen reviewer/debrief comments.
+Funders can autosave their own encrypted, timestamped notes without changing
+independent scores. Revoked consent removes access to both the live view and those
+archive revisions. Account removal, institution deletion and workspace data-subject
+erasure also remove the corresponding revision data.
+
+Deploy migration `20261122120000_assessment_revisions` before the updated functions
+and frontend. Keep the existing field-encryption key available to read archives.
+
 ## Stabilization and deployment
 
 Netlify remains the supported host during incremental consolidation. Existing

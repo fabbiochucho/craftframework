@@ -76,6 +76,22 @@ describe('assessment locking', () => {
     assert.equal((await rows('SELECT findings_count FROM governance_assessments WHERE id = $1', [id]))[0].findings_count, 1)
     assert.equal((await as(ASSESSOR).post(`/workspaces/${wsId}/assessments/${id}/findings`, { domain: 'Unscored', description: 'x' })).status, 400)
   })
+
+  it('archives timestamped score updates without inflating current scores or scorecards', async () => {
+    const id = await createAssessment(wsId)
+    const path = `/workspaces/${wsId}/assessments/${id}/scores/Pillar/Domain`
+    const first = expectStatus(await as(ASSESSOR).put(path, { score: 2 }), 200).body
+    const second = expectStatus(await as(ASSESSOR).put(path, { score: 4 }), 200).body
+    assert.ok(Date.parse(second.savedAt) >= Date.parse(first.savedAt))
+    assert.equal((await rows('SELECT * FROM governance_scores')).length, 1)
+    assert.equal((await rows("SELECT * FROM assessment_revisions WHERE source='workspace'")).length, 2)
+    assert.equal((await rows('SELECT updated_at FROM governance_scores'))[0].updated_at.toISOString(), second.savedAt)
+    assert.equal(expectStatus(await as(ASSESSOR).get(`/workspaces/${wsId}/assessments/${id}`), 200).body.canScore, true)
+    assert.equal(expectStatus(await as(VIEWER).get(`/workspaces/${wsId}/assessments/${id}`), 200).body.canScore, false)
+    expectStatus(await as(ASSESSOR).post(`/workspaces/${wsId}/assessments/${id}/submit`, {}), 200)
+    assert.equal((await as(ASSESSOR).put(path, { score: 5 })).status, 409)
+    assert.equal((await rows("SELECT * FROM assessment_revisions WHERE source='workspace'")).length, 2)
+  })
 })
 
 describe('CAP closure requires verified evidence on every action', () => {

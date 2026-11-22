@@ -11,6 +11,8 @@ import { contactsFor, describeValidation, notify, recordStatusHistory, statusHis
 import { confirmedLevelsFor, ensureStatement, ensureVerificationId, publicUrlFor } from '../lib/public-validation.js'
 import { cleanPublicOptions } from '../../src/lib/validationStatement.js'
 import { logger, monitored } from '../lib/logger.js'
+import { archiveAssessment } from '../lib/assessment-archive.js'
+import { decryptField, encryptField } from '../lib/crypto.js'
 import {
   cipActionProblems, cipDoneProblems, cipProgress, EVENT_DECISIONS, FOLLOW_UP_MODES, isStarred, MATERIAL_EVENTS, MATERIAL_EVENT_KEYS, progressLine, reportingDeadline,
   statusAfterDecision, MS_DAY, STATUS_LABEL,
@@ -67,7 +69,8 @@ const cipEditSchema = z.object({
   owner: z.string().trim().max(200).nullish(), dueDate: z.string().nullish(),
 })
 const cipDoneSchema = z.object({ proof: z.string().trim().min(1).max(2000), owner: z.string().trim().max(200).optional(), dueDate: z.string().optional() })
-const consentSchema = z.object({ funderFirmId: z.string().min(1).max(200), granted: z.boolean() })
+const consentSchema = z.object({ funderFirmId: z.string().min(1).max(200), granted: z.boolean(), shareComments: z.boolean().optional() })
+const funderNoteSchema = z.object({ funderFirmId: z.string().min(1).max(200), note: z.string().trim().max(4000) }).strict()
 const decisionSchema = z.object({ decision: z.enum(EVENT_DECISIONS), note: z.string().trim().min(1).max(2000) })
 
 type Ctx = { v: ValidationRow; members: EngagementMemberRow[]; org: boolean; lead: boolean; member: boolean; admin: boolean; funder: boolean }
@@ -131,7 +134,7 @@ const handleRequest = async (req: Request) => {
     if (id === 'funder') {
       if (req.method !== 'GET') return notFound()
       const out = []
-      for (const row of await funderValidations()) out.push(await funderView(row))
+      for (const row of await funderValidations()) out.push(await funderView(row, caller.email))
       return json(out)
     }
 
@@ -157,9 +160,23 @@ const handleRequest = async (req: Request) => {
     if (!ctx) return notFound()
     const now = new Date()
 
+    if (req.method === 'PUT' && sub === 'funder-note') {
+      const p = funderNoteSchema.safeParse(await readBody())
+      if (!p.success) return bad('Choose your funding partner and enter a note of at most 4,000 characters.')
+      if (!(await myFunderFirms(caller.email)).includes(p.data.funderFirmId)) return forbidden()
+      return db.transaction(async (tx) => {
+        const [consent] = await tx.select().from(validationFunderConsents).where(and(eq(validationFunderConsents.validationId, id), eq(validationFunderConsents.funderFirmId, p.data.funderFirmId))).for('update')
+        if (!consent || consent.revokedAt) return forbidden()
+        const [review] = await tx.select().from(validationReviews).where(eq(validationReviews.id, v.reviewId))
+        await tx.update(validationFunderConsents).set({ funderNote: encryptField(p.data.note), noteUpdatedBy: caller.email, noteUpdatedAt: now }).where(eq(validationFunderConsents.id, consent.id))
+        await archiveAssessment(tx, { source: 'funder', orgId: v.orgId, assessmentId: id, recordKey: consent.funderFirmId, period: review?.fieldworkStart && review.fieldworkEnd ? `${review.fieldworkStart} to ${review.fieldworkEnd}` : null, actor: caller.email, snapshot: { note: p.data.note }, savedAt: now })
+        return json({ ok: true, savedAt: now.toISOString() })
+      })
+    }
+
     // A funding partner (and nobody else on this validation) gets the reduced progress view only.
     if (ctx.funder && !ctx.org && !ctx.member && !ctx.admin) {
-      return req.method === 'GET' && !sub ? json(await funderView(v)) : forbidden()
+      return req.method === 'GET' && !sub ? json(await funderView(v, caller.email)) : forbidden()
     }
 
     if (req.method === 'GET' && !sub) return json(await detail(ctx))
@@ -245,9 +262,9 @@ const handleRequest = async (req: Request) => {
       if (!firm) return bad('Funding partner not found')
       const [existing] = await db.select().from(validationFunderConsents).where(and(eq(validationFunderConsents.validationId, id), eq(validationFunderConsents.funderFirmId, firm.id)))
       if (p.data.granted) {
-        if (existing && !existing.revokedAt) return json(await detail(ctx))
-        if (existing) await db.update(validationFunderConsents).set({ revokedAt: null, revokedBy: null, grantedBy: caller.email, grantedAt: now }).where(eq(validationFunderConsents.id, existing.id))
-        else await db.insert(validationFunderConsents).values({ id: `vfc_${crypto.randomUUID()}`, validationId: id, funderFirmId: firm.id, grantedBy: caller.email })
+        const shareComments = p.data.shareComments ?? (existing && !existing.revokedAt ? existing.shareComments : false)
+        if (existing) await db.update(validationFunderConsents).set({ revokedAt: null, revokedBy: null, grantedBy: caller.email, grantedAt: now, shareComments }).where(eq(validationFunderConsents.id, existing.id))
+        else await db.insert(validationFunderConsents).values({ id: `vfc_${crypto.randomUUID()}`, validationId: id, funderFirmId: firm.id, grantedBy: caller.email, shareComments })
         await audit(caller.email, `consented to ${firm.name} seeing the validation's schedule and progress`, id, v.orgId)
       } else {
         if (!existing || existing.revokedAt) return json(await detail(ctx))
@@ -441,14 +458,21 @@ async function summary(ctx: Ctx) {
 }
 
 /** What a consenting funding partner sees: schedule and progress as counts and dates, never the actions, owners or proof. */
-async function funderView(v: ValidationRow) {
+async function funderView(v: ValidationRow, email: string) {
   const [d, [org]] = await Promise.all([describeValidation(v), db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, v.orgId))])
   const progress = cipProgress(d.cipActions)
+  const myFirms = await myFunderFirms(email)
+  const consents = myFirms.length ? await db.select().from(validationFunderConsents).where(and(eq(validationFunderConsents.validationId, v.id), inArray(validationFunderConsents.funderFirmId, myFirms), isNull(validationFunderConsents.revokedAt))) : []
+  const [review] = consents.some(c => c.shareComments) ? await db.select({ snapshot: validationReviews.snapshot }).from(validationReviews).where(eq(validationReviews.id, v.reviewId)) : []
+  const indicators = Array.isArray(review?.snapshot?.indicators) ? review.snapshot.indicators : []
+  const comments = indicators.map(i => ({ id: String(i.id), comment: typeof i.comment === 'string' ? i.comment : '', orgResponse: typeof i.orgResponse === 'string' ? i.orgResponse : '' })).filter(i => i.comment || i.orgResponse)
   return {
     id: v.id, funderView: true, organization: org?.name ?? '', framework: FRAMEWORKS[v.framework]?.name ?? v.framework, outcome: v.outcome, validatedRung: v.validatedRung, confirmedLevels: await confirmedLevelsFor(v.reviewId),
     status: d.status, statusLabel: STATUS_LABEL[d.status], issuedAt: v.issuedAt, expiresAt: d.expiresAt, verificationId: v.verificationId,
     scheduleMode: v.followUpMode, nextFollowUp: d.followUp.dueOn, followUpOverdue: d.followUp.overdue, progress, progressLine: progressLine(progress, d.followUp.dueOn),
     can: { org: false, lead: false, funder: true },
+    comments,
+    notes: consents.map(c => ({ firmId: c.funderFirmId, note: decryptField(c.funderNote), updatedAt: c.noteUpdatedAt })),
   }
 }
 
@@ -463,7 +487,7 @@ async function cipView(v: ValidationRow) {
     scheduleMode: v.followUpMode, nextFollowUp: d.followUp.dueOn, followUpOverdue: d.followUp.overdue, broughtForward: d.followUp.broughtForward, tracked: v.trackedIndicators,
     progress, progressLine: progressLine(progress, d.followUp.dueOn),
     actions: d.cipActions.map((a) => ({ id: a.id, text: a.text, indicatorIds: a.indicatorIds, owner: a.owner, dueDate: a.dueDate, status: a.status, proof: a.proof, doneAt: a.doneAt, fromQualification: !!a.qualificationId })),
-    funders: consents.map(({ c, firm }) => ({ firmId: c.funderFirmId, name: firm, grantedAt: c.grantedAt })),
+    funders: consents.map(({ c, firm }) => ({ firmId: c.funderFirmId, name: firm, grantedAt: c.grantedAt, shareComments: c.shareComments })),
   }
 }
 

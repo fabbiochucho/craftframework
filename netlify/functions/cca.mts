@@ -8,6 +8,7 @@ import { db } from '../../db/index.js'
 import { auditLogs, ccaAssessments } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
+import { archiveAssessment } from '../lib/assessment-archive.js'
 import { isIndependentAssessorOf } from '../lib/independent-assessor.js'
 import { CCA_MODULE_IDS, contentProblems, isAwardModule, isGovernmentModule, placeLabel } from '../../src/lib/cca/modules.js'
 import { consensusGaps, COST_LINES, dashboard, domainScore, effectiveNotAssessed, improvementPlan, planReview, previousAssessment, unexplainedMisses, type CcaModule } from '../../src/lib/cca/engine.js'
@@ -132,48 +133,60 @@ const handleRequest = async (req: Request) => {
       if (!p.success) return json({ error: saveValidationError(p.error) }, 400)
       const d = p.data
       if (d.notAssessed && Object.keys(d.notAssessed).length && isAwardModule(row.module)) return json({ error: 'Every domain must be assessed for a grant or contract.' }, 400)
-      const updated = await db.update(ccaAssessments).set({
-        ...(d.responses ? { responses: { ...row.responses, ...d.responses } } : {}),
-        ...(d.votes ? { votes: { ...row.votes, ...d.votes } } : {}),
-        ...(d.consensus ? { consensus: d.replaceConsensus ? d.consensus : { ...row.consensus, ...d.consensus } } : {}),
-        ...(d.swot ? { swot: d.swot } : {}), ...(d.plan ? { plan: d.plan } : {}), ...(d.notAssessed ? { notAssessed: d.notAssessed } : {}), ...(d.planReviewNotes ? { planReviewNotes: d.planReviewNotes } : {}),
-        ...(d.assessor !== undefined ? { assessor: d.assessor } : {}), ...(d.orgLead !== undefined ? { orgLead: d.orgLead } : {}),
-        updatedAt: new Date(),
-      }).where(and(eq(ccaAssessments.id, row.id), eq(ccaAssessments.status, 'draft'))).returning({ id: ccaAssessments.id })
-      if (!updated.length) return json({ error: 'This assessment is complete and can no longer change.' }, 409)
-      return json({ ok: true })
+      const updated = await db.transaction(async (tx) => {
+        const [current] = await tx.select().from(ccaAssessments).where(eq(ccaAssessments.id, row.id)).for('update')
+        if (!current || current.status !== 'draft') return null
+        const [saved] = await tx.update(ccaAssessments).set({
+          ...(d.responses ? { responses: { ...current.responses, ...d.responses } } : {}),
+          ...(d.votes ? { votes: { ...current.votes, ...d.votes } } : {}),
+          ...(d.consensus ? { consensus: d.replaceConsensus ? d.consensus : { ...current.consensus, ...d.consensus } } : {}),
+          ...(d.swot ? { swot: d.swot } : {}), ...(d.plan ? { plan: d.plan } : {}), ...(d.notAssessed ? { notAssessed: d.notAssessed } : {}), ...(d.planReviewNotes ? { planReviewNotes: d.planReviewNotes } : {}),
+          ...(d.assessor !== undefined ? { assessor: d.assessor } : {}), ...(d.orgLead !== undefined ? { orgLead: d.orgLead } : {}),
+          updatedAt: new Date(),
+        }).where(and(eq(ccaAssessments.id, row.id), eq(ccaAssessments.status, 'draft'))).returning()
+        if (!saved) return null
+        await archiveAssessment(tx, { source: 'capacity', orgId: row.orgId, assessmentId: row.id, recordKey: row.module, period: String(row.year), actor: caller.email, snapshot: saved, savedAt: saved.updatedAt })
+        return saved.updatedAt.toISOString()
+      })
+      if (!updated) return json({ error: 'This assessment is complete and can no longer change.' }, 409)
+      return json({ ok: true, savedAt: updated })
     }
 
     if (req.method === 'POST' && action === 'complete') {
-      const missingReasons = Object.entries(row.notAssessed ?? {}).filter(([, reason]) => reason.trim().length < 3).map(([id]) => id)
-      if (missingReasons.length) return json({ error: `Add a reason of at least 3 characters for each domain marked not assessed (${missingReasons.join(', ')}), then complete.`, missingReasons }, 400)
-      if (isAwardModule(row.module) && Object.keys(row.notAssessed ?? {}).length) return json({ error: 'Every domain must be assessed for a grant or contract.' }, 400)
-      if (!Object.values(row.responses ?? {}).some((r) => r.met || r.evidence?.trim())) return json({ error: 'Nothing has been answered yet. Tick the statements that are met, or note what is missing, before completing.' }, 400)
-      // Record the domains this assessment covered, so domains added to the module later never lower its result.
       const mod = (await content())?.find((m) => m.id === row.module)
-      const domainIds = mod ? mod.areas.flatMap((a) => a.domains.map((d) => d.id)) : null
-      // Approach II: where the evidence brought an agreed score down, the reason the group differed must be recorded.
-      if (mod) {
-        const domains = new Map(mod.areas.flatMap((a) => a.domains.map((d) => [d.id, d] as const)))
-        const gaps = consensusGaps(row.consensus, (id) => (domains.has(id) ? domainScore(domains.get(id)!, row.responses) : 4))
-          .filter((id) => !Object.hasOwn(row.notAssessed ?? {}, id))
-        if (gaps.length) return json({ error: 'Note why the group’s agreed score differed from the evidence for each domain marked, then complete.', consensusGaps: gaps }, 400)
-      }
-      // A reassessment completes only when every target missed from last year's plan is explained.
-      if (mod && !row.awardRef) {
-        const earlier = await db.select().from(ccaAssessments).where(and(eq(ccaAssessments.orgId, row.orgId), eq(ccaAssessments.module, row.module)))
-        const prev = previousAssessment(earlier.map((a) => ({ ...a, completedAt: a.completedAt?.toISOString() ?? null })), { ...row, completedAt: null })
-        if (prev) {
-          const lastPlan = improvementPlan(mod, prev.responses, prev.plan, effectiveNotAssessed(mod, prev.notAssessed, prev.domainIds)).rows
-          const review = planReview(lastPlan, dashboard(mod, row.responses, effectiveNotAssessed(mod, row.notAssessed)))
-          const missing = unexplainedMisses(review, row.planReviewNotes)
-          if (missing.length) return json({ error: `Explain why ${missing.length} target(s) from the ${prev.year} improvement plan were not reached, then complete.`, missing }, 400)
+      const assessmentId = row.id
+      const result = await db.transaction(async (tx) => {
+        const [row] = await tx.select().from(ccaAssessments).where(eq(ccaAssessments.id, assessmentId)).for('update')
+        if (!row || row.status !== 'draft') return json({ error: 'This assessment is complete and can no longer change.' }, 409)
+        const missingReasons = Object.entries(row.notAssessed ?? {}).filter(([, reason]) => reason.trim().length < 3).map(([id]) => id)
+        if (missingReasons.length) return json({ error: `Add a reason of at least 3 characters for each domain marked not assessed (${missingReasons.join(', ')}), then complete.`, missingReasons }, 400)
+        if (isAwardModule(row.module) && Object.keys(row.notAssessed ?? {}).length) return json({ error: 'Every domain must be assessed for a grant or contract.' }, 400)
+        if (!Object.values(row.responses ?? {}).some((r) => r.met || r.evidence?.trim())) return json({ error: 'Nothing has been answered yet. Tick the statements that are met, or note what is missing, before completing.' }, 400)
+        // Record the domains this assessment covered, so domains added to the module later never lower its result.
+        const domainIds = mod ? mod.areas.flatMap((a) => a.domains.map((d) => d.id)) : null
+        // Approach II: where the evidence brought an agreed score down, the reason the group differed must be recorded.
+        if (mod) {
+          const domains = new Map(mod.areas.flatMap((a) => a.domains.map((d) => [d.id, d] as const)))
+          const gaps = consensusGaps(row.consensus, (id) => (domains.has(id) ? domainScore(domains.get(id)!, row.responses) : 4))
+            .filter((id) => !Object.hasOwn(row.notAssessed ?? {}, id))
+          if (gaps.length) return json({ error: 'Note why the group’s agreed score differed from the evidence for each domain marked, then complete.', consensusGaps: gaps }, 400)
         }
-      }
-      await db.transaction(async (tx) => {
+        // A reassessment completes only when every target missed from last year's plan is explained.
+        if (mod && !row.awardRef) {
+          const earlier = await tx.select().from(ccaAssessments).where(and(eq(ccaAssessments.orgId, row.orgId), eq(ccaAssessments.module, row.module)))
+          const prev = previousAssessment(earlier.map((a) => ({ ...a, completedAt: a.completedAt?.toISOString() ?? null })), { ...row, completedAt: null })
+          if (prev) {
+            const lastPlan = improvementPlan(mod, prev.responses, prev.plan, effectiveNotAssessed(mod, prev.notAssessed, prev.domainIds)).rows
+            const review = planReview(lastPlan, dashboard(mod, row.responses, effectiveNotAssessed(mod, row.notAssessed)))
+            const missing = unexplainedMisses(review, row.planReviewNotes)
+            if (missing.length) return json({ error: `Explain why ${missing.length} target(s) from the ${prev.year} improvement plan were not reached, then complete.`, missing }, 400)
+          }
+        }
         await tx.update(ccaAssessments).set({ status: 'complete', domainIds, completedAt: new Date(), updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
         await tx.insert(auditLogs).values({ orgId: row.orgId, actor: caller.email, action: `Completed capacity assessment (${row.module} ${row.year})`, target: row.id, category: 'Assessment' })
+        return null
       })
+      if (result) return result
       await checkProgress(row.orgId)
       return json({ ok: true })
     }

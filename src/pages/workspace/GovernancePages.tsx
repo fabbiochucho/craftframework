@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { api, SEVERITY_STYLE, TIER_LABEL, wsPath } from '../../lib/workspaceApi'
@@ -8,6 +8,7 @@ import { EditFields, ErrorLine, ExportButtons, Header, State, StatusPill, useAct
 import { activeItems, REVIEW_DOMAINS } from '../../lib/health-security'
 import { catalogueByType, RESTRICTED_LABELS } from '../../lib/assessment-catalogues'
 import { SPAR_LEVELS, SPAR_SOURCE } from '../../lib/spar-levels'
+import { AssessmentAutosaveContext, useAssessmentAutosave, type FlushAssessment } from '../../lib/assessmentAutosave'
 
 const CATALOGUE_TYPES = ['NPHI', 'JEE', 'JEE_SUB', 'SPAR', 'PSP']
 function healthSecurityDomains(a: any): { value: string; label: string }[] | null {
@@ -18,40 +19,9 @@ function healthSecurityDomains(a: any): { value: string; label: string }[] | nul
 
 function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
   const cat = catalogueByType(a.assessmentType)!
-  const locked = a.status !== 'draft'
+  const locked = a.status !== 'draft' || a.canScore === false
   const sections = cat.sections.filter(s => a.innovationSupport || !s.extended)
   const [section, setSection] = useState(sections[0].id)
-  // Unsaved entries are kept on this computer per assessment until each item is saved (an expired sign-in loses nothing).
-  const draftKey = `catalogue-draft:${a.id}`
-  const [draft, setDraftState] = useState<Record<string, { score: string; evidence: string; na: boolean; naReason: string }>>(() => { try { return locked ? {} : JSON.parse(localStorage.getItem(draftKey) ?? '{}') } catch { return {} } })
-  const setDraft = (next: typeof draft) => { setDraftState(next); try { localStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* storage blocked */ } }
-  const saved_ = (id: string) => { const { [id]: _done, ...rest } = draft; setDraft(rest) }
-  const { run, error } = useAction(reload)
-  // Autosave: 3 seconds after the last change, every item that is complete (a level, or not applicable with a reason).
-  const [autoError, setAutoError] = useState<string | null>(null)
-  useEffect(() => {
-    if (locked) return
-    const ready = Object.entries(draft).filter(([, d]) => (d.na ? !!d.naReason.trim() : !!d.score))
-    if (!ready.length) return
-    const t = setTimeout(async () => {
-      const done: string[] = []
-      for (const [id, d] of ready) {
-        const item = cat.items.find(x => x.id === id)
-        if (!item) continue
-        try {
-          await api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(item.sectionId)}/${encodeURIComponent(id)}`), { method: 'PUT',
-            body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceId: d.evidence ? Number(d.evidence) : null } })
-          done.push(id)
-        } catch (e) { setAutoError((e as Error).message); break }
-      }
-      if (done.length) {
-        setAutoError(null)
-        setDraftState(prev => { const next = Object.fromEntries(Object.entries(prev).filter(([k]) => !done.includes(k))); try { localStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* storage blocked */ } return next })
-        void reload()
-      }
-    }, 3000)
-    return () => clearTimeout(t)
-  }, [draft]) // eslint-disable-line react-hooks/exhaustive-deps
   const docs = useApi<any[]>(wsPath(workspaceId, '/evidence'))
   const usable = (docs.data ?? []).filter(e => e.status !== 'rejected' && e.status !== 'expired')
   const saved = new Map<string, any>(a.scores.map((s: any) => [s.domain, s]))
@@ -66,29 +36,16 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
         </select></label>
       {intro && <p className="text-sm text-slate-600">{intro}</p>}
       {locked && <p className="rounded bg-blue-50 p-2 text-sm text-blue-700">This assessment is locked ({a.status.replace('_', ' ')}).</p>}
-      <ErrorLine error={error ?? autoError} />
-      {cat.items.filter(i => i.sectionId === section).map(i => {
+      {activeItems(cat, a.innovationSupport).map(i => {
         const s = saved.get(i.id)
-        const d = draft[i.id] ?? { score: s && !s.notApplicable ? String(s.tierLevel) : '', evidence: s?.evidenceId ? String(s.evidenceId) : '', na: !!s?.notApplicable, naReason: s?.naReason ?? '' }
-        const set = (x: Partial<typeof d>) => setDraft({ ...draft, [i.id]: { ...d, ...x } })
         return (
-          <Card key={i.id}><CardContent className="space-y-2">
+          <Card key={i.id} className={i.sectionId === section ? '' : 'hidden'}><CardContent className="space-y-2">
             <p className="font-semibold text-slate-800">{i.id} · {i.name} {i.critical && <Badge className="bg-rose-100 text-rose-700">critical</Badge>}</p>
             {i.description && <p className="text-sm text-slate-600">{i.description}</p>}
             {independent.has(i.id) && <p className="text-sm text-indigo-800">Independent assessor: {independent.get(i.id).notApplicable ? `not applicable (${independent.get(i.id).note})` : cat.levels[independent.get(i.id).score - 1]}{!independent.get(i.id).notApplicable && independent.get(i.id).note && ` · ${independent.get(i.id).note}`}</p>}
             {SPAR_LEVELS[i.id] && <p className="text-xs text-slate-500">Level summaries are CRAFT paraphrases. Confirm against WHO’s wording on p. {SPAR_LEVELS[i.id].page} of the <a className="underline" href={SPAR_SOURCE.url} target="_blank" rel="noreferrer">SPAR tool</a>. {SPAR_SOURCE.rule}</p>}
-            <fieldset disabled={locked} className="flex flex-wrap items-end gap-3">
-              {!d.na && <div className="w-full max-w-xl"><Select placeholder="Not scored" label="Level" value={d.score} onChange={score => set({ score })} options={cat.levels.map((l, n) => ({ value: String(n + 1), label: SPAR_LEVELS[i.id] ? `${l} — ${SPAR_LEVELS[i.id].levels[n]}` : l }))} /></div>}
-              {!d.na && <div className="w-full max-w-xs"><Select placeholder="No evidence document" label="Evidence document" value={d.evidence} onChange={evidence => set({ evidence })}
-                options={[{ value: '', label: 'No evidence document' }, ...usable.map(e => ({ value: String(e.id), label: e.documentName }))]} /></div>}
-              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>
-              {d.na && <div className="min-w-[260px] flex-1"><Input label="Reason it does not apply" value={d.naReason} onChange={e => set({ naReason: e.target.value })} /></div>}
-              <Button size="sm" disabled={d.na ? !d.naReason : !d.score} onClick={() => run(async () => { await api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(i.sectionId)}/${encodeURIComponent(i.id)}`), { method: 'PUT',
-                body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceId: d.evidence ? Number(d.evidence) : null } }); saved_(i.id) })}>Save</Button>
-              {draft[i.id] && <span className="text-xs text-amber-700">Not saved yet</span>}
-              {s?.evidenceUploaded && !s.evidenceId && <span className="text-xs text-slate-500">Earlier record: evidence ticked without a document</span>}
-              {s && <StatusPill value={s.notApplicable ? 'not_applicable' : 'completed'} />}
-            </fieldset>
+            <WorkspaceScoreEditor workspaceId={workspaceId} assessmentId={a.id} pillar={i.sectionId} domain={i.id} locked={locked} saved={s} reload={reload}
+              labels={cat.levels.map((l, n) => SPAR_LEVELS[i.id] ? `${l} — ${SPAR_LEVELS[i.id].levels[n]}` : l)} documents={usable.map(e => ({ value: String(e.id), label: e.documentName }))} />
           </CardContent></Card>
         )
       })}
@@ -174,11 +131,9 @@ function useCraftCatalogue(workspaceId: string, a: any) {
 }
 
 function CraftWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
-  const locked = a.status !== 'draft'
+  const locked = a.status !== 'draft' || a.canScore === false
   const { cat, criteria } = useCraftCatalogue(workspaceId, a)
   const [pillar, setPillar] = useState('leadership')
-  const [draft, setDraft] = useState<Record<string, { score: string; evidence: boolean; na: boolean; naReason: string }>>({})
-  const { run, error } = useAction(reload)
   if (!cat.data) return <State loading={cat.loading} error={cat.error} />
   const saved = new Map<string, any>(a.scores.map((s: any) => [s.domain, s]))
   return (
@@ -186,26 +141,15 @@ function CraftWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; 
       <Tabs tabs={cat.data.pillars.map((p: any) => ({ id: p.id, label: p.name.split(',')[0] }))} active={pillar} onChange={setPillar} />
       {locked && <p className="rounded bg-blue-50 p-2 text-sm text-blue-700">This assessment is locked ({a.status.replace('_', ' ')}).</p>}
       <p className="text-xs text-slate-500">{cat.data.pillars.find((p: any) => p.id === pillar)?.intendedOutcome} Scores without evidence count at most 2; not applicable needs a reason.</p>
-      <ErrorLine error={error} />
-      {criteria.filter(c => c.pillarId === pillar).map(c => {
+      {criteria.map(c => {
         const s = saved.get(c.id)
-        const d = draft[c.id] ?? { score: s && !s.notApplicable ? String(s.tierLevel) : '', evidence: !!s?.evidenceUploaded, na: !!s?.notApplicable, naReason: s?.naReason ?? '' }
-        const set = (x: Partial<typeof d>) => setDraft({ ...draft, [c.id]: { ...d, ...x } })
         return (
-          <Card key={c.id}><CardContent className="space-y-2">
+          <Card key={c.id} className={c.pillarId === pillar ? '' : 'hidden'}><CardContent className="space-y-2">
             <p className="font-semibold text-slate-800">{c.id} · {c.name} {c.appliesTo && <Badge className="bg-indigo-100 text-indigo-700">founder protection</Badge>}</p>
             <p className="text-sm text-slate-600">{c.description}</p>
             <ul className="list-disc pl-5 text-sm text-slate-600">{c.assessmentQuestions.map((q: string) => <li key={q}>{q}</li>)}</ul>
             <p className="text-xs text-slate-500">Evidence: {c.evidenceRequirements.join('; ')} · Informed by: {c.sourceReferences.map((r: any) => r.framework).join('; ')}</p>
-            <fieldset disabled={locked} className="flex flex-wrap items-end gap-3">
-              {!d.na && <div className="w-56"><Select placeholder="Not scored" label="Rubric score" value={d.score} onChange={score => set({ score })} options={RUBRIC.map((l, i) => ({ value: String(i + 1), label: l }))} /></div>}
-              {!d.na && <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.evidence} onChange={e => set({ evidence: e.target.checked })} /> Evidence held</label>}
-              <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>
-              {d.na && <div className="min-w-[260px] flex-1"><Input label="Reason it does not apply" value={d.naReason} onChange={e => set({ naReason: e.target.value })} /></div>}
-              <Button size="sm" disabled={d.na ? !d.naReason : !d.score} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/scores/${c.pillarId}/${c.id}`), { method: 'PUT',
-                body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceUploaded: d.evidence } }))}>Save</Button>
-              {s && <StatusPill value={s.notApplicable ? 'not_applicable' : 'completed'} />}
-            </fieldset>
+            <WorkspaceScoreEditor workspaceId={workspaceId} assessmentId={a.id} pillar={c.pillarId} domain={c.id} locked={locked} saved={s} reload={reload} labels={RUBRIC} />
           </CardContent></Card>
         )
       })}
@@ -312,36 +256,59 @@ function ScoringWizard({ workspaceId, a, reload }: { workspaceId: string; a: any
 }
 
 function DomainWizard({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
-  const locked = a.status !== 'draft'
+  const locked = a.status !== 'draft' || a.canScore === false
   const [pillar, setPillar] = useState(Object.keys(GOVERNANCE_DOMAINS)[0])
-  const [draft, setDraft] = useState<Record<string, number>>({})
-  const { run, error } = useAction(reload)
   const byKey = new Map<string, any>(a.scores.map((s: any) => [`${s.pillar}|${s.domain}`, s]))
-  const save = (domain: string, score: number, evidence: boolean) =>
-    run(() => api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(pillar)}/${encodeURIComponent(domain)}`), { method: 'PUT', body: { score, evidenceUploaded: evidence } }))
   return (
     <div className="space-y-4">
       <Tabs tabs={Object.keys(GOVERNANCE_DOMAINS).map(p => ({ id: p, label: p }))} active={pillar} onChange={setPillar} />
       {locked && <p className="rounded bg-blue-50 p-2 text-sm text-blue-700">This assessment is locked ({a.status.replace('_', ' ')}).</p>}
-      <ErrorLine error={error} />
-      {GOVERNANCE_DOMAINS[pillar].map(domain => {
-        const saved = byKey.get(`${pillar}|${domain}`)
-        const value = draft[domain] ?? (saved ? saved.tierLevel : 0)
+      {Object.entries(GOVERNANCE_DOMAINS).flatMap(([p, domains]) => domains.map(domain => {
+        const saved = byKey.get(`${p}|${domain}`)
         return (
-          <Card key={domain}><CardContent className="flex flex-wrap items-center gap-4">
+          <Card key={`${p}:${domain}`} className={p === pillar ? '' : 'hidden'}><CardContent className="flex flex-wrap items-center gap-4">
             <span className="w-56 font-medium text-slate-800">{domain}</span>
-            <input type="range" min={0} max={5} step={1} value={value} disabled={locked} aria-label={`${domain} score`}
-              onChange={e => setDraft({ ...draft, [domain]: Number(e.target.value) })} className="flex-1" />
-            <Badge className="bg-emerald-100 text-emerald-800">{value === 0 ? 'Not scored' : TIER_LABEL(value)}</Badge>
-            <label className="flex items-center gap-1 text-xs text-slate-600">
-              <input type="checkbox" disabled={locked} checked={!!saved?.evidenceUploaded} onChange={e => save(domain, value, e.target.checked)} /> Evidence
-            </label>
-            <Button size="sm" disabled={locked} onClick={() => save(domain, value, !!saved?.evidenceUploaded)}>Save</Button>
+            <WorkspaceScoreEditor workspaceId={workspaceId} assessmentId={a.id} pillar={p} domain={domain} locked={locked} saved={saved} reload={reload} range />
           </CardContent></Card>
         )
-      })}
+      }))}
     </div>
   )
+}
+
+type WorkspaceScore = { tierLevel: number; evidenceId: number | null; evidenceUploaded: boolean; notApplicable: boolean; naReason: string | null; updatedAt?: string }
+function WorkspaceScoreEditor({ workspaceId, assessmentId, pillar, domain, locked, saved, reload, labels = [], documents, range = false }: {
+  workspaceId: string; assessmentId: number; pillar: string; domain: string; locked: boolean; saved?: WorkspaceScore; reload: () => void
+  labels?: readonly string[]; documents?: Array<{ value: string; label: string }>; range?: boolean
+}) {
+  const draft = useAssessmentAutosave({
+    key: `workspace:${workspaceId}:${assessmentId}:${pillar}:${domain}`, enabled: !locked,
+    initial: { score: saved && !saved.notApplicable ? String(saved.tierLevel) : range ? '0' : '', evidence: saved?.evidenceId ? String(saved.evidenceId) : '', held: !!saved?.evidenceUploaded, na: !!saved?.notApplicable, naReason: saved?.naReason ?? '' },
+    legacyDraft: documents ? { storageKey: `catalogue-draft:${assessmentId}`, recordKey: domain, convert: value => {
+      if (!value || typeof value !== 'object' || !('score' in value) || typeof value.score !== 'string' || !('evidence' in value) || typeof value.evidence !== 'string' || !('na' in value) || typeof value.na !== 'boolean' || !('naReason' in value) || typeof value.naReason !== 'string') throw new Error('The older item draft has an invalid format.')
+      return { score: value.score, evidence: value.evidence, held: false, na: value.na, naReason: value.naReason }
+    } } : undefined,
+    validate: x => x.na ? x.naReason.trim() ? null : 'Not applicable needs a reason.' : x.score ? null : 'Choose a score to save.',
+    write: async x => {
+      const result = await api<{ savedAt?: string }>(wsPath(workspaceId, `/assessments/${assessmentId}/scores/${encodeURIComponent(pillar)}/${encodeURIComponent(domain)}`), { method: 'PUT',
+        body: x.na ? { notApplicable: true, naReason: x.naReason } : { score: Number(x.score), ...(documents ? { evidenceId: x.evidence ? Number(x.evidence) : null } : { evidenceUploaded: x.held }) } })
+      reload()
+      return result
+    },
+  })
+  const d = draft.value
+  const set = (patch: Partial<typeof d>) => draft.setValue(previous => ({ ...previous, ...patch }))
+  return <fieldset disabled={locked} className="flex flex-wrap items-end gap-3">
+    {range ? <><input type="range" min={0} max={5} step={1} value={d.score} aria-label={`${domain} score`} onChange={e => set({ score: e.target.value })} /><Badge>{Number(d.score) === 0 ? 'Not scored' : TIER_LABEL(Number(d.score))}</Badge></>
+      : !d.na && <div className="w-full max-w-xl"><Select placeholder="Not scored" label={documents ? 'Level' : 'Rubric score'} value={d.score} onChange={score => set({ score })} options={labels.map((label, n) => ({ value: String(n + 1), label }))} /></div>}
+    {!d.na && (documents ? <Select label="Evidence document" placeholder="No evidence document" value={d.evidence} onChange={evidence => set({ evidence })} options={[{ value: '', label: 'No evidence document' }, ...documents]} />
+      : <label className="text-sm"><input type="checkbox" checked={d.held} onChange={e => set({ held: e.target.checked })} /> Evidence held</label>)}
+    {!range && <label className="text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>}
+    {d.na && <Input label="Reason it does not apply" maxLength={1000} value={d.naReason} onChange={e => set({ naReason: e.target.value })} />}
+    <Button size="sm" disabled={d.na ? !d.naReason.trim() : !d.score} onClick={() => void draft.save()}>Save</Button>
+    <span role="status" className="text-xs text-slate-600">{draft.status || (saved?.updatedAt ? `Saved ${new Date(saved.updatedAt).toLocaleString()}` : '')}</span>
+    {saved && <StatusPill value={saved.notApplicable ? 'not_applicable' : 'completed'} />}
+  </fieldset>
 }
 
 function FindingsTab({ workspaceId, a, reload }: { workspaceId: string; a: any; reload: () => void }) {
@@ -419,15 +386,24 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
   const a = useApi<any>(wsPath(workspaceId, `/assessments/${assessmentId}`))
   const [tab, setTab] = useState(review ? 'review' : 'overview')
   const [comments, setComments] = useState('')
-  const { run, error } = useAction(a.reload)
+  const { run, error, busy } = useAction(a.reload)
+  const writers = useRef(new Map<string, FlushAssessment>())
+  const register = useCallback((key: string, flush: FlushAssessment) => {
+    writers.current.set(key, flush)
+    return () => { writers.current.delete(key) }
+  }, [])
   if (!a.data) return <State loading={a.loading} error={a.error} />
   const d = a.data
   const tabs = [{ id: 'overview', label: 'Overview' }, { id: 'wizard', label: 'Scoring Wizard' }, { id: 'findings', label: 'Findings' }, { id: 'scorecard', label: 'Scorecard' }, ...(review ? [{ id: 'review', label: 'Review' }] : [])]
-  const act = (what: string) => run(() => api(wsPath(workspaceId, `/assessments/${assessmentId}/${what}`), { method: 'POST', body: { comments } }))
+  const act = (what: string) => run(async () => {
+    for (const flush of writers.current.values()) if (!(await flush())) throw new Error('Complete and save your pending assessment inputs before submitting.')
+    return api(wsPath(workspaceId, `/assessments/${assessmentId}/${what}`), { method: 'POST', body: { comments } })
+  })
   return (
-    <div className="space-y-6">
+    <AssessmentAutosaveContext.Provider value={register}><fieldset disabled={busy} className="space-y-6">
       <Header title={d.assessmentType === 'CRAFT' ? `CRAFT Governance Scorecard v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}` : `${RESTRICTED_LABELS[d.assessmentType] ?? `${d.assessmentType} assessment`} v${d.version}${d.reportingPeriod ? ` — ${d.reportingPeriod}` : ''}`}
         subtitle={d.assessmentType === 'CRAFT' ? 'Ten-pillar CRAFT methodology (CRAFT-GS 1.0). Not a certification, credit rating, assurance opinion or official score of any governance code.' : catalogueByType(d.assessmentType)?.disclaimer ?? (d.assessmentType === 'AAR' || d.assessmentType === 'SIMEX' ? 'IHR Monitoring and Evaluation Framework: findings by JEE technical area.' : 'Shared governance-domain scoring — not a specialized ISO/COSO rubric or certification.')} back={{ to: '/app/workspaces/$workspaceId/governance/assessments', params: { workspaceId }, label: 'Assessments' }} />
+      <p className="text-xs text-slate-500">Complete inputs save automatically, with a server timestamp. <Link to="/assessment-archive" className="underline">My saved revisions</Link></p>
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
       <ErrorLine error={error} />
       {tab === 'overview' && (
@@ -438,7 +414,7 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
           <p><Link className="text-emerald-700 underline" to="/app/workspaces/$workspaceId/governance/assessments/$assessmentId/review" params={{ workspaceId, assessmentId }}>Admin review mode</Link></p>
         </CardContent></Card>
       )}
-      {tab === 'wizard' && <ScoringWizard workspaceId={workspaceId} a={d} reload={a.reload} />}
+      <div hidden={tab !== 'wizard'}><ScoringWizard workspaceId={workspaceId} a={d} reload={a.reload} /></div>
       {tab === 'findings' && <FindingsTab workspaceId={workspaceId} a={d} reload={a.reload} />}
       {tab === 'scorecard' && (d.assessmentType === 'CRAFT' ? <CraftScorecard workspaceId={workspaceId} a={d} /> : CATALOGUE_TYPES.includes(d.assessmentType) ? <CatalogueScorecard workspaceId={workspaceId} a={d} /> : d.assessmentType === 'AAR' || d.assessmentType === 'SIMEX' ? <p className="text-sm text-slate-600">{d.findingsCount} finding(s) recorded. See the Findings tab.</p> : <ScorecardTab workspaceId={workspaceId} assessmentId={assessmentId} />)}
       {tab === 'review' && (
@@ -449,6 +425,6 @@ export function AssessmentDetailPage({ workspaceId, assessmentId, review = false
             <Button variant="destructive" disabled={d.status !== 'in_review'} onClick={() => act('reject')}>Return to draft</Button></div>
         </CardContent></Card>
       )}
-    </div>
+    </fieldset></AssessmentAutosaveContext.Provider>
   )
 }

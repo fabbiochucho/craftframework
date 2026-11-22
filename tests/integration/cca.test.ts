@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
-import { blobStores, rows, truncateAll } from './harness.ts'
+import { blobStores, pool, rows, truncateAll } from './harness.ts'
 import { dashboard, improvementPlan, swotSeed } from '../../src/lib/cca/engine.ts'
 import { CCA_MODULE_IDS, isAwardModule } from '../../src/lib/cca/modules.ts'
 import { SPECIALIZED_READONLY_ROLES } from '../../netlify/lib/access-policy.ts'
 
 const cca = (await import(new URL('../../netlify/functions/cca.mts', import.meta.url).href)).default
+const archive = (await import(new URL('../../netlify/functions/assessment-archive.mts', import.meta.url).href)).default
 
 const ALICE = 'alice@org-a.example' // admin of org_a
 const BOB = 'bob@org-b.example' // admin of org_b
@@ -42,6 +43,66 @@ describe('CRAFT Capacity Assessment API', () => {
     const r = await call(ALICE, 'GET', '/modules')
     assert.equal(r.status, 200)
     assert.deepEqual(r.body.modules.map((m: any) => m.id), ['community', 'pre_award'])
+  })
+
+  it('retains each capacity revision by reporting year while current metrics use the latest answers', async () => {
+    publish()
+    const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
+    const first = await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': ok } })
+    const second = await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.3': ok } })
+    assert.ok(first.body.savedAt && second.body.savedAt)
+    assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': { evidence: 'x'.repeat(1001) } } })).status, 400)
+    const response = await archive(new Request('http://localhost/api/assessment-archive?source=capacity&period=2026'))
+    const history = await response.json()
+    assert.equal(history.revisions.length, 2)
+    assert.equal(history.revisions[0].savedAt, second.body.savedAt)
+    assert.equal(history.revisions[0].period, '2026')
+    assert.deepEqual(Object.keys(history.revisions[1].snapshot.responses), ['g1.2'])
+    assert.deepEqual(Object.keys(history.revisions[0].snapshot.responses), ['g1.2', 'g1.3'])
+    const current = (await call(ALICE, 'GET', `/${id}`)).body.assessment
+    assert.equal(dashboard(MODULES[0] as any, current.responses).areas[0].domains[0].score, 3)
+    assert.equal((await rows('SELECT 1 FROM cca_assessments')).length, 1)
+  })
+
+  it('does not discard another concurrent partial save when merging capacity answers', async () => {
+    publish()
+    const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
+    const saves = await Promise.all([
+      call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': ok } }),
+      call(ALICE, 'PUT', `/${id}`, { responses: { 'g2.2': ok } }),
+    ])
+    assert.deepEqual(saves.map(s => s.status), [200, 200])
+    assert.deepEqual(Object.keys((await call(ALICE, 'GET', `/${id}`)).body.assessment.responses).sort(), ['g1.2', 'g2.2'])
+  })
+
+  it('validates the latest answers when completion waits behind a concurrent update', async () => {
+    publish()
+    const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
+    await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': ok } })
+    const client = await pool.connect()
+    let completion: ReturnType<typeof call> | undefined
+    try {
+      await client.query('BEGIN')
+      await client.query('SELECT id FROM cca_assessments WHERE id=$1 FOR UPDATE', [id])
+      completion = call(ALICE, 'POST', `/${id}/complete`)
+      let blocked = false
+      for (let i = 0; i < 100 && !blocked; i++) {
+        const waiting = await rows("SELECT 1 FROM pg_stat_activity WHERE wait_event_type='Lock' AND query ILIKE '%cca_assessments%' AND pid <> pg_backend_pid()")
+        blocked = waiting.length > 0
+        if (!blocked) await new Promise(resolve => setTimeout(resolve, 20))
+      }
+      assert.ok(blocked, 'completion should wait for the in-flight assessment update')
+      await client.query("UPDATE cca_assessments SET not_assessed = '{\"g2\":\"\"}'::jsonb WHERE id=$1", [id])
+      await client.query('COMMIT')
+      const result = await completion
+      assert.equal(result.status, 400)
+      assert.match(result.body.error, /reason/i)
+      assert.equal((await rows('SELECT status FROM cca_assessments WHERE id=$1', [id]))[0].status, 'draft')
+    } finally {
+      await client.query('ROLLBACK')
+      client.release()
+      if (completion) await completion
+    }
   })
 
   it('runs an assessment: start, save evidence, complete, then locked; other organisations are refused', async () => {

@@ -6,6 +6,7 @@ import { responses } from '../../db/schema.js'
 import { canAccessOrg, filterAuthorizedOrgIds, resolveCaller, forbidden, unauthorized, mfaRequired } from '../lib/auth.js'
 import { independentAssessorOf, isIndependentAssessorOf } from '../lib/independent-assessor.js'
 import { logger, monitored } from '../lib/logger.js'
+import { archiveAssessment } from '../lib/assessment-archive.js'
 
 // /api/responses — per-organization assessment scores. The canonical store for
 // what used to be the in-memory `scores: Record<orgId, Record<qId, number>>`.
@@ -123,9 +124,10 @@ const handleRequest = async (req: Request) => {
         }
         body.updatedBy = caller.email
       }
-      const { updatedBy } = body
+      const updatedBy = caller.email
+      const now = new Date()
 
-      const set: Record<string, unknown> = { updatedBy: updatedBy ?? null, updatedAt: new Date() }
+      const set: Record<string, unknown> = { updatedBy, updatedAt: now }
       if (has('score')) { set.score = Number(body.score) || 0; set.selfAt = new Date() }
       if (has('assessorScore')) set.assessorScore = num(body.assessorScore)
       // '' clears the note. The assessment date is the day given, else today.
@@ -137,7 +139,8 @@ const handleRequest = async (req: Request) => {
       if (has('evidenceUrl')) set.evidenceUrl = body.evidenceUrl
       if (has('evidenceName')) set.evidenceName = body.evidenceName
 
-      await db
+      await db.transaction(async (tx) => {
+        await tx
         .insert(responses)
         .values({
           orgId,
@@ -157,9 +160,11 @@ const handleRequest = async (req: Request) => {
           target: [responses.orgId, responses.questionId],
           set,
         })
+        await archiveAssessment(tx, { source: 'scores', orgId, assessmentId: orgId, recordKey: questionId, period: body.assessedOn ?? null, actor: caller.email, snapshot: set, savedAt: now })
+      })
       // An organisation answering its own CRAFT-ONC may finish a step of its assessment.
       if (has('score') && String(questionId).startsWith('CRAFT-ONC-')) await checkProgress(orgId)
-      return Response.json({ ok: true })
+      return Response.json({ ok: true, savedAt: now.toISOString() })
     }
 
     // PUT — bulk upsert (the Bulk Import and the offline Excel workbook).
@@ -189,6 +194,7 @@ const handleRequest = async (req: Request) => {
           if (r.note !== undefined) set.notes = r.note || null
           await tx.insert(responses).values({ orgId, questionId, score: r.score ?? 0, selfAt: r.score !== undefined ? now : null, notes: r.note || null, updatedBy: caller.email })
             .onConflictDoUpdate({ target: [responses.orgId, responses.questionId], set })
+          await archiveAssessment(tx, { source: 'scores', orgId, assessmentId: orgId, recordKey: questionId, actor: caller.email, snapshot: set, savedAt: now })
         }
         for (const [questionId, r] of ind.rows) {
           const set: Record<string, unknown> = { updatedBy: caller.email, updatedAt: now, assessorAt }
@@ -196,6 +202,7 @@ const handleRequest = async (req: Request) => {
           if (r.note !== undefined) set.assessorNote = r.note || null
           await tx.insert(responses).values({ orgId, questionId, score: 0, assessorScore: r.score ?? null, assessorNote: r.note || null, assessorAt, updatedBy: caller.email })
             .onConflictDoUpdate({ target: [responses.orgId, responses.questionId], set })
+          await archiveAssessment(tx, { source: 'scores', orgId, assessmentId: orgId, recordKey: `independent:${questionId}`, period: assessedOn ?? null, actor: caller.email, snapshot: set, savedAt: now })
         }
       })
       if ([...own.rows].some(([q, r]) => r.score !== undefined && q.startsWith('CRAFT-ONC-'))) await checkProgress(orgId)

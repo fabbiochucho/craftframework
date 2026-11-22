@@ -15,6 +15,7 @@ import { Route as AccessibilityRouteImport } from './routes/accessibility'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ArchitectureRouteImport } from './routes/architecture'
 import { Route as AssessmentRouteImport } from './routes/assessment'
+import { Route as AssessmentArchiveRouteImport } from './routes/assessment-archive'
 import { Route as AuditLogRouteImport } from './routes/audit-log'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AwardsRouteImport } from './routes/awards'
@@ -148,6 +149,11 @@ const ArchitectureRoute = ArchitectureRouteImport.update({
 const AssessmentRoute = AssessmentRouteImport.update({
   id: '/assessment',
   path: '/assessment',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssessmentArchiveRoute = AssessmentArchiveRouteImport.update({
+  id: '/assessment-archive',
+  path: '/assessment-archive',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuditLogRoute = AuditLogRouteImport.update({
@@ -710,6 +716,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRoute
+  '/assessment-archive': typeof AssessmentArchiveRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/awards': typeof AwardsRoute
@@ -822,6 +829,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRoute
+  '/assessment-archive': typeof AssessmentArchiveRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/awards': typeof AwardsRoute
@@ -935,6 +943,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/architecture': typeof ArchitectureRoute
   '/assessment': typeof AssessmentRoute
+  '/assessment-archive': typeof AssessmentArchiveRoute
   '/audit-log': typeof AuditLogRoute
   '/auth': typeof AuthRoute
   '/awards': typeof AwardsRoute
@@ -1049,6 +1058,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/architecture'
     | '/assessment'
+    | '/assessment-archive'
     | '/audit-log'
     | '/auth'
     | '/awards'
@@ -1161,6 +1171,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/architecture'
     | '/assessment'
+    | '/assessment-archive'
     | '/audit-log'
     | '/auth'
     | '/awards'
@@ -1273,6 +1284,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/architecture'
     | '/assessment'
+    | '/assessment-archive'
     | '/audit-log'
     | '/auth'
     | '/awards'
@@ -1386,6 +1398,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   ArchitectureRoute: typeof ArchitectureRoute
   AssessmentRoute: typeof AssessmentRoute
+  AssessmentArchiveRoute: typeof AssessmentArchiveRoute
   AuditLogRoute: typeof AuditLogRoute
   AuthRoute: typeof AuthRoute
   AwardsRoute: typeof AwardsRoute
@@ -1534,6 +1547,13 @@ declare module '@tanstack/react-router' {
       path: '/assessment'
       fullPath: '/assessment'
       preLoaderRoute: typeof AssessmentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assessment-archive': {
+      id: '/assessment-archive'
+      path: '/assessment-archive'
+      fullPath: '/assessment-archive'
+      preLoaderRoute: typeof AssessmentArchiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/audit-log': {
@@ -2274,6 +2294,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   ArchitectureRoute: ArchitectureRoute,
   AssessmentRoute: AssessmentRoute,
+  AssessmentArchiveRoute: AssessmentArchiveRoute,
   AuditLogRoute: AuditLogRoute,
   AuthRoute: AuthRoute,
   AwardsRoute: AwardsRoute,

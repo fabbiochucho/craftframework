@@ -991,6 +991,10 @@ export const validationFunderConsents = pgTable(
     grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     revokedBy: text('revoked_by'),
+    shareComments: boolean('share_comments').notNull().default(false),
+    funderNote: text('funder_note').notNull().default(''),
+    noteUpdatedBy: text('note_updated_by'),
+    noteUpdatedAt: timestamp('note_updated_at', { withTimezone: true }),
   },
   (t) => [unique('validation_funder_consents_unique').on(t.validationId, t.funderFirmId), index('validation_funder_consents_firm_idx').on(t.funderFirmId)],
 )
@@ -1388,6 +1392,7 @@ export const governanceScores = pgTable(
     // Not applicable is distinct from "not answered"; it requires a reason.
     notApplicable: boolean('not_applicable').notNull().default(false),
     naReason: text('na_reason').notNull().default(''),
+    updatedAt: timestamp('updated_at', { withTimezone: true }),
   },
   (t) => [unique('governance_scores_uq').on(t.assessmentId, t.pillar, t.domain)],
 )
@@ -2502,6 +2507,18 @@ export const ccaAssessments = pgTable('cca_assessments', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   completedAt: timestamp('completed_at', { withTimezone: true }),
 }, (t) => [unique('cca_assessments_one_per_year').on(t.orgId, t.module, t.year, t.awardRef, t.region, t.district), index('cca_assessments_org_idx').on(t.orgId)])
+
+export const assessmentRevisions = pgTable('assessment_revisions', {
+  id: serial('id').primaryKey(),
+  source: text('source').notNull(),
+  orgId: text('org_id').notNull(),
+  assessmentId: text('assessment_id').notNull(),
+  recordKey: text('record_key').notNull(),
+  period: text('period'),
+  actor: text('actor').notNull(),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+  snapshot: text('snapshot').notNull(),
+}, (t) => [index('assessment_revisions_actor_idx').on(t.actor, t.id), index('assessment_revisions_scope_idx').on(t.source, t.assessmentId)])
 
 // Exclusion, debarment and sanctions screening results (src/lib/screening.ts).
 export const screenings = pgTable('screenings', {

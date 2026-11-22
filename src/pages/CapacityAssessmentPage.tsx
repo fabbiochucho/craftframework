@@ -21,7 +21,7 @@ import { documentsForDomain, STATUS_META } from '../lib/dataroom'
 
 type Assessment = {
   id: string; orgId: string; module: string; year: number; awardRef: string; region: string; district: string; status: 'draft' | 'complete'; assessor: string; orgLead: string
-  responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; planReviewNotes: Record<string, string>; votes: Record<string, number[]>; consensus: Record<string, { agreed: number; note: string }>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null
+  responses: Responses; notAssessed: NotAssessed; domainIds: string[] | null; planReviewNotes: Record<string, string>; votes: Record<string, number[]>; consensus: Record<string, { agreed: number; note: string }>; swot: Partial<Swot>; plan: PlanEntry[]; completedAt: string | null; updatedAt?: string
 }
 
 async function api<T>(path: string, init?: { method: string; body?: unknown }): Promise<T> {
@@ -384,6 +384,7 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
   const latestSnapshot = useRef(snapshot)
   latestSnapshot.current = snapshot
   const writes = useRef(Promise.resolve())
+  const [savedAt, setSavedAt] = useState(a.updatedAt ?? '')
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /** Save to CRAFT; true when CRAFT has it. Quiet saves (autosave) do not reload the list or announce success. */
@@ -393,7 +394,8 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
     const saving = latestSnapshot.current
     const request = writes.current.then(async () => {
       try {
-        await api(`/${a.id}`, { method: 'PUT', body: { responses: saving.responses, votes: saving.votes, consensus: saving.consensus, replaceConsensus: true, plan: saving.plan, swot: saving.swot, planReviewNotes: saving.reviewNotes, ...(canSkip ? { notAssessed: saving.notAssessed } : {}), ...saving.meta, ...extra } })
+        const result = await api<{ savedAt?: string }>(`/${a.id}`, { method: 'PUT', body: { responses: saving.responses, votes: saving.votes, consensus: saving.consensus, replaceConsensus: true, plan: saving.plan, swot: saving.swot, planReviewNotes: saving.reviewNotes, ...(canSkip ? { notAssessed: saving.notAssessed } : {}), ...saving.meta, ...extra } })
+        if (result.savedAt) setSavedAt(result.savedAt)
         // An earlier request must not discard edits made while it was in flight.
         if (latestSnapshot.current === saving) { dropDraft(a.id); setMessage('Saved.') }
         if (!quiet) onChanged()
@@ -434,6 +436,7 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
+      <p className="text-xs text-slate-500">{savedAt && `Last saved ${new Date(savedAt).toLocaleString()}. `}<Link to="/assessment-archive" className="underline">My saved revisions by period</Link></p>
       {!canWrite && <p role="status" className="text-sm text-slate-600">You have read-only access to this organisation's capacity assessments.</p>}
       <Tabs tabs={[{ id: 'assess', label: 'Assess' }, { id: 'dashboard', label: 'Dashboard' }, { id: 'plan', label: 'Improvement plan' }, { id: 'swot', label: 'SWOT debrief' }, { id: 'reports', label: 'Reports' }, ...(mod.id === 'pre_award' ? [{ id: 'screening', label: 'Screening' }] : [])]} active={tab} onChange={setTab} />
 
