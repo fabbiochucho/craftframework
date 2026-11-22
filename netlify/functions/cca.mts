@@ -8,6 +8,7 @@ import { db } from '../../db/index.js'
 import { auditLogs, ccaAssessments } from '../../db/schema.js'
 import { canAccessOrg, mfaRequired, resolveCaller, unauthorized } from '../lib/auth.js'
 import { logger, monitored } from '../lib/logger.js'
+import { isIndependentAssessorOf } from '../lib/independent-assessor.js'
 import { CCA_MODULE_IDS, contentProblems, isAwardModule, isGovernmentModule, placeLabel } from '../../src/lib/cca/modules.js'
 import { consensusGaps, COST_LINES, dashboard, domainScore, effectiveNotAssessed, improvementPlan, planReview, previousAssessment, unexplainedMisses, type CcaModule } from '../../src/lib/cca/engine.js'
 
@@ -16,7 +17,8 @@ import { consensusGaps, COST_LINES, dashboard, domainScore, effectiveNotAssessed
 //   GET    ?orgId=                    organisation members (read): its assessments
 //   POST   { orgId, module, year, awardRef? }          (write) start an assessment
 //   PUT    :id { responses?, votes?, swot?, plan?, notAssessed?, assessor?, orgLead? }   (write) while draft
-//   POST   :id/complete               (write) complete it; a completed assessment cannot change
+//   POST   :id/complete               (write) complete it; a completed assessment cannot change (an empty one cannot be completed)
+//   POST   :id/reopen { reason }      the organisation's independent assessor or the Super Admin: back to draft, with the reason logged
 // Scores are computed from the responses by src/lib/cca/engine.ts, so they always follow the evidence.
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
@@ -92,6 +94,18 @@ const handleRequest = async (req: Request) => {
 
     const [row] = idOrSub ? await db.select().from(ccaAssessments).where(eq(ccaAssessments.id, idOrSub)) : []
     if (!row) return json({ error: 'Not found' }, 404)
+    // Reopen a completed assessment (for example one completed with nothing answered): its independent assessor or the Super Admin.
+    if (req.method === 'POST' && action === 'reopen') {
+      if (caller.readOnly || !(caller.role === 'super_admin' || (await isIndependentAssessorOf(caller, row.orgId)))) return json({ error: 'Only the independent assessor or the CRAFT team can reopen an assessment.' }, 403)
+      if (row.status !== 'complete') return json({ error: 'This assessment is already open.' }, 409)
+      const reason = String(((await req.json().catch(() => ({}))) as { reason?: unknown }).reason ?? '').trim().slice(0, 500)
+      if (!reason) return json({ error: 'Say why the assessment is being reopened.' }, 400)
+      await db.transaction(async (tx) => {
+        await tx.update(ccaAssessments).set({ status: 'draft', completedAt: null, updatedAt: new Date() }).where(eq(ccaAssessments.id, row.id))
+        await tx.insert(auditLogs).values({ orgId: row.orgId, actor: caller.email, action: `Reopened capacity assessment (${row.module} ${row.year}): ${reason}`, target: row.id, category: 'Assessment' })
+      })
+      return json({ ok: true })
+    }
     if (!(await canAccessOrg(caller, row.orgId, req.method === 'GET' ? 'read' : 'write'))) return json({ error: 'Forbidden' }, 403)
 
     if (req.method === 'GET' && !action) return json({ assessment: row })
@@ -114,6 +128,7 @@ const handleRequest = async (req: Request) => {
     }
 
     if (req.method === 'POST' && action === 'complete') {
+      if (!Object.values(row.responses ?? {}).some((r) => r.met || r.evidence?.trim())) return json({ error: 'Nothing has been answered yet. Tick the statements that are met, or note what is missing, before completing.' }, 400)
       // Record the domains this assessment covered, so domains added to the module later never lower its result.
       const mod = (await content())?.find((m) => m.id === row.module)
       const domainIds = mod ? mod.areas.flatMap((a) => a.domains.map((d) => d.id)) : null

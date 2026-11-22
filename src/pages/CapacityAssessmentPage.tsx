@@ -1,12 +1,12 @@
 // CRAFT Capacity Assessment: run an assessment, see the dashboard, radar and growth levels, build the improvement
 // plan, capture the SWOT debrief, and read the yearly, mid-term and five-year reports. Scoring rules live in
 // src/lib/cca/engine.ts; the server stores only the responses.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from '@tanstack/react-router'
 import { Line, LineChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs } from '../components/ui'
-import { useWorkspace } from '../lib/context'
+import { useAuthCtx, useWorkspace } from '../lib/context'
 import { cn } from '../lib/utils'
 import {
   availableReports, awardReadiness, cascade, rollup, weakestDomains, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed, resolveConsensus, planReview, previousAssessment, reassessmentsDue, unexplainedMisses,
@@ -27,9 +27,19 @@ type Assessment = {
 async function api<T>(path: string, init?: { method: string; body?: unknown }): Promise<T> {
   const res = await fetch(`/api/cca${path}`, init && { method: init.method, headers: { 'content-type': 'application/json' }, body: init.body === undefined ? undefined : JSON.stringify(init.body) })
   const body = await res.json().catch(() => ({})) as T & { error?: string }
-  if (!res.ok) throw new Error(body.error === 'mfa_required' ? 'Confirm your two-step sign-in, then try again.' : body.error ?? `Request failed (${res.status})`)
+  if (!res.ok) throw new Error(res.status === 401 ? SIGNED_OUT
+    : body.error === 'mfa_required' ? 'Confirm your two-step sign-in, then try again.' : body.error ?? `Request failed (${res.status})`)
   return body
 }
+const SIGNED_OUT = 'Your sign-in has expired, so this was not saved to CRAFT. Your answers are kept on this computer: sign in again, open this assessment, and they will come back. Then click Save.'
+
+// Answers not yet saved to CRAFT, kept on this device per assessment, so an expired sign-in or a dropped connection
+// never loses them. Cleared once CRAFT has them. ponytail: one browser only; a second device starts from CRAFT's copy.
+type Draft = { at: string; responses: Responses; notAssessed: NotAssessed; votes: Record<string, number[]>; consensus: Record<string, { agreed: number; note: string }>; plan: PlanEntry[]; swot: Swot; reviewNotes: Record<string, string>; meta: { assessor: string; orgLead: string } }
+const draftKey = (id: string) => `cca-draft-${id}`
+const readDraft = (id: string): Draft | null => { try { return JSON.parse(localStorage.getItem(draftKey(id)) ?? 'null') } catch { return null } }
+const writeDraft = (id: string, d: Draft) => { try { localStorage.setItem(draftKey(id), JSON.stringify(d)) } catch { /* storage full or blocked: CRAFT's copy still stands */ } }
+const dropDraft = (id: string) => { try { localStorage.removeItem(draftKey(id)) } catch { /* nothing to drop */ } }
 
 const LEVEL_STYLE: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800', 'Not assessed': 'bg-slate-100 text-slate-600' }
 /** What to leave out when scoring a stored assessment (skipped domains, and domains added after completion). */
@@ -333,20 +343,30 @@ function FacilitatorGuide() {
 
 function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
   const currentOrgName = useWorkspace().currentOrg?.name ?? ''
-  const [responses, setResponses] = useState<Responses>(a.responses)
-  const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => skips(mod, a))
-  const [votes, setVotes] = useState<Record<string, number[]>>(a.votes)
-  const [consensus, setConsensus] = useState<Record<string, { agreed: number; note: string }>>(a.consensus ?? {})
-  const [plan, setPlan] = useState<PlanEntry[]>(a.plan)
-  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>(a.planReviewNotes ?? {})
+  // Unsaved answers kept on this device come back first (only while the assessment is still open).
+  const [restored] = useState(() => (a.status === 'complete' ? null : readDraft(a.id)))
+  const [responses, setResponses] = useState<Responses>(restored?.responses ?? a.responses)
+  const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => restored?.notAssessed ?? skips(mod, a))
+  const [votes, setVotes] = useState<Record<string, number[]>>(restored?.votes ?? a.votes)
+  const [consensus, setConsensus] = useState<Record<string, { agreed: number; note: string }>>(restored?.consensus ?? a.consensus ?? {})
+  const [plan, setPlan] = useState<PlanEntry[]>(restored?.plan ?? a.plan)
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>(restored?.reviewNotes ?? a.planReviewNotes ?? {})
   const [swot, setSwot] = useState<Swot>(() => {
+    if (restored) return restored.swot
     const seed = swotSeed(dashboard(mod, a.responses, skips(mod, a)))
     return { strengths: a.swot.strengths ?? seed.strengths, weaknesses: a.swot.weaknesses ?? seed.weaknesses, opportunities: a.swot.opportunities ?? [], threats: a.swot.threats ?? [] }
   })
-  const [meta, setMeta] = useState({ assessor: a.assessor, orgLead: a.orgLead })
+  const [meta, setMeta] = useState(restored?.meta ?? { assessor: a.assessor, orgLead: a.orgLead })
   const [tab, setTab] = useState('assess')
-  const [message, setMessage] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(restored ? `Restored answers from ${new Date(restored.at).toLocaleString()} that had not reached CRAFT. Saving them now.` : null)
   const locked = a.status === 'complete'
+  // The independent assessor or the Super Admin can reopen a completed assessment, saying why (logged).
+  const { currentUser } = useAuthCtx()
+  const canReopen = locked && (currentUser?.role === 'super_admin' || currentUser?.role === 'independent')
+  const [reopenReason, setReopenReason] = useState('')
+  const reopen = async () => {
+    try { await api(`/${a.id}/reopen`, { method: 'POST', body: { reason: reopenReason } }); setMessage('Reopened: the organisation can answer it again.'); setReopenReason(''); onChanged() } catch (e) { setMessage((e as Error).message) }
+  }
   const d = useMemo(() => dashboard(mod, responses, notAssessed), [mod, responses, notAssessed])
   // Desk review documents behind each domain, so the evidence already gathered is in front of the assessor.
   const desk = useDeskReview(a.orgId)
@@ -354,11 +374,28 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
   const deskStatus = (id: string) => desk.data?.items.find((i) => i.requirementId === id)?.status ?? 'missing'
   const canSkip = !isAwardModule(mod.id)
 
-  const save = async (extra: Record<string, unknown> = {}) => {
-    try { await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, consensus, plan, swot, planReviewNotes: reviewNotes, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } }); setMessage('Saved.'); onChanged() } catch (e) { setMessage((e as Error).message) }
+  /** Save to CRAFT; true when CRAFT has it. Quiet saves (autosave) do not reload the list or announce success. */
+  const save = async (extra: Record<string, unknown> = {}, quiet = false): Promise<boolean> => {
+    try {
+      await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, consensus, plan, swot, planReviewNotes: reviewNotes, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } })
+      dropDraft(a.id)
+      if (quiet) setMessage((m) => (m && m !== 'Saved.' && !m.startsWith('Restored') ? m : 'Saved.'))
+      else { setMessage('Saved.'); onChanged() }
+      return true
+    } catch (e) { setMessage((e as Error).message); return false }
   }
+  // Every change is kept on this device at once, and saved to CRAFT a few seconds after the last change.
+  const first = useRef(!restored)
+  useEffect(() => {
+    if (locked) return
+    if (first.current) { first.current = false; return }
+    writeDraft(a.id, { at: new Date().toISOString(), responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta })
+    const t = setTimeout(() => { void save({}, true) }, 3000)
+    return () => clearTimeout(t)
+  }, [responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta]) // eslint-disable-line react-hooks/exhaustive-deps
   const complete = async () => {
-    await save()
+    // Never complete on top of a failed save: that is how assessments were completed with nothing in them.
+    if (!(await save())) return
     try { await api(`/${a.id}/complete`, { method: 'POST' }); setMessage('Assessment completed.'); onChanged() } catch (e) { setMessage((e as Error).message) }
   }
 
@@ -368,6 +405,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
         <Button variant="ghost" size="sm" onClick={onBack}>← All assessments</Button>
         <h2 className="font-display text-lg font-bold text-emerald-900">{mod.name} · {a.year}{a.awardRef && ` · ${a.awardRef}`}{placeLabel(a) && ` · ${placeLabel(a)}`}</h2>
         <span className={cn('rounded px-2 py-0.5 text-xs font-semibold', LEVEL_STYLE[d.level])}>Overall {fmt(d)} · {d.level}</span>
+        {canReopen && <div className="ml-auto flex flex-wrap items-end gap-2"><div className="w-72"><Input aria-label="Why reopen" placeholder="Why reopen (for example: completed with nothing answered)" value={reopenReason} onChange={(e) => setReopenReason(e.target.value)} /></div><Button size="sm" variant="outline" disabled={!reopenReason.trim()} onClick={() => void reopen()}>Reopen assessment</Button></div>}
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}

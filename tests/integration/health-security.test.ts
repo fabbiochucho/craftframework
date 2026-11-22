@@ -1,13 +1,15 @@
 // Health-security assessments (NPHI, JEE, SPAR, subnational JEE, AAR) through the real API, against Postgres.
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
-import { ADMIN, ASSESSOR, OWNER, VIEWER, as, createOrg, expectStatus, truncateAll } from './harness.ts'
+import { ADMIN, ASSESSOR, OWNER, VIEWER, as, createOrg, expectStatus, rows, truncateAll } from './harness.ts'
 
 const OPERATOR = 'fabbiochucho@gmail.com' // platform super admin
 
 let orgId = 0, wsId = 0
 const P = () => `/workspaces/${wsId}`
 const create = (assessmentType: string, extra: object = {}) => as(ASSESSOR).post(`${P()}/assessments`, { assessmentType, ...extra })
+const doc = async (name: string, status = 'pending_review') => (await rows(`INSERT INTO evidence_registry(org_id, workspace_id, document_name, uploaded_by, file_path, status)
+  VALUES($1, $2, $3, 'assessor@x.example', 'k/' || $3, $4) RETURNING id`, [orgId, wsId, name, status]))[0].id as number
 const score = (id: number, section: string, item: string, body: object) => as(ASSESSOR).put(`${P()}/assessments/${id}/scores/${encodeURIComponent(section)}/${encodeURIComponent(item)}`, body)
 
 describe('health-security assessments', () => {
@@ -77,6 +79,31 @@ describe('health-security assessments', () => {
     expectStatus(await as(ASSESSOR).post(`${P()}/assessments/${aar}/findings`, { domain: 'D2', severity: 'high', description: 'Alerts took 9 days to verify' }), 201)
   })
 
+  it('counts evidence only from a live document, and will not submit an unanswered assessment', async () => {
+    expectStatus(await as(ADMIN).put(`/orgs/${orgId}`, { type: 'nphi' }), 200)
+    expectStatus(await as(OPERATOR).post(`/admin/type-verifications/${orgId}`, { decision: 'verified', note: 'Act checked' }), 200)
+    const n = expectStatus(await create('NPHI'), 201).body.id
+    const effective = async (item: string) => expectStatus(await as(VIEWER).get(`${P()}/assessments/${n}/scorecard`), 200).body.items.find((i: any) => i.id === item).effective
+    expectStatus(await score(n, 'attributes', 'A1', { score: 5, evidenceUploaded: true }), 200)
+    assert.equal(await effective('A1'), 2, 'a ticked box without a document is not evidence')
+    assert.equal((await score(n, 'attributes', 'A1', { score: 5, evidenceId: 999999 })).status, 400, 'unknown document')
+    assert.equal((await score(n, 'attributes', 'A1', { score: 5, evidenceId: await doc('Old.pdf', 'rejected') })).status, 400, 'rejected document')
+    const act = await doc('NCDC Establishment Act 2018.pdf')
+    expectStatus(await score(n, 'attributes', 'A1', { score: 5, evidenceId: act }), 200)
+    assert.equal(await effective('A1'), 5)
+
+    const empty = await as(ASSESSOR).post(`${P()}/assessments/${n}/submit`, {})
+    assert.equal(empty.status, 409)
+    assert.match(empty.body.error, /41 unanswered/)
+    const cat = expectStatus(await as(VIEWER).get(`${P()}/health-security/catalogue`), 200).body.catalogues.NPHI
+    for (const i of cat.items.filter((x: any) => !x.extended && x.id !== 'A1')) expectStatus(await score(n, i.sectionId, i.id, { score: 3 }), 200)
+    await rows(`UPDATE evidence_registry SET archived_at = now() WHERE id = $1`, [act])
+    assert.equal(await effective('A1'), 2, 'archived evidence stops counting')
+    assert.match((await as(ASSESSOR).post(`${P()}/assessments/${n}/submit`, {})).body.error, /A1 has been archived/)
+    expectStatus(await score(n, 'attributes', 'A1', { score: 5, evidenceId: null }), 200)
+    assert.equal(expectStatus(await as(ASSESSOR).post(`${P()}/assessments/${n}/submit`, {}), 200).body.status, 'in_review')
+  })
+
   it('lets subnational governments self-assess with the subnational JEE only', async () => {
     expectStatus(await as(OWNER).put(`/orgs/${orgId}`, { type: 'subnational' }), 200)
     assert.deepEqual(expectStatus(await as(VIEWER).get(`${P()}/health-security/catalogue`), 200).body.available, ['PSP', 'JEE_SUB', 'AAR', 'SIMEX'])
@@ -84,7 +111,7 @@ describe('health-security assessments', () => {
     assert.equal((await create('NPHI')).status, 403)
     const s = expectStatus(await create('JEE_SUB', { reportingPeriod: 'Kano State 2026' }), 201).body.id
     expectStatus(await score(s, 'other', 'PoE', { notApplicable: true, naReason: 'Points of entry are managed nationally' }), 200)
-    expectStatus(await score(s, 'sub', 'S1', { score: 3, evidenceUploaded: true }), 200)
+    expectStatus(await score(s, 'sub', 'S1', { score: 3, evidenceId: await doc('State action plan.pdf') }), 200)
     const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${s}/scorecard`), 200).body
     assert.equal(sc.sections.find((x: any) => x.id === 'sub').percent, 60)
     assert.equal(sc.sections.find((x: any) => x.id === 'other').total, 2, 'PoE excluded as not applicable')
@@ -98,8 +125,8 @@ describe('health-security assessments', () => {
     assert.deepEqual(expectStatus(await as(VIEWER).get(`${P()}/health-security/catalogue`), 200).body.available, ['PSP'])
     assert.equal((await create('SPAR')).status, 403, 'a ministry is not an NPHI')
     const psp = expectStatus(await create('PSP', { reportingPeriod: 'FY2026' }), 201).body.id
-    expectStatus(await score(psp, 'pfm', 'PEFA7', { score: 4, evidenceUploaded: true }), 200)
-    expectStatus(await score(psp, 'eval', 'DAC2', { score: 3, evidenceUploaded: true }), 200)
+    expectStatus(await score(psp, 'pfm', 'PEFA7', { score: 4, evidenceId: await doc('Audited accounts FY2025.pdf') }), 200)
+    expectStatus(await score(psp, 'eval', 'DAC2', { score: 3, evidenceId: await doc('Evaluation report.pdf') }), 200)
     assert.equal((await score(psp, 'pfm', 'DAC1', { score: 3 })).status, 400)
     const sc = expectStatus(await as(VIEWER).get(`${P()}/assessments/${psp}/scorecard`), 200).body
     assert.equal(sc.sections.find((x: any) => x.id === 'pfm').percent, 80)

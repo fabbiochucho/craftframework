@@ -67,6 +67,7 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   engagements: 'sensitive',
   invitations: 'sensitive',
   inbox: 'sensitive',
+  'nphi-review': 'sensitive',
   referrals: 'sensitive',
   'engagements_.$id_.review': 'sensitive',
   'engagements_.$id': 'sensitive',

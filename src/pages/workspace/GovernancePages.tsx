@@ -21,13 +21,16 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
   const locked = a.status !== 'draft'
   const sections = cat.sections.filter(s => a.innovationSupport || !s.extended)
   const [section, setSection] = useState(sections[0].id)
-  const [draft, setDraft] = useState<Record<string, { score: string; evidence: boolean; na: boolean; naReason: string }>>({})
+  const [draft, setDraft] = useState<Record<string, { score: string; evidence: string; na: boolean; naReason: string }>>({})
   const { run, error } = useAction(reload)
+  const docs = useApi<any[]>(wsPath(workspaceId, '/evidence'))
+  const usable = (docs.data ?? []).filter(e => e.status !== 'rejected' && e.status !== 'expired')
   const saved = new Map<string, any>(a.scores.map((s: any) => [s.domain, s]))
+  const independent = new Map<string, any>((a.independent ?? []).map((s: any) => [s.domain, s]))
   const intro = sections.find(s => s.id === section)?.intro
   return (
     <div className="space-y-4">
-      <p className="text-xs text-slate-500">{cat.version} · <a className="underline" href={cat.source.url} target="_blank" rel="noreferrer">{cat.source.title}</a>{cat.evidenceCap !== null && ` · Scores without evidence count at most ${cat.evidenceCap}`} · Not applicable needs a reason.</p>
+      <p className="text-xs text-slate-500">{cat.version} · <a className="underline" href={cat.source.url} target="_blank" rel="noreferrer">{cat.source.title}</a>{cat.evidenceCap !== null && ` · Scores without an evidence document count at most ${cat.evidenceCap}`} · Upload documents under <Link className="underline" to="/app/workspaces/$workspaceId/evidence" params={{ workspaceId }}>Evidence</Link>, then choose one per item · Not applicable needs a reason.</p>
       <label className="block max-w-xl text-sm"><span className="font-medium text-slate-700">Section</span>
         <select className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" value={section} onChange={e => setSection(e.target.value)}>
           {sections.map(s => <option key={s.id} value={s.id}>{s.name} ({cat.items.filter(i => i.sectionId === s.id && saved.has(i.id)).length}/{cat.items.filter(i => i.sectionId === s.id).length})</option>)}
@@ -37,20 +40,23 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
       <ErrorLine error={error} />
       {cat.items.filter(i => i.sectionId === section).map(i => {
         const s = saved.get(i.id)
-        const d = draft[i.id] ?? { score: s && !s.notApplicable ? String(s.tierLevel) : '', evidence: !!s?.evidenceUploaded, na: !!s?.notApplicable, naReason: s?.naReason ?? '' }
+        const d = draft[i.id] ?? { score: s && !s.notApplicable ? String(s.tierLevel) : '', evidence: s?.evidenceId ? String(s.evidenceId) : '', na: !!s?.notApplicable, naReason: s?.naReason ?? '' }
         const set = (x: Partial<typeof d>) => setDraft({ ...draft, [i.id]: { ...d, ...x } })
         return (
           <Card key={i.id}><CardContent className="space-y-2">
             <p className="font-semibold text-slate-800">{i.id} · {i.name} {i.critical && <Badge className="bg-rose-100 text-rose-700">critical</Badge>}</p>
             {i.description && <p className="text-sm text-slate-600">{i.description}</p>}
+            {independent.has(i.id) && <p className="text-sm text-indigo-800">Independent assessor: {independent.get(i.id).notApplicable ? `not applicable (${independent.get(i.id).note})` : cat.levels[independent.get(i.id).score - 1]}{!independent.get(i.id).notApplicable && independent.get(i.id).note && ` · ${independent.get(i.id).note}`}</p>}
             {SPAR_LEVELS[i.id] && <p className="text-xs text-slate-500">Level summaries are CRAFT paraphrases. Confirm against WHO’s wording on p. {SPAR_LEVELS[i.id].page} of the <a className="underline" href={SPAR_SOURCE.url} target="_blank" rel="noreferrer">SPAR tool</a>. {SPAR_SOURCE.rule}</p>}
             <fieldset disabled={locked} className="flex flex-wrap items-end gap-3">
               {!d.na && <div className="w-full max-w-xl"><Select placeholder="Not scored" label="Level" value={d.score} onChange={score => set({ score })} options={cat.levels.map((l, n) => ({ value: String(n + 1), label: SPAR_LEVELS[i.id] ? `${l} — ${SPAR_LEVELS[i.id].levels[n]}` : l }))} /></div>}
-              {!d.na && <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.evidence} onChange={e => set({ evidence: e.target.checked })} /> Evidence held</label>}
+              {!d.na && <div className="w-full max-w-xs"><Select placeholder="No evidence document" label="Evidence document" value={d.evidence} onChange={evidence => set({ evidence })}
+                options={[{ value: '', label: 'No evidence document' }, ...usable.map(e => ({ value: String(e.id), label: e.documentName }))]} /></div>}
               <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>
               {d.na && <div className="min-w-[260px] flex-1"><Input label="Reason it does not apply" value={d.naReason} onChange={e => set({ naReason: e.target.value })} /></div>}
               <Button size="sm" disabled={d.na ? !d.naReason : !d.score} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(i.sectionId)}/${encodeURIComponent(i.id)}`), { method: 'PUT',
-                body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceUploaded: d.evidence } }))}>Save</Button>
+                body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceId: d.evidence ? Number(d.evidence) : null } }))}>Save</Button>
+              {s?.evidenceUploaded && !s.evidenceId && <span className="text-xs text-slate-500">Earlier record: evidence ticked without a document</span>}
               {s && <StatusPill value={s.notApplicable ? 'not_applicable' : 'completed'} />}
             </fieldset>
           </CardContent></Card>
@@ -72,6 +78,7 @@ function CatalogueScorecard({ workspaceId, a }: { workspaceId: string; a: any })
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Overall</p><p className="text-3xl font-bold text-emerald-900">{d.overall === null ? '—' : `${d.overall}%`}</p><p className="text-sm">mean of section scores</p></div>
         <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Completeness</p><p className="text-3xl font-bold text-emerald-900">{d.completeness}%</p></div>
+        {d.independent && <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">Independent assessor</p><p className="text-3xl font-bold text-indigo-900">{d.independent.overall === null ? '—' : `${d.independent.overall}%`}</p><p className="text-sm">{d.independent.answered} items scored</p></div>}
         {d.sdg && <div className="rounded-xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase text-slate-500">SDG 3.d.1</p><p className="text-3xl font-bold text-emerald-900">{d.sdg.value === null ? '—' : `${d.sdg.value}%`}</p><p className="text-xs">{d.sdg.indicator}</p></div>}
       </div>
       <Card><CardContent><div className="h-80"><ResponsiveContainer width="100%" height="100%">

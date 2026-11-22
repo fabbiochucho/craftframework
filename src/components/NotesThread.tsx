@@ -108,7 +108,7 @@ export function NotesThread({ orgId, questionId, currentUserEmail, currentUserRo
         <div className="mt-3 space-y-3">
           {loaded && notes.length === 0 && (
             <p className="text-xs text-slate-400">
-              No notes yet. Add the reasoning behind this score — private to you unless you choose to share it.
+              No notes yet. Add the reasoning behind this score. It is private to you unless you tick Share, which shows it to your team and your independent assessor.
             </p>
           )}
 
@@ -152,11 +152,11 @@ export function NotesThread({ orgId, questionId, currentUserEmail, currentUserRo
                 />
                 {shared ? (
                   <span className="flex items-center gap-1 font-medium text-emerald-700">
-                    <Users className="h-3.5 w-3.5" /> Share with the team
+                    <Users className="h-3.5 w-3.5" /> Shared with your team and independent assessor
                   </span>
                 ) : (
                   <span className="flex items-center gap-1">
-                    <Lock className="h-3.5 w-3.5" /> Private to you
+                    <Lock className="h-3.5 w-3.5" /> Private to you: tick to share with your team and independent assessor
                   </span>
                 )}
               </label>

@@ -15,8 +15,11 @@ import {
   esgFrameworks, esgRequirements, esgImplementationPlans, esgMilestones, capRecords, actionItems, actionLogs,
   evidenceRegistry, evidenceLinks, documentApprovals, reports, reportVersions, wsAuditLog, supportIssues,
   supportIssueResponses, reportSchedules, gdprRequests, rateLimits, users, auditLogs, qaPeriods, qaCheckInstances, governanceValidations, orgDesignReviews, regulatorySourceChecks, userMfa,
+  catalogueIndependentScores,
 } from '../../db/schema.js'
 import { resolveCaller, type Caller } from '../lib/auth.js'
+import { catalogueResponses, independentResponses, isNphiType, liveEvidenceIds } from '../lib/nphi.js'
+import { checkProgress } from '../lib/progress.js'
 import { HttpError, requireOrgAccess, requireWorkspaceAccess } from '../lib/orgAccess.js'
 import {
   ALLOWED_EVIDENCE_MIME, MAX_EVIDENCE_BYTES, SEVERITIES, buildScorecard, canAssignRole, capCloseBlockers,
@@ -55,8 +58,8 @@ import {
 import { exportResponse } from '../lib/export-formats.js'
 import { catalogueScorecardDoc, craftScorecardDoc, domainScorecardDoc, planExportDoc, qaExportDoc, roadmapExportDoc } from '../lib/export-docs.js'
 import {
-  catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
-  isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore, type Responses,
+  activeItems, catalogueFor, catalogueScore, CROSSWALK, crosswalkView, HEALTH_SECURITY_LABELS, healthSecurityTypesFor,
+  isHealthSecurityType, itemById, REVIEW_DOMAINS, type CatalogueScore,
 } from '../../src/lib/health-security.js'
 import { ASSESSMENT_CATALOGUES, assessmentTypesFor, catalogueByType, RESTRICTED_LABELS, RESTRICTED_TYPES } from '../../src/lib/assessment-catalogues.js'
 import { CHECK_OUTCOMES, regulatorySources, REVERIFY_AFTER_DAYS, sourceByKey, sourceStatus } from '../../src/lib/regulatory-sources.js'
@@ -537,8 +540,11 @@ function typeVerificationFor(type: string, email: string) {
     : { typeVerification: 'pending', typeVerificationMethod: null, typeVerifiedBy: null, typeVerifiedAt: null, typeVerificationNote: `Requested by ${email}` }
 }
 
-function catalogueResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean; naReason: string }[]): Responses {
-  return Object.fromEntries(scores.map((s) => [s.domain, { score: s.notApplicable ? null : s.tierLevel, evidence: s.evidenceUploaded, notApplicable: s.notApplicable, naReason: s.naReason }]))
+// An NPHI / JEE / SPAR step finished: the institute's CRAFT organisation gets its progress message.
+async function progressOf(orgId: number, type: string) {
+  if (!isNphiType(type)) return
+  const [org] = await db.select({ craftOrgId: wsOrganizations.craftOrgId }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
+  if (org?.craftOrgId) await checkProgress(org.craftOrgId)
 }
 
 function craftResponses(scores: { domain: string; tierLevel: number; evidenceUploaded: boolean; notApplicable: boolean }[]) {
@@ -685,7 +691,9 @@ async function scorecardData(orgId: number, a: typeof governanceAssessments.$inf
     const cat = catalogueByType(a.assessmentType)
     if (cat || a.assessmentType === 'AAR' || a.assessmentType === 'SIMEX') {
       const { findingsBySeverity } = buildScorecard([], findings)
-      return ({ assessment: a, findingsBySeverity, findings: findings.length, ...(cat ? catalogueScore(cat, catalogueResponses(scores), a.innovationSupport) : {}) })
+      const ind = cat && isNphiType(a.assessmentType) ? await db.select().from(catalogueIndependentScores).where(eq(catalogueIndependentScores.assessmentId, a.id)) : []
+      const independent = cat && ind.length ? { overall: catalogueScore(cat, independentResponses(ind), a.innovationSupport).overall, answered: ind.length } : null
+      return ({ assessment: a, findingsBySeverity, findings: findings.length, independent, ...(cat ? catalogueScore(cat, await catalogueResponses(orgId, scores), a.innovationSupport) : {}) })
     }
     return ({ assessment: a, ...buildScorecard(scores, findings) })
 }
@@ -917,6 +925,7 @@ const routes: Route[] = [
       name: str(c.body.name, 'name', 200), type, ...typeVerificationFor(type, caller.email), country: str(c.body.country, 'country', 100, false),
       region: str(c.body.region, 'region', 100, false), contactEmail: encryptField(str(c.body.contactEmail, 'contactEmail', 200, false) || caller.email),
       contactPhone: encryptField(str(c.body.contactPhone, 'contactPhone', 50, false)),
+      craftOrgId: caller.orgId || null, // the creator's CRAFT organisation: its dashboard, assessor and grants reach these assessments
     }).returning()
     await db.insert(wsOrgMembers).values({ userId: encryptField(caller.email), userIdHash: fieldLookupHashes(caller.email)[0] ?? null, orgId: org.id, role: 'owner' })
     const [ws] = await db.insert(workspaces).values({ orgId: org.id, workspaceName: 'Main workspace' }).returning()
@@ -926,6 +935,8 @@ const routes: Route[] = [
   { method: 'PUT', pattern: '/orgs/:org', access: 'admin', scope: 'org', handler: async (c, { orgId, caller }) => {
     const set: Record<string, unknown> = {}
     if (c.body.name !== undefined) set.name = str(c.body.name, 'name', 200)
+    // Join this organisation to the admin's own CRAFT organisation (set when created; this links an older one).
+    if (c.body.linkCraft === true) { if (!caller.orgId) throw bad('you have no CRAFT organisation to link'); set.craftOrgId = caller.orgId }
     if (c.body.type !== undefined) {
       set.type = oneOf(c.body.type, 'type', ORG_TYPES)
       const [cur] = await db.select({ type: wsOrganizations.type }).from(wsOrganizations).where(eq(wsOrganizations.id, orgId))
@@ -1047,8 +1058,10 @@ const routes: Route[] = [
       db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id))),
       db.select().from(governanceFindings).where(and(eq(governanceFindings.orgId, orgId), eq(governanceFindings.assessmentId, a.id))),
     ])
+    const independent = isNphiType(a.assessmentType) ? await db.select().from(catalogueIndependentScores).where(eq(catalogueIndependentScores.assessmentId, a.id)) : []
     return json({
       ...a,
+      independent,
       scores: scores.map((s) => ({ ...s, reviewerNotes: decryptField(s.reviewerNotes) })),
       findings: findings.map((f) => ({ ...f, description: decryptField(f.description) })),
     })
@@ -1078,8 +1091,17 @@ const routes: Route[] = [
       throw bad('after-action reviews and simulation exercises record findings, not scores')
     } else if (!Number.isFinite(score) || score < 0 || score > 5) throw bad('score must be 0-5')
     const naReason = notApplicable ? str(c.body.naReason, 'naReason', 1000) : ''
+    // Catalogue items: evidence is a document from this workspace's evidence registry, not a tick box.
+    let evidenceId: number | null = null
+    if (catalogueByType(a.assessmentType) && !notApplicable && c.body.evidenceId != null) {
+      evidenceId = intParam(String(c.body.evidenceId))
+      const [doc] = await db.select().from(evidenceRegistry).where(and(eq(evidenceRegistry.id, evidenceId), eq(evidenceRegistry.orgId, orgId), eq(evidenceRegistry.workspaceId, wsId), isNull(evidenceRegistry.archivedAt)))
+      if (!doc) throw bad('evidenceId is not a document in this workspace')
+      if (doc.status === 'rejected' || evidenceExpiryState(doc.expiryDate) === 'expired') throw bad(`${doc.documentName} is ${doc.status === 'rejected' ? 'rejected' : 'expired'} and cannot be used as evidence`)
+    }
     const values = {
-      tierLevel: tierFromScore(score), evidenceUploaded: !notApplicable && !!c.body.evidenceUploaded,
+      tierLevel: tierFromScore(score), evidenceId,
+      evidenceUploaded: catalogueByType(a.assessmentType) ? evidenceId !== null : !notApplicable && !!c.body.evidenceUploaded,
       reviewerNotes: encryptField(str(c.body.reviewerNotes, 'reviewerNotes', 2000, false)), notApplicable, naReason,
     }
     const [row] = await db.insert(governanceScores).values({ orgId, assessmentId: a.id, pillar, domain, ...values })
@@ -1203,8 +1225,20 @@ const routes: Route[] = [
   { method: 'POST', pattern: `${A}/submit`, access: 'assessor', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))
     if (a.status !== 'draft') throw new HttpError(409, 'Only draft assessments can be submitted')
+    const cat = catalogueByType(a.assessmentType)
+    if (cat) {
+      // Every item must be scored or marked not applicable before review (an empty assessment cannot be submitted).
+      const scores = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
+      const answered = new Set(scores.map((s) => s.domain))
+      const missing = activeItems(cat, a.innovationSupport).filter((i) => !answered.has(i.id)).map((i) => i.id)
+      if (missing.length) throw new HttpError(409, `Score every item, or mark it not applicable, before submitting: ${missing.length} unanswered (${missing.slice(0, 10).join(', ')}${missing.length > 10 ? ', …' : ''})`)
+      const live = await liveEvidenceIds(orgId, scores.map((s) => s.evidenceId))
+      const stale = scores.filter((s) => s.evidenceId !== null && !live.has(s.evidenceId)).map((s) => s.domain)
+      if (stale.length) throw new HttpError(409, `The evidence for ${stale.join(', ')} has been archived, rejected or has expired: attach a current document or remove it`)
+    }
     const [u] = await db.update(governanceAssessments).set({ status: 'in_review', completedAt: new Date() }).where(eq(governanceAssessments.id, a.id)).returning()
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { status: 'in_review' })
+    await progressOf(orgId, a.assessmentType)
     return json(u)
   } },
   { method: 'POST', pattern: `${A}/approve`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
@@ -1214,6 +1248,7 @@ const routes: Route[] = [
     await db.update(governanceScores).set({ verifiedAt: new Date() }).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
     const [u] = await db.update(governanceAssessments).set({ status: 'approved' }).where(eq(governanceAssessments.id, a.id)).returning()
     await audit(c, orgId, wsId, 'assessment', a.id, 'update', { status: 'approved' })
+    await progressOf(orgId, a.assessmentType)
     return json(u)
   } },
   { method: 'POST', pattern: `${A}/reject`, access: 'admin', scope: 'workspace', handler: async (c, { orgId, wsId }) => {
@@ -1561,7 +1596,7 @@ const routes: Route[] = [
     const summary = []
     for (const [type, a] of Object.entries(latest)) {
       const rows = await db.select().from(governanceScores).where(and(eq(governanceScores.orgId, orgId), eq(governanceScores.assessmentId, a.id)))
-      const cs = catalogueScore(catalogueFor(type)!, catalogueResponses(rows), a.innovationSupport)
+      const cs = catalogueScore(catalogueFor(type)!, await catalogueResponses(orgId, rows), a.innovationSupport)
       scores[type] = cs
       summary.push({ type, label: HEALTH_SECURITY_LABELS[type as keyof typeof HEALTH_SECURITY_LABELS], assessmentId: a.id, version: a.version, status: a.status, reportingPeriod: a.reportingPeriod, overall: cs.overall, completeness: cs.completeness, sdg: cs.sdg ?? null })
     }
