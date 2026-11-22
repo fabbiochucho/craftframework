@@ -33,7 +33,7 @@ assert.equal(classifyPath('/directory/'), 'allowed')
 assert.equal(classifyPath('/directory?q=jane%40example.com'), 'allowed')
 
 // Sensitive pages, and default-deny for anything unknown
-for (const p of ['/assessment', '/assessment/gfa', '/evidence', '/data-room', '/findings', '/cip', '/reports', '/dashboard', '/engagements',
+for (const p of ['/assessment', '/assessment/gfa', '/assessment-archive', '/evidence', '/data-room', '/findings', '/cip', '/reports', '/dashboard', '/engagements',
   '/engagements/4', '/engagements/4/review', '/review', '/validations', '/validations/3', '/panel', '/panel/2', '/admin', '/admin/portfolio',
   '/settings', '/vaults', '/finance-triangulation', '/training/manage', '/app', '/app/workspaces', '/app/workspaces/3/evidence',
   '/app/anything/new', '/accept/abc', '/contact', '/not-a-route', '/directoryx', '/privacy/extra']) {
