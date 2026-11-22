@@ -50,6 +50,7 @@ export function CapacityAssessmentPage() {
   const { currentOrg } = useWorkspace()
   const [modules, setModules] = useState<CcaModule[] | null>(null)
   const [list, setList] = useState<Assessment[]>([])
+  const [canWrite, setCanWrite] = useState(false)
   const [moduleId, setModuleId] = useState<string>('community')
   const [openId, setOpenId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +58,10 @@ export function CapacityAssessmentPage() {
 
   const load = useCallback(async () => {
     if (!orgId) return
-    try { setList((await api<{ assessments: Assessment[] }>(`?orgId=${encodeURIComponent(orgId)}`)).assessments); setError(null) } catch (e) { setError((e as Error).message) }
+    try {
+      const result = await api<{ assessments: Assessment[]; canWrite: boolean }>(`?orgId=${encodeURIComponent(orgId)}`)
+      setList(result.assessments); setCanWrite(result.canWrite); setError(null)
+    } catch (e) { setCanWrite(false); setError((e as Error).message) }
   }, [orgId])
   useEffect(() => { api<{ modules: CcaModule[] }>('/modules').then((b) => setModules(b.modules)).catch((e) => setError((e as Error).message)) }, [])
   useEffect(() => { void load() }, [load])
@@ -90,13 +94,13 @@ export function CapacityAssessmentPage() {
         : moduleId === 'desk' ? (orgId ? <DeskReviewPanel orgId={orgId} modules={modules ?? []} /> : null)
         : !modules ? <p className="text-sm text-slate-500">{error ? '' : 'Loading…'}</p>
         : !mod ? <Card><CardContent className="py-8 text-sm text-slate-600">The {CCA_MODULES.find((m) => m.id === moduleId)?.name} module is being prepared and will be available soon.</CardContent></Card>
-        : open ? <AssessmentView key={open.id} a={open} mod={mod} history={mine.filter((x) => placeLabel(x) === placeLabel(open))} onBack={() => setOpenId(null)} onChanged={load} />
-        : <ModuleHome mod={mod} items={mine} orgId={orgId} onOpen={setOpenId} onCreated={async (id) => { await load(); setOpenId(id) }} />}
+        : open ? <AssessmentView key={open.id} a={open} mod={mod} canWrite={canWrite} history={mine.filter((x) => placeLabel(x) === placeLabel(open))} onBack={() => setOpenId(null)} onChanged={load} />
+        : <ModuleHome mod={mod} items={mine} orgId={orgId} canWrite={canWrite} onOpen={setOpenId} onCreated={async (id) => { await load(); setOpenId(id) }} />}
     </div>
   )
 }
 
-function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; items: Assessment[]; orgId: string; onOpen: (id: string) => void; onCreated: (id: string) => void }) {
+function ModuleHome({ mod, items, orgId, canWrite, onOpen, onCreated }: { mod: CcaModule; items: Assessment[]; orgId: string; canWrite: boolean; onOpen: (id: string) => void; onCreated: (id: string) => void }) {
   const [year, setYear] = useState(String(new Date().getFullYear()))
   const [award, setAward] = useState('')
   const [place, setPlace] = useState({ region: '', district: '' })
@@ -128,7 +132,8 @@ function ModuleHome({ mod, items, orgId, onOpen, onCreated }: { mod: CcaModule; 
           </div>
           {gov && <p className="text-xs text-slate-500">Leave both empty to assess the whole body. Name a place to assess an office or area within it; results can then be compared by place.</p>}
           {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
-          <Button onClick={start} disabled={!orgId || (award_ && !award.trim())}>Start assessment</Button>
+          {!canWrite && <p role="status" className="text-sm text-slate-600">You have read-only access to this organisation's capacity assessments.</p>}
+          <Button onClick={start} disabled={!canWrite || !orgId || (award_ && !award.trim())}>Start assessment</Button>
         </CardContent>
       </Card>
       <Card>
@@ -341,10 +346,10 @@ function FacilitatorGuide() {
   )
 }
 
-function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
+function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; canWrite: boolean; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
   const currentOrgName = useWorkspace().currentOrg?.name ?? ''
   // Unsaved answers kept on this device come back first (only while the assessment is still open).
-  const [restored] = useState(() => (a.status === 'complete' ? null : readDraft(a.id)))
+  const [restored] = useState(() => (a.status === 'complete' || !canWrite ? null : readDraft(a.id)))
   const [responses, setResponses] = useState<Responses>(restored?.responses ?? a.responses)
   const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => restored?.notAssessed ?? skips(mod, a))
   const [votes, setVotes] = useState<Record<string, number[]>>(restored?.votes ?? a.votes)
@@ -359,10 +364,12 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
   const [meta, setMeta] = useState(restored?.meta ?? { assessor: a.assessor, orgLead: a.orgLead })
   const [tab, setTab] = useState('assess')
   const [message, setMessage] = useState<string | null>(restored ? `Restored answers from ${new Date(restored.at).toLocaleString()} that had not reached CRAFT. Saving them now.` : null)
-  const locked = a.status === 'complete'
+  const [completing, setCompleting] = useState(false)
+  const completingRef = useRef(false)
+  const locked = a.status === 'complete' || !canWrite || completing
   // The independent assessor or the Super Admin can reopen a completed assessment, saying why (logged).
   const { currentUser } = useAuthCtx()
-  const canReopen = locked && (currentUser?.role === 'super_admin' || currentUser?.role === 'independent')
+  const canReopen = a.status === 'complete' && (currentUser?.role === 'super_admin' || currentUser?.role === 'independent')
   const [reopenReason, setReopenReason] = useState('')
   const reopen = async () => {
     try { await api(`/${a.id}/reopen`, { method: 'POST', body: { reason: reopenReason } }); setMessage('Reopened: the organisation can answer it again.'); setReopenReason(''); onChanged() } catch (e) { setMessage((e as Error).message) }
@@ -373,16 +380,28 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
   const deskReqs = useMemo(() => deskRequirements(desk.data?.profile ?? null), [desk.data])
   const deskStatus = (id: string) => desk.data?.items.find((i) => i.requirementId === id)?.status ?? 'missing'
   const canSkip = !isAwardModule(mod.id)
+  const snapshot = useMemo(() => ({ responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta }), [responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta])
+  const latestSnapshot = useRef(snapshot)
+  latestSnapshot.current = snapshot
+  const writes = useRef(Promise.resolve())
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /** Save to CRAFT; true when CRAFT has it. Quiet saves (autosave) do not reload the list or announce success. */
   const save = async (extra: Record<string, unknown> = {}, quiet = false): Promise<boolean> => {
-    try {
-      await api(`/${a.id}`, { method: 'PUT', body: { responses, votes, consensus, plan, swot, planReviewNotes: reviewNotes, ...(canSkip ? { notAssessed } : {}), ...meta, ...extra } })
-      dropDraft(a.id)
-      if (quiet) setMessage('Saved.')
-      else { setMessage('Saved.'); onChanged() }
-      return true
-    } catch (e) { setMessage((e as Error).message); return false }
+    if (!canWrite || a.status === 'complete') return false
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current)
+    const saving = latestSnapshot.current
+    const request = writes.current.then(async () => {
+      try {
+        await api(`/${a.id}`, { method: 'PUT', body: { responses: saving.responses, votes: saving.votes, consensus: saving.consensus, replaceConsensus: true, plan: saving.plan, swot: saving.swot, planReviewNotes: saving.reviewNotes, ...(canSkip ? { notAssessed: saving.notAssessed } : {}), ...saving.meta, ...extra } })
+        // An earlier request must not discard edits made while it was in flight.
+        if (latestSnapshot.current === saving) { dropDraft(a.id); setMessage('Saved.') }
+        if (!quiet) onChanged()
+        return true
+      } catch (e) { setMessage((e as Error).message); return false }
+    })
+    writes.current = request.then(() => {})
+    return request
   }
   // Every change is kept on this device at once, and saved to CRAFT a few seconds after the last change.
   const first = useRef(!restored)
@@ -390,13 +409,19 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
     if (locked) return
     if (first.current) { first.current = false; return }
     writeDraft(a.id, { at: new Date().toISOString(), responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta })
-    const t = setTimeout(() => { void save({}, true) }, 3000)
-    return () => clearTimeout(t)
-  }, [responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta]) // eslint-disable-line react-hooks/exhaustive-deps
+    autosaveTimer.current = setTimeout(() => { if (!completingRef.current) void save({}, true) }, 3000)
+    return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current) }
+  }, [snapshot, canWrite, a.status]) // eslint-disable-line react-hooks/exhaustive-deps
   const complete = async () => {
+    if (locked || completingRef.current) return
+    completingRef.current = true
+    setCompleting(true)
     // Never complete on top of a failed save: that is how assessments were completed with nothing in them.
-    if (!(await save())) return
-    try { await api(`/${a.id}/complete`, { method: 'POST' }); setMessage('Assessment completed.'); onChanged() } catch (e) { setMessage((e as Error).message) }
+    try {
+      if (!(await save())) return
+      await api(`/${a.id}/complete`, { method: 'POST' }); setMessage('Assessment completed.'); await onChanged()
+    } catch (e) { setMessage((e as Error).message) }
+    finally { completingRef.current = false; setCompleting(false) }
   }
 
   return (
@@ -409,6 +434,7 @@ function AssessmentView({ a, mod, history, onBack, onChanged }: { a: Assessment;
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
+      {!canWrite && <p role="status" className="text-sm text-slate-600">You have read-only access to this organisation's capacity assessments.</p>}
       <Tabs tabs={[{ id: 'assess', label: 'Assess' }, { id: 'dashboard', label: 'Dashboard' }, { id: 'plan', label: 'Improvement plan' }, { id: 'swot', label: 'SWOT debrief' }, { id: 'reports', label: 'Reports' }, ...(mod.id === 'pre_award' ? [{ id: 'screening', label: 'Screening' }] : [])]} active={tab} onChange={setTab} />
 
       {tab === 'assess' && (

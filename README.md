@@ -57,6 +57,19 @@ Organization workspaces, governance assessments, ESG roadmap, corrective action 
 
 The canonical `data.ts` question bank has 20 base assessment domains; its separate climate module adds four additional domain labels. The former README count of 19 and the hand-maintained workspace pillar labels did not match the bank. Workspace assessment labels now derive from `TIER_NAMES`, `DOMAIN_DISPLAY`, and the T1–T5 question assignments; [the full tier mapping and legacy-data note](docs/platform-guide.md#canonical-domain-reconciliation) are documented in the platform guide.
 
+## Capacity assessment saving
+
+`/capacity` uses the same save and completion rules for all seven modules.
+Drafts can be saved while a "not assessed" explanation is unfinished; completion
+requires a reason of at least three characters. Grant-stage modules must assess
+every domain. Automatically generated SWOT lists are retained, and validation
+errors identify the field to correct. Choosing "Not used" removes a group
+consensus score. Read-only access permits inspection, not changes or submission.
+Unsaved edits remain on the device until their save succeeds; saves are ordered
+so an earlier request cannot clear a newer draft.
+The shared organisation profile context supplies missing fields for older saved
+profiles without replacing their existing values, so the wizard can still open.
+
 ## Stabilization and deployment
 
 Netlify remains the supported host during incremental consolidation. Existing

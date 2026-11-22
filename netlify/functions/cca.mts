@@ -30,13 +30,14 @@ const putSchema = z.object({
   votes: z.record(z.string().max(80), z.array(z.number().int().min(1).max(4)).max(60)).optional(),
   // Approach II: domain id -> the score the group agreed and, when the evidence brings it down, why the group differed.
   consensus: z.record(z.string().max(80), z.object({ agreed: z.number().int().min(1).max(4), note: z.string().trim().max(1000) }).strict()).optional(),
+  replaceConsensus: z.boolean().optional(),
   swot: z.object({ strengths: z.array(z.string().max(300)).max(1000), weaknesses: z.array(z.string().max(300)).max(1000), opportunities: z.array(z.string().max(300)).max(1000), threats: z.array(z.string().max(300)).max(1000) }).strict().optional(),
   plan: z.array(z.object({
     domainId: z.string().max(80), costs: z.number().min(0).max(1e12).optional(),
     lines: z.object({ ...Object.fromEntries(COST_LINES.map((c) => [c.id, z.number().min(0).max(1e12).optional()])), participants: z.number().int().min(0).max(100000).optional() }).strict().optional(),
     timeline: z.string().max(200).optional(), responsible: z.string().max(200).optional() }).strict()).max(300).optional(),
   // Replaces the whole map: domain id -> why it was left out.
-  notAssessed: z.record(z.string().max(80), z.string().trim().min(3).max(300)).optional(),
+  notAssessed: z.record(z.string().max(80), z.string().trim().max(300)).optional(),
   // Replaces the whole map: last year's missed plan target (domain id) -> why it was missed.
   planReviewNotes: z.record(z.string().max(80), z.string().trim().max(1000)).optional(),
   assessor: z.string().max(200).optional(),
@@ -88,7 +89,7 @@ const handleRequest = async (req: Request) => {
       const orgId = url.searchParams.get('orgId') ?? ''
       if (!(await canAccessOrg(caller, orgId, 'read'))) return json({ error: 'Forbidden' }, 403)
       const rows = await db.select().from(ccaAssessments).where(eq(ccaAssessments.orgId, orgId)).orderBy(asc(ccaAssessments.module), asc(ccaAssessments.year))
-      return json({ assessments: rows })
+      return json({ assessments: rows, canWrite: await canAccessOrg(caller, orgId, 'write') })
     }
 
     if (req.method === 'POST' && !idOrSub) {
@@ -131,18 +132,22 @@ const handleRequest = async (req: Request) => {
       if (!p.success) return json({ error: saveValidationError(p.error) }, 400)
       const d = p.data
       if (d.notAssessed && Object.keys(d.notAssessed).length && isAwardModule(row.module)) return json({ error: 'Every domain must be assessed for a grant or contract.' }, 400)
-      await db.update(ccaAssessments).set({
+      const updated = await db.update(ccaAssessments).set({
         ...(d.responses ? { responses: { ...row.responses, ...d.responses } } : {}),
         ...(d.votes ? { votes: { ...row.votes, ...d.votes } } : {}),
-        ...(d.consensus ? { consensus: { ...row.consensus, ...d.consensus } } : {}),
+        ...(d.consensus ? { consensus: d.replaceConsensus ? d.consensus : { ...row.consensus, ...d.consensus } } : {}),
         ...(d.swot ? { swot: d.swot } : {}), ...(d.plan ? { plan: d.plan } : {}), ...(d.notAssessed ? { notAssessed: d.notAssessed } : {}), ...(d.planReviewNotes ? { planReviewNotes: d.planReviewNotes } : {}),
         ...(d.assessor !== undefined ? { assessor: d.assessor } : {}), ...(d.orgLead !== undefined ? { orgLead: d.orgLead } : {}),
         updatedAt: new Date(),
-      }).where(and(eq(ccaAssessments.id, row.id), eq(ccaAssessments.status, 'draft')))
+      }).where(and(eq(ccaAssessments.id, row.id), eq(ccaAssessments.status, 'draft'))).returning({ id: ccaAssessments.id })
+      if (!updated.length) return json({ error: 'This assessment is complete and can no longer change.' }, 409)
       return json({ ok: true })
     }
 
     if (req.method === 'POST' && action === 'complete') {
+      const missingReasons = Object.entries(row.notAssessed ?? {}).filter(([, reason]) => reason.trim().length < 3).map(([id]) => id)
+      if (missingReasons.length) return json({ error: `Add a reason of at least 3 characters for each domain marked not assessed (${missingReasons.join(', ')}), then complete.`, missingReasons }, 400)
+      if (isAwardModule(row.module) && Object.keys(row.notAssessed ?? {}).length) return json({ error: 'Every domain must be assessed for a grant or contract.' }, 400)
       if (!Object.values(row.responses ?? {}).some((r) => r.met || r.evidence?.trim())) return json({ error: 'Nothing has been answered yet. Tick the statements that are met, or note what is missing, before completing.' }, 400)
       // Record the domains this assessment covered, so domains added to the module later never lower its result.
       const mod = (await content())?.find((m) => m.id === row.module)
@@ -151,6 +156,7 @@ const handleRequest = async (req: Request) => {
       if (mod) {
         const domains = new Map(mod.areas.flatMap((a) => a.domains.map((d) => [d.id, d] as const)))
         const gaps = consensusGaps(row.consensus, (id) => (domains.has(id) ? domainScore(domains.get(id)!, row.responses) : 4))
+          .filter((id) => !Object.hasOwn(row.notAssessed ?? {}, id))
         if (gaps.length) return json({ error: 'Note why the group’s agreed score differed from the evidence for each domain marked, then complete.', consensusGaps: gaps }, 400)
       }
       // A reassessment completes only when every target missed from last year's plan is explained.
