@@ -448,7 +448,7 @@ export function TrustDeltaPage() {
                           <Button
                             variant={r.negotiatedScore != null ? 'outline' : 'primary'}
                             size="sm"
-                            disabled={readOnly || justificationStatus === 'loading' || justificationStatus === 'error'}
+                            disabled={readOnly || justificationStatus === 'loading' || justificationStatus === 'error' || justificationStatus === 'signed-out'}
                             onClick={() => setSelectedRow(i)}
                           >
                             <Gavel className="h-3.5 w-3.5" />

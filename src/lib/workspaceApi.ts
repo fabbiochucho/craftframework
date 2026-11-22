@@ -15,7 +15,7 @@ export async function api<T = any>(path: string, init: { method?: string; body?:
     body: init.form ?? (init.body !== undefined ? JSON.stringify(init.body) : undefined),
   })
   const data = await res.json().catch(() => null)
-  if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? res.statusText, data)
+  if (!res.ok) throw new ApiError(res.status, res.status === 401 ? 'Your sign-in has expired, so this was not saved. What you entered is kept on this computer: sign in again and open this page, then save.' : (data as any)?.error ?? res.statusText, data)
   return data as T
 }
 

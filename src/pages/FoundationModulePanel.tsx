@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchAssessorView, fetchResponseDetails, saveResponseDetail } from '../lib/api'
+import { fetchAssessorView, fetchResponseDetails } from '../lib/api'
+import { queueAndSync } from '../lib/offline/sync-engine'
 import { ResultExplainer } from '../components/ResultExplainer'
 import { PlainSummaryCard } from '../components/PlainSummaryCard'
 import { indexSummary } from '../lib/plainSummary'
@@ -87,20 +88,21 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
   }, [orgId, currentUser?.isDemo])
   const saveOwnNote = (qId: string, text: string) => {
     if ((ownNotes[qId] ?? '') === text.trim()) return
-    setNoteError('')
-    saveResponseDetail(orgId, qId, { notes: text.trim() }).then(
-      () => setOwnNotes((p) => ({ ...p, [qId]: text.trim() })),
-      () => setNoteError('Your comment could not be saved. Check your connection and try again.'),
-    )
+    setOwnNotes((p) => ({ ...p, [qId]: text.trim() }))
+    queueNote(qId, 'notes', text.trim())
   }
-  // ponytail: saved straight to the server on blur (no offline queue, unlike scores); queue it if assessors work offline.
+  // Comments go through the same on-device queue as scores: kept on this computer until CRAFT confirms them,
+  // and sent when the connection or the sign-in comes back.
+  const queueNote = (qId: string, field: 'notes' | 'assessorNote', text: string) => {
+    setNoteError('')
+    queueAndSync({ kind: field === 'notes' ? 'assessment:note' : 'assessment:assessor-note', endpoint: '/api/responses', method: 'POST',
+      body: { orgId, questionId: qId, [field]: text }, dedupeKey: `${field}:${orgId}:${qId}` })
+      .catch(() => setNoteError('Your comment could not be kept on this computer. Copy it somewhere safe and try again.'))
+  }
   const saveNote = (qId: string, text: string) => {
     if ((indep.notes[qId] ?? '') === text.trim()) return
-    setNoteError('')
-    saveResponseDetail(orgId, qId, { assessorNote: text.trim() }).then(
-      () => setIndep((p) => ({ ...p, notes: { ...p.notes, [qId]: text.trim() } })),
-      () => setNoteError('A note could not be saved. Check your connection and try again.'),
-    )
+    setIndep((p) => ({ ...p, notes: { ...p.notes, [qId]: text.trim() } }))
+    queueNote(qId, 'assessorNote', text.trim())
   }
 
   // What the organisation has told CRAFT about itself (public body, E&S screening): decides which indicators apply.

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Bar, BarChart, CartesianGrid, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { api, SEVERITY_STYLE, TIER_LABEL, wsPath } from '../../lib/workspaceApi'
@@ -21,8 +21,37 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
   const locked = a.status !== 'draft'
   const sections = cat.sections.filter(s => a.innovationSupport || !s.extended)
   const [section, setSection] = useState(sections[0].id)
-  const [draft, setDraft] = useState<Record<string, { score: string; evidence: string; na: boolean; naReason: string }>>({})
+  // Unsaved entries are kept on this computer per assessment until each item is saved (an expired sign-in loses nothing).
+  const draftKey = `catalogue-draft:${a.id}`
+  const [draft, setDraftState] = useState<Record<string, { score: string; evidence: string; na: boolean; naReason: string }>>(() => { try { return locked ? {} : JSON.parse(localStorage.getItem(draftKey) ?? '{}') } catch { return {} } })
+  const setDraft = (next: typeof draft) => { setDraftState(next); try { localStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* storage blocked */ } }
+  const saved_ = (id: string) => { const { [id]: _done, ...rest } = draft; setDraft(rest) }
   const { run, error } = useAction(reload)
+  // Autosave: 3 seconds after the last change, every item that is complete (a level, or not applicable with a reason).
+  const [autoError, setAutoError] = useState<string | null>(null)
+  useEffect(() => {
+    if (locked) return
+    const ready = Object.entries(draft).filter(([, d]) => (d.na ? !!d.naReason.trim() : !!d.score))
+    if (!ready.length) return
+    const t = setTimeout(async () => {
+      const done: string[] = []
+      for (const [id, d] of ready) {
+        const item = cat.items.find(x => x.id === id)
+        if (!item) continue
+        try {
+          await api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(item.sectionId)}/${encodeURIComponent(id)}`), { method: 'PUT',
+            body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceId: d.evidence ? Number(d.evidence) : null } })
+          done.push(id)
+        } catch (e) { setAutoError((e as Error).message); break }
+      }
+      if (done.length) {
+        setAutoError(null)
+        setDraftState(prev => { const next = Object.fromEntries(Object.entries(prev).filter(([k]) => !done.includes(k))); try { localStorage.setItem(draftKey, JSON.stringify(next)) } catch { /* storage blocked */ } return next })
+        void reload()
+      }
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [draft]) // eslint-disable-line react-hooks/exhaustive-deps
   const docs = useApi<any[]>(wsPath(workspaceId, '/evidence'))
   const usable = (docs.data ?? []).filter(e => e.status !== 'rejected' && e.status !== 'expired')
   const saved = new Map<string, any>(a.scores.map((s: any) => [s.domain, s]))
@@ -37,7 +66,7 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
         </select></label>
       {intro && <p className="text-sm text-slate-600">{intro}</p>}
       {locked && <p className="rounded bg-blue-50 p-2 text-sm text-blue-700">This assessment is locked ({a.status.replace('_', ' ')}).</p>}
-      <ErrorLine error={error} />
+      <ErrorLine error={error ?? autoError} />
       {cat.items.filter(i => i.sectionId === section).map(i => {
         const s = saved.get(i.id)
         const d = draft[i.id] ?? { score: s && !s.notApplicable ? String(s.tierLevel) : '', evidence: s?.evidenceId ? String(s.evidenceId) : '', na: !!s?.notApplicable, naReason: s?.naReason ?? '' }
@@ -54,8 +83,9 @@ function CatalogueWizard({ workspaceId, a, reload }: { workspaceId: string; a: a
                 options={[{ value: '', label: 'No evidence document' }, ...usable.map(e => ({ value: String(e.id), label: e.documentName }))]} /></div>}
               <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>
               {d.na && <div className="min-w-[260px] flex-1"><Input label="Reason it does not apply" value={d.naReason} onChange={e => set({ naReason: e.target.value })} /></div>}
-              <Button size="sm" disabled={d.na ? !d.naReason : !d.score} onClick={() => run(() => api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(i.sectionId)}/${encodeURIComponent(i.id)}`), { method: 'PUT',
-                body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceId: d.evidence ? Number(d.evidence) : null } }))}>Save</Button>
+              <Button size="sm" disabled={d.na ? !d.naReason : !d.score} onClick={() => run(async () => { await api(wsPath(workspaceId, `/assessments/${a.id}/scores/${encodeURIComponent(i.sectionId)}/${encodeURIComponent(i.id)}`), { method: 'PUT',
+                body: d.na ? { notApplicable: true, naReason: d.naReason } : { score: Number(d.score), evidenceId: d.evidence ? Number(d.evidence) : null } }); saved_(i.id) })}>Save</Button>
+              {draft[i.id] && <span className="text-xs text-amber-700">Not saved yet</span>}
               {s?.evidenceUploaded && !s.evidenceId && <span className="text-xs text-slate-500">Earlier record: evidence ticked without a document</span>}
               {s && <StatusPill value={s.notApplicable ? 'not_applicable' : 'completed'} />}
             </fieldset>

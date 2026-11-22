@@ -37,9 +37,17 @@ export function NotesThread({ orgId, questionId, currentUserEmail, currentUserRo
   const [open, setOpen] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [notes, setNotes] = useState<ResponseNote[]>([])
-  const [draft, setDraft] = useState('')
+  // A note being written is kept on this computer until it is saved, so an expired sign-in or a reload never loses it.
+  const draftKey = `note-draft:${currentUserEmail}|${orgId}|${questionId}`
+  const [draft, setDraftState] = useState(() => { try { return isDemo ? '' : localStorage.getItem(draftKey) ?? '' } catch { return '' } })
+  const setDraft = (text: string) => {
+    setDraftState(text)
+    if (isDemo) return
+    try { if (text) localStorage.setItem(draftKey, text); else localStorage.removeItem(draftKey) } catch { /* storage blocked */ }
+  }
   const [shared, setShared] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   async function toggle() {
     const next = !open
@@ -76,7 +84,10 @@ export function NotesThread({ orgId, questionId, currentUserEmail, currentUserRo
         setNotes(prev => [...prev, local])
       } else {
         const saved = await postResponseNote({ orgId, questionId, body, visibility })
-        if (saved) setNotes(prev => [...prev, saved])
+        // Not saved (expired sign-in or no connection): keep the note in the box and on this computer.
+        if (!saved) { setSaveError('Not saved: your sign-in may have expired or the connection dropped. Your note is kept here on this computer; sign in again and click Add note.'); return }
+        setSaveError('')
+        setNotes(prev => [...prev, saved])
       }
       setDraft('')
       setShared(false)
@@ -164,6 +175,7 @@ export function NotesThread({ orgId, questionId, currentUserEmail, currentUserRo
                 <Send className="h-3.5 w-3.5" /> {busy ? 'Adding…' : 'Add note'}
               </Button>
             </div>
+            {saveError && <p role="alert" className="mt-2 text-xs text-rose-700">{saveError}</p>}
           </div>
         </div>
       )}

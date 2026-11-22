@@ -144,7 +144,7 @@ export function OnboardingPage() {
   }
 
   function finish(destination: '/assessment' | '/dashboard') {
-    if (profileSaveStatus === 'loading' || profileSaveStatus === 'error' || profileSaveStatus === 'read-only') return
+    if (profileSaveStatus === 'loading' || profileSaveStatus === 'error' || profileSaveStatus === 'signed-out' || profileSaveStatus === 'read-only') return
     // Commit the entity profile so the wizard filters to this archetype and the
     // Data Room generates the right country/sector/subsector checklist.
     setEntityProfile({ archetype, country, sector, subsector, onboardingComplete: true })
