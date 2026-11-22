@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from 'react'
 import { WifiOff, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { syncEngine, type SyncState } from '../lib/offline/sync-engine'
+import { SIGNED_OUT, syncEngine, type SyncState } from '../lib/offline/sync-engine'
 import { useAuthCtx } from '../lib/context'
 
 export function OfflineBanner() {
@@ -90,7 +90,9 @@ export function OfflineBanner() {
   } else if (isError) {
     tone = 'border-rose-400/60 bg-rose-600 text-white'
     icon = <AlertTriangle className="h-4 w-4 shrink-0" />
-    label = sync.failed ? 'Saved changes need review. Nothing was discarded.' : 'Sync interrupted. Changes remain saved.'
+    label = sync.lastError === SIGNED_OUT
+      ? 'Your sign-in has expired. Your answers are kept on this computer and will be sent when you sign in again.'
+      : sync.failed ? 'Saved changes need review. Nothing was discarded.' : 'Sync interrupted. Changes remain saved.'
   } else {
     tone = 'border-emerald-400/60 bg-emerald-500 text-white'
     icon = <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -111,7 +113,7 @@ export function OfflineBanner() {
           {pending} queued
         </span>
       )}
-      {isError && (
+      {isError && sync.lastError !== SIGNED_OUT && (
         <button className="rounded bg-white/20 px-2 py-1 underline" onClick={() => void syncEngine.retryFailed().catch(() => {})}>
           Retry saved changes
         </button>

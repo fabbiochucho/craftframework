@@ -128,3 +128,21 @@ test('older failed edits block newer edits to the same record until ordered retr
   assert.deepEqual(mutations, [])
   assert.deepEqual(calls.slice(2).map(url => new URL(url).pathname), ['/api/bad', '/api/bad'])
 })
+
+test('an expired sign-in pauses the queue without counting it against the change, and signing in again sends it', async () => {
+  status = 401
+  mutations = [mutation(1, '/api/bad'), mutation(2)]
+  const sync = engine()
+  await sync.sync()
+  assert.equal(mutations.length, 2, 'nothing sent, nothing dropped')
+  assert.equal(mutations[0].attempts, 0, 'not counted as a failed attempt')
+  assert.equal(mutations[0].failed, undefined)
+  assert.equal(calls.filter(c => c.endsWith('/api/good')).length, 0, 'the rest of the queue waits too')
+  assert.equal(sync.getState().lastError, 'signed-out')
+  for (let i = 0; i < 8; i++) await sync.sync()
+  assert.equal(mutations[0].failed, undefined, 'still not given up after many expired passes')
+  status = 200
+  await sync.sync()
+  assert.equal(mutations.length, 0, 'everything sent once signed in again')
+  assert.equal(sync.getState().lastError, null)
+})

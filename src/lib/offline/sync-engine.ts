@@ -42,6 +42,8 @@ type Listener = (state: SyncState) => void
 // Matches netlify/functions/presigned-url.mts (config.path = '/api/presigned-url').
 const PRESIGN_ENDPOINT = '/api/presigned-url'
 const MAX_ATTEMPTS = 6
+/** lastError while the server refuses the session (401): answers wait on this device until the person signs in again. */
+export const SIGNED_OUT = 'signed-out'
 
 export class SyncEngine {
   private state: SyncState = {
@@ -149,10 +151,13 @@ export class SyncEngine {
 
     this.running = true
     this.emit({ status: 'syncing', lastError: null })
+    let signedOut = false
     try {
       await this.processMutations()
-      await this.processFiles()
+      signedOut = this.state.lastError === SIGNED_OUT
+      if (!signedOut) await this.processFiles()
       await this.refreshPending()
+      if (signedOut) { this.emit({ status: 'error', lastError: SIGNED_OUT }); return }
       if (!getOfflineSession()) {
         this.emit({ status: 'idle', pending: 0, failed: 0, blocked: 0, lastSyncedAt: null, lastError: null })
         return
@@ -173,7 +178,7 @@ export class SyncEngine {
     const queue = (await offlineDB.getMutations()).sort((a, b) => a.createdAt - b.createdAt || (a.id ?? 0) - (b.id ?? 0))
     const blocked = new Set<string>()
     for (const mutation of queue) {
-      if (!navigator.onLine || !getOfflineSession()) return
+      if (!navigator.onLine || !getOfflineSession() || this.state.lastError === SIGNED_OUT) return
       if (!ownsRecord(mutation)) continue
       const key = mutation.dedupeKey ?? `${mutation.endpoint}|${JSON.stringify(
         mutation.body && typeof mutation.body === 'object'
@@ -206,7 +211,10 @@ export class SyncEngine {
         if (mutation.id != null) await offlineDB.deleteMutation(mutation.id)
         return
       }
-      if (res.status >= 400 && res.status < 500 && res.status !== 401 && res.status !== 408 && res.status !== 429) {
+      // An expired sign-in is not the change's fault: keep it untouched (no attempt counted) and stop the pass;
+      // signing in again (craft:session) sends everything that waited.
+      if (res.status === 401) { this.emit({ lastError: SIGNED_OUT }); return }
+      if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
         await this.recordMutationFailure(mutation, `Server rejected saved change (${res.status}). Review and retry.`, true)
         return
       }

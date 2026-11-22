@@ -45,7 +45,7 @@ export function InformalEconomyPage() {
     if (saveStatus === 'saved') {
       setSavedAt(new Date().toISOString())
       setSynced(true)
-    } else if (saveStatus === 'error' || saveStatus === 'saving') {
+    } else if (saveStatus === 'error' || saveStatus === 'signed-out' || saveStatus === 'saving') {
       setSynced(false)
     }
   }, [saveStatus])
@@ -79,7 +79,7 @@ export function InformalEconomyPage() {
 
   function syncNow() {
     if (isDemo) { setToast('Demo only — no live data saved.'); return }
-    if (!currentUser || saveStatus === 'loading' || saveStatus === 'read-only' || (saveStatus === 'error' && !Object.keys(answers).length)) return
+    if (!currentUser || saveStatus === 'loading' || saveStatus === 'read-only' || ((saveStatus === 'error' || saveStatus === 'signed-out') && !Object.keys(answers).length)) return
     if (!navigator.onLine) {
       setToast('No connection — changes are only in this session. Reconnect and retry before leaving.')
       return
