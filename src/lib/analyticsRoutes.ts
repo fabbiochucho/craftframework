@@ -55,6 +55,7 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   badge: 'sensitive',
   'assessment_.$frameworkId': 'sensitive',
   assessment: 'sensitive',
+  'assessment-archive': 'sensitive',
   'audit-log': 'sensitive',
   cip: 'sensitive',
   risk: 'sensitive',
