@@ -117,7 +117,7 @@ export function DashboardPage() {
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Accreditation</p>
               <p className={`text-sm font-bold ${accred.color}`}>{accred.label}</p>
-              {accred.capped && <p className="text-[10px] font-medium text-rose-600">⚠ Capped by penalty engine</p>}
+              {accred.capped && <p className="text-[10px] font-medium text-amber-700">Capped until implementation is evidenced</p>}
             </div>
           </div>
         </div>
@@ -125,18 +125,18 @@ export function DashboardPage() {
 
       {/* Paper compliance penalty banner */}
       {penalty && (
-        <div className="flex items-start gap-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-4">
-          <AlertOctagon className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+        <div className="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-amber-50 p-4">
+          <AlertOctagon className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
           <div className="flex-1">
-            <p className="font-semibold text-rose-800">Paper Compliance Penalty Active</p>
-            <p className="text-sm text-rose-700">
+            <p className="font-semibold text-amber-900">Next step: show your policies at work</p>
+            <p className="text-sm text-amber-800">
               Implementation Evidence is <strong>{implementationEvidence}%</strong>, below the{' '}
-              {PAPER_COMPLIANCE_THRESHOLD}% threshold. Accreditation is mathematically capped at Level C
-              until system-enforced execution is demonstrated.
+              {PAPER_COMPLIANCE_THRESHOLD}% threshold, so accreditation stays at Level C for now. Evidence that your
+              systems are in use (records, approvals, reconciliations) lifts the cap.
             </p>
           </div>
-          <Link to="/findings" className="shrink-0 self-center text-sm font-semibold text-rose-700 hover:underline">
-            Review gaps →
+          <Link to="/findings" className="shrink-0 self-center text-sm font-semibold text-amber-800 hover:underline">
+            See what to evidence →
           </Link>
         </div>
       )}

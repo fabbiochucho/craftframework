@@ -66,7 +66,7 @@ const OPTIONS: { value: Answer; label: string; icon: typeof CheckCircle2; classe
   },
   {
     value: 'weak',
-    label: 'Weak / No',
+    label: 'Not yet',
     icon: XCircle,
     classes: {
       idle: 'border-slate-200 bg-white text-slate-500 hover:border-rose-300 hover:bg-rose-50/60 hover:text-rose-700',

@@ -215,7 +215,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
         </Card>
         <Stat label="Composite Score" value={answered === 0 ? '—' : `${composite.toFixed(2)} / 5`} hint="Mean across answered indicators" accent={compositeAccent} />
         <Card className="p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Weak Links</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Areas to strengthen</p>
           <p className={cn('mt-2 text-3xl font-bold', band?.weakLinks.length ? 'text-rose-600' : 'text-slate-800')}>
             {band ? band.weakLinks.length : '—'}
           </p>
@@ -384,7 +384,7 @@ export function FoundationModulePanel({ moduleId }: { moduleId: FoundationModule
                 <h2 className="font-display text-xl font-bold text-slate-900">{dim.name}</h2>
                 {ds != null && (
                   <Badge className={weak ? 'bg-rose-100 text-rose-700' : ds >= 3.5 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
-                    {ds.toFixed(1)} / 5{weak ? ' · weak link' : ''}
+                    {ds.toFixed(1)} / 5{weak ? ' · area to strengthen' : ''}
                   </Badge>
                 )}
                 <span className="text-xs text-slate-500">{dim.question}</span>

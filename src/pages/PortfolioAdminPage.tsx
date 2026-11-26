@@ -374,7 +374,7 @@ export function PortfolioAdminPage() {
               accent="amber"
             />
             <Stat
-              label="Below Penalty Threshold"
+              label="Need implementation evidence"
               value={orgs.filter(o => getImplementationEvidence(o.id) < 50).length}
               accent="rose"
             />
