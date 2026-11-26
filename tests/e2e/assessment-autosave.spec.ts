@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 
 test.use({ serviceWorkers: 'block' })
 
-async function independent(page: Page, options: { fail?: boolean; delay?: Promise<void> } = {}) {
+async function independent(page: Page, options: { fail?: boolean; delay?: Promise<void>; elsewhere?: string } = {}) {
   const saves: Array<{ note: string }> = []
   const detail = {
     institute: 'Test Institute', craftOrgId: 'self_owner_acme_example',
@@ -23,6 +23,7 @@ async function independent(page: Page, options: { fail?: boolean; delay?: Promis
       detail.independent.G1.note = body.note
       return route.fulfill({ json: { ok: true, savedAt: '2026-11-22T12:00:00.000Z' } })
     }
+    if (options.elsewhere !== undefined) detail.independent.G1.note = options.elsewhere
     return route.fulfill({ json: detail })
   })
   await page.goto('/nphi-review?id=1')
@@ -42,6 +43,26 @@ test('independent autosave preserves failed edits and restores them on returning
   await expect(page.getByRole('status').filter({ hasText: /^Saved / })).toBeVisible()
   expect(saves).toHaveLength(2)
   expect(await page.evaluate(() => Object.keys(localStorage).filter(k => k.includes('assessment-input:') && k.endsWith(':nphi:1:G1')))).toEqual([])
+})
+
+test('an unsaved draft does not overwrite a newer save made elsewhere until the user restores it', async ({ signedIn: page }) => {
+  const options: { fail?: boolean; elsewhere?: string } = { fail: true }
+  const saves = await independent(page, options)
+  await page.getByLabel('What you saw (optional)').fill('Old unsaved draft')
+  await expect(page.getByRole('status').filter({ hasText: /Not saved/ })).toBeVisible()
+  options.fail = false
+  options.elsewhere = 'Saved on another device'
+  await page.reload()
+  const input = page.getByLabel('What you saw (optional)')
+  await expect(input).toHaveValue('Saved on another device')
+  await expect(page.getByRole('status').filter({ hasText: /saved elsewhere/ })).toBeVisible()
+  await page.waitForTimeout(3500)
+  expect(saves).toHaveLength(1)
+  options.elsewhere = undefined
+  await page.getByRole('button', { name: 'Restore my unsaved version' }).click()
+  await expect(input).toHaveValue('Old unsaved draft')
+  await expect.poll(() => saves.length).toBe(2)
+  expect(saves[1].note).toBe('Old unsaved draft')
 })
 
 test('independent saves stay ordered while the user edits during a pending request', async ({ signedIn: page }) => {

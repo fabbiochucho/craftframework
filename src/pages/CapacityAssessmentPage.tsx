@@ -7,6 +7,7 @@ import { Link } from '@tanstack/react-router'
 import { Line, LineChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from 'recharts'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Tabs } from '../components/ui'
 import { useAuthCtx, useWorkspace } from '../lib/context'
+import { readDraft as vaultRead, removeDraft, writeDraft as vaultWrite } from '../lib/draftVault'
 import { cn } from '../lib/utils'
 import {
   availableReports, awardReadiness, cascade, rollup, weakestDomains, COST_LINES, dashboard, effectiveNotAssessed, domainScore, improvementPlan, READINESS_LABEL, resolveVotes, swotSeed, resolveConsensus, planReview, previousAssessment, reassessmentsDue, unexplainedMisses,
@@ -35,11 +36,24 @@ const SIGNED_OUT = 'Your sign-in has expired, so this was not saved to CRAFT. Yo
 
 // Answers not yet saved to CRAFT, kept on this device per assessment, so an expired sign-in or a dropped connection
 // never loses them. Cleared once CRAFT has them. ponytail: one browser only; a second device starts from CRAFT's copy.
-type Draft = { at: string; responses: Responses; notAssessed: NotAssessed; votes: Record<string, number[]>; consensus: Record<string, { agreed: number; note: string }>; plan: PlanEntry[]; swot: Swot; reviewNotes: Record<string, string>; meta: { assessor: string; orgLead: string } }
+// `base` is the saved version (updatedAt) the draft was edited from: a draft is applied automatically only while CRAFT
+// still holds that version; if anyone saved since, it is set aside under `superseded` until the user restores or discards it.
+type Draft = { at: string; base?: string; responses: Responses; notAssessed: NotAssessed; votes: Record<string, number[]>; consensus: Record<string, { agreed: number; note: string }>; plan: PlanEntry[]; swot: Swot; reviewNotes: Record<string, string>; meta: { assessor: string; orgLead: string } }
+// Drafts are encrypted at rest (draftVault): they survive sign-out but only the same person can read them.
 const draftKey = (id: string) => `cca-draft-${id}`
-const readDraft = (id: string): Draft | null => { try { return JSON.parse(localStorage.getItem(draftKey(id)) ?? 'null') } catch { return null } }
-const writeDraft = (id: string, d: Draft) => { try { localStorage.setItem(draftKey(id), JSON.stringify(d)) } catch { /* storage full or blocked: CRAFT's copy still stands */ } }
-const dropDraft = (id: string) => { try { localStorage.removeItem(draftKey(id)) } catch { /* nothing to drop */ } }
+const supersededKey = (id: string) => `cca-draft-superseded-${id}`
+const writeDraft = (email: string, id: string, d: Draft) => { void vaultWrite(email, draftKey(id), d).catch(() => { /* storage full or blocked: CRAFT's copy still stands */ }) }
+const dropDraft = (id: string) => { void removeDraft(draftKey(id)) }
+async function loadDrafts(email: string, id: string, updatedAt: string): Promise<{ restored: Draft | null; superseded: Draft | null }> {
+  const read = async (name: string) => { try { return await vaultRead<Draft>(email, name) } catch { return null } }
+  const draft = await read(draftKey(id))
+  const older = await read(supersededKey(id))
+  if (!draft) return { restored: null, superseded: older }
+  if (draft.base !== undefined && draft.base === updatedAt) return { restored: draft, superseded: older }
+  await vaultWrite(email, supersededKey(id), draft).catch(() => {})
+  await removeDraft(draftKey(id))
+  return { restored: null, superseded: draft }
+}
 
 const LEVEL_STYLE: Record<string, string> = { Nascent: 'bg-rose-100 text-rose-800', Emerging: 'bg-amber-100 text-amber-800', Expanding: 'bg-sky-100 text-sky-800', Mature: 'bg-emerald-100 text-emerald-800', 'Not assessed': 'bg-slate-100 text-slate-600' }
 /** What to leave out when scoring a stored assessment (skipped domains, and domains added after completion). */
@@ -348,27 +362,26 @@ function FacilitatorGuide() {
 
 function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: Assessment; mod: CcaModule; canWrite: boolean; history: Assessment[]; onBack: () => void; onChanged: () => void }) {
   const currentOrgName = useWorkspace().currentOrg?.name ?? ''
-  // Unsaved answers kept on this device come back first (only while the assessment is still open).
-  const [restored] = useState(() => (a.status === 'complete' || !canWrite ? null : readDraft(a.id)))
-  const [responses, setResponses] = useState<Responses>(restored?.responses ?? a.responses)
-  const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => restored?.notAssessed ?? skips(mod, a))
-  const [votes, setVotes] = useState<Record<string, number[]>>(restored?.votes ?? a.votes)
-  const [consensus, setConsensus] = useState<Record<string, { agreed: number; note: string }>>(restored?.consensus ?? a.consensus ?? {})
-  const [plan, setPlan] = useState<PlanEntry[]>(restored?.plan ?? a.plan)
-  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>(restored?.reviewNotes ?? a.planReviewNotes ?? {})
+  const { currentUser } = useAuthCtx()
+  const email = currentUser?.email ?? ''
+  const [superseded, setSuperseded] = useState<Draft | null>(null)
+  const [responses, setResponses] = useState<Responses>(a.responses)
+  const [notAssessed, setNotAssessed] = useState<NotAssessed>(() => skips(mod, a))
+  const [votes, setVotes] = useState<Record<string, number[]>>(a.votes)
+  const [consensus, setConsensus] = useState<Record<string, { agreed: number; note: string }>>(a.consensus ?? {})
+  const [plan, setPlan] = useState<PlanEntry[]>(a.plan)
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>(a.planReviewNotes ?? {})
   const [swot, setSwot] = useState<Swot>(() => {
-    if (restored) return restored.swot
     const seed = swotSeed(dashboard(mod, a.responses, skips(mod, a)))
     return { strengths: a.swot.strengths ?? seed.strengths, weaknesses: a.swot.weaknesses ?? seed.weaknesses, opportunities: a.swot.opportunities ?? [], threats: a.swot.threats ?? [] }
   })
-  const [meta, setMeta] = useState(restored?.meta ?? { assessor: a.assessor, orgLead: a.orgLead })
+  const [meta, setMeta] = useState({ assessor: a.assessor, orgLead: a.orgLead })
   const [tab, setTab] = useState('assess')
-  const [message, setMessage] = useState<string | null>(restored ? `Restored answers from ${new Date(restored.at).toLocaleString()} that had not reached CRAFT. Saving them now.` : null)
+  const [message, setMessage] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
   const completingRef = useRef(false)
   const locked = a.status === 'complete' || !canWrite || completing
   // The independent assessor or the Super Admin can reopen a completed assessment, saying why (logged).
-  const { currentUser } = useAuthCtx()
   const canReopen = a.status === 'complete' && (currentUser?.role === 'super_admin' || currentUser?.role === 'independent')
   const [reopenReason, setReopenReason] = useState('')
   const reopen = async () => {
@@ -385,6 +398,7 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
   latestSnapshot.current = snapshot
   const writes = useRef(Promise.resolve())
   const [savedAt, setSavedAt] = useState(a.updatedAt ?? '')
+  const serverAt = useRef(a.updatedAt ?? '')
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /** Save to CRAFT; true when CRAFT has it. Quiet saves (autosave) do not reload the list or announce success. */
@@ -395,9 +409,10 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
     const request = writes.current.then(async () => {
       try {
         const result = await api<{ savedAt?: string }>(`/${a.id}`, { method: 'PUT', body: { responses: saving.responses, votes: saving.votes, consensus: saving.consensus, replaceConsensus: true, plan: saving.plan, swot: saving.swot, planReviewNotes: saving.reviewNotes, ...(canSkip ? { notAssessed: saving.notAssessed } : {}), ...saving.meta, ...extra } })
-        if (result.savedAt) setSavedAt(result.savedAt)
-        // An earlier request must not discard edits made while it was in flight.
+        if (result.savedAt) { setSavedAt(result.savedAt); serverAt.current = result.savedAt }
+        // An earlier request must not discard edits made while it was in flight; they now build on what was just saved.
         if (latestSnapshot.current === saving) { dropDraft(a.id); setMessage('Saved.') }
+        else writeDraft(email, a.id, { at: new Date().toISOString(), base: serverAt.current, ...latestSnapshot.current })
         if (!quiet) onChanged()
         return true
       } catch (e) { setMessage((e as Error).message); return false }
@@ -405,15 +420,45 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
     writes.current = request.then(() => {})
     return request
   }
+  const applyDraft = (d: Draft) => {
+    setResponses(d.responses); setNotAssessed(d.notAssessed); setVotes(d.votes); setConsensus(d.consensus); setPlan(d.plan)
+    setSwot(d.swot); setReviewNotes(d.reviewNotes); setMeta(d.meta)
+  }
+  // Unsaved answers kept on this device come back first (only while the assessment is still open).
+  const edited = useRef(false)
+  useEffect(() => {
+    if (a.status === 'complete' || !canWrite || !email) return
+    let off = false
+    void loadDrafts(email, a.id, a.updatedAt ?? '').then(({ restored, superseded }) => {
+      if (off) return
+      if (restored && !edited.current) {
+        applyDraft(restored)
+        setMessage(`Restored answers from ${new Date(restored.at).toLocaleString()} that had not reached CRAFT. Saving them now.`)
+      }
+      // Typing began before the draft loaded: keep the draft aside rather than overwrite either.
+      const aside = restored && edited.current ? restored : superseded
+      if (aside) { if (aside === restored) void vaultWrite(email, supersededKey(a.id), aside).catch(() => {}); setSuperseded(aside) }
+    })
+    return () => { off = true }
+  }, [a.id, email]) // eslint-disable-line react-hooks/exhaustive-deps
   // Every change is kept on this device at once, and saved to CRAFT a few seconds after the last change.
-  const first = useRef(!restored)
+  const first = useRef(true)
   useEffect(() => {
     if (locked) return
     if (first.current) { first.current = false; return }
-    writeDraft(a.id, { at: new Date().toISOString(), responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta })
+    edited.current = true
+    writeDraft(email, a.id, { at: new Date().toISOString(), base: serverAt.current, responses, notAssessed, votes, consensus, plan, swot, reviewNotes, meta })
     autosaveTimer.current = setTimeout(() => { if (!completingRef.current) void save({}, true) }, 3000)
     return () => { if (autosaveTimer.current) clearTimeout(autosaveTimer.current) }
   }, [snapshot, canWrite, a.status]) // eslint-disable-line react-hooks/exhaustive-deps
+  const forgetSuperseded = () => { void removeDraft(supersededKey(a.id)); setSuperseded(null) }
+  const restoreSuperseded = () => {
+    if (!superseded) return
+    applyDraft(superseded)
+    forgetSuperseded()
+    setMessage('Restored your unsaved answers. Saving them now.')
+  }
+  const discardSuperseded = () => { forgetSuperseded(); setMessage(null) }
   const complete = async () => {
     if (locked || completingRef.current) return
     completingRef.current = true
@@ -436,6 +481,13 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
         {!locked && <div className="ml-auto flex gap-2"><Button size="sm" variant="outline" onClick={() => void save()}>Save</Button><Button size="sm" onClick={() => void complete()}>Complete assessment</Button></div>}
       </div>
       {message && <p role="status" className="text-sm text-slate-700">{message}</p>}
+      {superseded && !locked && (
+        <p role="status" className="text-sm text-amber-800">
+          Answers from {new Date(superseded.at).toLocaleString()} on this device were not applied, because this assessment was saved after them{a.updatedAt ? ` (${new Date(a.updatedAt).toLocaleString()})` : ''}. The saved version is shown.{' '}
+          <button type="button" className="underline" onClick={restoreSuperseded}>Restore my unsaved answers</button>{' · '}
+          <button type="button" className="underline" onClick={discardSuperseded}>Discard them</button>
+        </p>
+      )}
       <p className="text-xs text-slate-500">{savedAt && `Last saved ${new Date(savedAt).toLocaleString()}. `}<Link to="/assessment-archive" className="underline">My saved revisions by period</Link></p>
       {!canWrite && <p role="status" className="text-sm text-slate-600">You have read-only access to this organisation's capacity assessments.</p>}
       <Tabs tabs={[{ id: 'assess', label: 'Assess' }, { id: 'dashboard', label: 'Dashboard' }, { id: 'plan', label: 'Improvement plan' }, { id: 'swot', label: 'SWOT debrief' }, { id: 'reports', label: 'Reports' }, ...(mod.id === 'pre_award' ? [{ id: 'screening', label: 'Screening' }] : [])]} active={tab} onChange={setTab} />

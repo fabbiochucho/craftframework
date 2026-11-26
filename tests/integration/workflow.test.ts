@@ -81,6 +81,7 @@ describe('assessment locking', () => {
     const id = await createAssessment(wsId)
     const path = `/workspaces/${wsId}/assessments/${id}/scores/Pillar/Domain`
     const first = expectStatus(await as(ASSESSOR).put(path, { score: 2 }), 200).body
+    await rows("UPDATE assessment_revisions SET saved_at = saved_at - interval '1 hour'") // a later sitting, not the same autosave window
     const second = expectStatus(await as(ASSESSOR).put(path, { score: 4 }), 200).body
     assert.ok(Date.parse(second.savedAt) >= Date.parse(first.savedAt))
     assert.equal((await rows('SELECT * FROM governance_scores')).length, 1)

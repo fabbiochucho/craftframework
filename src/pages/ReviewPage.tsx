@@ -7,7 +7,7 @@ import { CHECK_LABEL, CHECK_VALUES, CONTROL_CHECKS, isComplete, scoreCap, scoreP
 import { FOLLOW_UP_LABEL, FOLLOW_UP_MODES } from '../lib/validationLifecycle'
 import { methodologyById, methodologyConclusion, reportFindings } from '../lib/methodologies'
 import { scopeText, type EngagementScope } from '../lib/engagements'
-import { AssessmentAutosaveContext, useAssessmentAutosave, type FlushAssessment } from '../lib/assessmentAutosave'
+import { AssessmentAutosaveContext, AutosaveStatus, useAssessmentAutosave, type FlushAssessment } from '../lib/assessmentAutosave'
 
 // Validator system PR 3: the review itself. Every rule (who may score, when the
 // debrief is open, what freezes) is enforced by /api/validation-reviews.
@@ -186,7 +186,7 @@ function Setup({ v, call }: { v: View; act: Act; call: Call }) {
         <Input label="Fieldwork start" type="date" value={s} onChange={(ev) => setS(ev.target.value)} />
         <Input label="Fieldwork end" type="date" value={e} onChange={(ev) => setE(ev.target.value)} />
         <Button disabled={!m || !s || !e} onClick={() => void draft.save()}>Save</Button>
-        {draft.status && <p role="status" className="text-xs text-slate-600">{draft.status}</p>}
+        <AutosaveStatus draft={draft} />
       </CardContent>
     </Card>
   )
@@ -252,7 +252,7 @@ function IndicatorRow({ r, reviewId, debrief, lead, call }: { r: Row; reviewId: 
         <Input label="Evidence reference" maxLength={1000} value={ref} onChange={(e) => setRef(e.target.value)} />
         <Button size="sm" disabled={score === '' || !!problem} onClick={() => void draft.save()}>Save</Button>
       </div>
-      {(draft.status || r.updatedAt) && <p role="status" className="text-xs text-slate-600">{draft.status || `Saved ${new Date(r.updatedAt!).toLocaleString()}`}</p>}
+      <AutosaveStatus draft={draft} savedAt={r.updatedAt} />
       {problem && <p className="text-xs text-rose-700" role="alert">{problem}</p>}
       {debrief && (
         <div className="rounded-lg bg-amber-50/60 p-3 text-sm">
@@ -262,7 +262,7 @@ function IndicatorRow({ r, reviewId, debrief, lead, call }: { r: Row; reviewId: 
             <div className="mt-2 flex flex-wrap items-end gap-2">
               <div className="w-28"><Select label="Negotiated score" placeholder="–" options={scores} value={neg} onChange={setNeg} /></div>
               <Button size="sm" variant="outline" onClick={() => void negotiated.save()}>Record</Button>
-              {negotiated.status && <p role="status" className="text-xs text-slate-600">{negotiated.status}</p>}
+              <AutosaveStatus draft={negotiated} />
             </div>
           )}
         </div>
@@ -379,7 +379,7 @@ function OrgRow({ r, reviewId, call }: { r: Row; reviewId: string; act: Act; cal
       {r.paperCap && <CapNote cap={r.paperCap} />}
       <Input label="Your response" maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} />
       <Button size="sm" disabled={!text.trim()} onClick={() => void draft.save()}>Save response</Button>
-      {draft.status && <p role="status" className="text-xs text-slate-600">{draft.status}</p>}
+      <AutosaveStatus draft={draft} />
     </CardContent></Card>
   )
 }

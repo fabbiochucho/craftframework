@@ -1193,7 +1193,10 @@ const routes: Route[] = [
     if (a.assessmentType !== 'CRAFT') throw bad('independent validation applies to CRAFT Governance Scorecard assessments')
     const [row] = await db.select().from(governanceValidationDrafts).where(and(eq(governanceValidationDrafts.orgId, orgId), eq(governanceValidationDrafts.assessmentId, a.id), eq(governanceValidationDrafts.validatorEmail, caller.email)))
     const [recorded] = await db.select({ id: governanceValidations.id }).from(governanceValidations).where(and(eq(governanceValidations.assessmentId, a.id), eq(governanceValidations.validatorEmail, caller.email)))
-    return Response.json({ draft: row ? validationDraftSchema.parse(JSON.parse(decryptField(row.payload))) : null, savedAt: row?.updatedAt ?? null, recorded: !!recorded }, { headers: { 'Cache-Control': 'private, no-store' } })
+    // A draft saved under an older form shape is not fatal: the validator starts from an empty form instead.
+    const stored = row ? validationDraftSchema.safeParse(JSON.parse(decryptField(row.payload))) : null
+    if (stored && !stored.success) logger.warn('workspace-api', 'validation draft no longer matches the form', { assessmentId: a.id })
+    return Response.json({ draft: stored?.success ? stored.data : null, savedAt: row?.updatedAt ?? null, recorded: !!recorded }, { headers: { 'Cache-Control': 'private, no-store' } })
   } },
   { method: 'PUT', pattern: `${A}/validation-draft`, access: 'viewer', scope: 'workspace', handler: async (c, { orgId, wsId, caller }) => {
     const a = await loadAssessment(orgId, wsId, intParam(c.p[1]))

@@ -126,6 +126,7 @@ describe('validation CIP follow-up, funder consent, debrief notice, history and 
     assert.equal(permitted.snapshot, undefined)
     const saved = await val(FUND, 'PUT', `/${v.id}/funder-note`, { funderFirmId: funder1, note: 'Funding partner action' })
     assert.equal(saved.status, 200, saved.text)
+    await rows("UPDATE assessment_revisions SET saved_at = saved_at - interval '1 hour'") // a later sitting, not the same autosave window
     const updated = await val(FUND, 'PUT', `/${v.id}/funder-note`, { funderFirmId: funder1, note: 'Updated funding action' })
     assert.equal(updated.status, 200)
     const dashboard = await val(FUND, 'GET', '/funder')
@@ -142,7 +143,13 @@ describe('validation CIP follow-up, funder consent, debrief notice, history and 
     assert.equal(history.body.revisions[0].savedAt, updated.body.savedAt)
     assert.equal(history.body.revisions[0].period, '2026-01-05 to 2026-01-09')
     await val(ALICE, 'PUT', `/${v.id}/funder-consent`, { funderFirmId: funder1, granted: true, shareComments: false })
+    await val(ALICE, 'PUT', `/${v.id}/funder-consent`, { funderFirmId: funder1, granted: true, shareComments: false })
     assert.deepEqual((await val(FUND, 'GET', `/${v.id}`)).body.comments, [])
+    const sharing = (await rows("SELECT action FROM audit_logs WHERE action ~ 'review comments' ORDER BY id")).map((r: any) => r.action)
+    assert.deepEqual(sharing, [
+      'allowed Savannah Capital seeing the review comments',
+      'stopped Savannah Capital seeing the review comments',
+    ], 'comment sharing is audited in its own words, and an unchanged consent adds no entry')
     await val(ALICE, 'PUT', `/${v.id}/funder-consent`, { funderFirmId: funder1, granted: false })
     assert.deepEqual((await val(FUND, 'GET', '/funder')).body, [], 'dashboard access is withdrawn with consent')
     assert.equal((await val(FUND, 'PUT', `/${v.id}/funder-note`, { funderFirmId: funder1, note: 'After withdrawal' })).status, 404)
