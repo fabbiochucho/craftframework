@@ -2735,3 +2735,43 @@ export const benchmarkSnapshots = pgTable('benchmark_snapshots', {
   computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
   data: jsonb('data').$type<import('../src/lib/benchmarks.ts').BenchmarkData>().notNull(),
 })
+
+// Gap-to-Action Copilot (src/lib/copilot.ts). The template library is curated here, not in the public repository, so
+// licensed or confidential sources stay private; a template is used only after a second person approves it.
+export const actionTemplates = pgTable('action_templates', {
+  id: serial('id').primaryKey(),
+  title: text('title').notNull(),
+  kind: text('kind').notNull(),
+  domains: jsonb('domains').$type<string[]>().notNull().default([]),
+  keywords: jsonb('keywords').$type<string[]>().notNull().default([]),
+  archetypes: jsonb('archetypes').$type<string[]>().notNull().default([]),
+  countries: jsonb('countries').$type<string[]>().notNull().default([]),
+  body: text('body').notNull(),
+  source: text('source').notNull(),
+  licence: text('licence').notNull().default(''),
+  status: text('status').notNull().default('draft'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  approvedBy: text('approved_by'),
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
+})
+
+// Every Copilot request: 'drafted' (from templates; the draft is encrypted), or 'routed' to a human expert and then
+// 'answered'. Kept so experts see what the library is missing and the organisation sees the answer.
+export const copilotRequests = pgTable('copilot_requests', {
+  id: serial('id').primaryKey(),
+  orgId: text('org_id').notNull(),
+  askedBy: text('asked_by').notNull(),
+  module: text('module').notNull(),
+  domainId: text('domain_id').notNull(),
+  domainName: text('domain_name').notNull(),
+  note: text('note').notNull().default(''),
+  status: text('status').notNull(),
+  templateIds: jsonb('template_ids').$type<number[]>().notNull().default([]),
+  draft: text('draft').notNull().default(''),
+  answer: text('answer').notNull().default(''),
+  answeredBy: text('answered_by'),
+  answeredAt: timestamp('answered_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('copilot_requests_org_idx').on(t.orgId, t.id), index('copilot_requests_status_idx').on(t.status)])

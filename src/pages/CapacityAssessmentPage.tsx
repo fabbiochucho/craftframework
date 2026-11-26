@@ -17,6 +17,7 @@ import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../l
 import { ScreeningCard } from '../components/ScreeningCard'
 import { QuickScreenCard } from '../components/QuickScreenCard'
 import { BenchmarkConsentCard } from '../components/BenchmarkConsentCard'
+import { CopilotDraft } from '../components/CopilotDraft'
 import { ASSESSMENT_SCRIPT, ORIENTATION_AGENDA } from '../lib/cca/facilitatorGuide'
 import { DeskReviewPanel, deskRequirements, useDeskReview } from '../components/DeskReviewPanel'
 import { documentsForDomain, STATUS_META } from '../lib/dataroom'
@@ -379,6 +380,11 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
   })
   const [meta, setMeta] = useState({ assessor: a.assessor, orgLead: a.orgLead })
   const [tab, setTab] = useState('assess')
+  // Gap-to-Action Copilot: whether drafting is switched on, and expert answers to earlier questions.
+  const [copilot, setCopilot] = useState<{ enabled: boolean; requests: Array<{ id: number; domainId: string; status: string; answer: string }> } | null>(null)
+  useEffect(() => {
+    fetch(`/api/copilot/requests?orgId=${encodeURIComponent(a.orgId)}`).then((r) => (r.ok ? r.json() : null)).then(setCopilot).catch(() => {})
+  }, [a.orgId])
   const [message, setMessage] = useState<string | null>(null)
   const [completing, setCompleting] = useState(false)
   const completingRef = useRef(false)
@@ -556,6 +562,10 @@ function AssessmentView({ a, mod, canWrite, history, onBack, onChanged }: { a: A
                       </div>}
                       {!skipped && <ConsensusRow name={dom.name} evidenced={score} value={consensus[dom.id]} locked={locked}
                         onChange={(c) => { const { [dom.id]: _, ...rest } = consensus; setConsensus(c ? { ...consensus, [dom.id]: c } : rest) }} />}
+                      {copilot?.requests.filter((r) => r.domainId === dom.id && r.status === 'answered').map((r) => (
+                        <p key={r.id} className="mt-2 rounded bg-sky-50 p-2 text-sm text-slate-700"><b>CRAFT expert:</b> {r.answer}</p>
+                      ))}
+                      {!skipped && canWrite && copilot?.enabled && score <= 2 && <CopilotDraft orgId={a.orgId} module={mod.id} domainId={dom.id} domainName={dom.name} />}
                     </div>
                   )
                 })}

@@ -25,6 +25,7 @@ import { cn } from '../lib/utils'
 import { LawsRegisterPanel } from '../components/admin/LawsRegisterPanel'
 import { TranslationReviewPanel } from '../components/admin/TranslationReviewPanel'
 import { SupportPanel } from '../components/admin/SupportPanel'
+import { CopilotPanel } from '../components/admin/CopilotPanel'
 import { FeaturesPanel } from '../components/admin/FeaturesPanel'
 
 const HEATMAP_DOMAINS = [
@@ -343,6 +344,7 @@ export function AdminPage() {
           { id: 'features', label: 'Features' },
           { id: 'laws', label: 'Laws register' },
           { id: 'translations', label: 'Translations' },
+          { id: 'copilot', label: 'Copilot' },
         ]}
         active={tab}
         onChange={setTab}
@@ -848,6 +850,7 @@ export function AdminPage() {
       {tab === 'laws' && <LawsRegisterPanel />}
 
       {tab === 'translations' && <TranslationReviewPanel />}
+      {tab === 'copilot' && <CopilotPanel />}
 
       {tab === 'support' && <SupportPanel />}
       {tab === 'features' && <FeaturesPanel />}
