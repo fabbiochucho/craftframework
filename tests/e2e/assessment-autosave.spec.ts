@@ -49,7 +49,7 @@ test('an unsaved draft does not overwrite a newer save made elsewhere until the 
   const options: { fail?: boolean; elsewhere?: string } = { fail: true }
   const saves = await independent(page, options)
   await page.getByLabel('What you saw (optional)').fill('Old unsaved draft')
-  await expect(page.getByRole('status').filter({ hasText: /Not saved/ })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /Not saved: Save temporarily unavailable/ })).toBeVisible()
   options.fail = false
   options.elsewhere = 'Saved on another device'
   await page.reload()
