@@ -10,6 +10,7 @@ import { VIEW_LEVELS, ASSIGNABLE_VIEW_LEVELS, getViewLevel, isSuperAdminEmail, P
 import { buildWelcomeEmail, buildWelcomeEmailHtml } from '../lib/inviteEmail'
 import { COUNTRIES, SECTORS_BY_ARCHETYPE, subsectorsForSector } from '../lib/dataroom'
 import { cn } from '../lib/utils'
+import { TelegramLinkCard } from '../components/TelegramLinkCard'
 
 // View levels assignable to a co-assessor from an org workspace. The platform
 // Super Admin is a reserved, invisible operator tier granted only from the
@@ -602,6 +603,7 @@ export function SettingsPage() {
 
       {tab === 'security' && (
         <div className="space-y-6">
+          {!currentUser?.isDemo && <TelegramLinkCard />}
           {!currentUser?.isDemo && (
             <Card>
               <CardHeader><CardTitle className="flex items-center gap-2"><Mail className="h-4 w-4" /> Email preferences</CardTitle></CardHeader>

@@ -1,6 +1,7 @@
 // Server side of the validation lifecycle (PR 5): the derived status view, who to
 // email, and the reminder run. Pure rules live in src/lib/validationLifecycle.ts.
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { notifyTelegram } from './telegram.js'
 import { db } from '../../db/index.js'
 import {
   capacityActions, engagementMembers, organizations, users, validationCheckpoints, validationCipActions, validationEngagements, validationNotifications,
@@ -121,6 +122,8 @@ export async function contactsFor(v: Pick<ValidationRow, 'orgId' | 'engagementId
 /** Fire-and-forget notice. A mail failure never fails the action that caused it. Returns what the provider did. */
 export async function notify(to: string[], subject: string, text: string, replyTo?: string): Promise<'accepted' | 'failed' | 'not_configured' | 'skipped'> {
   if (!to.length) return 'skipped'
+  // People who linked Telegram get the notice there too (low-bandwidth); email stays the record.
+  await notifyTelegram(to, subject, text)
   try {
     const result = await sendReminderEmail({ to, subject, text, ...(replyTo ? { reply_to: replyTo } : {}) }, undefined, 'validation_notice')
     if (result === 'not_configured') logger.warn('validation-lifecycle', 'email not configured; notice not sent')

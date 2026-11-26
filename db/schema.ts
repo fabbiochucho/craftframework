@@ -2773,5 +2773,21 @@ export const copilotRequests = pgTable('copilot_requests', {
   answer: text('answer').notNull().default(''),
   answeredBy: text('answered_by'),
   answeredAt: timestamp('answered_at', { withTimezone: true }),
+  // Asked from Telegram: the expert's answer is sent back to this chat.
+  telegramChatId: text('telegram_chat_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index('copilot_requests_org_idx').on(t.orgId, t.id), index('copilot_requests_status_idx').on(t.status)])
+
+// Telegram (src/lib/telegramBot.ts): a chat linked to a CRAFT account by a one-time code from Settings. `state` holds a
+// quick screen in progress. Codes are stored hashed and expire after 15 minutes.
+export const telegramLinks = pgTable('telegram_links', {
+  chatId: text('chat_id').primaryKey(),
+  email: text('email').notNull(),
+  linkedAt: timestamp('linked_at', { withTimezone: true }).notNull().defaultNow(),
+  state: jsonb('state').$type<{ answers: Record<string, string> } | null>(),
+}, (t) => [index('telegram_links_email_idx').on(t.email)])
+export const telegramLinkCodes = pgTable('telegram_link_codes', {
+  codeHash: text('code_hash').primaryKey(),
+  email: text('email').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+})
