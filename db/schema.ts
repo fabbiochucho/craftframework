@@ -49,6 +49,10 @@ export const organizations = pgTable(
     archetype: text('archetype'),
     sector: text('sector'),
     subsector: text('subsector'),
+    // Public benchmarks (src/lib/benchmarks.ts): staff-size band, and the organisation's opt-in. Never included without it.
+    sizeBand: text('size_band'),
+    benchmarkOptInAt: timestamp('benchmark_opt_in_at', { withTimezone: true }),
+    benchmarkOptInBy: text('benchmark_opt_in_by'),
     // Soft-archive flag: 'active' | 'archived'. Archived institutions are retained
     // (with all their data) but hidden from working surfaces and can be restored.
     status: text('status').notNull().default('active'),
@@ -2724,3 +2728,10 @@ export const catalogueIndependence = pgTable('catalogue_independence', {
   organisation: text('organisation').notNull().default(''),
   declaredAt: timestamp('declared_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.assessmentId, t.assessor] })])
+
+// Nightly public benchmark statistics (netlify/functions/benchmarks-refresh.mts). Aggregates only, never per organisation.
+export const benchmarkSnapshots = pgTable('benchmark_snapshots', {
+  id: serial('id').primaryKey(),
+  computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
+  data: jsonb('data').$type<import('../src/lib/benchmarks.ts').BenchmarkData>().notNull(),
+})

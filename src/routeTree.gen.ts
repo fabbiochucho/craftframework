@@ -20,6 +20,7 @@ import { Route as AuditLogRouteImport } from './routes/audit-log'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AwardsRouteImport } from './routes/awards'
 import { Route as BadgeRouteImport } from './routes/badge'
+import { Route as BenchmarksRouteImport } from './routes/benchmarks'
 import { Route as CapacityRouteImport } from './routes/capacity'
 import { Route as CipRouteImport } from './routes/cip'
 import { Route as CodeOfConductRouteImport } from './routes/code-of-conduct'
@@ -174,6 +175,11 @@ const AwardsRoute = AwardsRouteImport.update({
 const BadgeRoute = BadgeRouteImport.update({
   id: '/badge',
   path: '/badge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BenchmarksRoute = BenchmarksRouteImport.update({
+  id: '/benchmarks',
+  path: '/benchmarks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CapacityRoute = CapacityRouteImport.update({
@@ -721,6 +727,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/awards': typeof AwardsRoute
   '/badge': typeof BadgeRoute
+  '/benchmarks': typeof BenchmarksRoute
   '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
@@ -834,6 +841,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/awards': typeof AwardsRoute
   '/badge': typeof BadgeRoute
+  '/benchmarks': typeof BenchmarksRoute
   '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
@@ -948,6 +956,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/awards': typeof AwardsRoute
   '/badge': typeof BadgeRoute
+  '/benchmarks': typeof BenchmarksRoute
   '/capacity': typeof CapacityRoute
   '/cip': typeof CipRoute
   '/code-of-conduct': typeof CodeOfConductRoute
@@ -1063,6 +1072,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/awards'
     | '/badge'
+    | '/benchmarks'
     | '/capacity'
     | '/cip'
     | '/code-of-conduct'
@@ -1176,6 +1186,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/awards'
     | '/badge'
+    | '/benchmarks'
     | '/capacity'
     | '/cip'
     | '/code-of-conduct'
@@ -1289,6 +1300,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/awards'
     | '/badge'
+    | '/benchmarks'
     | '/capacity'
     | '/cip'
     | '/code-of-conduct'
@@ -1403,6 +1415,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   AwardsRoute: typeof AwardsRoute
   BadgeRoute: typeof BadgeRoute
+  BenchmarksRoute: typeof BenchmarksRoute
   CapacityRoute: typeof CapacityRoute
   CipRoute: typeof CipRoute
   CodeOfConductRoute: typeof CodeOfConductRoute
@@ -1582,6 +1595,13 @@ declare module '@tanstack/react-router' {
       path: '/badge'
       fullPath: '/badge'
       preLoaderRoute: typeof BadgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/benchmarks': {
+      id: '/benchmarks'
+      path: '/benchmarks'
+      fullPath: '/benchmarks'
+      preLoaderRoute: typeof BenchmarksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/capacity': {
@@ -2299,6 +2319,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   AwardsRoute: AwardsRoute,
   BadgeRoute: BadgeRoute,
+  BenchmarksRoute: BenchmarksRoute,
   CapacityRoute: CapacityRoute,
   CipRoute: CipRoute,
   CodeOfConductRoute: CodeOfConductRoute,

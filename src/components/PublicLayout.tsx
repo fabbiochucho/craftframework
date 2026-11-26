@@ -14,6 +14,7 @@ const navLinks = [
   { to: '/', labelKey: 'nav.home', fallback: 'Home' },
   { to: '/pre-assessment', labelKey: 'nav.readiness', fallback: 'Readiness Check' },
   { to: '/methodology', labelKey: 'nav.methodology', fallback: 'Methodology' },
+  { to: '/benchmarks', labelKey: 'nav.benchmarks', fallback: 'Benchmarks' },
   { to: '/architecture', labelKey: 'nav.architecture', fallback: 'Architecture' },
   { to: '/institute', labelKey: 'nav.institute', fallback: 'The Institute' },
   { to: '/open-source', labelKey: 'nav.openSource', fallback: 'Open Source' },
