@@ -7,6 +7,7 @@ import { canAccessOrg, forbidden, isSuperAdmin, mfaRequired, resolveCaller, unau
 import { decryptField, encryptField } from '../lib/crypto.js'
 import { draftFromTemplates, COPILOT_MODEL } from '../lib/copilot-model.js'
 import { logger, monitored } from '../lib/logger.js'
+import { sendTelegram } from '../lib/telegram.js'
 import { retrieve, TEMPLATE_KINDS, WATERMARK, type ActionTemplate } from '../../src/lib/copilot.js'
 
 // /api/copilot — the Gap-to-Action Copilot (src/lib/copilot.ts).
@@ -122,6 +123,9 @@ const handleRequest = async (req: Request) => {
       const [row] = await db.update(copilotRequests).set({ status: 'answered', answer: encryptField(p.data.answer), answeredBy: caller.email, answeredAt: new Date() })
         .where(and(eq(copilotRequests.id, Number(id)), eq(copilotRequests.status, 'routed'))).returning()
       if (!row) return json({ error: 'This question is already answered or does not exist.' }, 409)
+      if (row.telegramChatId) await sendTelegram(row.telegramChatId, `A CRAFT expert answered your question "${row.domainName}":
+
+${p.data.answer}`)
       return json(requestView(row))
     }
     return json({ error: 'Not found' }, 404)
