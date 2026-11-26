@@ -16,6 +16,7 @@ export const ROUTE_CLASS_BY_FILE: Record<string, RouteClass> = {
   'for.government': 'marketing',
   'for.public-health-institutes': 'marketing',
   methodology: 'marketing',
+  benchmarks: 'marketing',
   architecture: 'marketing',
   institute: 'marketing',
   'open-source': 'marketing',

@@ -16,6 +16,7 @@ import {
 import { CCA_MODULES, isAwardModule, isGovernmentModule, placeLabel } from '../lib/cca/modules'
 import { ScreeningCard } from '../components/ScreeningCard'
 import { QuickScreenCard } from '../components/QuickScreenCard'
+import { BenchmarkConsentCard } from '../components/BenchmarkConsentCard'
 import { ASSESSMENT_SCRIPT, ORIENTATION_AGENDA } from '../lib/cca/facilitatorGuide'
 import { DeskReviewPanel, deskRequirements, useDeskReview } from '../components/DeskReviewPanel'
 import { documentsForDomain, STATUS_META } from '../lib/dataroom'
@@ -91,6 +92,7 @@ export function CapacityAssessmentPage() {
         <p className="mt-1 max-w-3xl text-sm text-slate-600">Score each domain from 1 to 4. A level counts only when every statement in it, and in the levels below, is met and backed by evidence you have seen. Each capacity area counts equally in the overall score, read as a growth level: Nascent up to 25% of the maximum, Emerging up to 50%, Expanding up to 75%, Mature above. The results show an improvement plan for the next 12 months, and your progress over five years.</p>
       </div>
       {error && <p role="alert" className="text-sm text-rose-700">{error}</p>}
+      {orgId && !openId && <BenchmarkConsentCard orgId={orgId} />}
       <div className="flex flex-wrap gap-2">
         {CCA_MODULES.map((m) => (
           <button key={m.id} type="button" onClick={() => { setModuleId(m.id); setOpenId(null) }}
