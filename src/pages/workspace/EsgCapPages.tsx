@@ -236,7 +236,7 @@ export function CapHubPage({ workspaceId }: { workspaceId: string }) {
         <Tile label="Open" value={sum.data?.open ?? '–'} /><Tile label="Overdue" value={sum.data?.overdue ?? '–'} tone="text-rose-700" />
         <Tile label="% complete" value={`${sum.data?.percentComplete ?? 0}%`} /><Tile label="Avg days to close" value={sum.data?.avgDaysToClose ?? '–'} />
         <Tile label="Effectiveness review pending" value={sum.data?.effectivenessPending ?? '–'} tone="text-amber-700" />
-        <Tile label="Failed effectiveness" value={sum.data?.notEffective ?? '–'} tone="text-rose-700" />
+        <Tile label="Not yet effective" value={sum.data?.notEffective ?? '–'} tone="text-rose-700" />
         <Tile label="Reopened" value={sum.data?.reopened ?? '–'} tone="text-amber-700" />
         <Tile label="Escalated" value={sum.data?.escalated ?? '–'} tone="text-rose-700" />
         <Tile label="Merged duplicates" value={sum.data?.merged ?? '–'} />
