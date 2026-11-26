@@ -16,6 +16,10 @@ export const LANGS: Record<string, string> = {
   pt: 'European / African Portuguese (as used in Portugal, Angola and Mozambique — NOT Brazilian: use "registo", "contacto", "separador", "ecrã", "utilizador", "equipa", "ficheiro", "iniciar sessão")',
   sw: 'Swahili (standard Kiswahili sanifu as used in Kenya and Tanzania)',
   ar: 'Modern Standard Arabic',
+  ha: 'Hausa (standard Kano Hausa in Latin script (boko), with the hooked letters ɓ ɗ ƙ ƴ and the apostrophe y, formal register)',
+  yo: 'Yoruba (standard Yoruba with full tone marks and subdots: ẹ ọ ṣ, á à, formal register)',
+  ig: 'Igbo (standard Igbo, Ọnwụ orthography with dotted vowels ị ọ ụ and ṅ, formal register)',
+  am: 'Amharic (Geʽez script, formal register as used in Ethiopian government documents)',
 }
 
 // Curated terms from the hand-written navigation dictionaries, so page copy uses
@@ -51,6 +55,8 @@ const GLOSSARY: Record<string, Record<string, string>> = {
     'Assessment round': 'جولة التقييم', 'Network Value Scorecard': 'بطاقة قيمة الشبكة', 'Capacity-building plan': 'خطة بناء القدرات', 'Peer learning': 'التعلم بين الأقران',
     'Study tour': 'زيارة دراسية', 'Exchange visit': 'زيارة تبادلية', 'Mentoring': 'الإرشاد', 'Cohort': 'مجموعة', 'Latent': 'كامن', 'Emerging': 'ناشئ', 'Established': 'راسخ', 'Advanced': 'متقدم',
     'Immediate action required': 'مطلوب إجراء فوري', 'Attention needed': 'يحتاج إلى اهتمام', 'Good, but may need improvement': 'جيد، لكنه قد يحتاج إلى تحسين', 'Safeguarding': 'الحماية من الأذى', 'Community-led monitoring': 'الرصد بقيادة المجتمع' },
+  // Reviewers add agreed terms here as they review; until then the model chooses and reviewers correct.
+  ha: {}, yo: {}, ig: {}, am: {},
 }
 
 const MODEL = 'claude-sonnet-4-6'

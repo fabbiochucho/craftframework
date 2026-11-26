@@ -15,7 +15,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 // so the UI can never break on a missing string.
 // ---------------------------------------------------------------------------
 
-export type LangCode = 'en' | 'fr' | 'es' | 'pt' | 'ar' | 'sw'
+export type LangCode = 'en' | 'fr' | 'es' | 'pt' | 'ar' | 'sw' | 'ha' | 'yo' | 'ig' | 'am'
 
 export interface LanguageMeta {
   code: LangCode
@@ -32,6 +32,11 @@ export const LANGUAGES: LanguageMeta[] = [
   { code: 'pt', label: 'Português', english: 'Portuguese', flag: '🇵🇹', dir: 'ltr' },
   { code: 'sw', label: 'Kiswahili', english: 'Swahili', flag: '🇰🇪', dir: 'ltr' },
   { code: 'ar', label: 'العربية', english: 'Arabic', flag: '🇸🇦', dir: 'rtl' },
+  // Machine-translated at first, then reviewed by native speakers in Admin → Translations (reviewed wording wins).
+  { code: 'ha', label: 'Hausa', english: 'Hausa', flag: '🇳🇬', dir: 'ltr' },
+  { code: 'yo', label: 'Yorùbá', english: 'Yoruba', flag: '🇳🇬', dir: 'ltr' },
+  { code: 'ig', label: 'Asụsụ Igbo', english: 'Igbo', flag: '🇳🇬', dir: 'ltr' },
+  { code: 'am', label: 'አማርኛ', english: 'Amharic', flag: '🇪🇹', dir: 'ltr' },
 ]
 
 const SUPPORTED = new Set<string>(LANGUAGES.map(l => l.code))
@@ -238,7 +243,12 @@ const ar: Dict = {
   'cta.seeDemo': 'شاهد العرض التجريبي',
 }
 
-const DICTS: Record<LangCode, Dict> = { en, fr, es, pt, sw, ar }
+// No hand-written strings yet: pages are translated at runtime (components/AutoTranslate.tsx) and reviewed.
+const ha: Dict = {}
+const yo: Dict = {}
+const ig: Dict = {}
+const am: Dict = {}
+const DICTS: Record<LangCode, Dict> = { en, fr, es, pt, sw, ar, ha, yo, ig, am }
 
 // Strings already rendered from a hand-written dictionary. The runtime page
 // translator (components/AutoTranslate.tsx) skips these so curated wording is
@@ -262,6 +272,8 @@ export const COUNTRY_LANG: Record<string, LangCode> = {
   PT: 'pt', BR: 'pt', AO: 'pt', MZ: 'pt', CV: 'pt', GW: 'pt', ST: 'pt', TL: 'pt',
   // Swahili-speaking East Africa
   KE: 'sw', TZ: 'sw', UG: 'sw',
+  // Amharic-speaking (Nigeria stays English, its official language, with Hausa, Yoruba and Igbo one click away)
+  ET: 'am',
   // Arabic-speaking
   SA: 'ar', AE: 'ar', EG: 'ar', MA: 'ar', DZ: 'ar', TN: 'ar', LY: 'ar', SD: 'ar',
   JO: 'ar', IQ: 'ar', KW: 'ar', QA: 'ar', BH: 'ar', OM: 'ar', YE: 'ar', LB: 'ar',
