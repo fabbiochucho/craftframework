@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { fetchLegacyState, saveLegacyState } from './api'
 import { useAuthCtx } from './context'
+import { readDraft as vaultRead, removeDraft, writeDraft as vaultWrite } from './draftVault'
 
 export type SaveStatus = 'loading' | 'ready' | 'saving' | 'saved' | 'error' | 'signed-out' | 'demo' | 'read-only'
 
 // Every change is kept on this device until the workspace confirms it, so an expired sign-in, a dropped connection or a
 // closed tab never loses answers: the next load (same person, organisation and key) restores and saves them.
 // ponytail: one browser only; another device starts from the workspace's copy.
+// Drafts are encrypted at rest (draftVault) and record the saved value they were edited from: when the workspace has
+// changed since (saved on another device), the workspace's copy wins and the draft is dropped.
 const draftKeyOf = (userEmail: string | undefined, orgId: string, key: string) => `tenant-draft:${userEmail ?? ''}|${orgId}|${key}`
-const readDraft = <T,>(k: string): { value: T } | null => { try { return JSON.parse(localStorage.getItem(k) ?? 'null') } catch { return null } }
-const writeDraft = (k: string, value: unknown) => { try { localStorage.setItem(k, JSON.stringify({ value, at: Date.now() })) } catch { /* storage full or blocked */ } }
-const dropDraft = (k: string) => { try { localStorage.removeItem(k) } catch { /* nothing to drop */ } }
+const readDraft = async <T,>(email: string, k: string): Promise<{ value: T; base?: T | null } | null> => { try { return await vaultRead(email, k) } catch { return null } }
+const writeDraft = (email: string, k: string, value: unknown, base: unknown) => { void vaultWrite(email, k, { value, base, at: Date.now() }).catch(() => { /* storage full or blocked */ }) }
+const dropDraft = (k: string) => { void removeDraft(k) }
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const failure = (err: unknown): SaveStatus => (String((err as Error)?.message ?? '').startsWith('401') ? 'signed-out' : 'error')
 
 export function usePersistedTenantState<T>(
@@ -35,6 +39,7 @@ export function useTenantState<T>(
   const current = useRef(value)
   const generation = useRef(0)
   const edited = useRef(false)
+  const serverValue = useRef<T | null>(null)
   const writes = useRef(Promise.resolve())
   const scope = `${userEmail ?? ''}|${orgId ?? ''}|${demo}|${key}|${readOnly}`
   const activeScope = useRef(scope)
@@ -53,12 +58,15 @@ export function useTenantState<T>(
     setStatus(demo ? 'demo' : readOnly ? 'read-only' : 'loading')
     if (!orgId || demo) return
     const draftKey = draftKeyOf(userEmail, orgId, key)
-    void fetchLegacyState<T>(orgId, key, signal).then(saved => {
+    void fetchLegacyState<T>(orgId, key, signal).then(async saved => {
       if (generation.current !== gen || edited.current) return
+      serverValue.current = saved
       if (saved !== null) { current.current = saved; setValue(saved) }
       // Answers kept on this device that never reached the workspace come back, and are saved now.
-      const draft = readOnly ? null : readDraft<T>(draftKey)
-      if (!draft) { setStatus(readOnly ? 'read-only' : 'ready'); return }
+      const draft = readOnly || !userEmail ? null : await readDraft<T>(userEmail, draftKey)
+      if (generation.current !== gen || edited.current) return
+      if (draft && 'base' in draft && !same(draft.base, saved)) dropDraft(draftKey)
+      if (!draft || ('base' in draft && !same(draft.base, saved))) { setStatus(readOnly ? 'read-only' : 'ready'); return }
       current.current = draft.value
       edited.current = true
       setValue(draft.value)
@@ -67,6 +75,7 @@ export function useTenantState<T>(
         if (generation.current !== gen || activeScope.current !== scope || signal.aborted) return
         try {
           await saveLegacyState(orgId, key, draft.value, signal)
+          serverValue.current = draft.value
           if (generation.current === gen && current.current === draft.value) { dropDraft(draftKey); setStatus('saved') }
         } catch (err) {
           if (generation.current === gen) setStatus(failure(err))
@@ -96,7 +105,7 @@ export function useTenantState<T>(
     const gen = generation.current
     const signal = controller.current.signal
     const draftKey = draftKeyOf(userEmail, orgId, key)
-    writeDraft(draftKey, next)
+    if (userEmail) writeDraft(userEmail, draftKey, next, serverValue.current)
     setStatus('saving')
     writes.current = writes.current.catch(() => {}).then(async () => {
       if (generation.current !== gen || activeScope.current !== scope || signal.aborted) return
@@ -106,6 +115,7 @@ export function useTenantState<T>(
       }
       try {
         await saveLegacyState(orgId, key, next, signal)
+        serverValue.current = next
         if (current.current === next) dropDraft(draftKey)
         if (generation.current === gen && current.current === next) setStatus('saved')
       } catch (err) {

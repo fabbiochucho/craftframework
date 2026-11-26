@@ -49,6 +49,7 @@ describe('CRAFT Capacity Assessment API', () => {
     publish()
     const id = (await call(ALICE, 'POST', '', { orgId: 'org_a', module: 'community', year: 2026 })).body.id
     const first = await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': ok } })
+    await rows("UPDATE assessment_revisions SET saved_at = saved_at - interval '1 hour'") // a later sitting, not the same autosave window
     const second = await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.3': ok } })
     assert.ok(first.body.savedAt && second.body.savedAt)
     assert.equal((await call(ALICE, 'PUT', `/${id}`, { responses: { 'g1.2': { evidence: 'x'.repeat(1001) } } })).status, 400)

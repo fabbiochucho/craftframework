@@ -8,7 +8,7 @@ import { EditFields, ErrorLine, ExportButtons, Header, State, StatusPill, useAct
 import { activeItems, REVIEW_DOMAINS } from '../../lib/health-security'
 import { catalogueByType, RESTRICTED_LABELS } from '../../lib/assessment-catalogues'
 import { SPAR_LEVELS, SPAR_SOURCE } from '../../lib/spar-levels'
-import { AssessmentAutosaveContext, useAssessmentAutosave, type FlushAssessment } from '../../lib/assessmentAutosave'
+import { AssessmentAutosaveContext, AutosaveStatus, useAssessmentAutosave, type FlushAssessment } from '../../lib/assessmentAutosave'
 import { emptyValidationDraft, type ValidationDraft } from '../../lib/validationDraft'
 
 const CATALOGUE_TYPES = ['NPHI', 'JEE', 'JEE_SUB', 'SPAR', 'PSP']
@@ -229,7 +229,7 @@ function IndependentValidationForm({ workspaceId, a, initial, savedAt, reload }:
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={independenceDeclared} onChange={e => setIndependenceDeclared(e.target.checked)} />
           <span>I declare that I am independent of the assessed institution and have no conflict of interest in this validation.</span></label>
         <ErrorLine error={error} />
-        <p role="status" className="text-xs text-slate-600">{draft.status || (savedAt ? `Draft saved ${new Date(savedAt).toLocaleString()}` : '')}</p>
+        <AutosaveStatus draft={draft} savedAt={savedAt} label="Draft saved" />
         <Button disabled={!v.validatorName.trim() || !independenceDeclared} onClick={() => void submit()}>Record independent validation</Button>
       </fieldset>
 }
@@ -330,7 +330,7 @@ function WorkspaceScoreEditor({ workspaceId, assessmentId, pillar, domain, locke
     {!range && <label className="text-sm"><input type="checkbox" checked={d.na} onChange={e => set({ na: e.target.checked })} /> Not applicable</label>}
     {d.na && <Input label="Reason it does not apply" maxLength={1000} value={d.naReason} onChange={e => set({ naReason: e.target.value })} />}
     <Button size="sm" disabled={d.na ? !d.naReason.trim() : !d.score} onClick={() => void draft.save()}>Save</Button>
-    <span role="status" className="text-xs text-slate-600">{draft.status || (saved?.updatedAt ? `Saved ${new Date(saved.updatedAt).toLocaleString()}` : '')}</span>
+    <AutosaveStatus draft={draft} savedAt={saved?.updatedAt} />
     {saved && <StatusPill value={saved.notApplicable ? 'not_applicable' : 'completed'} />}
   </fieldset>
 }

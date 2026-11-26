@@ -267,10 +267,15 @@ const handleRequest = async (req: Request) => {
       if (!firm) return bad('Funding partner not found')
       const [existing] = await db.select().from(validationFunderConsents).where(and(eq(validationFunderConsents.validationId, id), eq(validationFunderConsents.funderFirmId, firm.id)))
       if (p.data.granted) {
-        const shareComments = p.data.shareComments ?? (existing && !existing.revokedAt ? existing.shareComments : false)
+        const active = existing && !existing.revokedAt ? existing : null
+        const shareComments = p.data.shareComments ?? active?.shareComments ?? false
+        if (active && active.shareComments === shareComments) return json(await detail(ctx))
         if (existing) await db.update(validationFunderConsents).set({ revokedAt: null, revokedBy: null, grantedBy: caller.email, grantedAt: now, shareComments }).where(eq(validationFunderConsents.id, existing.id))
         else await db.insert(validationFunderConsents).values({ id: `vfc_${crypto.randomUUID()}`, validationId: id, funderFirmId: firm.id, grantedBy: caller.email, shareComments })
-        await audit(caller.email, `consented to ${firm.name} seeing the validation's schedule and progress`, id, v.orgId)
+        // Sharing review comments is a separate consent, so it is recorded in its own words.
+        await audit(caller.email, active
+          ? `${shareComments ? 'allowed' : 'stopped'} ${firm.name} seeing the review comments`
+          : `consented to ${firm.name} seeing the validation's schedule and progress${shareComments ? ' and the review comments' : ''}`, id, v.orgId)
       } else {
         if (!existing || existing.revokedAt) return json(await detail(ctx))
         await db.update(validationFunderConsents).set({ revokedAt: now, revokedBy: caller.email }).where(eq(validationFunderConsents.id, existing.id))

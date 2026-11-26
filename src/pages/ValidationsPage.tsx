@@ -5,7 +5,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select 
 import { RateYourValidator, ReReviewFlags, ValidatorStatistics } from '../components/ValidatorFeedback'
 import { RequireReReview, ReReviews } from '../components/ReReviews'
 import { EVENT_DECISIONS, FOLLOW_UP_LABEL, FOLLOW_UP_MODES, type FollowUpMode } from '../lib/validationLifecycle'
-import { useAssessmentAutosave } from '../lib/assessmentAutosave'
+import { AutosaveStatus, useAssessmentAutosave } from '../lib/assessmentAutosave'
 
 // Validator system PR 5: the issued validation's lifecycle. Every rule is
 // enforced by /api/validations; status is always computed on the server.
@@ -351,6 +351,6 @@ function FunderNote({ id, initial }: { id: string; initial: { firmId: string; no
     <Input label="Your funding partner's review note" maxLength={4000} value={draft.value} onChange={e => draft.setValue(e.target.value)} />
     <p className="text-xs text-slate-500">This is your firm's own input, not an independent score. Changes save automatically.</p>
     <Button size="sm" variant="outline" onClick={() => void draft.save()}>Save note</Button>
-    <p role="status" className="text-xs text-slate-600">{draft.status || (initial.updatedAt ? `Saved ${new Date(initial.updatedAt).toLocaleString()}` : '')}</p>
+    <AutosaveStatus draft={draft} savedAt={initial.updatedAt} />
   </div>
 }

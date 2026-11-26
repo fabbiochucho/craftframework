@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '../components/ui'
-import { useAssessmentAutosave } from '../lib/assessmentAutosave'
+import { AutosaveStatus, useAssessmentAutosave } from '../lib/assessmentAutosave'
 
 type Item = { id: string; sectionId: string; name: string; description: string; critical?: boolean }
 type Detail = {
@@ -111,7 +111,7 @@ function NphiItem({ id, i, d, reload, hidden }: { id: number; i: Item; d: Detail
                 <label className="flex items-center gap-1"><input type="checkbox" checked={v.na} onChange={(e) => set({ na: e.target.checked })} /> Not applicable</label>
                 <div className="min-w-[260px] flex-1"><Input maxLength={2000} label={v.na ? 'Why it does not apply' : 'What you saw (optional)'} value={v.note} onChange={(e) => set({ note: e.target.value })} /></div>
                 <Button size="sm" disabled={v.na ? !v.note.trim() : !v.score} onClick={() => void draft.save()}>Save</Button>
-                {draft.status ? <span role="status" className="text-xs text-slate-600">{draft.status}</span> : mine?.updatedAt && <span className="text-xs text-emerald-700">Saved {new Date(mine.updatedAt).toLocaleString()}</span>}
+                <AutosaveStatus draft={draft} savedAt={mine?.updatedAt} />
               </div>
             )}
           </CardContent></Card>

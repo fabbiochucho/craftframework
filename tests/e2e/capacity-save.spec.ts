@@ -1,6 +1,19 @@
 import { test, expect } from './fixtures'
 import type { Page } from '@playwright/test'
 
+// Drafts are encrypted at rest; decrypt with the tab's session key to inspect them, and prove they are not plain text.
+const draftIn = (page: Page, name: string) => page.evaluate(async name => {
+  const stored = localStorage.getItem(name)
+  if (!stored) return null
+  if (!stored.startsWith('dv1:')) throw new Error('draft stored unencrypted')
+  const { key } = JSON.parse(sessionStorage.getItem('craft_draft_key') ?? '{}')
+  const bytes = (t: string) => Uint8Array.from(atob(t), c => c.charCodeAt(0))
+  const [iv, data] = stored.slice(4).split(':')
+  const k = await crypto.subtle.importKey('raw', bytes(key), 'AES-GCM', false, ['decrypt'])
+  return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes(iv) }, k, bytes(data))))
+}, name)
+const draftEvidence = async (page: Page) => (await draftIn(page, 'cca-draft-cca_browser'))?.responses['board.2'].evidence
+
 const mod = {
   id: 'community', name: 'Community', audience: 'Organisations',
   areas: [{ id: 'governance', name: 'Governance', domains: [{
@@ -48,11 +61,11 @@ test('a delayed save does not discard newer edits, and subsequent saves stay ord
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect.poll(() => state.saved.length).toBe(1)
   await evidence.fill('Latest version')
-  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('cca-draft-cca_browser') ?? 'null')?.responses['board.2'].evidence)).toBe('Latest version')
+  await expect.poll(() => draftEvidence(page)).toBe('Latest version')
   const firstSaved = page.waitForResponse(response => response.url().endsWith('/api/cca/cca_browser') && response.request().method() === 'PUT')
   release()
   await firstSaved
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cca-draft-cca_browser') ?? 'null')?.responses['board.2'].evidence)).toBe('Latest version')
+  expect(await draftEvidence(page)).toBe('Latest version')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect.poll(() => state.saved.length).toBe(2)
   await expect(page.getByRole('status').filter({ hasText: /^Saved\.$/ })).toBeVisible()
@@ -67,7 +80,7 @@ test('a failed save retains the draft and never submits an assessment', async ({
   await page.getByRole('button', { name: 'Complete assessment', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: /Could not save SWOT/ })).toBeVisible()
   expect(state.completeCalls()).toBe(0)
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cca-draft-cca_browser') ?? 'null')?.responses['board.2'].evidence)).toBe('Signed minutes')
+  expect(await draftEvidence(page)).toBe('Signed minutes')
 })
 
 test('read-only users can inspect answers without editable fields or save controls', async ({ signedIn: page }) => {

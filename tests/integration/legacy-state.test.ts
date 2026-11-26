@@ -45,6 +45,7 @@ describe('legacy tenant assessment state', () => {
 
   it('keeps each encrypted saved revision across sign-ins and does not archive failed writes', async () => {
     const first = await (await call('owner@example.com', 'PUT', 'tenant', { records: 1 })).json()
+    await rows("UPDATE assessment_revisions SET saved_at = saved_at - interval '1 hour'") // a later sitting, not the same autosave window
     const second = await (await call('owner@example.com', 'PUT', 'tenant', { records: 2 })).json()
     assert.ok(first.savedAt && second.savedAt)
     assert.equal((await call('other@example.com', 'PUT', 'tenant', { records: 9 })).status, 403)
@@ -61,6 +62,12 @@ describe('legacy tenant assessment state', () => {
     assert.equal(history.revisions[0].savedAt, second.savedAt)
     ;(globalThis as any).__craftTestIdentity = { email: 'other@example.com' }
     assert.deepEqual((await (await archive(new Request('http://localhost/api/assessment-archive'))).json()).revisions, [])
+  })
+
+  it('folds autosaves of one record within ten minutes into one revision holding the latest save', async () => {
+    for (const records of [1, 2, 3]) assert.equal((await call('owner@example.com', 'PUT', 'tenant', { records })).status, 200)
+    const history = await (await archive(new Request('http://localhost/api/assessment-archive?source=legacy'))).json()
+    assert.deepEqual(history.revisions.map((r: any) => r.snapshot.records), [3])
   })
 
   it('rechecks current access before disclosing an earlier revision', async () => {
